@@ -1,0 +1,12 @@
+[package]
+name = "diffbelt"
+version = "0.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.22.0", features = ["full"] }
+warp = "0.3.3"
+futures = "0.3.25"
+rocksdb = { version = "0.19.0", features = ["multi-threaded-cf"] }
