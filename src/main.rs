@@ -1,23 +1,24 @@
 use crate::context::Context;
+use crate::raw_db::RawDbOptions;
+use crate::routes::{BaseResponse, Response, StaticRouteOptions, StringResponse};
 use std::cell::Cell;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use warp::http::response::Builder;
 use warp::http::StatusCode;
 use warp::path::FullPath;
 use warp::reject::Reject;
 use warp::{Filter, Rejection};
-use crate::routes::{StaticRouteOptions, Response, StringResponse, BaseResponse};
 
+mod collection;
 mod common;
 mod context;
-mod raw_db;
+mod cursor;
 mod database;
-mod collection;
 mod generation;
 mod phantom;
+mod raw_db;
 mod reader;
-mod cursor;
 mod routes;
 
 #[derive(Debug)]
@@ -27,16 +28,18 @@ impl Reject for Error500 {}
 
 #[tokio::main]
 async fn main() {
-    let database = raw_db::create_raw_db();
+    let database = raw_db::create_raw_db(RawDbOptions {
+        path: "/tmp/diffbelt_raw_db",
+        column_families: &vec![],
+    });
 
-    let context = Arc::new(Mutex::new(Context {
+    let context = Arc::new(RwLock::new(Context {
         routing: routes::new_routing(),
-        some_value: Arc::new(Mutex::new(Cell::new(0))),
         raw_db: Arc::new(database),
     }));
 
     async {
-        let mut context = context.lock().await;
+        let mut context = context.write().await;
         routes::root::register_root_route(&mut context);
     }
     .await;
@@ -44,10 +47,10 @@ async fn main() {
     let routed_get = warp::get()
         .map(move || context.clone())
         .and(warp::path::full())
-        .and_then(|context: Arc<Mutex<Context>>, path: FullPath| async move {
+        .and_then(|context: Arc<RwLock<Context>>, path: FullPath| async move {
             let path = path.as_str();
 
-            let locked_context = context.lock().await;
+            let locked_context = context.read().await;
 
             let static_route = locked_context.routing.static_get_routes.get(path);
 
@@ -60,7 +63,7 @@ async fn main() {
 
             drop(locked_context);
 
-            let result = static_route(StaticRouteOptions { context: &context }).await;
+            let result = static_route(StaticRouteOptions { context }).await;
 
             let response_builder = Builder::new();
 

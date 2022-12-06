@@ -1,4 +1,5 @@
-use rocksdb::{Error, DB};
+use rocksdb::{Error, Options, DB};
+use std::borrow::Borrow;
 use std::sync::Arc;
 
 pub struct RawDb {
@@ -22,9 +23,7 @@ impl RawDb {
                     arr.clone_from_slice(bytes.as_slice());
                     u32::from_be_bytes(arr)
                 }
-                None => {
-                    0 as u32
-                }
+                None => 0 as u32,
             };
 
             let new_value = if value >= u32::MAX {
@@ -36,7 +35,7 @@ impl RawDb {
             let arr = u32::to_be_bytes(new_value);
             db.put("some_key", arr)?;
 
-            return Ok(value) as Result<u32, Error>
+            return Ok(value) as Result<u32, Error>;
         })
         .await
         .or(Err(()))?
@@ -44,8 +43,21 @@ impl RawDb {
     }
 }
 
-pub fn create_raw_db() -> RawDb {
-    let db = DB::open_default("/tmp/raw_db").unwrap();
+pub struct RawDbOptions<'a> {
+    pub path: &'a str,
+    pub column_families: &'a Vec<&'a str>,
+}
+
+pub fn create_raw_db(options: RawDbOptions) -> RawDb {
+    let path = options.path;
+
+    let mut opts = Options::default();
+    opts.create_if_missing(true);
+    opts.create_missing_column_families(true);
+
+    let column_families = options.column_families;
+
+    let db = DB::open_cf(&opts, path, column_families).expect("raw_db, cannot open RocksDB");
 
     return RawDb { db: Arc::new(db) };
 }

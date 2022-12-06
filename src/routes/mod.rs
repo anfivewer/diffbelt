@@ -1,13 +1,13 @@
 use crate::context::Context;
 use futures::future::BoxFuture;
 use std::collections::HashMap;
-use tokio::sync::Mutex;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 pub mod root;
 
-pub struct StaticRouteOptions<'a> {
-    pub context: &'a Mutex<Context>,
+pub struct StaticRouteOptions {
+    pub context: Arc<RwLock<Context>>,
 }
 
 pub struct BaseResponse {
@@ -29,7 +29,7 @@ pub enum Response {
     String(StringResponse),
 }
 
-type StaticRouteFn = fn(options: StaticRouteOptions) -> BoxFuture<Response>;
+type StaticRouteFn = fn(options: StaticRouteOptions) -> BoxFuture<'static, Response>;
 type StaticRoutes = HashMap<String, Arc<StaticRouteFn>>;
 
 pub struct Routing {
@@ -37,12 +37,9 @@ pub struct Routing {
 }
 
 impl Routing {
-    pub fn add_static_get_route(
-        &mut self,
-        path: &str,
-        handler: fn(options: StaticRouteOptions) -> BoxFuture<Response>,
-    ) -> () {
-        self.static_get_routes.insert(path.to_string(), Arc::new(handler));
+    pub fn add_static_get_route(&mut self, path: &str, handler: StaticRouteFn) -> () {
+        self.static_get_routes
+            .insert(path.to_string(), Arc::new(handler));
     }
 }
 

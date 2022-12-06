@@ -1,10 +1,10 @@
 use crate::context::Context;
+use crate::routes::{BaseResponse, Response, StaticRouteOptions, StringResponse};
 use futures::future::BoxFuture;
-use crate::routes::{StaticRouteOptions, Response, StringResponse, BaseResponse};
 
-fn test_handle(options: StaticRouteOptions<'_>) -> BoxFuture<Response> {
+fn test_handle(options: StaticRouteOptions) -> BoxFuture<'static, Response> {
     return Box::pin(async move {
-        let context = options.context.lock().await;
+        let context = options.context.read().await;
         let database = context.raw_db.clone();
         drop(context);
 

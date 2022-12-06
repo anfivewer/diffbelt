@@ -1,12 +1,14 @@
+use crate::common::{CollectionKey, GenerationId};
 use std::collections::BTreeSet;
-use crate::common::{GenerationId, CollectionKey};
+use std::sync::RwLock;
 
-enum CollectionGenerationKeys {
+pub enum CollectionGenerationKeys {
     Sealed(Vec<CollectionKey>),
-    InProgress(BTreeSet<CollectionKey>),
+    // Use std::sync::RwLock instead of tokio, this set will be not blocked for a long time
+    InProgress(RwLock<BTreeSet<CollectionKey>>),
 }
 
-struct CollectionGeneration {
-    id: GenerationId,
-    keys: CollectionGenerationKeys,
+pub struct CollectionGeneration {
+    pub id: GenerationId,
+    pub keys: CollectionGenerationKeys,
 }

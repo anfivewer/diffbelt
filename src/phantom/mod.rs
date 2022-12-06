@@ -1,5 +1,5 @@
+use crate::common::{CollectionKey, GenerationId, PhantomId};
 use std::collections::BTreeSet;
-use crate::common::{GenerationId, PhantomId, CollectionKey};
 
 struct PhantomKey {
     key: CollectionKey,
