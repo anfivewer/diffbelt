@@ -1,4 +1,4 @@
-use rocksdb::{Error, Options, DB};
+use rocksdb::{ColumnFamilyDescriptor, Error, Options, DB};
 use std::borrow::Borrow;
 use std::sync::Arc;
 
@@ -45,7 +45,7 @@ impl RawDb {
 
 pub struct RawDbOptions<'a> {
     pub path: &'a str,
-    pub column_families: &'a Vec<&'a str>,
+    pub column_family_descriptors: Vec<ColumnFamilyDescriptor>,
 }
 
 pub fn create_raw_db(options: RawDbOptions) -> RawDb {
@@ -55,9 +55,10 @@ pub fn create_raw_db(options: RawDbOptions) -> RawDb {
     opts.create_if_missing(true);
     opts.create_missing_column_families(true);
 
-    let column_families = options.column_families;
+    let column_family_descriptors = options.column_family_descriptors;
 
-    let db = DB::open_cf(&opts, path, column_families).expect("raw_db, cannot open RocksDB");
+    let db = DB::open_cf_descriptors(&opts, path, column_family_descriptors)
+        .expect("raw_db, cannot open RocksDB");
 
     return RawDb { db: Arc::new(db) };
 }

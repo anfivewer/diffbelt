@@ -30,7 +30,7 @@ impl Reject for Error500 {}
 async fn main() {
     let database = raw_db::create_raw_db(RawDbOptions {
         path: "/tmp/diffbelt_raw_db",
-        column_families: &vec![],
+        column_family_descriptors: vec![],
     });
 
     let context = Arc::new(RwLock::new(Context {
