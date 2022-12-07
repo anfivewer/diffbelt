@@ -1,7 +1,9 @@
+use crate::config::Config;
 use crate::context::Context;
-use crate::raw_db::RawDbOptions;
+use crate::raw_db::{RawDb, RawDbOptions};
 use crate::routes::{BaseResponse, Response, StaticRouteOptions, StringResponse};
 use std::cell::Cell;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use warp::http::response::Builder;
@@ -12,6 +14,7 @@ use warp::{Filter, Rejection};
 
 mod collection;
 mod common;
+mod config;
 mod context;
 mod cursor;
 mod database;
@@ -28,12 +31,20 @@ impl Reject for Error500 {}
 
 #[tokio::main]
 async fn main() {
-    let database = raw_db::create_raw_db(RawDbOptions {
-        path: "/tmp/diffbelt_raw_db",
-        column_family_descriptors: vec![],
-    });
+    let config = Config::read_from_env().expect("Config not parsed");
+
+    let path = Path::new(&config.data_path).join("_meta");
+    let path = path.to_str().unwrap();
+
+    let database = RawDb::open_raw_db(RawDbOptions {
+        path,
+        comparator: None,
+        column_families: vec![],
+    })
+    .expect("Cannot open meta raw_db");
 
     let context = Arc::new(RwLock::new(Context {
+        config,
         routing: routes::new_routing(),
         raw_db: Arc::new(database),
     }));

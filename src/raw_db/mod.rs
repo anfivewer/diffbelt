@@ -1,12 +1,68 @@
-use rocksdb::{ColumnFamilyDescriptor, Error, Options, DB};
+use rocksdb::{AsColumnFamilyRef, BoundColumnFamily, ColumnFamilyDescriptor, Options, DB};
 use std::borrow::Borrow;
+use std::cmp::Ordering;
 use std::sync::Arc;
 
 pub struct RawDb {
     db: Arc<DB>,
+    cf_name: Arc<Option<String>>,
+}
+
+pub enum RawDbError {
+    RocksDb(rocksdb::Error),
+    Join(tokio::task::JoinError),
+    CfHandle,
+}
+
+impl From<rocksdb::Error> for RawDbError {
+    fn from(err: rocksdb::Error) -> Self {
+        RawDbError::RocksDb(err)
+    }
+}
+
+impl From<tokio::task::JoinError> for RawDbError {
+    fn from(err: tokio::task::JoinError) -> Self {
+        RawDbError::Join(err)
+    }
 }
 
 impl RawDb {
+    pub async fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, RawDbError> {
+        let db = self.db.clone();
+        let cf_name = self.cf_name.clone();
+
+        tokio::task::spawn_blocking(move || {
+            let value = match cf_name.borrow() {
+                Some(cf_name) => {
+                    let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
+                    db.get_cf(&cf, key)?
+                }
+                None => db.get(key)?,
+            };
+
+            Ok(value)
+        })
+        .await?
+    }
+
+    pub async fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), RawDbError> {
+        let db = self.db.clone();
+        let cf_name = self.cf_name.clone();
+
+        tokio::task::spawn_blocking(move || {
+            match cf_name.borrow() {
+                Some(cf_name) => {
+                    let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
+                    db.put_cf(&cf, key, value)?
+                }
+                None => db.put(key, value)?,
+            };
+
+            Ok(())
+        })
+        .await?
+    }
+
     pub async fn next_value(&self) -> Result<u32, ()> {
         let db = self.db.clone();
 
@@ -35,7 +91,7 @@ impl RawDb {
             let arr = u32::to_be_bytes(new_value);
             db.put("some_key", arr)?;
 
-            return Ok(value) as Result<u32, Error>;
+            return Ok(value) as Result<u32, rocksdb::Error>;
         })
         .await
         .or(Err(()))?
@@ -43,22 +99,71 @@ impl RawDb {
     }
 }
 
-pub struct RawDbOptions<'a> {
-    pub path: &'a str,
-    pub column_family_descriptors: Vec<ColumnFamilyDescriptor>,
+pub struct RawDbComparator {
+    pub name: String,
+    pub compare_fn: fn(&[u8], &[u8]) -> Ordering,
 }
 
-pub fn create_raw_db(options: RawDbOptions) -> RawDb {
-    let path = options.path;
+pub struct RawDbColumnFamily {
+    pub name: String,
+    pub comparator: Option<RawDbComparator>,
+}
 
-    let mut opts = Options::default();
-    opts.create_if_missing(true);
-    opts.create_missing_column_families(true);
+pub struct RawDbOptions<'a> {
+    pub path: &'a str,
+    pub comparator: Option<RawDbComparator>,
+    pub column_families: Vec<RawDbColumnFamily>,
+}
 
-    let column_family_descriptors = options.column_family_descriptors;
+#[derive(Debug)]
+pub enum RawDbOpenError {
+    RocksDbError(rocksdb::Error),
+}
 
-    let db = DB::open_cf_descriptors(&opts, path, column_family_descriptors)
-        .expect("raw_db, cannot open RocksDB");
+impl From<rocksdb::Error> for RawDbOpenError {
+    fn from(err: rocksdb::Error) -> Self {
+        RawDbOpenError::RocksDbError(err)
+    }
+}
 
-    return RawDb { db: Arc::new(db) };
+impl RawDb {
+    pub fn open_raw_db(options: RawDbOptions) -> Result<RawDb, RawDbOpenError> {
+        let path = options.path;
+
+        let mut opts = Options::default();
+        opts.create_if_missing(true);
+        opts.create_missing_column_families(true);
+
+        match options.comparator {
+            Some(comparator) => opts.set_comparator(&comparator.name, comparator.compare_fn),
+            None => (),
+        }
+
+        let column_family_descriptors: Vec<ColumnFamilyDescriptor> = options
+            .column_families
+            .iter()
+            .map(|family| {
+                family.comparator.as_ref().map(|comparator| {
+                    let mut cf_opts = Options::default();
+                    cf_opts.set_comparator(&comparator.name, comparator.compare_fn);
+                    ColumnFamilyDescriptor::new(&comparator.name, cf_opts)
+                })
+            })
+            .filter_map(|item| item)
+            .collect();
+
+        let db = DB::open_cf_descriptors(&opts, path, column_family_descriptors)?;
+
+        return Ok(RawDb {
+            db: Arc::new(db),
+            cf_name: Arc::new(None),
+        });
+    }
+
+    pub fn with_cf<S: Into<String>>(&self, name: S) -> Self {
+        RawDb {
+            db: self.db.clone(),
+            cf_name: Arc::new(Some(name.into())),
+        }
+    }
 }
