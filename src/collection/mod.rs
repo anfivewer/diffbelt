@@ -1,10 +1,11 @@
-use crate::common::GenerationId;
+use crate::common::{GenerationId, IsByteArray, IsByteArrayMut};
 use crate::context::Context;
 use crate::generation::CollectionGeneration;
 use crate::raw_db::{
-    RawDb, RawDbColumnFamily, RawDbComparator, RawDbOpenError as RawDbOpenErrorExternal,
-    RawDbOptions,
+    RawDb, RawDbColumnFamily, RawDbComparator, RawDbError,
+    RawDbOpenError as RawDbOpenErrorExternal, RawDbOptions,
 };
+use crate::util::bytes::increment;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::path::Path;
@@ -12,6 +13,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 mod methods;
+mod util;
 
 type ReaderCollectionId<'a> = &'a str;
 type ReaderId<'a> = &'a str;
@@ -37,97 +39,22 @@ pub struct NewCollectionOptions {
 }
 
 pub enum CollectionOpenError {
-    PathJoinError,
-    RawDbOpenError(RawDbOpenErrorExternal),
+    PathJoin,
+    RawDbOpen(RawDbOpenErrorExternal),
+    RawDb(RawDbError),
+    ManualModeMissmatch,
 }
 
 impl From<RawDbOpenErrorExternal> for CollectionOpenError {
     fn from(err: RawDbOpenErrorExternal) -> Self {
-        CollectionOpenError::RawDbOpenError(err)
+        CollectionOpenError::RawDbOpen(err)
     }
 }
 
-/*
-    1 -- reserved byte
-    3 -- size of user key
-    1 -- size of generationId
-    1 -- size of phantomId
-*/
-const MIN_KEY_SIZE: usize = 1 + 3 + 1 + 1;
-
-fn read_u24(bytes: &[u8], offset: usize) -> u32 {
-    ((bytes[offset + 2] as u32) << 16) + ((bytes[offset + 1] as u32) << 8) + (bytes[offset] as u32)
-}
-
-fn record_key_compare_byte_sized(
-    left: &[u8],
-    right: &[u8],
-    left_offset: usize,
-    right_offset: usize,
-) -> (Ordering, usize, usize) {
-    let left_size = left[left_offset] as usize;
-    let right_size = right[right_offset] as usize;
-
-    if left.len() - left_offset - 1 < left_size || right.len() - right_offset - 1 < right_size {
-        panic!("record key single-byte invalid size");
+impl From<RawDbError> for CollectionOpenError {
+    fn from(err: RawDbError) -> Self {
+        CollectionOpenError::RawDb(err)
     }
-
-    let left_to = left_offset + 1 + left_size;
-    let right_to = right_offset + 1 + right_size;
-
-    let left_val: &[u8] = &left[(left_offset + 1)..left_to];
-    let right_val: &[u8] = &right[(right_offset + 1)..right_to];
-
-    let ord = left_val.cmp(right_val);
-
-    (ord, left_to, right_to)
-}
-
-fn record_key_compare_fun(left: &[u8], right: &[u8]) -> Ordering {
-    let left_length = left.len();
-    let right_length = right.len();
-
-    if left_length < MIN_KEY_SIZE || right_length < MIN_KEY_SIZE {
-        panic!("record key less than minimum");
-    }
-
-    if left[0] != 0 || right_length != 0 {
-        panic!("record key reserved flag byte is not zero");
-    }
-
-    let left_key_size = read_u24(left, 1) as usize;
-    let right_key_size = read_u24(right, 1) as usize;
-
-    if left_length - MIN_KEY_SIZE < left_key_size || right_length - MIN_KEY_SIZE < right_key_size {
-        panic!("record key has invalid user key size");
-    }
-
-    let left_to = 4 + left_key_size;
-    let right_to = 4 + right_key_size;
-
-    let left_key: &[u8] = &left[4..left_to];
-    let right_key: &[u8] = &right[4..right_to];
-
-    let ord = left_key.cmp(right_key);
-    match ord {
-        Ordering::Equal => {}
-        found => {
-            return found;
-        }
-    }
-
-    let (ord, left_to, right_to) = record_key_compare_byte_sized(left, right, left_to, right_to);
-
-    match ord {
-        Ordering::Equal => {}
-        found => {
-            return found;
-        }
-    }
-
-    let (ord, _, _) = record_key_compare_byte_sized(left, right, left_to, right_to);
-
-    ord
 }
 
 impl Collection {
@@ -137,19 +64,29 @@ impl Collection {
 
         let context = options.context.read().await;
         let path = Path::new(&context.config.data_path).join(collection_id);
-        let path = path.to_str().ok_or(CollectionOpenError::PathJoinError)?;
+        let path = path.to_str().ok_or(CollectionOpenError::PathJoin)?;
         drop(context);
 
         let raw_db = RawDb::open_raw_db(RawDbOptions {
             path,
             comparator: Some(RawDbComparator {
                 name: "v1".to_string(),
-                compare_fn: record_key_compare_fun,
+                compare_fn: util::record_key_compare::record_key_compare_fn,
             }),
             column_families: vec![
                 RawDbColumnFamily {
                     name: "gens".to_string(),
-                    comparator: None,
+                    comparator: Some(RawDbComparator {
+                        name: "v1".to_string(),
+                        compare_fn: util::generation_key_compare::generation_key_compare_fn,
+                    }),
+                },
+                RawDbColumnFamily {
+                    name: "phantoms".to_string(),
+                    comparator: Some(RawDbComparator {
+                        name: "v1".to_string(),
+                        compare_fn: util::phantom_key_compare::phantom_key_compare_fn,
+                    }),
                 },
                 RawDbColumnFamily {
                     name: "meta".to_string(),
@@ -159,6 +96,70 @@ impl Collection {
         })?;
 
         let meta = raw_db.with_cf("meta");
+        let generations = raw_db.with_cf("gens");
+
+        let is_manual_stored = meta.get(b"is_manual".to_vec()).await?;
+        let is_manual = match is_manual_stored {
+            Some(is_manual_vec) => {
+                if is_manual_vec.len() != 1 {
+                    return Err(CollectionOpenError::ManualModeMissmatch);
+                }
+
+                is_manual_vec[0] == 1
+            }
+            None => {
+                meta.put(
+                    b"is_manual".to_vec(),
+                    vec![if options.is_manual { 1 } else { 0 }],
+                )
+                .await?;
+
+                options.is_manual
+            }
+        };
+
+        if is_manual != options.is_manual {
+            return Err(CollectionOpenError::ManualModeMissmatch);
+        }
+
+        let generation_id_stored = meta.get(b"generation_id".to_vec()).await?;
+        let generation_id = match generation_id_stored {
+            Some(generation_id) => GenerationId(generation_id),
+            None => {
+                if is_manual {
+                    meta.put(b"generation_id".to_vec(), vec![]).await?;
+
+                    GenerationId(vec![])
+                } else {
+                    meta.put(b"generation_id".to_vec(), vec![0; 64]).await?;
+
+                    GenerationId(vec![0; 64])
+                }
+            }
+        };
+
+        let next_generation_id_stored = meta.get(b"next_generation_id".to_vec()).await?;
+        let next_generation_id = match next_generation_id_stored {
+            Some(next_generation_id) => Some(GenerationId(next_generation_id)),
+            None => {
+                if is_manual {
+                    None
+                } else {
+                    let mut next_generation_id = generation_id.clone();
+                    let bytes = next_generation_id.get_byte_array_mut();
+                    increment(bytes);
+
+                    let next_generation_id_cloned = next_generation_id.clone();
+
+                    meta.put(b"next_generation_id".to_vec(), next_generation_id.into())
+                        .await?;
+
+                    Some(next_generation_id_cloned)
+                }
+            }
+        };
+
+        // TODO: read keys of the next generation
 
         todo!();
     }

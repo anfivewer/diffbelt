@@ -23,6 +23,7 @@ mod phantom;
 mod raw_db;
 mod reader;
 mod routes;
+mod util;
 
 #[derive(Debug)]
 struct Error500;

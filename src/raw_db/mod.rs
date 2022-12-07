@@ -1,4 +1,7 @@
-use rocksdb::{AsColumnFamilyRef, BoundColumnFamily, ColumnFamilyDescriptor, Options, DB};
+use rocksdb::{
+    AsColumnFamilyRef, BoundColumnFamily, ColumnFamilyDescriptor, Direction, IteratorMode, Options,
+    ReadOptions, DB,
+};
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::sync::Arc;
@@ -41,6 +44,40 @@ impl RawDb {
             };
 
             Ok(value)
+        })
+        .await?
+    }
+
+    pub async fn get_key_range(
+        &self,
+        from_key: Vec<u8>,
+        to_key: Vec<u8>,
+    ) -> Result<Vec<Vec<u8>>, RawDbError> {
+        let db = self.db.clone();
+        let cf_name = self.cf_name.clone();
+
+        tokio::task::spawn_blocking(move || {
+            let iterator_mode = IteratorMode::From(&from_key, Direction::Forward);
+            let mut opts = ReadOptions::default();
+            opts.set_iterate_upper_bound(to_key);
+
+            let iterator = match cf_name.borrow() {
+                Some(cf_name) => {
+                    let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
+                    db.iterator_cf(&cf, iterator_mode)
+                }
+                None => db.iterator(iterator_mode),
+            };
+
+            let mut result: Vec<Vec<u8>> = Vec::new();
+
+            for item in iterator {
+                let (key, _) = item?;
+
+                result.push(key.to_vec());
+            }
+
+            Ok(result)
         })
         .await?
     }
