@@ -3,7 +3,6 @@ use crate::context::Context;
 use crate::database::{Database, DatabaseOpenOptions};
 use crate::raw_db::{RawDb, RawDbOptions};
 use crate::routes::{BaseResponse, Response, StaticRouteOptions, StringResponse};
-use std::cell::Cell;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;

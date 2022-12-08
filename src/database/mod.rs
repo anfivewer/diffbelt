@@ -1,14 +1,11 @@
 use crate::collection::{Collection, CollectionOpenError, CollectionOpenOptions};
 use crate::common::GenerationId;
 use crate::config::Config;
-use crate::context::Context;
 use crate::protos::database_meta::CollectionRecord;
 use crate::raw_db::{RawDb, RawDbError};
 use protobuf::Message;
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 pub struct Database {
     meta_raw_db: Arc<RawDb>,
@@ -59,7 +56,7 @@ impl Database {
             .await
             .or_else(|err| Err(DatabaseOpenError::RawDb(err)))?;
 
-        let mut collections_arc = Arc::new(std::sync::RwLock::new(HashMap::new()));
+        let collections_arc = Arc::new(std::sync::RwLock::new(HashMap::new()));
         let mut collections = collections_arc.write().unwrap();
 
         let database_inner = Arc::new(DatabaseInner {

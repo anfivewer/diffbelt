@@ -1,7 +1,6 @@
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
 use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut};
 use crate::config::Config;
-use crate::context::Context;
 use crate::database::DatabaseInner;
 use crate::generation::{CollectionGeneration, CollectionGenerationKeys};
 use crate::raw_db::{
@@ -10,10 +9,7 @@ use crate::raw_db::{
 };
 use crate::util::bytes::increment;
 use std::cell::RefCell;
-use std::cmp::Ordering;
-use std::collections::{BTreeSet, HashMap};
-use std::marker::PhantomData;
-use std::ops::Deref;
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;

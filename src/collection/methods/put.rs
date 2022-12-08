@@ -2,7 +2,6 @@ use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::util::is_byte_array_equal_both_opt;
 use crate::common::{GenerationId, KeyValueUpdate, PhantomId};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 
 pub struct CollectionPutOptions {

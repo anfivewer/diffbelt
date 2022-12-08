@@ -1,6 +1,4 @@
 use crate::util::bytes::increment;
-use std::borrow::Borrow;
-use std::cmp::Ordering;
 use std::ops::{Deref, DerefMut};
 
 pub mod util;

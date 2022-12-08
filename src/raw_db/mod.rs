@@ -1,7 +1,4 @@
-use rocksdb::{
-    AsColumnFamilyRef, BoundColumnFamily, ColumnFamilyDescriptor, Direction, IteratorMode, Options,
-    ReadOptions, DB,
-};
+use rocksdb::{ColumnFamilyDescriptor, Direction, IteratorMode, Options, ReadOptions, DB};
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::sync::Arc;

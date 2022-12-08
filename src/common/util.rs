@@ -1,5 +1,3 @@
-use crate::common::IsByteArray;
-
 pub fn is_byte_array_equal<'a, 'b, A: Into<&'a [u8]>, B: Into<&'b [u8]>>(
     this: A,
     other: B,
