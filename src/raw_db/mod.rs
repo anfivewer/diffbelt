@@ -30,7 +30,7 @@ impl From<tokio::task::JoinError> for RawDbError {
 }
 
 impl RawDb {
-    pub async fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, RawDbError> {
+    pub async fn get(&self, key: Box<[u8]>) -> Result<Option<Box<[u8]>>, RawDbError> {
         let db = self.db.clone();
         let cf_name = self.cf_name.clone();
 
@@ -43,16 +43,16 @@ impl RawDb {
                 None => db.get(key)?,
             };
 
-            Ok(value)
+            Ok(value.map(|x| x.into_boxed_slice()))
         })
         .await?
     }
 
     pub async fn get_key_range(
         &self,
-        from_key: Vec<u8>,
-        to_key: Vec<u8>,
-    ) -> Result<Vec<Vec<u8>>, RawDbError> {
+        from_key: Box<[u8]>,
+        to_key: Box<[u8]>,
+    ) -> Result<Vec<Box<[u8]>>, RawDbError> {
         let db = self.db.clone();
         let cf_name = self.cf_name.clone();
 
@@ -69,12 +69,12 @@ impl RawDb {
                 None => db.iterator(iterator_mode),
             };
 
-            let mut result: Vec<Vec<u8>> = Vec::new();
+            let mut result: Vec<Box<[u8]>> = Vec::new();
 
             for item in iterator {
                 let (key, _) = item?;
 
-                result.push(key.to_vec());
+                result.push(key);
             }
 
             Ok(result)
@@ -82,7 +82,7 @@ impl RawDb {
         .await?
     }
 
-    pub async fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), RawDbError> {
+    pub async fn put(&self, key: Box<[u8]>, value: Box<[u8]>) -> Result<(), RawDbError> {
         let db = self.db.clone();
         let cf_name = self.cf_name.clone();
 

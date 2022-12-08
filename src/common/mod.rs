@@ -1,14 +1,18 @@
+use std::ops::{Deref, DerefMut};
+
 pub mod util;
 
-pub struct CollectionKey(pub Vec<u8>);
+pub struct CollectionKey(pub Box<[u8]>);
 pub struct CollectionKeyRef<'a>(pub &'a [u8]);
-pub struct CollectionValue(pub Vec<u8>);
+
+pub struct CollectionValue(pub Box<[u8]>);
 pub struct CollectionValueRef<'a>(pub &'a [u8]);
 
 #[derive(Clone)]
-pub struct GenerationId(pub Vec<u8>);
+pub struct GenerationId(pub Box<[u8]>);
 pub struct GenerationIdRef<'a>(pub &'a [u8]);
-pub struct PhantomId(pub Vec<u8>);
+
+pub struct PhantomId(pub Box<[u8]>);
 pub struct PhantomIdRef<'a>(pub &'a [u8]);
 
 pub struct KeyValueUpdate {
@@ -18,56 +22,81 @@ pub struct KeyValueUpdate {
     if_not_present: bool,
 }
 
-pub trait IsByteArray {
-    fn get_byte_array(&self) -> &[u8];
-}
-
-pub trait IsByteArrayMut {
-    fn get_byte_array_mut(&mut self) -> &mut [u8];
-}
-
-impl IsByteArray for CollectionKey {
-    fn get_byte_array(&self) -> &[u8] {
-        return &self.0;
-    }
-}
-
-impl IsByteArray for CollectionKeyRef<'_> {
-    fn get_byte_array(&self) -> &[u8] {
-        return self.0;
-    }
-}
-
-impl IsByteArray for GenerationId {
-    fn get_byte_array(&self) -> &[u8] {
-        return &self.0;
-    }
-}
-impl IsByteArrayMut for GenerationId {
-    fn get_byte_array_mut(&mut self) -> &mut [u8] {
-        return &mut self.0;
-    }
-}
-impl From<GenerationId> for Vec<u8> {
+impl From<GenerationId> for Box<[u8]> {
     fn from(generation_id: GenerationId) -> Self {
         generation_id.0
     }
 }
+impl<'a> From<&'a GenerationId> for &'a [u8] {
+    fn from(generation_id: &'a GenerationId) -> Self {
+        &generation_id.0
+    }
+}
+impl Deref for GenerationId {
+    type Target = [u8];
 
-impl IsByteArray for GenerationIdRef<'_> {
-    fn get_byte_array(&self) -> &[u8] {
-        return &self.0;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl Deref for GenerationIdRef<'_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+impl Deref for CollectionKey {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl Deref for CollectionKeyRef<'_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+impl Deref for PhantomId {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl Deref for PhantomIdRef<'_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.0
     }
 }
 
-impl IsByteArray for PhantomId {
-    fn get_byte_array(&self) -> &[u8] {
-        return &self.0;
+impl DerefMut for GenerationId {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
-impl IsByteArray for PhantomIdRef<'_> {
+pub trait IsByteArray {
+    fn get_byte_array(&self) -> &[u8];
+}
+
+pub trait IsByteArrayMut<'a> {
+    fn get_byte_array_mut(&'a mut self) -> &'a mut [u8];
+}
+
+impl<'a, T: Deref<Target = [u8]>> IsByteArray for T {
     fn get_byte_array(&self) -> &[u8] {
-        return &self.0;
+        self
+    }
+}
+
+impl<'a, T: DerefMut<Target = [u8]>> IsByteArrayMut<'a> for T {
+    fn get_byte_array_mut(&'a mut self) -> &'a mut [u8] {
+        self
     }
 }

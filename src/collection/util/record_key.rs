@@ -17,7 +17,7 @@ impl<'a> From<&'a OwnedRecordKey> for RecordKey<'a> {
 }
 
 pub struct OwnedRecordKey {
-    pub value: Vec<u8>,
+    pub value: Box<[u8]>,
 }
 
 impl RecordKey<'_> {
@@ -74,7 +74,8 @@ impl OwnedRecordKey {
                 + generation_id_bytes.len()
                 + 1
                 + phantom_id_bytes.len()
-        ];
+        ]
+        .into_boxed_slice();
 
         // reserved for the future
         value[0] = 0;
@@ -122,9 +123,9 @@ impl OwnedRecordKey {
 
 #[test]
 fn test_create_record_key() {
-    let key = CollectionKey(vec![1, 2, 3, 4, 5, 6, 7]);
-    let generation_id = GenerationId(vec![8, 0, 2]);
-    let phantom_id = PhantomId(vec![8, 2, 5, 1, 1]);
+    let key = CollectionKey(vec![1, 2, 3, 4, 5, 6, 7].into_boxed_slice());
+    let generation_id = GenerationId(vec![8, 0, 2].into_boxed_slice());
+    let phantom_id = PhantomId(vec![8, 2, 5, 1, 1].into_boxed_slice());
 
     let record_key = OwnedRecordKey::new(&key, &generation_id, &phantom_id);
     assert_eq!(record_key.is_ok(), true);

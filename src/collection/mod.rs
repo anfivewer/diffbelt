@@ -98,7 +98,7 @@ impl Collection {
         let meta = raw_db.with_cf("meta");
         let generations = raw_db.with_cf("gens");
 
-        let is_manual_stored = meta.get(b"is_manual".to_vec()).await?;
+        let is_manual_stored = meta.get(b"is_manual".to_vec().into_boxed_slice()).await?;
         let is_manual = match is_manual_stored {
             Some(is_manual_vec) => {
                 if is_manual_vec.len() != 1 {
@@ -109,8 +109,8 @@ impl Collection {
             }
             None => {
                 meta.put(
-                    b"is_manual".to_vec(),
-                    vec![if options.is_manual { 1 } else { 0 }],
+                    b"is_manual".to_vec().into_boxed_slice(),
+                    vec![if options.is_manual { 1 } else { 0 }].into_boxed_slice(),
                 )
                 .await?;
 
@@ -122,23 +122,35 @@ impl Collection {
             return Err(CollectionOpenError::ManualModeMissmatch);
         }
 
-        let generation_id_stored = meta.get(b"generation_id".to_vec()).await?;
+        let generation_id_stored = meta
+            .get(b"generation_id".to_vec().into_boxed_slice())
+            .await?;
         let generation_id = match generation_id_stored {
             Some(generation_id) => GenerationId(generation_id),
             None => {
                 if is_manual {
-                    meta.put(b"generation_id".to_vec(), vec![]).await?;
+                    meta.put(
+                        b"generation_id".to_vec().into_boxed_slice(),
+                        vec![].into_boxed_slice(),
+                    )
+                    .await?;
 
-                    GenerationId(vec![])
+                    GenerationId(vec![].into_boxed_slice())
                 } else {
-                    meta.put(b"generation_id".to_vec(), vec![0; 64]).await?;
+                    meta.put(
+                        b"generation_id".to_vec().into_boxed_slice(),
+                        vec![0; 64].into_boxed_slice(),
+                    )
+                    .await?;
 
-                    GenerationId(vec![0; 64])
+                    GenerationId(vec![0; 64].into_boxed_slice())
                 }
             }
         };
 
-        let next_generation_id_stored = meta.get(b"next_generation_id".to_vec()).await?;
+        let next_generation_id_stored = meta
+            .get(b"next_generation_id".to_vec().into_boxed_slice())
+            .await?;
         let next_generation_id = match next_generation_id_stored {
             Some(next_generation_id) => Some(GenerationId(next_generation_id)),
             None => {
@@ -146,13 +158,17 @@ impl Collection {
                     None
                 } else {
                     let mut next_generation_id = generation_id.clone();
-                    let bytes = next_generation_id.get_byte_array_mut();
+                    let mut next_generation_id_ref = &mut next_generation_id;
+                    let bytes = next_generation_id_ref.get_byte_array_mut();
                     increment(bytes);
 
                     let next_generation_id_cloned = next_generation_id.clone();
 
-                    meta.put(b"next_generation_id".to_vec(), next_generation_id.into())
-                        .await?;
+                    meta.put(
+                        b"next_generation_id".to_vec().into_boxed_slice(),
+                        next_generation_id.into(),
+                    )
+                    .await?;
 
                     Some(next_generation_id_cloned)
                 }
