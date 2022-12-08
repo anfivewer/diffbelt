@@ -5,7 +5,7 @@ use futures::future::BoxFuture;
 fn test_handle(options: StaticRouteOptions) -> BoxFuture<'static, Response> {
     return Box::pin(async move {
         let context = options.context.read().await;
-        let database = context.raw_db.clone();
+        let database = context.meta_raw_db.clone();
         drop(context);
 
         let value = database.next_value().await;

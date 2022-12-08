@@ -21,6 +21,13 @@ impl From<OwnedGenerationKey> for Box<[u8]> {
         key.value
     }
 }
+impl Deref for OwnedGenerationKey {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
 
 pub struct OwnedGenerationKey {
     pub value: Box<[u8]>,

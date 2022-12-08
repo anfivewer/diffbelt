@@ -1,5 +1,6 @@
-use crate::config::Config;
+use crate::config::{Config, ReadConfigFromEnvError};
 use crate::context::Context;
+use crate::database::{Database, DatabaseOpenOptions};
 use crate::raw_db::{RawDb, RawDbOptions};
 use crate::routes::{BaseResponse, Response, StaticRouteOptions, StringResponse};
 use std::cell::Cell;
@@ -20,6 +21,7 @@ mod cursor;
 mod database;
 mod generation;
 mod phantom;
+mod protos;
 mod raw_db;
 mod reader;
 mod routes;
@@ -32,22 +34,42 @@ impl Reject for Error500 {}
 
 #[tokio::main]
 async fn main() {
-    let config = Config::read_from_env().expect("Config not parsed");
+    let config = Config::read_from_env();
+    let config = match config {
+        Ok(config) => config,
+        Err(err) => match err {
+            ReadConfigFromEnvError::VarNotPresent(name) => {
+                eprintln!("ENV variable \"{}\" not specified", name);
+                std::process::exit(1);
+            }
+            rest => panic!("Config reading error: {:?}", rest),
+        },
+    };
+    let config = Arc::new(config);
 
     let path = Path::new(&config.data_path).join("_meta");
     let path = path.to_str().unwrap();
 
-    let database = RawDb::open_raw_db(RawDbOptions {
+    let meta_raw_db = RawDb::open_raw_db(RawDbOptions {
         path,
         comparator: None,
         column_families: vec![],
     })
     .expect("Cannot open meta raw_db");
 
+    let meta_raw_db = Arc::new(meta_raw_db);
+
+    let database = Database::open(DatabaseOpenOptions {
+        config: config.clone(),
+        meta_raw_db: meta_raw_db.clone(),
+    })
+    .await
+    .expect("Cannot open database");
+
     let context = Arc::new(RwLock::new(Context {
         config,
         routing: routes::new_routing(),
-        raw_db: Arc::new(database),
+        meta_raw_db,
     }));
 
     async {

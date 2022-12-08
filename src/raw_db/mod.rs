@@ -11,6 +11,7 @@ pub struct RawDb {
     cf_name: Arc<Option<String>>,
 }
 
+#[derive(Debug)]
 pub enum RawDbError {
     RocksDb(rocksdb::Error),
     Join(tokio::task::JoinError),
@@ -30,7 +31,9 @@ impl From<tokio::task::JoinError> for RawDbError {
 }
 
 impl RawDb {
-    pub async fn get(&self, key: Box<[u8]>) -> Result<Option<Box<[u8]>>, RawDbError> {
+    pub async fn get(&self, key: &[u8]) -> Result<Option<Box<[u8]>>, RawDbError> {
+        let key = key.to_owned().into_boxed_slice();
+
         let db = self.db.clone();
         let cf_name = self.cf_name.clone();
 
@@ -50,9 +53,12 @@ impl RawDb {
 
     pub async fn get_key_range(
         &self,
-        from_key: Box<[u8]>,
-        to_key: Box<[u8]>,
+        from_key: &[u8],
+        to_key: &[u8],
     ) -> Result<Vec<Box<[u8]>>, RawDbError> {
+        let from_key = from_key.to_owned().into_boxed_slice();
+        let to_key = to_key.to_owned().into_boxed_slice();
+
         let db = self.db.clone();
         let cf_name = self.cf_name.clone();
 
@@ -64,9 +70,9 @@ impl RawDb {
             let iterator = match cf_name.borrow() {
                 Some(cf_name) => {
                     let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
-                    db.iterator_cf(&cf, iterator_mode)
+                    db.iterator_cf_opt(&cf, opts, iterator_mode)
                 }
-                None => db.iterator(iterator_mode),
+                None => db.iterator_opt(iterator_mode, opts),
             };
 
             let mut result: Vec<Box<[u8]>> = Vec::new();
@@ -82,7 +88,47 @@ impl RawDb {
         .await?
     }
 
-    pub async fn put(&self, key: Box<[u8]>, value: Box<[u8]>) -> Result<(), RawDbError> {
+    pub async fn get_range(
+        &self,
+        from_key: &[u8],
+        to_key: &[u8],
+    ) -> Result<Vec<(Box<[u8]>, Box<[u8]>)>, RawDbError> {
+        let from_key = from_key.to_owned().into_boxed_slice();
+        let to_key = to_key.to_owned().into_boxed_slice();
+
+        let db = self.db.clone();
+        let cf_name = self.cf_name.clone();
+
+        tokio::task::spawn_blocking(move || {
+            let iterator_mode = IteratorMode::From(&from_key, Direction::Forward);
+            let mut opts = ReadOptions::default();
+            opts.set_iterate_upper_bound(to_key);
+
+            let iterator = match cf_name.borrow() {
+                Some(cf_name) => {
+                    let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
+                    db.iterator_cf_opt(&cf, opts, iterator_mode)
+                }
+                None => db.iterator_opt(iterator_mode, opts),
+            };
+
+            let mut result: Vec<(Box<[u8]>, Box<[u8]>)> = Vec::new();
+
+            for item in iterator {
+                let item = item?;
+
+                result.push(item);
+            }
+
+            Ok(result)
+        })
+        .await?
+    }
+
+    pub async fn put(&self, key: &[u8], value: &[u8]) -> Result<(), RawDbError> {
+        let key = key.to_owned().into_boxed_slice();
+        let value = value.to_owned().into_boxed_slice();
+
         let db = self.db.clone();
         let cf_name = self.cf_name.clone();
 

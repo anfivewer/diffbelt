@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+message CollectionRecord {
+  string id = 1;
+  bool is_manual = 2;
+}

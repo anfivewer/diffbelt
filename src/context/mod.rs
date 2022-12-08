@@ -5,7 +5,7 @@ use std::cell::Cell;
 use std::sync::Arc;
 
 pub struct Context {
-    pub config: Config,
+    pub config: Arc<Config>,
     pub routing: Routing,
-    pub raw_db: Arc<RawDb>,
+    pub meta_raw_db: Arc<RawDb>,
 }
