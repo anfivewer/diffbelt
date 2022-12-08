@@ -1,6 +1,7 @@
-use crate::common::{GenerationId, IsByteArray, IsByteArrayMut};
+use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
+use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut};
 use crate::context::Context;
-use crate::generation::CollectionGeneration;
+use crate::generation::{CollectionGeneration, CollectionGenerationKeys};
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError,
     RawDbOpenError as RawDbOpenErrorExternal, RawDbOptions,
@@ -8,6 +9,8 @@ use crate::raw_db::{
 use crate::util::bytes::increment;
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -32,10 +35,11 @@ pub struct Collection {
     get_reader_generation_id: GetReaderGenerationIdFn,
 }
 
-pub struct NewCollectionOptions {
+pub struct OpenCollectionOptions {
     pub id: String,
     pub context: Arc<RwLock<Context>>,
     pub is_manual: bool,
+    pub get_reader_generation_id: GetReaderGenerationIdFn,
 }
 
 pub enum CollectionOpenError {
@@ -43,6 +47,8 @@ pub enum CollectionOpenError {
     RawDbOpen(RawDbOpenErrorExternal),
     RawDb(RawDbError),
     ManualModeMissmatch,
+    KeyCreation,
+    DbContainsInvalidKeys,
 }
 
 impl From<RawDbOpenErrorExternal> for CollectionOpenError {
@@ -59,11 +65,11 @@ impl From<RawDbError> for CollectionOpenError {
 
 impl Collection {
     // Create a new column family descriptor with the specified name and options.
-    pub async fn open(options: NewCollectionOptions) -> Result<Self, CollectionOpenError> {
+    pub async fn open(options: OpenCollectionOptions) -> Result<Self, CollectionOpenError> {
         let collection_id = options.id;
 
         let context = options.context.read().await;
-        let path = Path::new(&context.config.data_path).join(collection_id);
+        let path = Path::new(&context.config.data_path).join(&collection_id);
         let path = path.to_str().ok_or(CollectionOpenError::PathJoin)?;
         drop(context);
 
@@ -175,8 +181,53 @@ impl Collection {
             }
         };
 
-        // TODO: read keys of the next generation
+        let next_generation: Option<CollectionGeneration> = match next_generation_id {
+            Some(id) => {
+                let empty_key = CollectionKey::empty();
+                let from_key = OwnedGenerationKey::new(&id, &empty_key)
+                    .or(Err(CollectionOpenError::KeyCreation))?;
 
-        todo!();
+                let mut to_id = id.clone();
+                to_id.increment();
+                let to_key = OwnedGenerationKey::new(&to_id, &empty_key)
+                    .or(Err(CollectionOpenError::KeyCreation))?;
+
+                let generation_keys = generations
+                    .get_key_range(from_key.into(), to_key.into())
+                    .await?;
+
+                let expected_count = generation_keys.len();
+                let generation_keys: Vec<CollectionKey> = generation_keys
+                    .into_iter()
+                    .map_while(|key| {
+                        let key = GenerationKey::validate(&key).ok()?;
+                        let key = key.get_key().to_owned();
+
+                        Some(key)
+                    })
+                    .collect();
+
+                if generation_keys.len() != expected_count {
+                    return Err(CollectionOpenError::DbContainsInvalidKeys);
+                }
+
+                let set: BTreeSet<CollectionKey> = generation_keys.into_iter().collect();
+
+                Some(CollectionGeneration {
+                    id,
+                    keys: CollectionGenerationKeys::InProgress(std::sync::RwLock::new(set)),
+                })
+            }
+            None => None,
+        };
+
+        Ok(Collection {
+            id: collection_id,
+            raw_db: Arc::new(raw_db),
+            is_manual,
+            generation_id: RwLock::new(RefCell::new(generation_id)),
+            next_generation: RwLock::new(RefCell::new(next_generation)),
+            get_reader_generation_id: options.get_reader_generation_id,
+        })
     }
 }

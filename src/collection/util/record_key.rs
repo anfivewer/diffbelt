@@ -2,7 +2,7 @@ use crate::common::{
     CollectionKey, CollectionKeyRef, GenerationId, GenerationIdRef, IsByteArray, PhantomId,
     PhantomIdRef,
 };
-use crate::util::bytes::read_u24;
+use crate::util::bytes::{read_u24, write_u24};
 
 pub struct RecordKey<'a> {
     pub value: &'a [u8],
@@ -80,14 +80,7 @@ impl OwnedRecordKey {
         // reserved for the future
         value[0] = 0;
 
-        {
-            let mut size = key_bytes.len();
-            value[3] = (size & 0xff) as u8;
-            size >>= 8;
-            value[2] = (size & 0xff) as u8;
-            size >>= 8;
-            value[1] = size as u8;
-        }
+        write_u24(&mut value, 1, key_bytes.len() as u32);
 
         let mut offset = 4 as usize;
 

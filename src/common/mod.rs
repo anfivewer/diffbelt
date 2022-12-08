@@ -1,7 +1,11 @@
+use crate::util::bytes::increment;
+use std::borrow::Borrow;
+use std::cmp::Ordering;
 use std::ops::{Deref, DerefMut};
 
 pub mod util;
 
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct CollectionKey(pub Box<[u8]>);
 pub struct CollectionKeyRef<'a>(pub &'a [u8]);
 
@@ -39,6 +43,11 @@ impl Deref for GenerationId {
         &self.0
     }
 }
+impl GenerationId {
+    pub fn increment(&mut self) {
+        increment(&mut self.0);
+    }
+}
 impl Deref for GenerationIdRef<'_> {
     type Target = [u8];
 
@@ -58,6 +67,16 @@ impl Deref for CollectionKeyRef<'_> {
 
     fn deref(&self) -> &Self::Target {
         self.0
+    }
+}
+impl CollectionKey {
+    pub fn empty() -> Self {
+        Self(vec![].into_boxed_slice())
+    }
+}
+impl CollectionKeyRef<'_> {
+    pub fn to_owned(&self) -> CollectionKey {
+        CollectionKey(self.0.into())
     }
 }
 impl Deref for PhantomId {
