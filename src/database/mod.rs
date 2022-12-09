@@ -1,14 +1,20 @@
 use crate::collection::Collection;
 use crate::common::GenerationId;
+use crate::config::Config;
 use crate::raw_db::RawDb;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
+pub mod create_collection;
 pub mod open;
 
 pub struct Database {
+    config: Arc<Config>,
     meta_raw_db: Arc<RawDb>,
-    collections: Arc<std::sync::RwLock<HashMap<String, Collection>>>,
+    collections_alter_lock: Mutex<()>,
+    collections: Arc<std::sync::RwLock<HashMap<String, Arc<Collection>>>>,
+    inner: Arc<DatabaseInner>,
 }
 
 pub enum GetReaderGenerationIdFnError {
@@ -17,7 +23,7 @@ pub enum GetReaderGenerationIdFnError {
 }
 
 pub struct DatabaseInner {
-    collections: Arc<std::sync::RwLock<HashMap<String, Collection>>>,
+    collections: Arc<std::sync::RwLock<HashMap<String, Arc<Collection>>>>,
 }
 
 impl DatabaseInner {

@@ -22,10 +22,3 @@ pub fn increment(bytes: &mut [u8]) {
         break;
     }
 }
-
-#[test]
-fn some_test() {
-    for n in (1..3).rev() {
-        println!("kek {}", n);
-    }
-}

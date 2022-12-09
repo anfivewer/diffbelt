@@ -1,5 +1,6 @@
 use crate::config::{Config, ReadConfigFromEnvError};
 use crate::context::Context;
+use crate::database::create_collection::CreateCollectionOptions;
 use crate::database::open::DatabaseOpenOptions;
 use crate::database::Database;
 use crate::raw_db::{RawDb, RawDbOptions};
@@ -65,6 +66,11 @@ async fn main() {
     })
     .await
     .expect("Cannot open database");
+
+    let collection = database
+        .get_or_create_collection("test", CreateCollectionOptions { is_manual: true })
+        .await
+        .expect("Collection create");
 
     let context = Arc::new(RwLock::new(Context {
         config,

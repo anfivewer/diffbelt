@@ -221,15 +221,16 @@ impl RawDb {
 
         let column_family_descriptors: Vec<ColumnFamilyDescriptor> = options
             .column_families
-            .iter()
+            .into_iter()
             .map(|family| {
+                let mut cf_opts = Options::default();
+
                 family.comparator.as_ref().map(|comparator| {
-                    let mut cf_opts = Options::default();
                     cf_opts.set_comparator(&comparator.name, comparator.compare_fn);
-                    ColumnFamilyDescriptor::new(&comparator.name, cf_opts)
-                })
+                });
+
+                ColumnFamilyDescriptor::new(&family.name, cf_opts)
             })
-            .filter_map(|item| item)
             .collect();
 
         let db = DB::open_cf_descriptors(&opts, path, column_family_descriptors)?;

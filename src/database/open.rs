@@ -7,6 +7,7 @@ use crate::raw_db::{RawDb, RawDbError};
 use protobuf::Message;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::{Mutex};
 
 pub struct DatabaseOpenOptions {
     pub config: Arc<Config>,
@@ -52,12 +53,17 @@ impl Database {
             .await
             .or_else(|err| Err(DatabaseOpenError::CollectionOpen(err)))?;
 
+            let collection = Arc::new(collection);
+
             collections.insert(id, collection);
         }
 
         Ok(Database {
+            config,
             meta_raw_db,
+            collections_alter_lock: Mutex::new(()),
             collections: collections_arc.clone(),
+            inner: database_inner,
         })
     }
 }
