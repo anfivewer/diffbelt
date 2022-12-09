@@ -1,4 +1,5 @@
-use crate::collection::{Collection, CollectionOpenError, CollectionOpenOptions};
+use crate::collection::open::{CollectionOpenError, CollectionOpenOptions};
+use crate::collection::Collection;
 use crate::config::Config;
 use crate::database::{Database, DatabaseInner};
 use crate::protos::database_meta::CollectionRecord;
