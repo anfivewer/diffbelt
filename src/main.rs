@@ -1,6 +1,7 @@
 use crate::config::{Config, ReadConfigFromEnvError};
 use crate::context::Context;
-use crate::database::{Database, DatabaseOpenOptions};
+use crate::database::open::DatabaseOpenOptions;
+use crate::database::Database;
 use crate::raw_db::{RawDb, RawDbOptions};
 use crate::routes::{BaseResponse, Response, StaticRouteOptions, StringResponse};
 use std::path::Path;
@@ -69,6 +70,7 @@ async fn main() {
         config,
         routing: routes::new_routing(),
         meta_raw_db,
+        database: Arc::new(database),
     }));
 
     async {

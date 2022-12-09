@@ -2,7 +2,6 @@ use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::util::is_byte_array_equal_both_opt;
 use crate::common::{GenerationId, KeyValueUpdate, PhantomId};
-use std::cell::RefCell;
 
 pub struct CollectionPutOptions {
     update: KeyValueUpdate,
@@ -26,7 +25,6 @@ impl Collection {
         }
 
         let next_generation = self.next_generation.read().await;
-        let next_generation = RefCell::borrow(&next_generation);
         let next_generation_id = next_generation.as_ref().map(|gen| &gen.id);
 
         let is_generation_id_equal_to_next_one =

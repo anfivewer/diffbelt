@@ -8,7 +8,6 @@ use crate::raw_db::{
     RawDbOpenError as RawDbOpenErrorExternal, RawDbOptions,
 };
 use crate::util::bytes::increment;
-use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::Arc;
@@ -21,10 +20,10 @@ pub struct Collection {
     id: String,
     raw_db: Arc<RawDb>,
     is_manual: bool,
-    generation_id: RwLock<RefCell<GenerationId>>,
+    generation_id: RwLock<GenerationId>,
     // None if this is manual collection and generation is not yet started
     // in non-manual collections always present
-    next_generation: RwLock<RefCell<Option<CollectionGeneration>>>,
+    next_generation: RwLock<Option<CollectionGeneration>>,
     database_inner: Arc<DatabaseInner>,
 }
 
@@ -207,8 +206,8 @@ impl Collection {
             id: collection_id,
             raw_db: Arc::new(raw_db),
             is_manual,
-            generation_id: RwLock::new(RefCell::new(generation_id)),
-            next_generation: RwLock::new(RefCell::new(next_generation)),
+            generation_id: RwLock::new(generation_id),
+            next_generation: RwLock::new(next_generation),
             database_inner: options.database_inner,
         })
     }
