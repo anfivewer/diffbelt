@@ -29,11 +29,10 @@ pub struct DatabaseInner {
 impl DatabaseInner {
     pub fn get_reader_generation_id(
         &self,
-        collection_id: &str,
-        reader_id: &str,
+        _collection_id: &str,
+        _reader_id: &str,
     ) -> Result<GenerationId, GetReaderGenerationIdFnError> {
-        let collections = self.collections.read().unwrap();
-        todo!();
-        Err(GetReaderGenerationIdFnError::NoSuchCollection)
+        let _collections = self.collections.read().unwrap();
+        todo!()
     }
 }

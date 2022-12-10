@@ -4,6 +4,9 @@ use std::ops::{Deref, DerefMut};
 
 pub mod util;
 
+// TODO: remove this Defer implementations, prefer own methods
+// TODO: rename "*Key" to "Owned*Key", rename "*KeyRef" to "*Key"
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CollectionKey(pub Box<[u8]>);
 pub struct CollectionKeyRef<'a>(pub &'a [u8]);
@@ -11,7 +14,7 @@ pub struct CollectionKeyRef<'a>(pub &'a [u8]);
 pub struct CollectionValue(pub Box<[u8]>);
 pub struct CollectionValueRef<'a>(pub &'a [u8]);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GenerationId(pub Box<[u8]>);
 #[derive(Copy, Clone)]
 pub struct GenerationIdRef<'a>(pub &'a [u8]);
@@ -92,6 +95,9 @@ impl CollectionKey {
     pub fn empty() -> Self {
         Self(vec![].into_boxed_slice())
     }
+    pub fn as_ref(&self) -> CollectionKeyRef<'_> {
+        CollectionKeyRef(&self.0)
+    }
 }
 impl CollectionKeyRef<'_> {
     pub fn to_owned(&self) -> CollectionKey {
@@ -101,6 +107,31 @@ impl CollectionKeyRef<'_> {
 impl PartialEq for CollectionKeyRef<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
+    }
+}
+
+impl CollectionValue {
+    pub fn as_ref(&self) -> CollectionValueRef<'_> {
+        CollectionValueRef(&self.0)
+    }
+}
+impl CollectionValueRef<'_> {
+    pub fn to_owned(&self) -> CollectionValue {
+        CollectionValue(self.0.into())
+    }
+}
+impl Deref for CollectionValue {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl Deref for CollectionValueRef<'_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.0
     }
 }
 

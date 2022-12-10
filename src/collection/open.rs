@@ -6,7 +6,7 @@ use crate::collection::Collection;
 use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut};
 use crate::config::Config;
 use crate::database::DatabaseInner;
-use crate::generation::{CollectionGeneration};
+use crate::generation::CollectionGeneration;
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbOpenError, RawDbOptions,
 };
@@ -149,15 +149,16 @@ impl Collection {
             }
         };
 
+        // Restore non-commited next generation keys
         let next_generation: Option<CollectionGeneration> = match next_generation_id {
             Some(id) => {
                 let empty_key = CollectionKey::empty();
-                let from_key = OwnedGenerationKey::new(&id, &empty_key)
+                let from_key = OwnedGenerationKey::new(id.as_ref(), empty_key.as_ref())
                     .or(Err(CollectionOpenError::KeyCreation))?;
 
                 let mut to_id = id.clone();
                 to_id.increment();
-                let to_key = OwnedGenerationKey::new(&to_id, &empty_key)
+                let to_key = OwnedGenerationKey::new(to_id.as_ref(), empty_key.as_ref())
                     .or(Err(CollectionOpenError::KeyCreation))?;
 
                 let generation_keys = generations.get_key_range(&from_key, &to_key).await?;

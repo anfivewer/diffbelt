@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 
 use tokio::sync::watch::Receiver;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum CollectionGenerationKeyProgress {
     Pending,
     AlreadyExists(GenerationId),

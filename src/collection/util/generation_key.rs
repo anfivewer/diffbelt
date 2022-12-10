@@ -75,8 +75,8 @@ const MAX_GENERATION_ID_LENGTH: usize = 255;
 
 impl OwnedGenerationKey {
     pub fn new<'a>(
-        generation_id: &'a GenerationId,
-        key: &'a CollectionKey,
+        generation_id: GenerationIdRef<'a>,
+        key: CollectionKeyRef<'a>,
     ) -> Result<OwnedGenerationKey, ()> {
         let key_bytes = key.get_byte_array();
         let generation_id_bytes = generation_id.get_byte_array();
@@ -121,7 +121,7 @@ fn test_create_generation_key() {
     let key = CollectionKey(vec![1, 2, 3, 4, 5, 6, 7].into_boxed_slice());
     let generation_id = GenerationId(vec![8, 0, 2].into_boxed_slice());
 
-    let generation_key = OwnedGenerationKey::new(&generation_id, &key);
+    let generation_key = OwnedGenerationKey::new(generation_id.as_ref(), key.as_ref());
     assert_eq!(generation_key.is_ok(), true);
 
     let generation_key = generation_key.unwrap();

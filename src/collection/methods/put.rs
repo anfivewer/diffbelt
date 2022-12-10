@@ -1,15 +1,13 @@
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::util::record_key::OwnedRecordKey;
+use crate::collection::util::record_key_flags::RecordKeyFlags;
 use crate::collection::Collection;
 use crate::common::util::is_byte_array_equal_both_opt;
 use crate::common::{GenerationId, GenerationIdRef, KeyValueUpdate, PhantomId};
 use crate::generation::{CollectionGenerationKeyProgress, CollectionGenerationKeyStatus};
 use crate::raw_db::contains_existing_collection_record::ContainsExistingCollectionRecordOptions;
-use std::borrow::Borrow;
+use crate::raw_db::put_collection_record::PutCollectionRecordOptions;
 use std::collections::HashMap;
-
-
-
 
 pub struct CollectionPutOptions {
     pub update: KeyValueUpdate,
@@ -17,6 +15,7 @@ pub struct CollectionPutOptions {
     pub phantom_id: Option<PhantomId>,
 }
 
+#[derive(Debug)]
 pub struct CollectionPutOk {
     pub generation_id: GenerationId,
     // if `update.if_not_present == true`, it can be false when nothing was changed
@@ -26,7 +25,7 @@ pub struct CollectionPutOk {
 type CollectionPutResult = Result<CollectionPutOk, CollectionMethodError>;
 
 impl Collection {
-    pub async fn put(&mut self, options: CollectionPutOptions) -> CollectionPutResult {
+    pub async fn put(&self, options: CollectionPutOptions) -> CollectionPutResult {
         //// Validate request
         let update = options.update;
         let generation_id = options.generation_id;
@@ -68,90 +67,95 @@ impl Collection {
         let key = update.key;
         let phantom_id_or_empty = phantom_id.unwrap_or(PhantomId::empty());
 
-        let record_key = OwnedRecordKey::new(&key, record_generation_id, &phantom_id_or_empty)
-            .or(Err(CollectionMethodError::InvalidKey))?;
+        let mut flags = RecordKeyFlags::new();
+        flags.set_value_is_present(update.value.is_some());
+        let record_key =
+            OwnedRecordKey::new(&key, record_generation_id, &phantom_id_or_empty, flags)
+                .or(Err(CollectionMethodError::InvalidKey))?;
 
         let mut resolve_put = None;
 
+        // When `if_not_present = true`, we need to not write same record in the same time,
+        // to provide correct response from this method
+        // (when there is two concurrent puts, we should return `was_put = true` only in single one)
         if update.if_not_present {
-            let result = if is_phantom {
-                let generation_id = generation_id.as_ref().unwrap();
-
-                Some((
-                    handle_if_not_present(
-                        &self.if_not_present_writes,
-                        &record_key,
-                        generation_id.as_ref(),
-                    )
-                    .await,
-                    generation_id.as_ref(),
-                ))
-            } else {
-                // If update is going to the next generation
-                if (is_generation_id_equal_to_next_one || generation_id.is_none())
-                    && next_generation.is_some()
-                {
-                    let next_generation = next_generation.as_ref().unwrap();
-                    let generation_id = &next_generation.id;
-
-                    Some((
-                        handle_if_not_present(
-                            &self.if_not_present_writes,
-                            &record_key,
-                            generation_id.as_ref(),
-                        )
-                        .await,
-                        generation_id.as_ref(),
-                    ))
-                } else {
-                    None
-                }
-            };
+            // Check hashmap of current puts or take a put lock
+            let result = handle_if_not_present(
+                &self.if_not_present_writes,
+                &record_key,
+                record_generation_id.as_ref(),
+            )
+            .await;
 
             match result {
-                Some((result, generation_id)) => match result {
-                    HandleIfNotPresentResult::Return(result) => {
-                        return result;
-                    }
-                    HandleIfNotPresentResult::NeedPut(resolve) => {
-                        // Now we are handling this record exclusively,
-                        // check if already present in the database
-                        let contains = self
-                            .raw_db
-                            .contains_existing_collection_record(
-                                ContainsExistingCollectionRecordOptions {
-                                    record_key: record_key.as_ref(),
-                                    generation_id,
-                                },
-                            )
-                            .await?;
+                HandleIfNotPresentResult::Return(result) => {
+                    // Concurrent put was faster, return it's result
+                    return result;
+                }
+                HandleIfNotPresentResult::NeedPut(resolve) => {
+                    // Now we are handling this record exclusively,
+                    // check if already present in the database
+                    let contains = self
+                        .raw_db
+                        .contains_existing_collection_record(
+                            ContainsExistingCollectionRecordOptions {
+                                record_key: record_key.as_ref(),
+                                generation_id: record_generation_id.as_ref(),
+                            },
+                        )
+                        .await?;
 
-                        match contains {
-                            Some(record_key) => {
-                                let record_key = record_key.as_ref();
-                                let generation_id = record_key.get_generation_id();
+                    match contains {
+                        Some(record_key) => {
+                            let record_key = record_key.as_ref();
+                            let generation_id = record_key.get_generation_id();
 
-                                resolve(HandleIfNotPresentResolve::AlreadyExists(generation_id));
+                            resolve(HandleIfNotPresentResolve::AlreadyExists(generation_id));
 
-                                return Ok(CollectionPutOk {
-                                    generation_id: generation_id.to_owned(),
-                                    was_put: true,
-                                });
-                            }
-                            None => {
-                                // We'll notify other `if_not_present` waiters about success of current put
-                                resolve_put = Some(resolve);
-                            }
+                            return Ok(CollectionPutOk {
+                                generation_id: generation_id.to_owned(),
+                                was_put: true,
+                            });
+                        }
+                        None => {
+                            // We'll notify other `if_not_present` waiters about success of current put
+                            resolve_put = Some(resolve);
                         }
                     }
-                },
-                None => {
-                    // No need to manage `if_not_present` option
                 }
             }
         }
 
-        todo!();
+        let result = self
+            .raw_db
+            .put_collection_record(PutCollectionRecordOptions {
+                record_key: record_key.as_ref(),
+                value: update.value.as_ref().map(|x| x.as_ref()),
+            })
+            .await;
+
+        let (result, if_not_present_result) = match result {
+            Ok(_) => (
+                Ok(CollectionPutOk {
+                    generation_id: record_generation_id.to_owned(),
+                    was_put: true,
+                }),
+                HandleIfNotPresentResolve::WasPut,
+            ),
+            Err(err) => (
+                Err(CollectionMethodError::RawDb(err)),
+                HandleIfNotPresentResolve::Err,
+            ),
+        };
+
+        match resolve_put {
+            Some(resolve) => {
+                resolve(if_not_present_result);
+            }
+            None => {}
+        }
+
+        result
     }
 }
 
@@ -166,10 +170,9 @@ enum HandleIfNotPresentResult<'a> {
     NeedPut(Box<dyn FnOnce(HandleIfNotPresentResolve<'_>) -> () + 'a>),
 }
 
-// TODO: remove parameterization, it's not needed anymore
-async fn handle_if_not_present<'a, T: Eq + std::hash::Hash + Clone + 'a>(
-    rw_hash: &'a std::sync::RwLock<HashMap<T, CollectionGenerationKeyStatus>>,
-    key: &'a T,
+async fn handle_if_not_present<'a>(
+    rw_hash: &'a std::sync::RwLock<HashMap<OwnedRecordKey, CollectionGenerationKeyStatus>>,
+    key: &'a OwnedRecordKey,
     generation_id: GenerationIdRef<'a>,
 ) -> HandleIfNotPresentResult<'a> {
     'outer: loop {
@@ -241,21 +244,17 @@ async fn handle_if_not_present<'a, T: Eq + std::hash::Hash + Clone + 'a>(
                     keys.remove(key);
                     drop(keys);
 
-                    match resolution {
+                    let value_to_send = match resolution {
                         HandleIfNotPresentResolve::WasPut => {
-                            sender.send(CollectionGenerationKeyProgress::WasPut(
-                                generation_id.to_owned(),
-                            ));
+                            CollectionGenerationKeyProgress::WasPut(generation_id.to_owned())
                         }
                         HandleIfNotPresentResolve::AlreadyExists(generation_id) => {
-                            sender.send(CollectionGenerationKeyProgress::AlreadyExists(
-                                generation_id.to_owned(),
-                            ));
+                            CollectionGenerationKeyProgress::AlreadyExists(generation_id.to_owned())
                         }
-                        HandleIfNotPresentResolve::Err => {
-                            sender.send(CollectionGenerationKeyProgress::Err);
-                        }
-                    }
+                        HandleIfNotPresentResolve::Err => CollectionGenerationKeyProgress::Err,
+                    };
+
+                    sender.send(value_to_send).unwrap();
                 }));
             }
         }

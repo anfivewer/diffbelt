@@ -1,10 +1,10 @@
 use crate::raw_db::RawDbError;
 
+#[derive(Debug)]
 pub enum CollectionMethodError {
     OutdatedGeneration,
     PutPhantomWithoutGenerationId,
     CannotPutInManualCollection,
-    NextGenerationIsNotStarted,
     InvalidKey,
 
     RawDb(RawDbError),

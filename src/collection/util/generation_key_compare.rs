@@ -15,11 +15,11 @@ pub fn generation_key_compare_fn(left: &[u8], right: &[u8]) -> Ordering {
     let right_length = right.len();
 
     if left_length < MIN_KEY_SIZE || right_length < MIN_KEY_SIZE {
-        panic!("phantom key less than minimum");
+        panic!("generation key less than minimum");
     }
 
-    if left[0] != 0 || right_length != 0 {
-        panic!("phantom key reserved flag byte is not zero");
+    if left[0] != 0 || right[0] != 0 {
+        panic!("generation key reserved flag byte is not zero");
     }
 
     let (ord, left_to, right_to) = record_key_compare_byte_sized(left, right, 1, 1);

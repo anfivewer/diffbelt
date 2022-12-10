@@ -1,3 +1,5 @@
+use crate::collection::methods::put::CollectionPutOptions;
+use crate::common::{CollectionKey, CollectionValue, KeyValueUpdate};
 use crate::config::{Config, ReadConfigFromEnvError};
 use crate::context::Context;
 use crate::database::create_collection::CreateCollectionOptions;
@@ -68,9 +70,24 @@ async fn main() {
     .expect("Cannot open database");
 
     let collection = database
-        .get_or_create_collection("test", CreateCollectionOptions { is_manual: true })
+        .get_or_create_collection("test", CreateCollectionOptions { is_manual: false })
         .await
         .expect("Collection create");
+
+    let a = collection
+        .put(CollectionPutOptions {
+            update: KeyValueUpdate {
+                key: CollectionKey(b"test".to_vec().into_boxed_slice()),
+                value: Option::Some(CollectionValue(b"passed".to_vec().into_boxed_slice())),
+                phantom_id: None,
+                if_not_present: false,
+            },
+            generation_id: None,
+            phantom_id: None,
+        })
+        .await;
+
+    println!("put result {:?}", a);
 
     let context = Arc::new(RwLock::new(Context {
         config,

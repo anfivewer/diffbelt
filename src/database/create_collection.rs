@@ -16,6 +16,7 @@ pub enum CreateCollectionError {
     AlreadyExist,
     Protobuf(protobuf::Error),
     CollectionOpen(CollectionOpenError),
+    ManualModeMissmatch,
 }
 
 const PREFIX: &[u8] = b"collection:";
@@ -26,28 +27,57 @@ impl Database {
         id: &str,
         options: CreateCollectionOptions,
     ) -> Result<Arc<Collection>, CreateCollectionError> {
-        let result = self.create_collection(id, options).await;
+        loop {
+            let result = self.create_collection_inner(id, &options).await;
 
-        match result {
-            Err(err) => match err {
-                CreateCollectionError::AlreadyExist => {
-                    let collections = self.collections.read().unwrap();
-                    Ok(collections.get(id).unwrap().clone())
+            match result {
+                Err(err) => match err {
+                    CreateCollectionError::AlreadyExist => {
+                        let collections = self.collections.read().unwrap();
+                        let collection = collections.get(id);
+
+                        match collection {
+                            Some(collection) => {
+                                if collection.is_manual() != options.is_manual {
+                                    return Err(CreateCollectionError::ManualModeMissmatch);
+                                }
+
+                                return Ok(collection.clone());
+                            }
+                            None => {
+                                // was removed in progress of our checks
+                                continue;
+                            }
+                        }
+                    }
+                    _ => {
+                        return Err(err);
+                    }
+                },
+                ok => {
+                    return ok;
                 }
-                _ => Err(err),
-            },
-            ok => ok,
+            }
         }
     }
 
+    #[inline]
     pub async fn create_collection(
         &self,
         id: &str,
         options: CreateCollectionOptions,
     ) -> Result<Arc<Collection>, CreateCollectionError> {
+        self.create_collection_inner(id, &options).await
+    }
+
+    async fn create_collection_inner(
+        &self,
+        id: &str,
+        options: &CreateCollectionOptions,
+    ) -> Result<Arc<Collection>, CreateCollectionError> {
         // We don't want to lock `self.collections` for write while creating
         // new collection/saving record to meta_raw_db, so it's in a separate lock
-        self.collections_alter_lock.lock().await;
+        let guard = self.collections_alter_lock.lock().await;
 
         let collections = self.collections.read().unwrap();
         if collections.contains_key(id) {
@@ -89,6 +119,8 @@ impl Database {
         let mut collections = self.collections.write().unwrap();
         collections.insert(id.to_string(), collection.clone());
         drop(collections);
+
+        drop(guard);
 
         Ok(collection)
     }

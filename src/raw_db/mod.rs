@@ -4,6 +4,7 @@ use std::cmp::Ordering;
 use std::sync::Arc;
 
 pub mod contains_existing_collection_record;
+pub mod put_collection_record;
 
 pub struct RawDb {
     db: Arc<DB>,
@@ -16,6 +17,7 @@ pub enum RawDbError {
     Join(tokio::task::JoinError),
     CfHandle,
     InvalidRecordKey,
+    InvalidGenerationKey,
 }
 
 impl From<rocksdb::Error> for RawDbError {

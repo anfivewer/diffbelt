@@ -1,5 +1,5 @@
 use crate::collection::util::record_key::OwnedRecordKey;
-use crate::common::{GenerationId};
+use crate::common::GenerationId;
 use crate::database::DatabaseInner;
 use crate::generation::{CollectionGeneration, CollectionGenerationKeyStatus};
 use crate::raw_db::RawDb;
@@ -39,7 +39,7 @@ impl Collection {
 
     pub fn get_reader_generation_id(
         &self,
-        reader_id: &str,
+        _reader_id: &str,
     ) -> Result<GenerationId, GetReaderGenerationIdError> {
         Ok(GenerationId(vec![].into_boxed_slice()))
     }

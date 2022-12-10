@@ -1,3 +1,4 @@
+use crate::collection::util::record_key_flags::RecordKeyFlags;
 use crate::common::{
     CollectionKey, CollectionKeyRef, GenerationId, GenerationIdRef, IsByteArray, PhantomId,
     PhantomIdRef,
@@ -43,7 +44,7 @@ const MAX_PHANTOM_ID_LENGTH: usize = 255;
 
 impl<'a> RecordKey<'a> {
     pub fn validate(bytes: &'a [u8]) -> Result<Self, ()> {
-        if bytes.len() < MIN_RECORD_KEY_LENGTH || bytes[0] != 0 {
+        if bytes.len() < MIN_RECORD_KEY_LENGTH {
             return Err(());
         }
 
@@ -108,6 +109,7 @@ impl OwnedRecordKey {
         key: &'a CollectionKey,
         generation_id: &'a GenerationId,
         phantom_id: &'a PhantomId,
+        flags: RecordKeyFlags,
     ) -> Result<OwnedRecordKey, ()> {
         let key_bytes = key.get_byte_array();
         let generation_id_bytes = generation_id.get_byte_array();
