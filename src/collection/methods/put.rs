@@ -1,6 +1,6 @@
 use crate::collection::methods::errors::CollectionMethodError;
+use crate::collection::util::record_flags::RecordFlags;
 use crate::collection::util::record_key::OwnedRecordKey;
-use crate::collection::util::record_key_flags::RecordKeyFlags;
 use crate::collection::Collection;
 use crate::common::util::is_byte_array_equal_both_opt;
 use crate::common::{GenerationId, GenerationIdRef, KeyValueUpdate, PhantomId};
@@ -67,11 +67,12 @@ impl Collection {
         let key = update.key;
         let phantom_id_or_empty = phantom_id.unwrap_or(PhantomId::empty());
 
-        let mut flags = RecordKeyFlags::new();
-        flags.set_value_is_present(update.value.is_some());
-        let record_key =
-            OwnedRecordKey::new(&key, record_generation_id, &phantom_id_or_empty, flags)
-                .or(Err(CollectionMethodError::InvalidKey))?;
+        let record_key = OwnedRecordKey::new(
+            key.as_ref(),
+            record_generation_id.as_ref(),
+            phantom_id_or_empty.as_ref(),
+        )
+        .or(Err(CollectionMethodError::InvalidKey))?;
 
         let mut resolve_put = None;
 
@@ -100,7 +101,6 @@ impl Collection {
                         .contains_existing_collection_record(
                             ContainsExistingCollectionRecordOptions {
                                 record_key: record_key.as_ref(),
-                                generation_id: record_generation_id.as_ref(),
                             },
                         )
                         .await?;

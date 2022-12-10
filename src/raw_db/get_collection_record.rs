@@ -1,25 +1,25 @@
 use crate::collection::util::record_key::{OwnedRecordKey, RecordKey};
-use crate::common::{GenerationIdRef, IsByteArray};
+use crate::common::{CollectionValue, GenerationIdRef, IsByteArray};
 use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::decrement;
 use rocksdb::{Direction, IteratorMode, ReadOptions};
 
-pub struct ContainsExistingCollectionRecordOptions<'a> {
+pub struct GetCollectionRecordOptions<'a> {
     pub record_key: RecordKey<'a>,
 }
 
 impl RawDb {
-    pub async fn contains_existing_collection_record(
+    pub async fn get_collection_record(
         &self,
-        options: ContainsExistingCollectionRecordOptions<'_>,
-    ) -> Result<Option<OwnedRecordKey>, RawDbError> {
+        options: GetCollectionRecordOptions<'_>,
+    ) -> Result<Option<(OwnedRecordKey, CollectionValue)>, RawDbError> {
         let db = self.db.clone();
         let record_key = options.record_key.to_owned();
 
         tokio::task::spawn_blocking(move || {
             let mut lower_record_key = record_key.clone();
-            let lower_collection_key = lower_record_key.get_collection_key_bytes_mut();
-            decrement(lower_collection_key);
+            let record_collection_key = lower_record_key.get_collection_key_bytes_mut();
+            decrement(record_collection_key);
 
             let iterator_mode = IteratorMode::From(record_key.get_byte_array(), Direction::Reverse);
             let mut opts = ReadOptions::default();
@@ -34,6 +34,7 @@ impl RawDb {
 
             for item in iterator {
                 let (key, value) = item?;
+
                 let item_record_key =
                     RecordKey::validate(&key).or(Err(RawDbError::InvalidRecordKey))?;
 
@@ -47,11 +48,14 @@ impl RawDb {
                 if item_record_key.get_generation_id() <= generation_id {
                     let is_value_present = value.len() > 0;
 
-                    return Ok(if is_value_present {
-                        Some(item_record_key.to_owned())
+                    return if is_value_present {
+                        Ok(Some((
+                            item_record_key.to_owned(),
+                            CollectionValue::from_boxed_slice(value),
+                        )))
                     } else {
-                        None
-                    });
+                        Ok(None)
+                    };
                 }
             }
 

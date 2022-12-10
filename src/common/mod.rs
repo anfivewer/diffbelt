@@ -1,3 +1,4 @@
+use crate::collection::util::record_flags::RecordFlags;
 use crate::util::bytes::increment;
 use std::cmp::Ordering;
 use std::ops::{Deref, DerefMut};
@@ -7,11 +8,12 @@ pub mod util;
 // TODO: remove this Defer implementations, prefer own methods
 // TODO: rename "*Key" to "Owned*Key", rename "*KeyRef" to "*Key"
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct CollectionKey(pub Box<[u8]>);
 pub struct CollectionKeyRef<'a>(pub &'a [u8]);
 
-pub struct CollectionValue(pub Box<[u8]>);
+#[derive(Debug)]
+pub struct CollectionValue(Box<[u8]>);
 pub struct CollectionValueRef<'a>(pub &'a [u8]);
 
 #[derive(Clone, Debug)]
@@ -21,6 +23,12 @@ pub struct GenerationIdRef<'a>(pub &'a [u8]);
 
 pub struct PhantomId(pub Box<[u8]>);
 pub struct PhantomIdRef<'a>(pub &'a [u8]);
+
+#[derive(Debug)]
+pub struct KeyValue {
+    pub key: CollectionKey,
+    pub value: CollectionValue,
+}
 
 pub struct KeyValueUpdate {
     pub key: CollectionKey,
@@ -111,6 +119,21 @@ impl PartialEq for CollectionKeyRef<'_> {
 }
 
 impl CollectionValue {
+    pub fn new(bytes: &[u8]) -> Self {
+        let mut vec = Vec::with_capacity(bytes.len() + 1);
+        vec.push(RecordFlags::new().get_byte());
+        vec.extend_from_slice(bytes);
+        Self(vec.into_boxed_slice())
+    }
+    pub fn new_flags(bytes: &[u8], flags: RecordFlags) -> Self {
+        let mut vec = Vec::with_capacity(bytes.len() + 1);
+        vec.push(flags.get_byte());
+        vec.extend_from_slice(bytes);
+        Self(vec.into_boxed_slice())
+    }
+    pub fn from_boxed_slice(bytes: Box<[u8]>) -> Self {
+        Self(bytes)
+    }
     pub fn as_ref(&self) -> CollectionValueRef<'_> {
         CollectionValueRef(&self.0)
     }
@@ -145,6 +168,15 @@ impl Deref for PhantomId {
 impl PhantomId {
     pub fn empty() -> Self {
         Self(vec![].into_boxed_slice())
+    }
+    pub fn as_ref(&self) -> PhantomIdRef<'_> {
+        PhantomIdRef(&self.0)
+    }
+    pub fn or_empty_as_ref(opt: &Option<Self>) -> PhantomIdRef<'_> {
+        match opt {
+            Some(id) => id.as_ref(),
+            None => PhantomIdRef(b""),
+        }
     }
 }
 impl Deref for PhantomIdRef<'_> {

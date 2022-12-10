@@ -1,9 +1,13 @@
-use rocksdb::{ColumnFamilyDescriptor, Direction, IteratorMode, Options, ReadOptions, DB};
+use rocksdb::{
+    ColumnFamilyDescriptor, Direction, IteratorMode, Options, ReadOptions, DB,
+    DEFAULT_COLUMN_FAMILY_NAME,
+};
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::sync::Arc;
 
 pub mod contains_existing_collection_record;
+pub mod get_collection_record;
 pub mod put_collection_record;
 
 pub struct RawDb {
@@ -219,24 +223,30 @@ impl RawDb {
         opts.create_if_missing(true);
         opts.create_missing_column_families(true);
 
+        let mut column_family_descriptors: Vec<ColumnFamilyDescriptor> =
+            Vec::with_capacity(options.column_families.len() + 1);
+
+        let mut default_cf_opts = Options::default();
         match options.comparator {
-            Some(comparator) => opts.set_comparator(&comparator.name, comparator.compare_fn),
+            Some(comparator) => {
+                default_cf_opts.set_comparator(&comparator.name, comparator.compare_fn)
+            }
             None => (),
         }
+        column_family_descriptors.push(ColumnFamilyDescriptor::new(
+            DEFAULT_COLUMN_FAMILY_NAME,
+            default_cf_opts,
+        ));
 
-        let column_family_descriptors: Vec<ColumnFamilyDescriptor> = options
-            .column_families
-            .into_iter()
-            .map(|family| {
-                let mut cf_opts = Options::default();
+        for family in options.column_families {
+            let mut cf_opts = Options::default();
 
-                family.comparator.as_ref().map(|comparator| {
-                    cf_opts.set_comparator(&comparator.name, comparator.compare_fn);
-                });
+            family.comparator.as_ref().map(|comparator| {
+                cf_opts.set_comparator(&comparator.name, comparator.compare_fn);
+            });
 
-                ColumnFamilyDescriptor::new(&family.name, cf_opts)
-            })
-            .collect();
+            column_family_descriptors.push(ColumnFamilyDescriptor::new(&family.name, cf_opts));
+        }
 
         let db = DB::open_cf_descriptors(&opts, path, column_family_descriptors)?;
 

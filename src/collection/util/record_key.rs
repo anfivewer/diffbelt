@@ -1,4 +1,4 @@
-use crate::collection::util::record_key_flags::RecordKeyFlags;
+use crate::collection::util::record_flags::RecordFlags;
 use crate::common::{
     CollectionKey, CollectionKeyRef, GenerationId, GenerationIdRef, IsByteArray, PhantomId,
     PhantomIdRef,
@@ -106,10 +106,9 @@ impl<'a> RecordKey<'a> {
 
 impl OwnedRecordKey {
     pub fn new<'a>(
-        key: &'a CollectionKey,
-        generation_id: &'a GenerationId,
-        phantom_id: &'a PhantomId,
-        flags: RecordKeyFlags,
+        key: CollectionKeyRef<'a>,
+        generation_id: GenerationIdRef<'a>,
+        phantom_id: PhantomIdRef<'a>,
     ) -> Result<OwnedRecordKey, ()> {
         let key_bytes = key.get_byte_array();
         let generation_id_bytes = generation_id.get_byte_array();
@@ -133,7 +132,7 @@ impl OwnedRecordKey {
         ]
         .into_boxed_slice();
 
-        // reserved for the future
+        // reserved for the future, if we will want to change keys format
         value[0] = 0;
 
         write_u24(&mut value, 1, key_bytes.len() as u32);
@@ -165,7 +164,7 @@ impl OwnedRecordKey {
         Ok(OwnedRecordKey { value })
     }
 
-    pub fn get_key_bytes_mut(&mut self) -> &mut [u8] {
+    pub fn get_collection_key_bytes_mut(&mut self) -> &mut [u8] {
         let size = read_u24(&self.value, 1) as usize;
         &mut self.value[4..(4 + size)]
     }

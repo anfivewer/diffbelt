@@ -67,7 +67,9 @@ pub fn record_key_compare_fn(left: &[u8], right: &[u8]) -> Ordering {
         panic!("record key less than minimum");
     }
 
-    // WARN: first byte is ignored in compare, it stores flags that we don't want to place in the value
+    if left[0] != 0 || right[0] != 0 {
+        panic!("record key reserved flag byte is not zero");
+    }
 
     let (ord, left_to, right_to) = record_key_compare_u24_sized(left, right, 1, 1);
 

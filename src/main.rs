@@ -1,5 +1,6 @@
+use crate::collection::methods::get::CollectionGetOptions;
 use crate::collection::methods::put::CollectionPutOptions;
-use crate::common::{CollectionKey, CollectionValue, KeyValueUpdate};
+use crate::common::{CollectionKey, CollectionValue, GenerationId, KeyValueUpdate};
 use crate::config::{Config, ReadConfigFromEnvError};
 use crate::context::Context;
 use crate::database::create_collection::CreateCollectionOptions;
@@ -74,11 +75,24 @@ async fn main() {
         .await
         .expect("Collection create");
 
+    let mut generation_id = GenerationId(vec![0; 64].into_boxed_slice());
+    generation_id.increment();
+
+    let b = collection
+        .get(CollectionGetOptions {
+            key: CollectionKey(b"test".to_vec().into_boxed_slice()),
+            generation_id: Some(generation_id),
+            phantom_id: None,
+        })
+        .await;
+
+    println!("get result {:?}", b);
+
     let a = collection
         .put(CollectionPutOptions {
             update: KeyValueUpdate {
                 key: CollectionKey(b"test".to_vec().into_boxed_slice()),
-                value: Option::Some(CollectionValue(b"passed".to_vec().into_boxed_slice())),
+                value: Option::Some(CollectionValue::new(b"passed")),
                 phantom_id: None,
                 if_not_present: false,
             },
