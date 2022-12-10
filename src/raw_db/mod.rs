@@ -3,6 +3,8 @@ use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::sync::Arc;
 
+pub mod contains_existing_collection_record;
+
 pub struct RawDb {
     db: Arc<DB>,
     cf_name: Arc<Option<String>>,
@@ -13,6 +15,7 @@ pub enum RawDbError {
     RocksDb(rocksdb::Error),
     Join(tokio::task::JoinError),
     CfHandle,
+    InvalidRecordKey,
 }
 
 impl From<rocksdb::Error> for RawDbError {

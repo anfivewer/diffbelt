@@ -22,3 +22,15 @@ pub fn increment(bytes: &mut [u8]) {
         break;
     }
 }
+
+pub fn decrement(bytes: &mut [u8]) {
+    for i in (0..bytes.len()).rev() {
+        if bytes[i] == 0 {
+            bytes[i] = 255;
+            continue;
+        }
+
+        bytes[i] -= 1;
+        break;
+    }
+}

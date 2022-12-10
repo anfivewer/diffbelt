@@ -7,7 +7,7 @@ use crate::raw_db::{RawDb, RawDbError};
 use protobuf::Message;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{Mutex};
+use tokio::sync::Mutex;
 
 pub struct DatabaseOpenOptions {
     pub config: Arc<Config>,

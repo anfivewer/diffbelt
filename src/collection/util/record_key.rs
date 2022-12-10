@@ -3,6 +3,7 @@ use crate::common::{
     PhantomIdRef,
 };
 use crate::util::bytes::{read_u24, write_u24};
+use std::ops::Deref;
 
 pub struct RecordKey<'a> {
     pub value: &'a [u8],
@@ -16,11 +17,62 @@ impl<'a> From<&'a OwnedRecordKey> for RecordKey<'a> {
     }
 }
 
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub struct OwnedRecordKey {
     pub value: Box<[u8]>,
 }
 
-impl RecordKey<'_> {
+impl Deref for OwnedRecordKey {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+
+/*
+    1 -- reserved byte
+    3 -- size of key
+    1 -- size of generationId
+    1 -- size of phantomId
+*/
+const MIN_RECORD_KEY_LENGTH: usize = 1 + 3 + 1 + 1;
+const MAX_KEY_LENGTH: usize = (2 as usize).pow(24) - 1;
+const MAX_GENERATION_ID_LENGTH: usize = 255;
+const MAX_PHANTOM_ID_LENGTH: usize = 255;
+
+impl<'a> RecordKey<'a> {
+    pub fn validate(bytes: &'a [u8]) -> Result<Self, ()> {
+        if bytes.len() < MIN_RECORD_KEY_LENGTH || bytes[0] != 0 {
+            return Err(());
+        }
+
+        let mut rest_size = bytes.len() - MIN_RECORD_KEY_LENGTH;
+
+        let key_size = read_u24(bytes, 1) as usize;
+        if rest_size < key_size {
+            return Err(());
+        }
+
+        let mut offset = 4 + key_size;
+        rest_size -= key_size;
+
+        let generation_id_size = bytes[offset] as usize;
+        if rest_size < generation_id_size {
+            return Err(());
+        }
+
+        offset += 1 + generation_id_size;
+        rest_size -= generation_id_size;
+
+        let phantom_id_size = bytes[offset] as usize;
+        if rest_size != phantom_id_size {
+            return Err(());
+        }
+
+        Ok(Self { value: bytes })
+    }
+
     pub fn get_key(&self) -> CollectionKeyRef {
         let size = read_u24(self.value, 1) as usize;
         CollectionKeyRef(&self.value[4..(4 + size)])
@@ -43,11 +95,13 @@ impl RecordKey<'_> {
         offset += 1;
         PhantomIdRef(&self.value[offset..(offset + size)])
     }
-}
 
-const MAX_KEY_LENGTH: usize = (2 as usize).pow(24) - 1;
-const MAX_GENERATION_ID_LENGTH: usize = 255;
-const MAX_PHANTOM_ID_LENGTH: usize = 255;
+    pub fn to_owned(&self) -> OwnedRecordKey {
+        OwnedRecordKey {
+            value: self.value.into(),
+        }
+    }
+}
 
 impl OwnedRecordKey {
     pub fn new<'a>(
@@ -109,6 +163,11 @@ impl OwnedRecordKey {
         Ok(OwnedRecordKey { value })
     }
 
+    pub fn get_key_bytes_mut(&mut self) -> &mut [u8] {
+        let size = read_u24(&self.value, 1) as usize;
+        &mut self.value[4..(4 + size)]
+    }
+
     pub fn as_ref(&self) -> RecordKey {
         self.into()
     }
@@ -125,6 +184,8 @@ fn test_create_record_key() {
 
     let record_key = record_key.unwrap();
     let record_key = record_key.as_ref();
+
+    assert_eq!(RecordKey::validate(record_key.value).is_ok(), true);
 
     let actual_key = record_key.get_key();
     let actual_key = actual_key.get_byte_array();

@@ -6,12 +6,12 @@ use crate::collection::Collection;
 use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut};
 use crate::config::Config;
 use crate::database::DatabaseInner;
-use crate::generation::{CollectionGeneration, CollectionGenerationKeys};
+use crate::generation::{CollectionGeneration};
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbOpenError, RawDbOptions,
 };
 use crate::util::bytes::increment;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -181,7 +181,7 @@ impl Collection {
 
                 Some(CollectionGeneration {
                     id,
-                    keys: CollectionGenerationKeys::InProgress(std::sync::RwLock::new(set)),
+                    keys: std::sync::RwLock::new(set),
                 })
             }
             None => None,
@@ -193,6 +193,7 @@ impl Collection {
             is_manual,
             generation_id: std::sync::RwLock::new(generation_id),
             next_generation: RwLock::new(next_generation),
+            if_not_present_writes: std::sync::RwLock::new(HashMap::new()),
             database_inner: options.database_inner,
         })
     }

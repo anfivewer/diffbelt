@@ -1,13 +1,15 @@
-use crate::common::GenerationId;
+use crate::collection::util::record_key::OwnedRecordKey;
+use crate::common::{GenerationId};
 use crate::database::DatabaseInner;
-use crate::generation::CollectionGeneration;
+use crate::generation::{CollectionGeneration, CollectionGenerationKeyStatus};
 use crate::raw_db::RawDb;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-mod methods;
+pub mod methods;
 pub mod open;
-mod util;
+pub mod util;
 
 pub struct Collection {
     id: String,
@@ -17,6 +19,8 @@ pub struct Collection {
     // None if this is manual collection and generation is not yet started
     // in non-manual collections always present
     next_generation: RwLock<Option<CollectionGeneration>>,
+    if_not_present_writes:
+        std::sync::RwLock<HashMap<OwnedRecordKey, CollectionGenerationKeyStatus>>,
     database_inner: Arc<DatabaseInner>,
 }
 

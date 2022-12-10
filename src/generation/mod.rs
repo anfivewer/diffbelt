@@ -1,14 +1,22 @@
 use crate::common::{CollectionKey, GenerationId};
 use std::collections::BTreeSet;
-use std::sync::RwLock;
 
-pub enum CollectionGenerationKeys {
-    Sealed(Vec<CollectionKey>),
-    // Use std::sync::RwLock instead of tokio, this set will be not blocked for a long time
-    InProgress(RwLock<BTreeSet<CollectionKey>>),
+use tokio::sync::watch::Receiver;
+
+#[derive(Clone)]
+pub enum CollectionGenerationKeyProgress {
+    Pending,
+    AlreadyExists(GenerationId),
+    WasPut(GenerationId),
+    Err,
+}
+
+// TODO: move this enum to collection module and rename it
+pub enum CollectionGenerationKeyStatus {
+    InProgress(Receiver<CollectionGenerationKeyProgress>),
 }
 
 pub struct CollectionGeneration {
     pub id: GenerationId,
-    pub keys: CollectionGenerationKeys,
+    pub keys: std::sync::RwLock<BTreeSet<CollectionKey>>,
 }
