@@ -179,6 +179,14 @@ impl PhantomId {
         }
     }
 }
+impl PhantomIdRef<'_> {
+    pub fn or_empty(opt: &Option<Self>) -> Self {
+        match opt {
+            Some(id) => PhantomIdRef(id.0),
+            None => PhantomIdRef(b""),
+        }
+    }
+}
 impl Deref for PhantomIdRef<'_> {
     type Target = [u8];
 

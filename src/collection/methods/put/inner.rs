@@ -1,78 +1,45 @@
 use crate::collection::methods::errors::CollectionMethodError;
-use crate::collection::util::record_flags::RecordFlags;
+use crate::collection::methods::put::{CollectionPutOk, CollectionPutOptions, CollectionPutResult};
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::collection::Collection;
-use crate::common::util::is_byte_array_equal_both_opt;
-use crate::common::{GenerationId, GenerationIdRef, KeyValueUpdate, PhantomId};
+use crate::common::{GenerationId, GenerationIdRef, PhantomId, PhantomIdRef};
 use crate::generation::{CollectionGenerationKeyProgress, CollectionGenerationKeyStatus};
 use crate::raw_db::contains_existing_collection_record::ContainsExistingCollectionRecordOptions;
-use crate::raw_db::put_collection_record::PutCollectionRecordOptions;
+use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::sync::Arc;
 
-pub struct CollectionPutOptions {
-    pub update: KeyValueUpdate,
-    pub generation_id: Option<GenerationId>,
-    pub phantom_id: Option<PhantomId>,
+pub struct CollectionPutInnerOptions<'a> {
+    pub options: &'a CollectionPutOptions,
+    pub record_generation_id: GenerationIdRef<'a>,
 }
 
-#[derive(Debug)]
-pub struct CollectionPutOk {
-    pub generation_id: GenerationId,
-    // if `update.if_not_present == true`, it can be false when nothing was changed
-    pub was_put: bool,
+pub struct CollectionPutInnerContinue<'a> {
+    pub record_key: Arc<OwnedRecordKey>,
+    pub resolve: Option<ResolvePutFn<'a>>,
 }
 
-type CollectionPutResult = Result<CollectionPutOk, CollectionMethodError>;
+pub enum CollectionPutInnerResult<'a> {
+    Done(CollectionPutResult),
+    Continue(CollectionPutInnerContinue<'a>),
+}
 
 impl Collection {
-    pub async fn put(&self, options: CollectionPutOptions) -> CollectionPutResult {
-        //// Validate request
-        let update = options.update;
-        let generation_id = options.generation_id;
-        let phantom_id = options.phantom_id;
-        let is_phantom = phantom_id.is_some();
+    pub async fn put_inner<'a>(
+        &'a self,
+        options: CollectionPutInnerOptions<'a>,
+    ) -> Result<CollectionPutInnerResult<'a>, CollectionMethodError> {
+        let method_options = options.options;
+        let record_generation_id = options.record_generation_id;
 
-        if is_phantom && generation_id.is_none() {
-            // Phantom writes can be only to the specified generation
-            return Err(CollectionMethodError::PutPhantomWithoutGenerationId);
-        }
+        let update = &method_options.update;
+        let key = &update.key;
+        let phantom_id_or_empty = PhantomId::or_empty_as_ref(&update.phantom_id);
 
-        let next_generation = self.next_generation.read().await;
-        let next_generation_id = next_generation.as_ref().map(|gen| &gen.id);
-
-        let is_generation_id_equal_to_next_one =
-            is_byte_array_equal_both_opt(generation_id.as_ref(), next_generation_id);
-
-        // Phantom puts are allowed to do everything (except to be without a specified generationId),
-        // but we are already checked it above
-        if !is_phantom {
-            if generation_id.is_some() {
-                if !is_generation_id_equal_to_next_one {
-                    return Err(CollectionMethodError::OutdatedGeneration);
-                }
-            } else if self.is_manual {
-                // we cannot put values is manual collection without specified generationId
-                return Err(CollectionMethodError::CannotPutInManualCollection);
-            } else if next_generation.is_none() {
-                panic!("Collection::put, no next_generation in !manual collection");
-            }
-        }
-
-        //// Insert
-        let record_generation_id = generation_id
-            .as_ref()
-            .or(next_generation_id)
-            .expect("Collection::put, no either generation_id or next_generation");
-
-        let key = update.key;
-        let phantom_id_or_empty = phantom_id.unwrap_or(PhantomId::empty());
-
-        let record_key = OwnedRecordKey::new(
-            key.as_ref(),
-            record_generation_id.as_ref(),
-            phantom_id_or_empty.as_ref(),
-        )
-        .or(Err(CollectionMethodError::InvalidKey))?;
+        let record_key =
+            OwnedRecordKey::new(key.as_ref(), record_generation_id, phantom_id_or_empty)
+                .or(Err(CollectionMethodError::InvalidKey))?;
+        let record_key = Arc::new(record_key);
 
         let mut resolve_put = None;
 
@@ -83,15 +50,15 @@ impl Collection {
             // Check hashmap of current puts or take a put lock
             let result = handle_if_not_present(
                 &self.if_not_present_writes,
-                &record_key,
-                record_generation_id.as_ref(),
+                record_key.clone(),
+                record_generation_id,
             )
             .await;
 
             match result {
                 HandleIfNotPresentResult::Return(result) => {
                     // Concurrent put was faster, return it's result
-                    return result;
+                    return Ok(CollectionPutInnerResult::Done(result));
                 }
                 HandleIfNotPresentResult::NeedPut(resolve) => {
                     // Now we are handling this record exclusively,
@@ -100,7 +67,7 @@ impl Collection {
                         .raw_db
                         .contains_existing_collection_record(
                             ContainsExistingCollectionRecordOptions {
-                                record_key: record_key.as_ref(),
+                                record_key: record_key.as_ref().as_ref(),
                             },
                         )
                         .await?;
@@ -112,10 +79,10 @@ impl Collection {
 
                             resolve(HandleIfNotPresentResolve::AlreadyExists(generation_id));
 
-                            return Ok(CollectionPutOk {
+                            return Ok(CollectionPutInnerResult::Done(Ok(CollectionPutOk {
                                 generation_id: generation_id.to_owned(),
                                 was_put: true,
-                            });
+                            })));
                         }
                         None => {
                             // We'll notify other `if_not_present` waiters about success of current put
@@ -126,53 +93,31 @@ impl Collection {
             }
         }
 
-        let result = self
-            .raw_db
-            .put_collection_record(PutCollectionRecordOptions {
-                record_key: record_key.as_ref(),
-                value: update.value.as_ref().map(|x| x.as_ref()),
-            })
-            .await;
-
-        let (result, if_not_present_result) = match result {
-            Ok(_) => (
-                Ok(CollectionPutOk {
-                    generation_id: record_generation_id.to_owned(),
-                    was_put: true,
-                }),
-                HandleIfNotPresentResolve::WasPut,
-            ),
-            Err(err) => (
-                Err(CollectionMethodError::RawDb(err)),
-                HandleIfNotPresentResolve::Err,
-            ),
-        };
-
-        match resolve_put {
-            Some(resolve) => {
-                resolve(if_not_present_result);
-            }
-            None => {}
-        }
-
-        result
+        Ok(CollectionPutInnerResult::Continue(
+            CollectionPutInnerContinue {
+                record_key: record_key.clone(),
+                resolve: resolve_put,
+            },
+        ))
     }
 }
 
-enum HandleIfNotPresentResolve<'a> {
+pub enum HandleIfNotPresentResolve<'a> {
     WasPut,
     AlreadyExists(GenerationIdRef<'a>),
     Err,
 }
 
+type ResolvePutFn<'a> = Box<dyn FnOnce(HandleIfNotPresentResolve<'_>) -> () + 'a>;
+
 enum HandleIfNotPresentResult<'a> {
     Return(CollectionPutResult),
-    NeedPut(Box<dyn FnOnce(HandleIfNotPresentResolve<'_>) -> () + 'a>),
+    NeedPut(ResolvePutFn<'a>),
 }
 
 async fn handle_if_not_present<'a>(
     rw_hash: &'a std::sync::RwLock<HashMap<OwnedRecordKey, CollectionGenerationKeyStatus>>,
-    key: &'a OwnedRecordKey,
+    key: Arc<OwnedRecordKey>,
     generation_id: GenerationIdRef<'a>,
 ) -> HandleIfNotPresentResult<'a> {
     'outer: loop {
@@ -235,13 +180,13 @@ async fn handle_if_not_present<'a>(
                     tokio::sync::watch::channel(CollectionGenerationKeyProgress::Pending);
 
                 keys.insert(
-                    key.clone(),
+                    key.as_ref().clone(),
                     CollectionGenerationKeyStatus::InProgress(receiver),
                 );
 
                 return HandleIfNotPresentResult::NeedPut(Box::new(move |resolution| {
                     let mut keys = rw_hash.write().unwrap();
-                    keys.remove(key);
+                    keys.remove(&key);
                     drop(keys);
 
                     let value_to_send = match resolution {
