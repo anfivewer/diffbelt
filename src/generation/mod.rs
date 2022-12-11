@@ -15,8 +15,3 @@ pub enum CollectionGenerationKeyProgress {
 pub enum CollectionGenerationKeyStatus {
     InProgress(Receiver<CollectionGenerationKeyProgress>),
 }
-
-pub struct CollectionGeneration {
-    pub id: GenerationId,
-    pub keys: std::sync::RwLock<BTreeSet<CollectionKey>>,
-}

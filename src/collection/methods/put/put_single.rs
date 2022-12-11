@@ -32,7 +32,7 @@ impl Collection {
 
         let next_generation = self.next_generation.read().await;
         let next_generation_id: Option<GenerationIdRef> =
-            next_generation.as_ref().map(|gen| gen.id.as_ref());
+            next_generation.as_ref().map(|gen| gen.as_ref());
 
         //// Validate
         let error = validate_put(ValidatePutOptions {

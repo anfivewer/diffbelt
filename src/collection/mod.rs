@@ -1,7 +1,7 @@
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::GenerationId;
 use crate::database::DatabaseInner;
-use crate::generation::{CollectionGeneration, CollectionGenerationKeyStatus};
+use crate::generation::CollectionGenerationKeyStatus;
 use crate::raw_db::RawDb;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -18,7 +18,7 @@ pub struct Collection {
     generation_id: std::sync::RwLock<GenerationId>,
     // None if this is manual collection and generation is not yet started
     // in non-manual collections always present
-    next_generation: RwLock<Option<CollectionGeneration>>,
+    next_generation: RwLock<Option<GenerationId>>,
     if_not_present_writes:
         std::sync::RwLock<HashMap<OwnedRecordKey, CollectionGenerationKeyStatus>>,
     database_inner: Arc<DatabaseInner>,

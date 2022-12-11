@@ -6,7 +6,6 @@ use crate::collection::Collection;
 use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut};
 use crate::config::Config;
 use crate::database::DatabaseInner;
-use crate::generation::CollectionGeneration;
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbOpenError, RawDbOptions,
 };
@@ -149,51 +148,12 @@ impl Collection {
             }
         };
 
-        // Restore non-commited next generation keys
-        let next_generation: Option<CollectionGeneration> = match next_generation_id {
-            Some(id) => {
-                let empty_key = CollectionKey::empty();
-                let from_key = OwnedGenerationKey::new(id.as_ref(), empty_key.as_ref())
-                    .or(Err(CollectionOpenError::KeyCreation))?;
-
-                let mut to_id = id.clone();
-                to_id.increment();
-                let to_key = OwnedGenerationKey::new(to_id.as_ref(), empty_key.as_ref())
-                    .or(Err(CollectionOpenError::KeyCreation))?;
-
-                let generation_keys = generations.get_key_range(&from_key, &to_key).await?;
-
-                let expected_count = generation_keys.len();
-                let generation_keys: Vec<CollectionKey> = generation_keys
-                    .into_iter()
-                    .map_while(|key| {
-                        let key = GenerationKey::validate(&key).ok()?;
-                        let key = key.get_key().to_owned();
-
-                        Some(key)
-                    })
-                    .collect();
-
-                if generation_keys.len() != expected_count {
-                    return Err(CollectionOpenError::DbContainsInvalidKeys);
-                }
-
-                let set: BTreeSet<CollectionKey> = generation_keys.into_iter().collect();
-
-                Some(CollectionGeneration {
-                    id,
-                    keys: std::sync::RwLock::new(set),
-                })
-            }
-            None => None,
-        };
-
         Ok(Collection {
             id: collection_id,
             raw_db: Arc::new(raw_db),
             is_manual,
             generation_id: std::sync::RwLock::new(generation_id),
-            next_generation: RwLock::new(next_generation),
+            next_generation: RwLock::new(next_generation_id),
             if_not_present_writes: std::sync::RwLock::new(HashMap::new()),
             database_inner: options.database_inner,
         })
