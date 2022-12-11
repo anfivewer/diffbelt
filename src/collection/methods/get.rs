@@ -3,14 +3,9 @@ use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::collection::Collection;
 
-use crate::common::{
-    CollectionKey, CollectionValue, GenerationId, KeyValue, PhantomId,
-};
-
+use crate::common::{CollectionKey, CollectionValue, GenerationId, KeyValue, PhantomId};
 
 use crate::raw_db::get_collection_record::GetCollectionRecordOptions;
-
-
 
 pub struct CollectionGetOptions {
     pub key: CollectionKey,

@@ -8,6 +8,8 @@ use std::sync::Arc;
 
 pub mod contains_existing_collection_record;
 pub mod get_collection_record;
+pub mod has_generation_changes;
+pub mod put;
 pub mod put_collection_record;
 pub mod put_many_collection_records;
 
@@ -128,27 +130,6 @@ impl RawDb {
             }
 
             Ok(result)
-        })
-        .await?
-    }
-
-    pub async fn put(&self, key: &[u8], value: &[u8]) -> Result<(), RawDbError> {
-        let key = key.to_owned().into_boxed_slice();
-        let value = value.to_owned().into_boxed_slice();
-
-        let db = self.db.clone();
-        let cf_name = self.cf_name.clone();
-
-        tokio::task::spawn_blocking(move || {
-            match cf_name.borrow() {
-                Some(cf_name) => {
-                    let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
-                    db.put_cf(&cf, key, value)?
-                }
-                None => db.put(key, value)?,
-            };
-
-            Ok(())
         })
         .await?
     }

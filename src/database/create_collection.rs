@@ -114,8 +114,6 @@ impl Database {
         .await
         .or_else(|err| Err(CreateCollectionError::CollectionOpen(err)))?;
 
-        let collection = Arc::new(collection);
-
         let mut collections = self.collections.write().unwrap();
         collections.insert(id.to_string(), collection.clone());
         drop(collections);

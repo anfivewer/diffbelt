@@ -1,6 +1,5 @@
-
 use crate::common::{
-    CollectionKeyRef, GenerationIdRef, IsByteArray,
+    CollectionKey, CollectionKeyRef, GenerationId, GenerationIdRef, IsByteArray, PhantomId,
     PhantomIdRef,
 };
 use crate::util::bytes::{read_u24, write_u24};
@@ -186,7 +185,7 @@ fn test_create_record_key() {
     let generation_id = GenerationId(vec![8, 0, 2].into_boxed_slice());
     let phantom_id = PhantomId(vec![8, 2, 5, 1, 1].into_boxed_slice());
 
-    let record_key = OwnedRecordKey::new(&key, &generation_id, &phantom_id);
+    let record_key = OwnedRecordKey::new(key.as_ref(), generation_id.as_ref(), phantom_id.as_ref());
     assert_eq!(record_key.is_ok(), true);
 
     let record_key = record_key.unwrap();

@@ -61,6 +61,9 @@ impl GenerationId {
     pub fn as_ref(&self) -> GenerationIdRef<'_> {
         GenerationIdRef(&self.0)
     }
+    pub fn replace(&mut self, other: GenerationId) {
+        self.0 = other.0
+    }
 }
 impl Deref for GenerationIdRef<'_> {
     type Target = [u8];
@@ -113,6 +116,9 @@ impl CollectionKey {
     }
 }
 impl CollectionKeyRef<'_> {
+    pub fn empty() -> Self {
+        Self(b"")
+    }
     pub fn to_owned(&self) -> CollectionKey {
         CollectionKey(self.0.into())
     }
@@ -229,4 +235,25 @@ impl<'a, T: DerefMut<Target = [u8]>> IsByteArrayMut<'a> for T {
     fn get_byte_array_mut(&'a mut self) -> &'a mut [u8] {
         self
     }
+}
+
+pub struct NeverEq;
+
+unsafe impl Send for NeverEq {}
+
+impl PartialEq for NeverEq {
+    fn eq(&self, _: &Self) -> bool {
+        false
+    }
+
+    fn ne(&self, _: &Self) -> bool {
+        true
+    }
+}
+impl Eq for NeverEq {}
+
+#[test]
+pub fn never_eq_is_never_eq() {
+    assert!(NeverEq != NeverEq);
+    assert_eq!(NeverEq == NeverEq, false);
 }

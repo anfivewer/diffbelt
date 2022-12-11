@@ -1,9 +1,10 @@
+use crate::collection::newgen::{NewGenerationCommiter, NewGenerationCommiterOptions};
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
 use crate::collection::util::generation_key_compare::generation_key_compare_fn;
 use crate::collection::util::phantom_key_compare::phantom_key_compare_fn;
 use crate::collection::util::record_key_compare::record_key_compare_fn;
 use crate::collection::Collection;
-use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut};
+use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut, NeverEq};
 use crate::config::Config;
 use crate::database::DatabaseInner;
 use crate::raw_db::{
@@ -13,7 +14,8 @@ use crate::util::bytes::increment;
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::watch;
+use tokio::sync::{oneshot, RwLock};
 
 pub struct CollectionOpenOptions {
     pub id: String,
@@ -46,7 +48,7 @@ impl From<RawDbError> for CollectionOpenError {
 
 impl Collection {
     // Create a new column family descriptor with the specified name and options.
-    pub async fn open(options: CollectionOpenOptions) -> Result<Self, CollectionOpenError> {
+    pub async fn open(options: CollectionOpenOptions) -> Result<Arc<Self>, CollectionOpenError> {
         let collection_id = options.id;
 
         let config = options.config;
@@ -81,10 +83,9 @@ impl Collection {
             ],
         })?;
 
-        let meta = raw_db.with_cf("meta");
-        let generations = raw_db.with_cf("gens");
+        let meta_raw_db = raw_db.with_cf("meta");
 
-        let is_manual_stored = meta.get(b"is_manual").await?;
+        let is_manual_stored = meta_raw_db.get(b"is_manual").await?;
         let is_manual = match is_manual_stored {
             Some(is_manual_vec) => {
                 if is_manual_vec.len() != 1 {
@@ -94,11 +95,12 @@ impl Collection {
                 is_manual_vec[0] == 1
             }
             None => {
-                meta.put(
-                    b"is_manual",
-                    &vec![if options.is_manual { 1 } else { 0 }].into_boxed_slice(),
-                )
-                .await?;
+                meta_raw_db
+                    .put(
+                        b"is_manual",
+                        &vec![if options.is_manual { 1 } else { 0 }].into_boxed_slice(),
+                    )
+                    .await?;
 
                 options.is_manual
             }
@@ -108,17 +110,19 @@ impl Collection {
             return Err(CollectionOpenError::ManualModeMissmatch);
         }
 
-        let generation_id_stored = meta.get(b"generation_id").await?;
+        let generation_id_stored = meta_raw_db.get(b"generation_id").await?;
         let generation_id = match generation_id_stored {
             Some(generation_id) => GenerationId(generation_id),
             None => {
                 if is_manual {
-                    meta.put(b"generation_id", &vec![].into_boxed_slice())
+                    meta_raw_db
+                        .put(b"generation_id", &vec![].into_boxed_slice())
                         .await?;
 
                     GenerationId(vec![].into_boxed_slice())
                 } else {
-                    meta.put(b"generation_id", &vec![0; 64].into_boxed_slice())
+                    meta_raw_db
+                        .put(b"generation_id", &vec![0; 64].into_boxed_slice())
                         .await?;
 
                     GenerationId(vec![0; 64].into_boxed_slice())
@@ -126,7 +130,7 @@ impl Collection {
             }
         };
 
-        let next_generation_id_stored = meta.get(b"next_generation_id").await?;
+        let next_generation_id_stored = meta_raw_db.get(b"next_generation_id").await?;
         let next_generation_id = match next_generation_id_stored {
             Some(next_generation_id) => Some(GenerationId(next_generation_id)),
             None => {
@@ -140,7 +144,8 @@ impl Collection {
 
                     let next_generation_id_cloned = next_generation_id.clone();
 
-                    meta.put(b"next_generation_id", next_generation_id.get_byte_array())
+                    meta_raw_db
+                        .put(b"next_generation_id", next_generation_id.get_byte_array())
                         .await?;
 
                     Some(next_generation_id_cloned)
@@ -148,14 +153,43 @@ impl Collection {
             }
         };
 
-        Ok(Collection {
+        let (newgen, collection_sender, on_put_sender) = if !is_manual {
+            let (on_put_sender, on_put_receiver) = watch::channel(NeverEq);
+            let (collection_sender, collection_receiver) = oneshot::channel();
+
+            (
+                Some(NewGenerationCommiter::new(NewGenerationCommiterOptions {
+                    collection_receiver,
+                    on_put_receiver,
+                })),
+                Some(collection_sender),
+                Some(on_put_sender),
+            )
+        } else {
+            (None, None, None)
+        };
+
+        let collection = Collection {
             id: collection_id,
             raw_db: Arc::new(raw_db),
+            meta_raw_db: Arc::new(meta_raw_db),
             is_manual,
             generation_id: std::sync::RwLock::new(generation_id),
-            next_generation: RwLock::new(next_generation_id),
+            next_generation_id: std::sync::RwLock::new(next_generation_id),
             if_not_present_writes: std::sync::RwLock::new(HashMap::new()),
             database_inner: options.database_inner,
-        })
+            newgen,
+            on_put_sender,
+        };
+        let collection = Arc::new(collection);
+
+        match collection_sender {
+            Some(collection_sender) => {
+                let a = collection_sender.send(collection.clone());
+            }
+            None => {}
+        }
+
+        Ok(collection)
     }
 }

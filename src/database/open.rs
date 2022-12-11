@@ -53,8 +53,6 @@ impl Database {
             .await
             .or_else(|err| Err(DatabaseOpenError::CollectionOpen(err)))?;
 
-            let collection = Arc::new(collection);
-
             collections.insert(id, collection);
         }
 

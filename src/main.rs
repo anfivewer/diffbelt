@@ -10,6 +10,7 @@ use crate::raw_db::{RawDb, RawDbOptions};
 use crate::routes::{BaseResponse, Response, StaticRouteOptions, StringResponse};
 use std::path::Path;
 use std::sync::Arc;
+use tokio::runtime::Runtime;
 use tokio::sync::RwLock;
 use warp::http::response::Builder;
 use warp::http::StatusCode;
@@ -36,8 +37,7 @@ struct Error500;
 
 impl Reject for Error500 {}
 
-#[tokio::main]
-async fn main() {
+async fn run() {
     let config = Config::read_from_env();
     let config = match config {
         Ok(config) => config,
@@ -75,13 +75,10 @@ async fn main() {
         .await
         .expect("Collection create");
 
-    let mut generation_id = GenerationId(vec![0; 64].into_boxed_slice());
-    generation_id.increment();
-
     let result = collection
         .get(CollectionGetOptions {
             key: CollectionKey(b"test".to_vec().into_boxed_slice()),
-            generation_id: Some(generation_id),
+            generation_id: None,
             phantom_id: None,
         })
         .await;
@@ -93,7 +90,7 @@ async fn main() {
             update: KeyValueUpdate {
                 key: CollectionKey(b"test".to_vec().into_boxed_slice()),
                 value: Option::Some(CollectionValue::new(b"passed")),
-                if_not_present: false,
+                if_not_present: true,
             },
             generation_id: None,
             phantom_id: None,
@@ -113,7 +110,7 @@ async fn main() {
                 KeyValueUpdate {
                     key: CollectionKey(b"test2".to_vec().into_boxed_slice()),
                     value: Option::Some(CollectionValue::new(b"passed again")),
-                    if_not_present: false,
+                    if_not_present: true,
                 },
             ],
             generation_id: None,
@@ -188,4 +185,20 @@ async fn main() {
     let routes = routed_get.or(hello).or(hello2);
 
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+}
+
+static mut TOKIO_RUNTIME: Option<Arc<Runtime>> = None;
+
+fn main() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let runtime = Arc::new(runtime);
+
+    unsafe {
+        TOKIO_RUNTIME = Some(runtime.clone());
+    }
+
+    runtime.block_on(run());
 }

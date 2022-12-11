@@ -1,16 +1,13 @@
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::methods::put::{CollectionPutOk, CollectionPutResult};
-use crate::collection::util::record_key::{OwnedRecordKey};
+use crate::collection::util::record_key::OwnedRecordKey;
 use crate::collection::Collection;
 use crate::common::util::is_byte_array_equal_both_opt;
-use crate::common::{
-    GenerationIdRef, KeyValueUpdate, PhantomIdRef,
-};
+use crate::common::{GenerationIdRef, KeyValueUpdate, NeverEq, PhantomIdRef};
 use crate::generation::{CollectionGenerationKeyProgress, CollectionGenerationKeyStatus};
 use crate::raw_db::contains_existing_collection_record::ContainsExistingCollectionRecordOptions;
 use std::borrow::Borrow;
 use std::collections::HashMap;
-
 
 pub struct ValidatePutOptions<'a> {
     pub is_manual_collection: bool,
@@ -122,7 +119,7 @@ impl Collection {
 
                             return Ok(CollectionPutInnerResult::Done(Ok(CollectionPutOk {
                                 generation_id: generation_id.to_owned(),
-                                was_put: true,
+                                was_put: false,
                             })));
                         }
                         None => {
@@ -140,6 +137,15 @@ impl Collection {
                 resolve: resolve_put,
             },
         ))
+    }
+
+    pub fn on_put(&self) {
+        match self.on_put_sender.as_ref() {
+            Some(sender) => {
+                sender.send(NeverEq).unwrap_or(());
+            }
+            None => {}
+        }
     }
 }
 

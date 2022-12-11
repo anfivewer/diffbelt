@@ -1,9 +1,9 @@
 use crate::collection::util::generation_key::OwnedGenerationKey;
-use crate::collection::util::record_key::{OwnedRecordKey};
+use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{CollectionValue, IsByteArray};
 use crate::raw_db::{RawDb, RawDbError};
 
-use crate::raw_db::put_collection_record::{unwrap_option_ref_or};
+use crate::raw_db::put_collection_record::unwrap_option_ref_or;
 use rocksdb::WriteBatchWithTransaction;
 
 pub struct PutManyCollectionRecordsItem {
