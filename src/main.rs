@@ -1,5 +1,5 @@
 use crate::collection::methods::get::CollectionGetOptions;
-use crate::collection::methods::put::CollectionPutOptions;
+use crate::collection::methods::put::{CollectionPutManyOptions, CollectionPutOptions};
 use crate::common::{CollectionKey, CollectionValue, GenerationId, KeyValueUpdate};
 use crate::config::{Config, ReadConfigFromEnvError};
 use crate::context::Context;
@@ -78,7 +78,7 @@ async fn main() {
     let mut generation_id = GenerationId(vec![0; 64].into_boxed_slice());
     generation_id.increment();
 
-    let b = collection
+    let result = collection
         .get(CollectionGetOptions {
             key: CollectionKey(b"test".to_vec().into_boxed_slice()),
             generation_id: Some(generation_id),
@@ -86,14 +86,13 @@ async fn main() {
         })
         .await;
 
-    println!("get result {:?}", b);
+    println!("get result {:?}", result);
 
-    let a = collection
+    let result = collection
         .put(CollectionPutOptions {
             update: KeyValueUpdate {
                 key: CollectionKey(b"test".to_vec().into_boxed_slice()),
                 value: Option::Some(CollectionValue::new(b"passed")),
-                phantom_id: None,
                 if_not_present: false,
             },
             generation_id: None,
@@ -101,7 +100,28 @@ async fn main() {
         })
         .await;
 
-    println!("put result {:?}", a);
+    println!("put result {:?}", result);
+
+    let result = collection
+        .put_many(CollectionPutManyOptions {
+            items: vec![
+                KeyValueUpdate {
+                    key: CollectionKey(b"test".to_vec().into_boxed_slice()),
+                    value: Option::Some(CollectionValue::new(b"passed3")),
+                    if_not_present: true,
+                },
+                KeyValueUpdate {
+                    key: CollectionKey(b"test2".to_vec().into_boxed_slice()),
+                    value: Option::Some(CollectionValue::new(b"passed again")),
+                    if_not_present: false,
+                },
+            ],
+            generation_id: None,
+            phantom_id: None,
+        })
+        .await;
+
+    println!("put result {:?}", result);
 
     let context = Arc::new(RwLock::new(Context {
         config,

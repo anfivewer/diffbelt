@@ -9,6 +9,7 @@ use std::sync::Arc;
 pub mod contains_existing_collection_record;
 pub mod get_collection_record;
 pub mod put_collection_record;
+pub mod put_many_collection_records;
 
 pub struct RawDb {
     db: Arc<DB>,

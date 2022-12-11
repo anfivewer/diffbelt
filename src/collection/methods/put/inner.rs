@@ -1,21 +1,64 @@
 use crate::collection::methods::errors::CollectionMethodError;
-use crate::collection::methods::put::{CollectionPutOk, CollectionPutOptions, CollectionPutResult};
-use crate::collection::util::record_key::OwnedRecordKey;
+use crate::collection::methods::put::{CollectionPutOk, CollectionPutResult};
+use crate::collection::util::record_key::{OwnedRecordKey};
 use crate::collection::Collection;
-use crate::common::{GenerationId, GenerationIdRef, PhantomId, PhantomIdRef};
+use crate::common::util::is_byte_array_equal_both_opt;
+use crate::common::{
+    GenerationIdRef, KeyValueUpdate, PhantomIdRef,
+};
 use crate::generation::{CollectionGenerationKeyProgress, CollectionGenerationKeyStatus};
 use crate::raw_db::contains_existing_collection_record::ContainsExistingCollectionRecordOptions;
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::sync::Arc;
 
-pub struct CollectionPutInnerOptions<'a> {
-    pub options: &'a CollectionPutOptions,
+
+pub struct ValidatePutOptions<'a> {
+    pub is_manual_collection: bool,
+    pub generation_id: Option<GenerationIdRef<'a>>,
+    pub phantom_id: Option<PhantomIdRef<'a>>,
+    pub next_generation_id: Option<GenerationIdRef<'a>>,
+}
+
+pub fn validate_put(options: ValidatePutOptions<'_>) -> Option<CollectionMethodError> {
+    let generation_id = options.generation_id;
+    let next_generation_id = options.next_generation_id;
+    let phantom_id = options.phantom_id;
+    let is_phantom = phantom_id.is_some();
+
+    if is_phantom && generation_id.is_none() {
+        // Phantom writes can be only to the specified generation
+        return Some(CollectionMethodError::PutPhantomWithoutGenerationId);
+    }
+
+    let is_generation_id_equal_to_next_one =
+        is_byte_array_equal_both_opt(generation_id, next_generation_id);
+
+    // Phantom puts are allowed to do everything (except to be without a specified generationId),
+    // but we are already checked it above
+    if !is_phantom {
+        if generation_id.is_some() {
+            if !is_generation_id_equal_to_next_one {
+                return Some(CollectionMethodError::OutdatedGeneration);
+            }
+        } else if options.is_manual_collection {
+            // we cannot put values is manual collection without specified generationId
+            return Some(CollectionMethodError::CannotPutInManualCollection);
+        } else if next_generation_id.is_none() {
+            panic!("Collection::put, no next_generation in !manual collection");
+        }
+    }
+
+    None
+}
+
+pub struct CollectionPutInnerOptions<'a, 'b> {
+    pub update: &'b KeyValueUpdate,
     pub record_generation_id: GenerationIdRef<'a>,
+    pub phantom_id: Option<PhantomIdRef<'a>>,
 }
 
 pub struct CollectionPutInnerContinue<'a> {
-    pub record_key: Arc<OwnedRecordKey>,
+    pub record_key: OwnedRecordKey,
     pub resolve: Option<ResolvePutFn<'a>>,
 }
 
@@ -25,21 +68,19 @@ pub enum CollectionPutInnerResult<'a> {
 }
 
 impl Collection {
-    pub async fn put_inner<'a>(
+    pub async fn put_inner<'a, 'b>(
         &'a self,
-        options: CollectionPutInnerOptions<'a>,
+        options: CollectionPutInnerOptions<'a, 'b>,
     ) -> Result<CollectionPutInnerResult<'a>, CollectionMethodError> {
-        let method_options = options.options;
+        let update = options.update;
+        let key = update.key.as_ref();
+        let phantom_id = options.phantom_id;
         let record_generation_id = options.record_generation_id;
 
-        let update = &method_options.update;
-        let key = &update.key;
-        let phantom_id_or_empty = PhantomId::or_empty_as_ref(&update.phantom_id);
+        let phantom_id_or_empty = PhantomIdRef::or_empty(&phantom_id);
 
-        let record_key =
-            OwnedRecordKey::new(key.as_ref(), record_generation_id, phantom_id_or_empty)
-                .or(Err(CollectionMethodError::InvalidKey))?;
-        let record_key = Arc::new(record_key);
+        let record_key = OwnedRecordKey::new(key, record_generation_id, phantom_id_or_empty)
+            .or(Err(CollectionMethodError::InvalidKey))?;
 
         let mut resolve_put = None;
 
@@ -67,7 +108,7 @@ impl Collection {
                         .raw_db
                         .contains_existing_collection_record(
                             ContainsExistingCollectionRecordOptions {
-                                record_key: record_key.as_ref().as_ref(),
+                                record_key: record_key.as_ref(),
                             },
                         )
                         .await?;
@@ -95,20 +136,21 @@ impl Collection {
 
         Ok(CollectionPutInnerResult::Continue(
             CollectionPutInnerContinue {
-                record_key: record_key.clone(),
+                record_key,
                 resolve: resolve_put,
             },
         ))
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum HandleIfNotPresentResolve<'a> {
     WasPut,
     AlreadyExists(GenerationIdRef<'a>),
     Err,
 }
 
-type ResolvePutFn<'a> = Box<dyn FnOnce(HandleIfNotPresentResolve<'_>) -> () + 'a>;
+pub type ResolvePutFn<'a> = Box<dyn FnOnce(HandleIfNotPresentResolve<'_>) -> () + 'a>;
 
 enum HandleIfNotPresentResult<'a> {
     Return(CollectionPutResult),
@@ -117,7 +159,7 @@ enum HandleIfNotPresentResult<'a> {
 
 async fn handle_if_not_present<'a>(
     rw_hash: &'a std::sync::RwLock<HashMap<OwnedRecordKey, CollectionGenerationKeyStatus>>,
-    key: Arc<OwnedRecordKey>,
+    key: OwnedRecordKey,
     generation_id: GenerationIdRef<'a>,
 ) -> HandleIfNotPresentResult<'a> {
     'outer: loop {
@@ -180,7 +222,7 @@ async fn handle_if_not_present<'a>(
                     tokio::sync::watch::channel(CollectionGenerationKeyProgress::Pending);
 
                 keys.insert(
-                    key.as_ref().clone(),
+                    key.clone(),
                     CollectionGenerationKeyStatus::InProgress(receiver),
                 );
 
@@ -199,7 +241,7 @@ async fn handle_if_not_present<'a>(
                         HandleIfNotPresentResolve::Err => CollectionGenerationKeyProgress::Err,
                     };
 
-                    sender.send(value_to_send).unwrap();
+                    sender.send_replace(value_to_send);
                 }));
             }
         }

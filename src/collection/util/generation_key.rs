@@ -1,4 +1,4 @@
-use crate::common::{CollectionKey, CollectionKeyRef, GenerationId, GenerationIdRef, IsByteArray};
+use crate::common::{CollectionKeyRef, GenerationIdRef, IsByteArray};
 use crate::util::bytes::{read_u24, write_u24};
 use std::ops::Deref;
 

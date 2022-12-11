@@ -1,6 +1,6 @@
-use crate::collection::util::record_flags::RecordFlags;
+
 use crate::common::{
-    CollectionKey, CollectionKeyRef, GenerationId, GenerationIdRef, IsByteArray, PhantomId,
+    CollectionKeyRef, GenerationIdRef, IsByteArray,
     PhantomIdRef,
 };
 use crate::util::bytes::{read_u24, write_u24};
@@ -21,6 +21,12 @@ impl<'a> From<&'a OwnedRecordKey> for RecordKey<'a> {
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct OwnedRecordKey {
     pub value: Box<[u8]>,
+}
+
+impl IsByteArray for RecordKey<'_> {
+    fn get_byte_array(&self) -> &[u8] {
+        self.value
+    }
 }
 
 impl Deref for OwnedRecordKey {

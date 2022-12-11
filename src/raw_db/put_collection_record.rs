@@ -48,7 +48,7 @@ impl RawDb {
     }
 }
 
-fn unwrap_option_ref_or<'a>(opt: &'a Option<CollectionValue>, default: &'a [u8]) -> &'a [u8] {
+pub fn unwrap_option_ref_or<'a>(opt: &'a Option<CollectionValue>, default: &'a [u8]) -> &'a [u8] {
     match opt {
         Some(value) => value.get_byte_array(),
         None => default,

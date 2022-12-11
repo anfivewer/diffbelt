@@ -1,5 +1,5 @@
 use crate::collection::util::record_key::{OwnedRecordKey, RecordKey};
-use crate::common::{CollectionValue, GenerationIdRef, IsByteArray};
+use crate::common::{CollectionValue, IsByteArray};
 use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::decrement;
 use rocksdb::{Direction, IteratorMode, ReadOptions};

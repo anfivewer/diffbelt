@@ -22,6 +22,7 @@ pub struct GenerationId(pub Box<[u8]>);
 pub struct GenerationIdRef<'a>(pub &'a [u8]);
 
 pub struct PhantomId(pub Box<[u8]>);
+#[derive(Copy, Clone)]
 pub struct PhantomIdRef<'a>(pub &'a [u8]);
 
 #[derive(Debug)]
@@ -33,7 +34,6 @@ pub struct KeyValue {
 pub struct KeyValueUpdate {
     pub key: CollectionKey,
     pub value: Option<CollectionValue>,
-    pub phantom_id: Option<PhantomId>,
     pub if_not_present: bool,
 }
 
@@ -82,6 +82,11 @@ impl PartialEq for GenerationIdRef<'_> {
 impl PartialOrd for GenerationIdRef<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.0.cmp(other.0))
+    }
+}
+impl<'a> From<GenerationIdRef<'a>> for &'a [u8] {
+    fn from(gen: GenerationIdRef<'a>) -> Self {
+        gen.0
     }
 }
 
