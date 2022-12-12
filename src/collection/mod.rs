@@ -19,8 +19,8 @@ pub struct Collection {
     raw_db: Arc<RawDb>,
     meta_raw_db: Arc<RawDb>,
     is_manual: bool,
-    generation_id: std::sync::RwLock<GenerationId>,
-    next_generation_id: std::sync::RwLock<Option<GenerationId>>,
+    generation_id: Arc<std::sync::RwLock<GenerationId>>,
+    next_generation_id: Arc<std::sync::RwLock<Option<GenerationId>>>,
     if_not_present_writes:
         std::sync::RwLock<HashMap<OwnedRecordKey, CollectionGenerationKeyStatus>>,
     database_inner: Arc<DatabaseInner>,

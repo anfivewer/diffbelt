@@ -1,4 +1,6 @@
-use crate::common::{CollectionKey, CollectionKeyRef, GenerationId, GenerationIdRef, IsByteArray};
+use crate::common::{
+    CollectionKey, CollectionKeyRef, GenerationId, GenerationIdRef, IsByteArray, IsByteArrayMut,
+};
 use crate::util::bytes::{read_u24, write_u24};
 use std::ops::Deref;
 
@@ -26,8 +28,15 @@ impl Deref for OwnedGenerationKey {
     }
 }
 
+#[derive(Clone)]
 pub struct OwnedGenerationKey {
     pub value: Box<[u8]>,
+}
+
+impl IsByteArrayMut<'_> for OwnedGenerationKey {
+    fn get_byte_array_mut(&mut self) -> &mut [u8] {
+        &mut self.value
+    }
 }
 
 /*
@@ -56,7 +65,7 @@ impl<'a> GenerationKey<'a> {
         Ok(Self { value: bytes })
     }
 
-    pub fn get_key(&self) -> CollectionKeyRef {
+    pub fn get_collection_key(&self) -> CollectionKeyRef {
         let generation_id_size = self.value[1] as usize;
         let mut offset = 2 + generation_id_size;
         let size = read_u24(self.value, offset) as usize;
@@ -129,7 +138,7 @@ fn test_create_generation_key() {
 
     assert_eq!(GenerationKey::validate(generation_key.value).is_ok(), true);
 
-    let actual_key = generation_key.get_key();
+    let actual_key = generation_key.get_collection_key();
     let actual_key = actual_key.get_byte_array();
 
     let actual_generation_id = generation_key.get_generation_id();

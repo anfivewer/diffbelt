@@ -1,40 +1,78 @@
 use crate::collection::Collection;
-use crate::common::{IsByteArray, IsByteArrayMut};
+use crate::common::{GenerationId, IsByteArray, IsByteArrayMut};
 use crate::raw_db::has_generation_changes::HasGenerationChangesOptions;
 use crate::raw_db::put::PutKeyValue;
-use crate::raw_db::RawDbError;
+use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::increment;
 use std::borrow::Borrow;
 use std::ops::DerefMut;
+use std::sync::Arc;
 
-impl Collection {
-    pub fn commit_next_generation_sync(&self) -> Result<(), RawDbError> {
-        // Check that commit is required
-        let next_generation_id = {
-            let next_generation_id = self.next_generation_id.read().unwrap();
+pub struct CommitNextGenerationSyncOptions {
+    pub expected_generation_id: Option<GenerationId>,
+    pub raw_db: Arc<RawDb>,
+    pub meta_raw_db: Arc<RawDb>,
+    pub generation_id: Arc<std::sync::RwLock<GenerationId>>,
+    pub next_generation_id: Arc<std::sync::RwLock<Option<GenerationId>>>,
+}
+
+pub enum CommitNextGenerationError {
+    GenerationIdMissmatch,
+    RawDb(RawDbError),
+}
+
+pub fn commit_next_generation_sync(
+    options: CommitNextGenerationSyncOptions,
+) -> Result<(), CommitNextGenerationError> {
+    // Check that commit is required
+    // In case of `expected_generation_id` presense acquire lock
+    // and validate that next generation is equal to expected
+    let (next_generation_id, next_generation_id_lock) = match options.expected_generation_id {
+        Some(expected_generation_id) => {
+            let next_generation_id_lock = options.next_generation_id.write().unwrap();
+            match next_generation_id_lock.as_ref() {
+                Some(next_generation_id) => {
+                    if &expected_generation_id != next_generation_id {
+                        return Err(CommitNextGenerationError::GenerationIdMissmatch);
+                    }
+
+                    let next_generation_id = next_generation_id.clone();
+                    (next_generation_id, Some(next_generation_id_lock))
+                }
+                None => {
+                    return Err(CommitNextGenerationError::GenerationIdMissmatch);
+                }
+            }
+        }
+        None => {
+            let next_generation_id = options.next_generation_id.read().unwrap();
             match next_generation_id.as_ref() {
-                Some(next_generation_id) => next_generation_id.as_ref().to_owned(),
+                Some(next_generation_id) => (next_generation_id.as_ref().to_owned(), None),
                 None => {
                     return Ok(());
                 }
             }
-        };
-
-        let has_changes =
-            self.raw_db
-                .has_generation_changes_local(HasGenerationChangesOptions {
-                    generation_id: next_generation_id.as_ref(),
-                })?;
-
-        if !has_changes {
-            return Ok(());
         }
+    };
 
-        let mut new_next_generation_id = next_generation_id.clone();
-        increment(new_next_generation_id.get_byte_array_mut());
+    let has_changes = options
+        .raw_db
+        .has_generation_changes_local(HasGenerationChangesOptions {
+            generation_id: next_generation_id.as_ref(),
+        })
+        .map_err(|err| CommitNextGenerationError::RawDb(err))?;
 
-        // Store new gens
-        self.meta_raw_db.put_two_local(
+    if !has_changes {
+        return Ok(());
+    }
+
+    let mut new_next_generation_id = next_generation_id.clone();
+    increment(new_next_generation_id.get_byte_array_mut());
+
+    // Store new gens
+    options
+        .meta_raw_db
+        .put_two_sync(
             PutKeyValue {
                 key: b"generation_id",
                 value: next_generation_id.get_byte_array(),
@@ -43,18 +81,21 @@ impl Collection {
                 key: b"next_generation_id",
                 value: new_next_generation_id.get_byte_array(),
             },
-        )?;
+        )
+        .map_err(|err| CommitNextGenerationError::RawDb(err))?;
 
-        // Lock next generation first to prevent more puts
-        let mut next_generation_id_lock = self.next_generation_id.write().unwrap();
-        let mut generation_id_lock = self.generation_id.write().unwrap();
+    // Lock next generation first to prevent more puts
+    let mut next_generation_id_lock = match next_generation_id_lock {
+        Some(lock) => lock,
+        None => options.next_generation_id.write().unwrap(),
+    };
+    let mut generation_id_lock = options.generation_id.write().unwrap();
 
-        generation_id_lock.replace(next_generation_id);
-        next_generation_id_lock.replace(new_next_generation_id);;
+    generation_id_lock.replace(next_generation_id);
+    next_generation_id_lock.replace(new_next_generation_id);
 
-        drop(generation_id_lock);
-        drop(next_generation_id_lock);
+    drop(generation_id_lock);
+    drop(next_generation_id_lock);
 
-        Ok(())
-    }
+    Ok(())
 }

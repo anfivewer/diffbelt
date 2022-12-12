@@ -29,7 +29,23 @@ impl RawDb {
         .await?
     }
 
-    pub fn put_two_local(
+    pub fn put_sync(&self, key: &'_ [u8], value: &'_ [u8]) -> Result<(), RawDbError> {
+        let cf_name = self.cf_name.as_ref();
+
+        match cf_name {
+            Some(cf_name) => {
+                let cf = self.db.cf_handle(cf_name).ok_or(RawDbError::CfHandle)?;
+                self.db.put_cf(&cf, key, value)?;
+            }
+            None => {
+                self.db.put(key, value)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn put_two_sync(
         &self,
         first: PutKeyValue<'_>,
         second: PutKeyValue<'_>,

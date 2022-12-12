@@ -1,3 +1,6 @@
+use crate::collection::newgen::commit_next_generation::{
+    commit_next_generation_sync, CommitNextGenerationSyncOptions,
+};
 use crate::collection::Collection;
 use crate::common::NeverEq;
 use crate::TOKIO_RUNTIME;
@@ -5,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::watch;
 
-mod commit_next_generation;
+pub mod commit_next_generation;
 
 pub struct NewGenerationCommiter {
     stop_sender: Option<oneshot::Sender<()>>,
@@ -47,7 +50,14 @@ impl NewGenerationCommiter {
                 }
 
                 if need_create_next_generation {
-                    collection.commit_next_generation_sync().unwrap_or(());
+                    commit_next_generation_sync(CommitNextGenerationSyncOptions {
+                        expected_generation_id: None,
+                        raw_db: collection.raw_db.clone(),
+                        meta_raw_db: collection.raw_db.clone(),
+                        generation_id: collection.generation_id.clone(),
+                        next_generation_id: collection.next_generation_id.clone(),
+                    })
+                    .unwrap_or(());
                 }
 
                 let result = on_put_receiver.changed().await;

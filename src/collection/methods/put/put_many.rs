@@ -31,9 +31,9 @@ impl Collection {
             options.generation_id.as_ref().map(|gen| gen.as_ref());
         let phantom_id: Option<PhantomIdRef> = options.phantom_id.as_ref().map(|id| id.as_ref());
 
-        let next_generation_id = self.next_generation_id.read().unwrap();
+        let next_generation_id_lock = self.next_generation_id.read().unwrap();
         let next_generation_id: Option<GenerationIdRef> =
-            next_generation_id.as_ref().map(|gen| gen.as_ref());
+            next_generation_id_lock.as_ref().map(|gen| gen.as_ref());
 
         //// Validate
         let error = validate_put(ValidatePutOptions {

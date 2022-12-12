@@ -5,10 +5,12 @@ pub enum CollectionMethodError {
     OutdatedGeneration,
     PutPhantomWithoutGenerationId,
     CannotPutInManualCollection,
+    CannotStartGenerationInNonManualCollection,
     InvalidKey,
 
     RawDb(RawDbError),
     Channels,
+    TaskJoin,
 }
 
 impl From<RawDbError> for CollectionMethodError {

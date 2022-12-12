@@ -16,7 +16,7 @@ pub struct CollectionKeyRef<'a>(pub &'a [u8]);
 pub struct CollectionValue(Box<[u8]>);
 pub struct CollectionValueRef<'a>(pub &'a [u8]);
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct GenerationId(pub Box<[u8]>);
 #[derive(Copy, Clone)]
 pub struct GenerationIdRef<'a>(pub &'a [u8]);
@@ -191,10 +191,13 @@ impl PhantomId {
     }
 }
 impl PhantomIdRef<'_> {
+    pub fn empty() -> Self {
+        Self(b"")
+    }
     pub fn or_empty(opt: &Option<Self>) -> Self {
         match opt {
-            Some(id) => PhantomIdRef(id.0),
-            None => PhantomIdRef(b""),
+            Some(id) => Self(id.0),
+            None => Self(b""),
         }
     }
 }

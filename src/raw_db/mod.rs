@@ -12,6 +12,7 @@ pub mod has_generation_changes;
 pub mod put;
 pub mod put_collection_record;
 pub mod put_many_collection_records;
+pub mod remove_all_records_of_generation;
 
 pub struct RawDb {
     db: Arc<DB>,

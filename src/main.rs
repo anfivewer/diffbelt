@@ -1,5 +1,7 @@
+use crate::collection::methods::commit_generation::CommitGenerationOptions;
 use crate::collection::methods::get::CollectionGetOptions;
 use crate::collection::methods::put::{CollectionPutManyOptions, CollectionPutOptions};
+use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::common::{CollectionKey, CollectionValue, GenerationId, KeyValueUpdate};
 use crate::config::{Config, ReadConfigFromEnvError};
 use crate::context::Context;
@@ -75,6 +77,11 @@ async fn run() {
         .await
         .expect("Collection create");
 
+    let manual_collection = database
+        .get_or_create_collection("manual", CreateCollectionOptions { is_manual: true })
+        .await
+        .expect("Collection create");
+
     let result = collection
         .get(CollectionGetOptions {
             key: CollectionKey(b"test".to_vec().into_boxed_slice()),
@@ -119,6 +126,47 @@ async fn run() {
         .await;
 
     println!("put result {:?}", result);
+
+    let result = manual_collection
+        .start_generation(StartGenerationOptions {
+            generation_id: GenerationId(b"first".to_vec().into_boxed_slice()),
+            abort_outdated: false,
+        })
+        .await;
+
+    println!("start generation result {:?}", result);
+
+    let result = manual_collection
+        .put(CollectionPutOptions {
+            update: KeyValueUpdate {
+                key: CollectionKey(b"test".to_vec().into_boxed_slice()),
+                value: Option::Some(CollectionValue::new(b"passed")),
+                if_not_present: true,
+            },
+            generation_id: Some(GenerationId(b"first".to_vec().into_boxed_slice())),
+            phantom_id: None,
+        })
+        .await;
+
+    println!("put in manual result {:?}", result);
+
+    let result = manual_collection
+        .commit_generation(CommitGenerationOptions {
+            generation_id: GenerationId(b"first".to_vec().into_boxed_slice()),
+        })
+        .await;
+
+    println!("commit generation result {:?}", result);
+
+    let result = manual_collection
+        .get(CollectionGetOptions {
+            key: CollectionKey(b"test".to_vec().into_boxed_slice()),
+            generation_id: None,
+            phantom_id: None,
+        })
+        .await;
+
+    println!("get from manual result {:?}", result);
 
     let context = Arc::new(RwLock::new(Context {
         config,
