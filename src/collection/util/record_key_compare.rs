@@ -68,6 +68,8 @@ pub fn record_key_compare_fn(left: &[u8], right: &[u8]) -> Ordering {
     }
 
     if left[0] != 0 || right[0] != 0 {
+        eprintln!("left: {:?}", left);
+        eprintln!("right: {:?}", right);
         panic!("record key reserved flag byte is not zero");
     }
 

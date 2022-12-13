@@ -119,6 +119,7 @@ impl IsByteArrayMut<'_> for OwnedCollectionKey {
 }
 
 impl OwnedCollectionValue {
+    // Value is prepended with single byte to allow to store empty strings
     pub fn new(bytes: &[u8]) -> Self {
         let mut vec = Vec::with_capacity(bytes.len() + 1);
         vec.push(RecordFlags::new().get_byte());
