@@ -4,6 +4,7 @@ use crate::collection::methods::abort_generation::{
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::{IsByteArray, OwnedGenerationId};
+use crate::util::tokio::spawn_blocking_async;
 
 pub struct StartGenerationOptions {
     pub generation_id: OwnedGenerationId,
@@ -29,9 +30,9 @@ impl Collection {
 
         let next_generation_id = self.next_generation_id.clone();
 
-        tokio::task::spawn_blocking(move || {
-            let mut next_generation_id_lock = next_generation_id.write().unwrap();
-            let generation_id_lock = current_generation_id.read().unwrap();
+        spawn_blocking_async(async move {
+            let mut next_generation_id_lock = next_generation_id.write().await;
+            let generation_id_lock = current_generation_id.read().await;
             let current_generation_id = generation_id_lock.as_ref();
 
             if current_generation_id >= generation_id.as_ref() {

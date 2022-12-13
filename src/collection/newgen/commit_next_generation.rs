@@ -4,13 +4,14 @@ use crate::raw_db::put::PutKeyValue;
 use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::increment;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 pub struct CommitNextGenerationSyncOptions {
     pub expected_generation_id: Option<OwnedGenerationId>,
     pub raw_db: Arc<RawDb>,
     pub meta_raw_db: Arc<RawDb>,
-    pub generation_id: Arc<std::sync::RwLock<OwnedGenerationId>>,
-    pub next_generation_id: Arc<std::sync::RwLock<Option<OwnedGenerationId>>>,
+    pub generation_id: Arc<RwLock<OwnedGenerationId>>,
+    pub next_generation_id: Arc<RwLock<Option<OwnedGenerationId>>>,
 }
 
 pub enum CommitNextGenerationError {
@@ -18,7 +19,7 @@ pub enum CommitNextGenerationError {
     RawDb(RawDbError),
 }
 
-pub fn commit_next_generation_sync(
+pub async fn commit_next_generation_sync(
     options: CommitNextGenerationSyncOptions,
 ) -> Result<(), CommitNextGenerationError> {
     // Check that commit is required
@@ -26,7 +27,7 @@ pub fn commit_next_generation_sync(
     // and validate that next generation is equal to expected
     let (next_generation_id, next_generation_id_lock) = match options.expected_generation_id {
         Some(expected_generation_id) => {
-            let next_generation_id_lock = options.next_generation_id.write().unwrap();
+            let next_generation_id_lock = options.next_generation_id.write().await;
             match next_generation_id_lock.as_ref() {
                 Some(next_generation_id) => {
                     if &expected_generation_id != next_generation_id {
@@ -42,7 +43,7 @@ pub fn commit_next_generation_sync(
             }
         }
         None => {
-            let next_generation_id = options.next_generation_id.read().unwrap();
+            let next_generation_id = options.next_generation_id.read().await;
             match next_generation_id.as_ref() {
                 Some(next_generation_id) => (next_generation_id.as_ref().to_owned(), None),
                 None => {
@@ -84,9 +85,9 @@ pub fn commit_next_generation_sync(
     // Lock next generation first to prevent more puts
     let mut next_generation_id_lock = match next_generation_id_lock {
         Some(lock) => lock,
-        None => options.next_generation_id.write().unwrap(),
+        None => options.next_generation_id.write().await,
     };
-    let mut generation_id_lock = options.generation_id.write().unwrap();
+    let mut generation_id_lock = options.generation_id.write().await;
 
     generation_id_lock.replace(next_generation_id);
     next_generation_id_lock.replace(new_next_generation_id);

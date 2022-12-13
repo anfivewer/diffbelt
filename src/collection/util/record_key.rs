@@ -1,8 +1,5 @@
-use crate::common::{
-    CollectionKey, GenerationId, IsByteArray, PhantomId,
-};
+use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::util::bytes::{read_u24, write_u24};
-
 
 pub struct RecordKey<'a> {
     pub value: &'a [u8],

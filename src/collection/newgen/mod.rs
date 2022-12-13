@@ -3,7 +3,8 @@ use crate::collection::newgen::commit_next_generation::{
 };
 use crate::collection::Collection;
 use crate::common::NeverEq;
-use crate::TOKIO_RUNTIME;
+use crate::util::tokio::spawn_async_thread;
+
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::watch;
@@ -57,6 +58,7 @@ impl NewGenerationCommiter {
                         generation_id: collection.generation_id.clone(),
                         next_generation_id: collection.next_generation_id.clone(),
                     })
+                    .await
                     .unwrap_or(());
                 }
 
@@ -70,18 +72,8 @@ impl NewGenerationCommiter {
             }
         };
 
-        std::thread::spawn(move || {
-            let runtime = unsafe {
-                match &TOKIO_RUNTIME {
-                    Some(runtime) => runtime.clone(),
-                    None => {
-                        panic!("no tokio runtime");
-                    }
-                }
-            };
-
-            runtime.block_on(async_task());
-        });
+        // TODO: join on stop
+        spawn_async_thread(async_task());
 
         NewGenerationCommiter {
             stop_sender: Some(stop_sender),

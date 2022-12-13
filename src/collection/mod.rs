@@ -6,7 +6,7 @@ use crate::raw_db::RawDb;
 use if_not_present::ConcurrentPutStatus;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::watch;
+use tokio::sync::{watch, RwLock};
 
 mod if_not_present;
 pub mod methods;
@@ -19,8 +19,8 @@ pub struct Collection {
     raw_db: Arc<RawDb>,
     meta_raw_db: Arc<RawDb>,
     is_manual: bool,
-    generation_id: Arc<std::sync::RwLock<OwnedGenerationId>>,
-    next_generation_id: Arc<std::sync::RwLock<Option<OwnedGenerationId>>>,
+    generation_id: Arc<RwLock<OwnedGenerationId>>,
+    next_generation_id: Arc<RwLock<Option<OwnedGenerationId>>>,
     if_not_present_writes: std::sync::RwLock<HashMap<OwnedRecordKey, ConcurrentPutStatus>>,
     database_inner: Arc<DatabaseInner>,
     // Not defined for manual collections

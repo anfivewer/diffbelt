@@ -1,4 +1,4 @@
-use crate::collection::util::generation_key::{OwnedGenerationKey};
+use crate::collection::util::generation_key::OwnedGenerationKey;
 use crate::common::{CollectionKey, GenerationId, IsByteArray};
 use crate::raw_db::{RawDb, RawDbError};
 use rocksdb::{Direction, IteratorMode};

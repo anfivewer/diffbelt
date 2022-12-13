@@ -13,8 +13,8 @@ use crate::util::bytes::increment;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::oneshot;
 use tokio::sync::watch;
+use tokio::sync::{oneshot, RwLock};
 
 pub struct CollectionOpenOptions {
     pub id: String,
@@ -176,8 +176,8 @@ impl Collection {
             raw_db: Arc::new(raw_db),
             meta_raw_db: Arc::new(meta_raw_db),
             is_manual,
-            generation_id: Arc::new(std::sync::RwLock::new(generation_id)),
-            next_generation_id: Arc::new(std::sync::RwLock::new(next_generation_id)),
+            generation_id: Arc::new(RwLock::new(generation_id)),
+            next_generation_id: Arc::new(RwLock::new(next_generation_id)),
             if_not_present_writes: std::sync::RwLock::new(HashMap::new()),
             database_inner: options.database_inner,
             newgen,

@@ -26,7 +26,7 @@ impl Collection {
         &self,
         options: CollectionGetOptions,
     ) -> Result<CollectionGetOk, CollectionMethodError> {
-        let current_generation_id_lock = self.generation_id.read().unwrap();
+        let current_generation_id_lock = self.generation_id.read().await;
         let current_generation_id = current_generation_id_lock.clone();
         drop(current_generation_id_lock);
 

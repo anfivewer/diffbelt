@@ -4,6 +4,7 @@ use crate::collection::newgen::commit_next_generation::{
 };
 use crate::collection::Collection;
 use crate::common::OwnedGenerationId;
+use crate::util::tokio::spawn_blocking_async;
 
 pub struct CommitGenerationOptions {
     pub generation_id: OwnedGenerationId,
@@ -22,7 +23,7 @@ impl Collection {
 
         let expected_generation_id = options.generation_id;
 
-        tokio::task::spawn_blocking(move || {
+        spawn_blocking_async(async move {
             commit_next_generation_sync(CommitNextGenerationSyncOptions {
                 expected_generation_id: Some(expected_generation_id),
                 raw_db,
@@ -30,6 +31,7 @@ impl Collection {
                 generation_id,
                 next_generation_id,
             })
+            .await
         })
         .await
         .or(Err(CollectionMethodError::TaskJoin))?
