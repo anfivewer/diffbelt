@@ -1,5 +1,5 @@
 use crate::collection::util::record_key::{OwnedRecordKey, RecordKey};
-use crate::common::{CollectionValue, IsByteArray};
+use crate::common::{IsByteArray, OwnedCollectionValue};
 use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::decrement;
 use rocksdb::{Direction, IteratorMode, ReadOptions};
@@ -12,7 +12,7 @@ impl RawDb {
     pub async fn get_collection_record(
         &self,
         options: GetCollectionRecordOptions<'_>,
-    ) -> Result<Option<(OwnedRecordKey, CollectionValue)>, RawDbError> {
+    ) -> Result<Option<(OwnedRecordKey, OwnedCollectionValue)>, RawDbError> {
         let db = self.db.clone();
         let record_key = options.record_key.to_owned();
 
@@ -51,7 +51,7 @@ impl RawDb {
                     return if is_value_present {
                         Ok(Some((
                             item_record_key.to_owned(),
-                            CollectionValue::from_boxed_slice(value),
+                            OwnedCollectionValue::from_boxed_slice(value),
                         )))
                     } else {
                         Ok(None)

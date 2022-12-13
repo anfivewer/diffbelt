@@ -38,7 +38,7 @@ impl NewGenerationCommiter {
             };
 
             // For the first time we need to check anyway
-            let mut need_create_next_generation = true;
+            let need_create_next_generation = true;
 
             {
                 on_put_receiver.borrow_and_update();

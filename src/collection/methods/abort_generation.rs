@@ -1,11 +1,11 @@
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
-use crate::common::{GenerationId, GenerationIdRef};
+use crate::common::{GenerationId, OwnedGenerationId};
 use crate::raw_db::remove_all_records_of_generation::RemoveAllRecordsOfGenerationSyncOptions;
 use crate::raw_db::{RawDb, RawDbError};
 
 pub struct AbortGenerationOptions {
-    pub generation_id: GenerationId,
+    pub generation_id: OwnedGenerationId,
 }
 
 impl Collection {
@@ -35,7 +35,7 @@ impl Collection {
 
 pub struct AbortGenerationSyncOptions<'a> {
     pub raw_db: &'a RawDb,
-    pub generation_id: GenerationIdRef<'a>,
+    pub generation_id: GenerationId<'a>,
 }
 
 pub fn abort_generation_sync(options: AbortGenerationSyncOptions<'_>) -> Option<RawDbError> {

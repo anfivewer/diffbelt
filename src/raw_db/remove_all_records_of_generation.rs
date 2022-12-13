@@ -1,12 +1,12 @@
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
 use crate::collection::util::record_key::OwnedRecordKey;
-use crate::common::{CollectionKeyRef, GenerationIdRef, IsByteArray, IsByteArrayMut, PhantomIdRef};
+use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut, PhantomId};
 use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::increment;
 use rocksdb::{Direction, IteratorMode, ReadOptions, WriteBatchWithTransaction};
 
 pub struct RemoveAllRecordsOfGenerationSyncOptions<'a> {
-    pub generation_id: GenerationIdRef<'a>,
+    pub generation_id: GenerationId<'a>,
 }
 
 impl RawDb {
@@ -20,7 +20,7 @@ impl RawDb {
 
         let generations_cf = self.db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
 
-        let generation_key = OwnedGenerationKey::new(generation_id, CollectionKeyRef::empty())
+        let generation_key = OwnedGenerationKey::new(generation_id, CollectionKey::empty())
             .or(Err(RawDbError::InvalidGenerationKey))?;
 
         let mut upper_generation_key = generation_key.clone();
@@ -48,9 +48,8 @@ impl RawDb {
 
             batch.delete_cf(&generations_cf, collection_key.get_byte_array());
 
-            let record_key =
-                OwnedRecordKey::new(collection_key, generation_id, PhantomIdRef::empty())
-                    .or(Err(RawDbError::InvalidRecordKey))?;
+            let record_key = OwnedRecordKey::new(collection_key, generation_id, PhantomId::empty())
+                .or(Err(RawDbError::InvalidRecordKey))?;
 
             batch.delete(record_key.get_byte_array());
         }

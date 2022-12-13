@@ -1,5 +1,5 @@
 use crate::collection::Collection;
-use crate::common::GenerationId;
+use crate::common::OwnedGenerationId;
 use crate::config::Config;
 use crate::raw_db::RawDb;
 use std::collections::HashMap;
@@ -31,7 +31,7 @@ impl DatabaseInner {
         &self,
         _collection_id: &str,
         _reader_id: &str,
-    ) -> Result<GenerationId, GetReaderGenerationIdFnError> {
+    ) -> Result<OwnedGenerationId, GetReaderGenerationIdFnError> {
         let _collections = self.collections.read().unwrap();
         todo!()
     }

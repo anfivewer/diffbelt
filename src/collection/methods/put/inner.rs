@@ -1,19 +1,20 @@
+use std::borrow::Borrow;
+use std::collections::HashMap;
+
+use crate::collection::if_not_present::{ConcurrentPutStatus, CuncurrentPutStatusProgress};
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::methods::put::{CollectionPutOk, CollectionPutResult};
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::collection::Collection;
-use crate::common::util::is_byte_array_equal_both_opt;
-use crate::common::{GenerationIdRef, KeyValueUpdate, NeverEq, PhantomIdRef};
-use crate::generation::{CollectionGenerationKeyProgress, CollectionGenerationKeyStatus};
+use crate::common::{GenerationId, KeyValueUpdate, NeverEq, PhantomId};
 use crate::raw_db::contains_existing_collection_record::ContainsExistingCollectionRecordOptions;
-use std::borrow::Borrow;
-use std::collections::HashMap;
+use crate::util::bytes::is_byte_array_equal_both_opt;
 
 pub struct ValidatePutOptions<'a> {
     pub is_manual_collection: bool,
-    pub generation_id: Option<GenerationIdRef<'a>>,
-    pub phantom_id: Option<PhantomIdRef<'a>>,
-    pub next_generation_id: Option<GenerationIdRef<'a>>,
+    pub generation_id: Option<GenerationId<'a>>,
+    pub phantom_id: Option<PhantomId<'a>>,
+    pub next_generation_id: Option<GenerationId<'a>>,
 }
 
 pub fn validate_put(options: ValidatePutOptions<'_>) -> Option<CollectionMethodError> {
@@ -50,8 +51,8 @@ pub fn validate_put(options: ValidatePutOptions<'_>) -> Option<CollectionMethodE
 
 pub struct CollectionPutInnerOptions<'a, 'b> {
     pub update: &'b KeyValueUpdate,
-    pub record_generation_id: GenerationIdRef<'a>,
-    pub phantom_id: Option<PhantomIdRef<'a>>,
+    pub record_generation_id: GenerationId<'a>,
+    pub phantom_id: Option<PhantomId<'a>>,
 }
 
 pub struct CollectionPutInnerContinue<'a> {
@@ -74,7 +75,7 @@ impl Collection {
         let phantom_id = options.phantom_id;
         let record_generation_id = options.record_generation_id;
 
-        let phantom_id_or_empty = PhantomIdRef::or_empty(&phantom_id);
+        let phantom_id_or_empty = PhantomId::or_empty(&phantom_id);
 
         let record_key = OwnedRecordKey::new(key, record_generation_id, phantom_id_or_empty)
             .or(Err(CollectionMethodError::InvalidKey))?;
@@ -152,7 +153,7 @@ impl Collection {
 #[derive(Copy, Clone)]
 pub enum HandleIfNotPresentResolve<'a> {
     WasPut,
-    AlreadyExists(GenerationIdRef<'a>),
+    AlreadyExists(GenerationId<'a>),
     Err,
 }
 
@@ -164,9 +165,9 @@ enum HandleIfNotPresentResult<'a> {
 }
 
 async fn handle_if_not_present<'a>(
-    rw_hash: &'a std::sync::RwLock<HashMap<OwnedRecordKey, CollectionGenerationKeyStatus>>,
+    rw_hash: &'a std::sync::RwLock<HashMap<OwnedRecordKey, ConcurrentPutStatus>>,
     key: OwnedRecordKey,
-    generation_id: GenerationIdRef<'a>,
+    generation_id: GenerationId<'a>,
 ) -> HandleIfNotPresentResult<'a> {
     'outer: loop {
         let mut keys = rw_hash.write().unwrap();
@@ -176,7 +177,7 @@ async fn handle_if_not_present<'a>(
         match value {
             Some(value) => {
                 match value {
-                    CollectionGenerationKeyStatus::InProgress(receiver) => {
+                    ConcurrentPutStatus::InProgress(receiver) => {
                         let mut receiver = receiver.clone();
 
                         // Free lock, we'll wait for result
@@ -187,7 +188,7 @@ async fn handle_if_not_present<'a>(
                         // will be finished at some point
                         loop {
                             match progress {
-                                CollectionGenerationKeyProgress::Pending => {
+                                CuncurrentPutStatusProgress::Pending => {
                                     let result = receiver.changed().await;
 
                                     match result {
@@ -201,19 +202,19 @@ async fn handle_if_not_present<'a>(
 
                                     progress = receiver.borrow().clone();
                                 }
-                                CollectionGenerationKeyProgress::AlreadyExists(generation_id) => {
+                                CuncurrentPutStatusProgress::AlreadyExists(generation_id) => {
                                     return HandleIfNotPresentResult::Return(Ok(CollectionPutOk {
                                         generation_id,
                                         was_put: false,
                                     }));
                                 }
-                                CollectionGenerationKeyProgress::WasPut(generation_id) => {
+                                CuncurrentPutStatusProgress::WasPut(generation_id) => {
                                     return HandleIfNotPresentResult::Return(Ok(CollectionPutOk {
                                         generation_id,
                                         was_put: true,
                                     }));
                                 }
-                                CollectionGenerationKeyProgress::Err => {
+                                CuncurrentPutStatusProgress::Err => {
                                     // acquire lock again, key should be removed,
                                     // and we can try our attempt to put it
                                     continue 'outer;
@@ -225,12 +226,9 @@ async fn handle_if_not_present<'a>(
             }
             None => {
                 let (sender, receiver) =
-                    tokio::sync::watch::channel(CollectionGenerationKeyProgress::Pending);
+                    tokio::sync::watch::channel(CuncurrentPutStatusProgress::Pending);
 
-                keys.insert(
-                    key.clone(),
-                    CollectionGenerationKeyStatus::InProgress(receiver),
-                );
+                keys.insert(key.clone(), ConcurrentPutStatus::InProgress(receiver));
 
                 return HandleIfNotPresentResult::NeedPut(Box::new(move |resolution| {
                     let mut keys = rw_hash.write().unwrap();
@@ -239,12 +237,12 @@ async fn handle_if_not_present<'a>(
 
                     let value_to_send = match resolution {
                         HandleIfNotPresentResolve::WasPut => {
-                            CollectionGenerationKeyProgress::WasPut(generation_id.to_owned())
+                            CuncurrentPutStatusProgress::WasPut(generation_id.to_owned())
                         }
                         HandleIfNotPresentResolve::AlreadyExists(generation_id) => {
-                            CollectionGenerationKeyProgress::AlreadyExists(generation_id.to_owned())
+                            CuncurrentPutStatusProgress::AlreadyExists(generation_id.to_owned())
                         }
-                        HandleIfNotPresentResolve::Err => CollectionGenerationKeyProgress::Err,
+                        HandleIfNotPresentResolve::Err => CuncurrentPutStatusProgress::Err,
                     };
 
                     sender.send_replace(value_to_send);

@@ -1,9 +1,8 @@
 use crate::common::{
-    CollectionKey, CollectionKeyRef, GenerationId, GenerationIdRef, IsByteArray, PhantomId,
-    PhantomIdRef,
+    CollectionKey, GenerationId, IsByteArray, PhantomId,
 };
 use crate::util::bytes::{read_u24, write_u24};
-use std::ops::Deref;
+
 
 pub struct RecordKey<'a> {
     pub value: &'a [u8],
@@ -28,10 +27,8 @@ impl IsByteArray for RecordKey<'_> {
     }
 }
 
-impl Deref for OwnedRecordKey {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
+impl IsByteArray for OwnedRecordKey {
+    fn get_byte_array(&self) -> &[u8] {
         &self.value
     }
 }
@@ -79,27 +76,27 @@ impl<'a> RecordKey<'a> {
         Ok(Self { value: bytes })
     }
 
-    pub fn get_key(&self) -> CollectionKeyRef {
+    pub fn get_key(&self) -> CollectionKey {
         let size = read_u24(self.value, 1) as usize;
-        CollectionKeyRef(&self.value[4..(4 + size)])
+        CollectionKey(&self.value[4..(4 + size)])
     }
 
-    pub fn get_generation_id(&self) -> GenerationIdRef {
+    pub fn get_generation_id(&self) -> GenerationId {
         let key_size = read_u24(self.value, 1) as usize;
         let mut offset = 4 + key_size;
         let size = self.value[offset] as usize;
         offset += 1;
-        GenerationIdRef(&self.value[offset..(offset + size)])
+        GenerationId(&self.value[offset..(offset + size)])
     }
 
-    pub fn get_phantom_id(&self) -> PhantomIdRef {
+    pub fn get_phantom_id(&self) -> PhantomId {
         let key_size = read_u24(self.value, 1) as usize;
         let mut offset = 4 + key_size;
         let generation_id_size = self.value[offset] as usize;
         offset += 1 + generation_id_size;
         let size = self.value[offset] as usize;
         offset += 1;
-        PhantomIdRef(&self.value[offset..(offset + size)])
+        PhantomId(&self.value[offset..(offset + size)])
     }
 
     pub fn to_owned(&self) -> OwnedRecordKey {
@@ -111,9 +108,9 @@ impl<'a> RecordKey<'a> {
 
 impl OwnedRecordKey {
     pub fn new<'a>(
-        key: CollectionKeyRef<'a>,
-        generation_id: GenerationIdRef<'a>,
-        phantom_id: PhantomIdRef<'a>,
+        key: CollectionKey<'a>,
+        generation_id: GenerationId<'a>,
+        phantom_id: PhantomId<'a>,
     ) -> Result<OwnedRecordKey, ()> {
         let key_bytes = key.get_byte_array();
         let generation_id_bytes = generation_id.get_byte_array();
@@ -179,30 +176,37 @@ impl OwnedRecordKey {
     }
 }
 
-#[test]
-fn test_create_record_key() {
-    let key = CollectionKey(vec![1, 2, 3, 4, 5, 6, 7].into_boxed_slice());
-    let generation_id = GenerationId(vec![8, 0, 2].into_boxed_slice());
-    let phantom_id = PhantomId(vec![8, 2, 5, 1, 1].into_boxed_slice());
+#[cfg(test)]
+mod tests {
+    use crate::collection::util::record_key::{OwnedRecordKey, RecordKey};
+    use crate::common::{IsByteArray, OwnedCollectionKey, OwnedGenerationId, OwnedPhantomId};
 
-    let record_key = OwnedRecordKey::new(key.as_ref(), generation_id.as_ref(), phantom_id.as_ref());
-    assert_eq!(record_key.is_ok(), true);
+    #[test]
+    fn test_create_record_key() {
+        let key = OwnedCollectionKey(vec![1, 2, 3, 4, 5, 6, 7].into_boxed_slice());
+        let generation_id = OwnedGenerationId(vec![8, 0, 2].into_boxed_slice());
+        let phantom_id = OwnedPhantomId(vec![8, 2, 5, 1, 1].into_boxed_slice());
 
-    let record_key = record_key.unwrap();
-    let record_key = record_key.as_ref();
+        let record_key =
+            OwnedRecordKey::new(key.as_ref(), generation_id.as_ref(), phantom_id.as_ref());
+        assert_eq!(record_key.is_ok(), true);
 
-    assert_eq!(RecordKey::validate(record_key.value).is_ok(), true);
+        let record_key = record_key.unwrap();
+        let record_key = record_key.as_ref();
 
-    let actual_key = record_key.get_key();
-    let actual_key = actual_key.get_byte_array();
+        assert_eq!(RecordKey::validate(record_key.value).is_ok(), true);
 
-    let actual_generation_id = record_key.get_generation_id();
-    let actual_generation_id = actual_generation_id.get_byte_array();
+        let actual_key = record_key.get_key();
+        let actual_key = actual_key.get_byte_array();
 
-    let actual_phantom_id = record_key.get_phantom_id();
-    let actual_phantom_id = actual_phantom_id.get_byte_array();
+        let actual_generation_id = record_key.get_generation_id();
+        let actual_generation_id = actual_generation_id.get_byte_array();
 
-    assert_eq!(actual_key, key.get_byte_array());
-    assert_eq!(actual_generation_id, generation_id.get_byte_array());
-    assert_eq!(actual_phantom_id, phantom_id.get_byte_array());
+        let actual_phantom_id = record_key.get_phantom_id();
+        let actual_phantom_id = actual_phantom_id.get_byte_array();
+
+        assert_eq!(actual_key, key.get_byte_array());
+        assert_eq!(actual_generation_id, generation_id.get_byte_array());
+        assert_eq!(actual_phantom_id, phantom_id.get_byte_array());
+    }
 }

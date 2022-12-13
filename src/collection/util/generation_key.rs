@@ -1,5 +1,5 @@
 use crate::common::{
-    CollectionKey, CollectionKeyRef, GenerationId, GenerationIdRef, IsByteArray, IsByteArrayMut,
+    CollectionKey, GenerationId, IsByteArray, IsByteArrayMut,
 };
 use crate::util::bytes::{read_u24, write_u24};
 use std::ops::Deref;
@@ -33,6 +33,11 @@ pub struct OwnedGenerationKey {
     pub value: Box<[u8]>,
 }
 
+impl IsByteArray for OwnedGenerationKey {
+    fn get_byte_array(&self) -> &[u8] {
+        &self.value
+    }
+}
 impl IsByteArrayMut<'_> for OwnedGenerationKey {
     fn get_byte_array_mut(&mut self) -> &mut [u8] {
         &mut self.value
@@ -65,17 +70,17 @@ impl<'a> GenerationKey<'a> {
         Ok(Self { value: bytes })
     }
 
-    pub fn get_collection_key(&self) -> CollectionKeyRef {
+    pub fn get_collection_key(&self) -> CollectionKey {
         let generation_id_size = self.value[1] as usize;
         let mut offset = 2 + generation_id_size;
         let size = read_u24(self.value, offset) as usize;
         offset += 3;
-        CollectionKeyRef(&self.value[offset..(offset + size)])
+        CollectionKey(&self.value[offset..(offset + size)])
     }
 
-    pub fn get_generation_id(&self) -> GenerationIdRef {
+    pub fn get_generation_id(&self) -> GenerationId {
         let size = self.value[1] as usize;
-        GenerationIdRef(&self.value[2..(2 + size)])
+        GenerationId(&self.value[2..(2 + size)])
     }
 }
 
@@ -84,8 +89,8 @@ const MAX_GENERATION_ID_LENGTH: usize = 255;
 
 impl OwnedGenerationKey {
     pub fn new<'a>(
-        generation_id: GenerationIdRef<'a>,
-        key: CollectionKeyRef<'a>,
+        generation_id: GenerationId<'a>,
+        key: CollectionKey<'a>,
     ) -> Result<OwnedGenerationKey, ()> {
         let key_bytes = key.get_byte_array();
         let generation_id_bytes = generation_id.get_byte_array();
@@ -125,25 +130,31 @@ impl OwnedGenerationKey {
     }
 }
 
-#[test]
-fn test_create_generation_key() {
-    let key = CollectionKey(vec![1, 2, 3, 4, 5, 6, 7].into_boxed_slice());
-    let generation_id = GenerationId(vec![8, 0, 2].into_boxed_slice());
+#[cfg(test)]
+mod tests {
+    use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
+    use crate::common::{IsByteArray, OwnedCollectionKey, OwnedGenerationId};
 
-    let generation_key = OwnedGenerationKey::new(generation_id.as_ref(), key.as_ref());
-    assert_eq!(generation_key.is_ok(), true);
+    #[test]
+    fn test_create_generation_key() {
+        let key = OwnedCollectionKey(vec![1, 2, 3, 4, 5, 6, 7].into_boxed_slice());
+        let generation_id = OwnedGenerationId(vec![8, 0, 2].into_boxed_slice());
 
-    let generation_key = generation_key.unwrap();
-    let generation_key = generation_key.as_ref();
+        let generation_key = OwnedGenerationKey::new(generation_id.as_ref(), key.as_ref());
+        assert_eq!(generation_key.is_ok(), true);
 
-    assert_eq!(GenerationKey::validate(generation_key.value).is_ok(), true);
+        let generation_key = generation_key.unwrap();
+        let generation_key = generation_key.as_ref();
 
-    let actual_key = generation_key.get_collection_key();
-    let actual_key = actual_key.get_byte_array();
+        assert_eq!(GenerationKey::validate(generation_key.value).is_ok(), true);
 
-    let actual_generation_id = generation_key.get_generation_id();
-    let actual_generation_id = actual_generation_id.get_byte_array();
+        let actual_key = generation_key.get_collection_key();
+        let actual_key = actual_key.get_byte_array();
 
-    assert_eq!(actual_key, key.get_byte_array());
-    assert_eq!(actual_generation_id, generation_id.get_byte_array());
+        let actual_generation_id = generation_key.get_generation_id();
+        let actual_generation_id = actual_generation_id.get_byte_array();
+
+        assert_eq!(actual_key, key.get_byte_array());
+        assert_eq!(actual_generation_id, generation_id.get_byte_array());
+    }
 }

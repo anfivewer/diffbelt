@@ -3,12 +3,10 @@ use crate::collection::newgen::commit_next_generation::{
     commit_next_generation_sync, CommitNextGenerationError, CommitNextGenerationSyncOptions,
 };
 use crate::collection::Collection;
-use crate::common::{GenerationId, GenerationIdRef};
-use crate::raw_db::remove_all_records_of_generation::RemoveAllRecordsOfGenerationSyncOptions;
-use crate::raw_db::{RawDb, RawDbError};
+use crate::common::OwnedGenerationId;
 
 pub struct CommitGenerationOptions {
-    pub generation_id: GenerationId,
+    pub generation_id: OwnedGenerationId,
     // TODO: update readers
 }
 

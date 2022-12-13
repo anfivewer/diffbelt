@@ -3,10 +3,10 @@ use crate::collection::methods::abort_generation::{
 };
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
-use crate::common::{GenerationId, IsByteArray};
+use crate::common::{IsByteArray, OwnedGenerationId};
 
 pub struct StartGenerationOptions {
-    pub generation_id: GenerationId,
+    pub generation_id: OwnedGenerationId,
     pub abort_outdated: bool,
 }
 

@@ -2,7 +2,7 @@ use crate::collection::methods::commit_generation::CommitGenerationOptions;
 use crate::collection::methods::get::CollectionGetOptions;
 use crate::collection::methods::put::{CollectionPutManyOptions, CollectionPutOptions};
 use crate::collection::methods::start_generation::StartGenerationOptions;
-use crate::common::{CollectionKey, CollectionValue, GenerationId, KeyValueUpdate};
+use crate::common::{KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId};
 use crate::config::{Config, ReadConfigFromEnvError};
 use crate::context::Context;
 use crate::database::create_collection::CreateCollectionOptions;
@@ -24,13 +24,9 @@ mod collection;
 mod common;
 mod config;
 mod context;
-mod cursor;
 mod database;
-mod generation;
-mod phantom;
 mod protos;
 mod raw_db;
-mod reader;
 mod routes;
 mod util;
 
@@ -84,7 +80,7 @@ async fn run() {
 
     let result = collection
         .get(CollectionGetOptions {
-            key: CollectionKey(b"test".to_vec().into_boxed_slice()),
+            key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
             generation_id: None,
             phantom_id: None,
         })
@@ -95,8 +91,8 @@ async fn run() {
     let result = collection
         .put(CollectionPutOptions {
             update: KeyValueUpdate {
-                key: CollectionKey(b"test".to_vec().into_boxed_slice()),
-                value: Option::Some(CollectionValue::new(b"passed")),
+                key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
+                value: Option::Some(OwnedCollectionValue::new(b"passed")),
                 if_not_present: true,
             },
             generation_id: None,
@@ -110,13 +106,13 @@ async fn run() {
         .put_many(CollectionPutManyOptions {
             items: vec![
                 KeyValueUpdate {
-                    key: CollectionKey(b"test".to_vec().into_boxed_slice()),
-                    value: Option::Some(CollectionValue::new(b"passed3")),
+                    key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
+                    value: Option::Some(OwnedCollectionValue::new(b"passed3")),
                     if_not_present: true,
                 },
                 KeyValueUpdate {
-                    key: CollectionKey(b"test2".to_vec().into_boxed_slice()),
-                    value: Option::Some(CollectionValue::new(b"passed again")),
+                    key: OwnedCollectionKey(b"test2".to_vec().into_boxed_slice()),
+                    value: Option::Some(OwnedCollectionValue::new(b"passed again")),
                     if_not_present: true,
                 },
             ],
@@ -129,7 +125,7 @@ async fn run() {
 
     let result = manual_collection
         .start_generation(StartGenerationOptions {
-            generation_id: GenerationId(b"first".to_vec().into_boxed_slice()),
+            generation_id: OwnedGenerationId(b"first".to_vec().into_boxed_slice()),
             abort_outdated: false,
         })
         .await;
@@ -139,11 +135,11 @@ async fn run() {
     let result = manual_collection
         .put(CollectionPutOptions {
             update: KeyValueUpdate {
-                key: CollectionKey(b"test".to_vec().into_boxed_slice()),
-                value: Option::Some(CollectionValue::new(b"passed")),
+                key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
+                value: Option::Some(OwnedCollectionValue::new(b"passed")),
                 if_not_present: true,
             },
-            generation_id: Some(GenerationId(b"first".to_vec().into_boxed_slice())),
+            generation_id: Some(OwnedGenerationId(b"first".to_vec().into_boxed_slice())),
             phantom_id: None,
         })
         .await;
@@ -152,7 +148,7 @@ async fn run() {
 
     let result = manual_collection
         .commit_generation(CommitGenerationOptions {
-            generation_id: GenerationId(b"first".to_vec().into_boxed_slice()),
+            generation_id: OwnedGenerationId(b"first".to_vec().into_boxed_slice()),
         })
         .await;
 
@@ -160,7 +156,7 @@ async fn run() {
 
     let result = manual_collection
         .get(CollectionGetOptions {
-            key: CollectionKey(b"test".to_vec().into_boxed_slice()),
+            key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
             generation_id: None,
             phantom_id: None,
         })

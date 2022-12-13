@@ -1,135 +1,126 @@
+
 use crate::collection::util::record_flags::RecordFlags;
 use crate::util::bytes::increment;
 use std::cmp::Ordering;
-use std::ops::{Deref, DerefMut};
 
-pub mod util;
-
-// TODO: remove this Defer implementations, prefer own methods
-// TODO: rename "*Key" to "Owned*Key", rename "*KeyRef" to "*Key"
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct CollectionKey(pub Box<[u8]>);
-pub struct CollectionKeyRef<'a>(pub &'a [u8]);
+pub struct OwnedCollectionKey(pub Box<[u8]>);
+pub struct CollectionKey<'a>(pub &'a [u8]);
 
 #[derive(Debug)]
-pub struct CollectionValue(Box<[u8]>);
-pub struct CollectionValueRef<'a>(pub &'a [u8]);
+pub struct OwnedCollectionValue(Box<[u8]>);
+pub struct CollectionValue<'a>(pub &'a [u8]);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
-pub struct GenerationId(pub Box<[u8]>);
+pub struct OwnedGenerationId(pub Box<[u8]>);
 #[derive(Copy, Clone)]
-pub struct GenerationIdRef<'a>(pub &'a [u8]);
+pub struct GenerationId<'a>(pub &'a [u8]);
 
-pub struct PhantomId(pub Box<[u8]>);
+pub struct OwnedPhantomId(pub Box<[u8]>);
 #[derive(Copy, Clone)]
-pub struct PhantomIdRef<'a>(pub &'a [u8]);
+pub struct PhantomId<'a>(pub &'a [u8]);
 
 #[derive(Debug)]
 pub struct KeyValue {
-    pub key: CollectionKey,
-    pub value: CollectionValue,
+    pub key: OwnedCollectionKey,
+    pub value: OwnedCollectionValue,
 }
 
 pub struct KeyValueUpdate {
-    pub key: CollectionKey,
-    pub value: Option<CollectionValue>,
+    pub key: OwnedCollectionKey,
+    pub value: Option<OwnedCollectionValue>,
     pub if_not_present: bool,
 }
 
-impl From<GenerationId> for Box<[u8]> {
-    fn from(generation_id: GenerationId) -> Self {
-        generation_id.0
-    }
-}
-impl<'a> From<&'a GenerationId> for &'a [u8] {
-    fn from(generation_id: &'a GenerationId) -> Self {
-        &generation_id.0
-    }
-}
-impl Deref for GenerationId {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl GenerationId {
+impl OwnedGenerationId {
     pub fn increment(&mut self) {
         increment(&mut self.0);
     }
-    pub fn as_ref(&self) -> GenerationIdRef<'_> {
-        GenerationIdRef(&self.0)
+    pub fn as_ref(&self) -> GenerationId<'_> {
+        GenerationId(&self.0)
     }
-    pub fn replace(&mut self, other: GenerationId) {
+    pub fn replace(&mut self, other: OwnedGenerationId) {
         self.0 = other.0
     }
 }
-impl Deref for GenerationIdRef<'_> {
-    type Target = [u8];
+impl GenerationId<'_> {
+    pub fn to_owned(&self) -> OwnedGenerationId {
+        OwnedGenerationId(self.0.into())
+    }
+}
 
-    fn deref(&self) -> &Self::Target {
+impl IsByteArray for OwnedGenerationId {
+    fn get_byte_array(&self) -> &[u8] {
+        &self.0
+    }
+}
+impl IsByteArray for GenerationId<'_> {
+    fn get_byte_array(&self) -> &[u8] {
         self.0
     }
 }
-impl GenerationIdRef<'_> {
-    pub fn to_owned(&self) -> GenerationId {
-        GenerationId(self.0.into())
+impl IsByteArrayMut<'_> for OwnedGenerationId {
+    fn get_byte_array_mut(&mut self) -> &mut [u8] {
+        &mut self.0
     }
 }
-impl PartialEq for GenerationIdRef<'_> {
+
+impl PartialEq for GenerationId<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
-impl PartialOrd for GenerationIdRef<'_> {
+impl PartialOrd for GenerationId<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.0.cmp(other.0))
     }
 }
-impl<'a> From<GenerationIdRef<'a>> for &'a [u8] {
-    fn from(gen: GenerationIdRef<'a>) -> Self {
+impl<'a> From<GenerationId<'a>> for &'a [u8] {
+    fn from(gen: GenerationId<'a>) -> Self {
         gen.0
     }
 }
 
-impl Deref for CollectionKey {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl Deref for CollectionKeyRef<'_> {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        self.0
-    }
-}
-impl CollectionKey {
+impl OwnedCollectionKey {
     pub fn empty() -> Self {
         Self(vec![].into_boxed_slice())
     }
-    pub fn as_ref(&self) -> CollectionKeyRef<'_> {
-        CollectionKeyRef(&self.0)
+    pub fn as_ref(&self) -> CollectionKey<'_> {
+        CollectionKey(&self.0)
     }
 }
-impl CollectionKeyRef<'_> {
+impl CollectionKey<'_> {
     pub fn empty() -> Self {
         Self(b"")
     }
-    pub fn to_owned(&self) -> CollectionKey {
-        CollectionKey(self.0.into())
+    pub fn to_owned(&self) -> OwnedCollectionKey {
+        OwnedCollectionKey(self.0.into())
     }
 }
-impl PartialEq for CollectionKeyRef<'_> {
+impl PartialEq for CollectionKey<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
-impl CollectionValue {
+impl IsByteArray for OwnedCollectionKey {
+    fn get_byte_array(&self) -> &[u8] {
+        &self.0
+    }
+}
+impl IsByteArray for CollectionKey<'_> {
+    fn get_byte_array(&self) -> &[u8] {
+        self.0
+    }
+}
+impl IsByteArrayMut<'_> for OwnedCollectionKey {
+    fn get_byte_array_mut(&mut self) -> &mut [u8] {
+        &mut self.0
+    }
+}
+
+impl OwnedCollectionValue {
     pub fn new(bytes: &[u8]) -> Self {
         let mut vec = Vec::with_capacity(bytes.len() + 1);
         vec.push(RecordFlags::new().get_byte());
@@ -145,52 +136,47 @@ impl CollectionValue {
     pub fn from_boxed_slice(bytes: Box<[u8]>) -> Self {
         Self(bytes)
     }
-    pub fn as_ref(&self) -> CollectionValueRef<'_> {
-        CollectionValueRef(&self.0)
+    pub fn as_ref(&self) -> CollectionValue<'_> {
+        CollectionValue(&self.0)
     }
 }
-impl CollectionValueRef<'_> {
-    pub fn to_owned(&self) -> CollectionValue {
-        CollectionValue(self.0.into())
+impl CollectionValue<'_> {
+    pub fn to_owned(&self) -> OwnedCollectionValue {
+        OwnedCollectionValue(self.0.into())
     }
 }
-impl Deref for CollectionValue {
-    type Target = [u8];
 
-    fn deref(&self) -> &Self::Target {
+impl IsByteArray for OwnedCollectionValue {
+    fn get_byte_array(&self) -> &[u8] {
         &self.0
     }
 }
-impl Deref for CollectionValueRef<'_> {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
+impl IsByteArray for CollectionValue<'_> {
+    fn get_byte_array(&self) -> &[u8] {
         self.0
     }
 }
-
-impl Deref for PhantomId {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl IsByteArrayMut<'_> for OwnedCollectionValue {
+    fn get_byte_array_mut(&mut self) -> &mut [u8] {
+        &mut self.0
     }
 }
-impl PhantomId {
+
+impl OwnedPhantomId {
     pub fn empty() -> Self {
         Self(vec![].into_boxed_slice())
     }
-    pub fn as_ref(&self) -> PhantomIdRef<'_> {
-        PhantomIdRef(&self.0)
+    pub fn as_ref(&self) -> PhantomId<'_> {
+        PhantomId(&self.0)
     }
-    pub fn or_empty_as_ref(opt: &Option<Self>) -> PhantomIdRef<'_> {
+    pub fn or_empty_as_ref(opt: &Option<Self>) -> PhantomId<'_> {
         match opt {
             Some(id) => id.as_ref(),
-            None => PhantomIdRef(b""),
+            None => PhantomId(b""),
         }
     }
 }
-impl PhantomIdRef<'_> {
+impl PhantomId<'_> {
     pub fn empty() -> Self {
         Self(b"")
     }
@@ -201,22 +187,26 @@ impl PhantomIdRef<'_> {
         }
     }
 }
-impl Deref for PhantomIdRef<'_> {
-    type Target = [u8];
 
-    fn deref(&self) -> &Self::Target {
+impl IsByteArray for OwnedPhantomId {
+    fn get_byte_array(&self) -> &[u8] {
+        &self.0
+    }
+}
+impl IsByteArray for PhantomId<'_> {
+    fn get_byte_array(&self) -> &[u8] {
         self.0
     }
 }
-impl PartialEq for PhantomIdRef<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
+impl IsByteArrayMut<'_> for OwnedPhantomId {
+    fn get_byte_array_mut(&mut self) -> &mut [u8] {
+        &mut self.0
     }
 }
 
-impl DerefMut for GenerationId {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+impl PartialEq for PhantomId<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
     }
 }
 
@@ -226,18 +216,6 @@ pub trait IsByteArray {
 
 pub trait IsByteArrayMut<'a> {
     fn get_byte_array_mut(&'a mut self) -> &'a mut [u8];
-}
-
-impl<'a, T: Deref<Target = [u8]>> IsByteArray for T {
-    fn get_byte_array(&self) -> &[u8] {
-        self
-    }
-}
-
-impl<'a, T: DerefMut<Target = [u8]>> IsByteArrayMut<'a> for T {
-    fn get_byte_array_mut(&'a mut self) -> &'a mut [u8] {
-        self
-    }
 }
 
 pub struct NeverEq;
@@ -255,8 +233,13 @@ impl PartialEq for NeverEq {
 }
 impl Eq for NeverEq {}
 
-#[test]
-pub fn never_eq_is_never_eq() {
-    assert!(NeverEq != NeverEq);
-    assert_eq!(NeverEq == NeverEq, false);
+#[cfg(test)]
+mod tests {
+    use crate::common::NeverEq;
+
+    #[test]
+    pub fn never_eq_is_never_eq() {
+        assert!(NeverEq != NeverEq);
+        assert_eq!(NeverEq == NeverEq, false);
+    }
 }

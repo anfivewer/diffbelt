@@ -1,10 +1,10 @@
-use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
-use crate::common::{CollectionKeyRef, GenerationIdRef, IsByteArray};
+use crate::collection::util::generation_key::{OwnedGenerationKey};
+use crate::common::{CollectionKey, GenerationId, IsByteArray};
 use crate::raw_db::{RawDb, RawDbError};
 use rocksdb::{Direction, IteratorMode};
 
 pub struct HasGenerationChangesOptions<'a> {
-    pub generation_id: GenerationIdRef<'a>,
+    pub generation_id: GenerationId<'a>,
 }
 
 impl RawDb {
@@ -16,7 +16,7 @@ impl RawDb {
 
         let generations_cf = self.db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
 
-        let from_generation_key = OwnedGenerationKey::new(generation_id, CollectionKeyRef::empty())
+        let from_generation_key = OwnedGenerationKey::new(generation_id, CollectionKey::empty())
             .or(Err(RawDbError::InvalidGenerationKey))?;
 
         let iterator = self.db.iterator_cf(

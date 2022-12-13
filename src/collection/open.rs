@@ -1,21 +1,20 @@
 use crate::collection::newgen::{NewGenerationCommiter, NewGenerationCommiterOptions};
-use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
 use crate::collection::util::generation_key_compare::generation_key_compare_fn;
 use crate::collection::util::phantom_key_compare::phantom_key_compare_fn;
 use crate::collection::util::record_key_compare::record_key_compare_fn;
 use crate::collection::Collection;
-use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut, NeverEq};
+use crate::common::{IsByteArray, IsByteArrayMut, NeverEq, OwnedGenerationId};
 use crate::config::Config;
 use crate::database::DatabaseInner;
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbOpenError, RawDbOptions,
 };
 use crate::util::bytes::increment;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use tokio::sync::oneshot;
 use tokio::sync::watch;
-use tokio::sync::{oneshot, RwLock};
 
 pub struct CollectionOpenOptions {
     pub id: String,
@@ -112,27 +111,27 @@ impl Collection {
 
         let generation_id_stored = meta_raw_db.get(b"generation_id").await?;
         let generation_id = match generation_id_stored {
-            Some(generation_id) => GenerationId(generation_id),
+            Some(generation_id) => OwnedGenerationId(generation_id),
             None => {
                 if is_manual {
                     meta_raw_db
                         .put(b"generation_id", &vec![].into_boxed_slice())
                         .await?;
 
-                    GenerationId(vec![].into_boxed_slice())
+                    OwnedGenerationId(vec![].into_boxed_slice())
                 } else {
                     meta_raw_db
                         .put(b"generation_id", &vec![0; 64].into_boxed_slice())
                         .await?;
 
-                    GenerationId(vec![0; 64].into_boxed_slice())
+                    OwnedGenerationId(vec![0; 64].into_boxed_slice())
                 }
             }
         };
 
         let next_generation_id_stored = meta_raw_db.get(b"next_generation_id").await?;
         let next_generation_id = match next_generation_id_stored {
-            Some(next_generation_id) => Some(GenerationId(next_generation_id)),
+            Some(next_generation_id) => Some(OwnedGenerationId(next_generation_id)),
             None => {
                 if is_manual {
                     None
@@ -145,7 +144,10 @@ impl Collection {
                     let next_generation_id_cloned = next_generation_id.clone();
 
                     meta_raw_db
-                        .put(b"next_generation_id", next_generation_id.get_byte_array())
+                        .put(
+                            b"next_generation_id",
+                            next_generation_id.as_ref().get_byte_array(),
+                        )
                         .await?;
 
                     Some(next_generation_id_cloned)
@@ -185,7 +187,10 @@ impl Collection {
 
         match collection_sender {
             Some(collection_sender) => {
-                let a = collection_sender.send(collection.clone());
+                collection_sender
+                    .send(collection.clone())
+                    .or(Err(()))
+                    .unwrap();
             }
             None => {}
         }

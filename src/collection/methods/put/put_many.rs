@@ -6,7 +6,7 @@ use crate::collection::methods::put::inner::{
 
 use crate::collection::Collection;
 
-use crate::common::{GenerationId, GenerationIdRef, KeyValueUpdate, PhantomId, PhantomIdRef};
+use crate::common::{GenerationId, KeyValueUpdate, OwnedGenerationId, OwnedPhantomId, PhantomId};
 
 use crate::raw_db::put_many_collection_records::{
     PutManyCollectionRecordsItem, PutManyCollectionRecordsOptions,
@@ -14,25 +14,25 @@ use crate::raw_db::put_many_collection_records::{
 
 pub struct CollectionPutManyOptions {
     pub items: Vec<KeyValueUpdate>,
-    pub generation_id: Option<GenerationId>,
-    pub phantom_id: Option<PhantomId>,
+    pub generation_id: Option<OwnedGenerationId>,
+    pub phantom_id: Option<OwnedPhantomId>,
 }
 
 #[derive(Debug)]
 pub struct CollectionPutManyOk {
-    pub generation_id: GenerationId,
+    pub generation_id: OwnedGenerationId,
 }
 
 pub type CollectionPutManyResult = Result<CollectionPutManyOk, CollectionMethodError>;
 
 impl Collection {
     pub async fn put_many(&self, options: CollectionPutManyOptions) -> CollectionPutManyResult {
-        let generation_id: Option<GenerationIdRef> =
+        let generation_id: Option<GenerationId> =
             options.generation_id.as_ref().map(|gen| gen.as_ref());
-        let phantom_id: Option<PhantomIdRef> = options.phantom_id.as_ref().map(|id| id.as_ref());
+        let phantom_id: Option<PhantomId> = options.phantom_id.as_ref().map(|id| id.as_ref());
 
         let next_generation_id_lock = self.next_generation_id.read().unwrap();
-        let next_generation_id: Option<GenerationIdRef> =
+        let next_generation_id: Option<GenerationId> =
             next_generation_id_lock.as_ref().map(|gen| gen.as_ref());
 
         //// Validate

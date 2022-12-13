@@ -1,13 +1,13 @@
 use crate::collection::util::generation_key::OwnedGenerationKey;
 use crate::collection::util::record_key::RecordKey;
-use crate::common::{CollectionValue, CollectionValueRef, IsByteArray};
+use crate::common::{CollectionValue, IsByteArray, OwnedCollectionValue};
 use crate::raw_db::{RawDb, RawDbError};
 
 use rocksdb::WriteBatchWithTransaction;
 
 pub struct PutCollectionRecordOptions<'a> {
     pub record_key: RecordKey<'a>,
-    pub value: Option<CollectionValueRef<'a>>,
+    pub value: Option<CollectionValue<'a>>,
 }
 
 impl RawDb {
@@ -17,7 +17,7 @@ impl RawDb {
     ) -> Result<(), RawDbError> {
         let db = self.db.clone();
         let record_key = options.record_key.to_owned();
-        let value: Option<CollectionValue> = options.value.map(|x| x.to_owned());
+        let value: Option<OwnedCollectionValue> = options.value.map(|x| x.to_owned());
 
         tokio::task::spawn_blocking(move || {
             let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
@@ -48,7 +48,10 @@ impl RawDb {
     }
 }
 
-pub fn unwrap_option_ref_or<'a>(opt: &'a Option<CollectionValue>, default: &'a [u8]) -> &'a [u8] {
+pub fn unwrap_option_ref_or<'a>(
+    opt: &'a Option<OwnedCollectionValue>,
+    default: &'a [u8],
+) -> &'a [u8] {
     match opt {
         Some(value) => value.get_byte_array(),
         None => default,

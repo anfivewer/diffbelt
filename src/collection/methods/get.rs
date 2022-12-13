@@ -3,19 +3,21 @@ use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::collection::Collection;
 
-use crate::common::{CollectionKey, CollectionValue, GenerationId, KeyValue, PhantomId};
+use crate::common::{
+    KeyValue, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId, OwnedPhantomId,
+};
 
 use crate::raw_db::get_collection_record::GetCollectionRecordOptions;
 
 pub struct CollectionGetOptions {
-    pub key: CollectionKey,
-    pub generation_id: Option<GenerationId>,
-    pub phantom_id: Option<PhantomId>,
+    pub key: OwnedCollectionKey,
+    pub generation_id: Option<OwnedGenerationId>,
+    pub phantom_id: Option<OwnedPhantomId>,
 }
 
 #[derive(Debug)]
 pub struct CollectionGetOk {
-    pub generation_id: GenerationId,
+    pub generation_id: OwnedGenerationId,
     pub item: Option<KeyValue>,
 }
 
@@ -33,7 +35,7 @@ impl Collection {
         let record_key = OwnedRecordKey::new(
             options.key.as_ref(),
             generation_id.as_ref(),
-            PhantomId::or_empty_as_ref(&options.phantom_id),
+            OwnedPhantomId::or_empty_as_ref(&options.phantom_id),
         )
         .or(Err(CollectionMethodError::InvalidKey))?;
 
@@ -46,8 +48,8 @@ impl Collection {
 
         let mut generation_id = generation_id;
 
-        let item: Option<KeyValue> =
-            result.map(|(record_key, value): (OwnedRecordKey, CollectionValue)| {
+        let item: Option<KeyValue> = result.map(
+            |(record_key, value): (OwnedRecordKey, OwnedCollectionValue)| {
                 let record_key = record_key.as_ref();
                 generation_id = record_key.get_generation_id().to_owned();
 
@@ -55,7 +57,8 @@ impl Collection {
                     key: record_key.get_key().to_owned(),
                     value,
                 }
-            });
+            },
+        );
 
         Ok(CollectionGetOk {
             generation_id,

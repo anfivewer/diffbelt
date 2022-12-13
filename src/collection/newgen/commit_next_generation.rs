@@ -1,19 +1,16 @@
-use crate::collection::Collection;
-use crate::common::{GenerationId, IsByteArray, IsByteArrayMut};
+use crate::common::{IsByteArray, IsByteArrayMut, OwnedGenerationId};
 use crate::raw_db::has_generation_changes::HasGenerationChangesOptions;
 use crate::raw_db::put::PutKeyValue;
 use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::increment;
-use std::borrow::Borrow;
-use std::ops::DerefMut;
 use std::sync::Arc;
 
 pub struct CommitNextGenerationSyncOptions {
-    pub expected_generation_id: Option<GenerationId>,
+    pub expected_generation_id: Option<OwnedGenerationId>,
     pub raw_db: Arc<RawDb>,
     pub meta_raw_db: Arc<RawDb>,
-    pub generation_id: Arc<std::sync::RwLock<GenerationId>>,
-    pub next_generation_id: Arc<std::sync::RwLock<Option<GenerationId>>>,
+    pub generation_id: Arc<std::sync::RwLock<OwnedGenerationId>>,
+    pub next_generation_id: Arc<std::sync::RwLock<Option<OwnedGenerationId>>>,
 }
 
 pub enum CommitNextGenerationError {
