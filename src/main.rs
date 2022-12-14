@@ -1,18 +1,14 @@
-use crate::collection::methods::commit_generation::CommitGenerationOptions;
-use crate::collection::methods::get::CollectionGetOptions;
-use crate::collection::methods::put::{CollectionPutManyOptions, CollectionPutOptions};
-use crate::collection::methods::start_generation::StartGenerationOptions;
-use crate::common::{KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId};
 use crate::config::{Config, ReadConfigFromEnvError};
 use crate::context::Context;
-use crate::database::create_collection::CreateCollectionOptions;
+
 use crate::database::open::DatabaseOpenOptions;
 use crate::database::Database;
 use crate::raw_db::{RawDb, RawDbOptions};
 use crate::routes::{BaseResponse, Response, StaticRouteOptions, StringResponse};
+use crate::util::global_tokio_runtime::create_global_tokio_runtime;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::runtime::Runtime;
+
 use tokio::sync::RwLock;
 use warp::http::response::Builder;
 use warp::http::StatusCode;
@@ -28,6 +24,8 @@ mod database;
 mod protos;
 mod raw_db;
 mod routes;
+#[cfg(test)]
+mod tests;
 mod util;
 
 #[derive(Debug)]
@@ -67,102 +65,6 @@ async fn run() {
     })
     .await
     .expect("Cannot open database");
-
-    let collection = database
-        .get_or_create_collection("test", CreateCollectionOptions { is_manual: false })
-        .await
-        .expect("Collection create");
-
-    let manual_collection = database
-        .get_or_create_collection("manual", CreateCollectionOptions { is_manual: true })
-        .await
-        .expect("Collection create");
-
-    let result = collection
-        .get(CollectionGetOptions {
-            key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
-            generation_id: None,
-            phantom_id: None,
-        })
-        .await;
-
-    println!("get result {:?}", result);
-
-    let result = collection
-        .put(CollectionPutOptions {
-            update: KeyValueUpdate {
-                key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
-                value: Option::Some(OwnedCollectionValue::new(b"passed")),
-                if_not_present: true,
-            },
-            generation_id: None,
-            phantom_id: None,
-        })
-        .await;
-
-    println!("put result {:?}", result);
-
-    let result = collection
-        .put_many(CollectionPutManyOptions {
-            items: vec![
-                KeyValueUpdate {
-                    key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
-                    value: Option::Some(OwnedCollectionValue::new(b"passed3")),
-                    if_not_present: true,
-                },
-                KeyValueUpdate {
-                    key: OwnedCollectionKey(b"test2".to_vec().into_boxed_slice()),
-                    value: Option::Some(OwnedCollectionValue::new(b"passed again")),
-                    if_not_present: true,
-                },
-            ],
-            generation_id: None,
-            phantom_id: None,
-        })
-        .await;
-
-    println!("put result {:?}", result);
-
-    let result = manual_collection
-        .start_generation(StartGenerationOptions {
-            generation_id: OwnedGenerationId(b"first".to_vec().into_boxed_slice()),
-            abort_outdated: false,
-        })
-        .await;
-
-    println!("start generation result {:?}", result);
-
-    let result = manual_collection
-        .put(CollectionPutOptions {
-            update: KeyValueUpdate {
-                key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
-                value: Option::Some(OwnedCollectionValue::new(b"passed")),
-                if_not_present: true,
-            },
-            generation_id: Some(OwnedGenerationId(b"first".to_vec().into_boxed_slice())),
-            phantom_id: None,
-        })
-        .await;
-
-    println!("put in manual result {:?}", result);
-
-    let result = manual_collection
-        .commit_generation(CommitGenerationOptions {
-            generation_id: OwnedGenerationId(b"first".to_vec().into_boxed_slice()),
-        })
-        .await;
-
-    println!("commit generation result {:?}", result);
-
-    let result = manual_collection
-        .get(CollectionGetOptions {
-            key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
-            generation_id: None,
-            phantom_id: None,
-        })
-        .await;
-
-    println!("get from manual result {:?}", result);
 
     let context = Arc::new(RwLock::new(Context {
         config,
@@ -231,18 +133,8 @@ async fn run() {
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
 
-static mut TOKIO_RUNTIME: Option<Arc<Runtime>> = None;
-
 fn main() {
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    let runtime = Arc::new(runtime);
-
-    unsafe {
-        TOKIO_RUNTIME = Some(runtime.clone());
-    }
+    let runtime = create_global_tokio_runtime().unwrap();
 
     runtime.block_on(run());
 }

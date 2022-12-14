@@ -19,6 +19,8 @@ pub struct Collection {
     raw_db: Arc<RawDb>,
     meta_raw_db: Arc<RawDb>,
     is_manual: bool,
+    generation_id_sender: Arc<watch::Sender<OwnedGenerationId>>,
+    generation_id_receiver: watch::Receiver<OwnedGenerationId>,
     generation_id: Arc<RwLock<OwnedGenerationId>>,
     next_generation_id: Arc<RwLock<Option<OwnedGenerationId>>>,
     if_not_present_writes: std::sync::RwLock<HashMap<OwnedRecordKey, ConcurrentPutStatus>>,
@@ -46,5 +48,9 @@ impl Collection {
         _reader_id: &str,
     ) -> Result<OwnedGenerationId, GetReaderGenerationIdError> {
         Ok(OwnedGenerationId(vec![].into_boxed_slice()))
+    }
+
+    pub fn get_generation_id_receiver(&self) -> watch::Receiver<OwnedGenerationId> {
+        self.generation_id_receiver.clone()
     }
 }

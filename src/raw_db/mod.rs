@@ -1,3 +1,4 @@
+use rocksdb::merge_operator::MergeFn;
 use rocksdb::{
     ColumnFamilyDescriptor, Direction, IteratorMode, Options, ReadOptions, DB,
     DEFAULT_COLUMN_FAMILY_NAME,
@@ -13,6 +14,7 @@ pub mod put;
 pub mod put_collection_record;
 pub mod put_many_collection_records;
 pub mod remove_all_records_of_generation;
+pub mod update_reader;
 
 pub struct RawDb {
     db: Arc<DB>,
@@ -26,6 +28,9 @@ pub enum RawDbError {
     CfHandle,
     InvalidRecordKey,
     InvalidGenerationKey,
+    InvalidReaderValue,
+    UpdateReader,
+    NoSuchReader,
 }
 
 impl From<rocksdb::Error> for RawDbError {
@@ -176,9 +181,16 @@ pub struct RawDbComparator {
     pub compare_fn: fn(&[u8], &[u8]) -> Ordering,
 }
 
+pub struct RawDbMerge {
+    pub name: String,
+    pub full_merge: Box<dyn MergeFn>,
+    pub partial_merge: Box<dyn MergeFn>,
+}
+
 pub struct RawDbColumnFamily {
     pub name: String,
     pub comparator: Option<RawDbComparator>,
+    pub merge: Option<RawDbMerge>,
 }
 
 pub struct RawDbOptions<'a> {
@@ -226,6 +238,10 @@ impl RawDb {
 
             family.comparator.as_ref().map(|comparator| {
                 cf_opts.set_comparator(&comparator.name, comparator.compare_fn);
+            });
+
+            family.merge.map(|merge| {
+                cf_opts.set_merge_operator(&merge.name, merge.full_merge, merge.partial_merge);
             });
 
             column_family_descriptors.push(ColumnFamilyDescriptor::new(&family.name, cf_opts));

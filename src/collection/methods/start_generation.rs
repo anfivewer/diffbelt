@@ -17,7 +17,7 @@ impl Collection {
         options: StartGenerationOptions,
     ) -> Result<(), CollectionMethodError> {
         if !self.is_manual {
-            return Err(CollectionMethodError::CannotStartGenerationInNonManualCollection);
+            return Err(CollectionMethodError::UnsupportedOperationForThisCollectionType);
         }
 
         let current_generation_id = self.generation_id.clone();

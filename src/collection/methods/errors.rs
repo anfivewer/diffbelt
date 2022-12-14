@@ -1,3 +1,5 @@
+use crate::collection::util::reader_value::OwnedReaderValue;
+
 use crate::raw_db::RawDbError;
 
 #[derive(Debug)]
@@ -5,8 +7,9 @@ pub enum CollectionMethodError {
     OutdatedGeneration,
     PutPhantomWithoutGenerationId,
     CannotPutInManualCollection,
-    CannotStartGenerationInNonManualCollection,
+    UnsupportedOperationForThisCollectionType,
     InvalidKey,
+    ReaderAlreadyExists(OwnedReaderValue),
 
     RawDb(RawDbError),
     Channels,

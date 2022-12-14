@@ -4,12 +4,14 @@ use crate::raw_db::put::PutKeyValue;
 use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::increment;
 use std::sync::Arc;
+use tokio::sync::watch;
 use tokio::sync::RwLock;
 
 pub struct CommitNextGenerationSyncOptions {
     pub expected_generation_id: Option<OwnedGenerationId>,
     pub raw_db: Arc<RawDb>,
     pub meta_raw_db: Arc<RawDb>,
+    pub generation_id_sender: Arc<watch::Sender<OwnedGenerationId>>,
     pub generation_id: Arc<RwLock<OwnedGenerationId>>,
     pub next_generation_id: Arc<RwLock<Option<OwnedGenerationId>>>,
 }
@@ -89,8 +91,11 @@ pub async fn commit_next_generation_sync(
     };
     let mut generation_id_lock = options.generation_id.write().await;
 
-    generation_id_lock.replace(next_generation_id);
+    generation_id_lock.replace(next_generation_id.clone());
     next_generation_id_lock.replace(new_next_generation_id);
+    options
+        .generation_id_sender
+        .send_replace(next_generation_id);
 
     drop(generation_id_lock);
     drop(next_generation_id_lock);

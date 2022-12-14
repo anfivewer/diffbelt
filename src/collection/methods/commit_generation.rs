@@ -18,6 +18,7 @@ impl Collection {
     ) -> Result<(), CollectionMethodError> {
         let raw_db = self.raw_db.clone();
         let meta_raw_db = self.meta_raw_db.clone();
+        let generation_id_sender = self.generation_id_sender.clone();
         let generation_id = self.generation_id.clone();
         let next_generation_id = self.next_generation_id.clone();
 
@@ -28,6 +29,7 @@ impl Collection {
                 expected_generation_id: Some(expected_generation_id),
                 raw_db,
                 meta_raw_db,
+                generation_id_sender,
                 generation_id,
                 next_generation_id,
             })

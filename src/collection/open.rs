@@ -1,5 +1,6 @@
 use crate::collection::newgen::{NewGenerationCommiter, NewGenerationCommiterOptions};
 use crate::collection::util::generation_key_compare::generation_key_compare_fn;
+use crate::collection::util::meta_merge::{meta_full_merge, meta_partial_merge};
 use crate::collection::util::phantom_key_compare::phantom_key_compare_fn;
 use crate::collection::util::record_key_compare::record_key_compare_fn;
 use crate::collection::Collection;
@@ -7,7 +8,7 @@ use crate::common::{IsByteArray, IsByteArrayMut, NeverEq, OwnedGenerationId};
 use crate::config::Config;
 use crate::database::DatabaseInner;
 use crate::raw_db::{
-    RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbOpenError, RawDbOptions,
+    RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbMerge, RawDbOpenError, RawDbOptions,
 };
 use crate::util::bytes::increment;
 use std::collections::HashMap;
@@ -67,6 +68,7 @@ impl Collection {
                         name: "v1".to_string(),
                         compare_fn: generation_key_compare_fn,
                     }),
+                    merge: None,
                 },
                 RawDbColumnFamily {
                     name: "phantoms".to_string(),
@@ -74,10 +76,16 @@ impl Collection {
                         name: "v1".to_string(),
                         compare_fn: phantom_key_compare_fn,
                     }),
+                    merge: None,
                 },
                 RawDbColumnFamily {
                     name: "meta".to_string(),
                     comparator: None,
+                    merge: Some(RawDbMerge {
+                        name: "v1".to_string(),
+                        full_merge: Box::new(meta_full_merge),
+                        partial_merge: Box::new(meta_partial_merge),
+                    }),
                 },
             ],
         })?;
@@ -171,11 +179,15 @@ impl Collection {
             (None, None, None)
         };
 
+        let (generation_id_sender, generation_id_receiver) = watch::channel(generation_id.clone());
+
         let collection = Collection {
             id: collection_id,
             raw_db: Arc::new(raw_db),
             meta_raw_db: Arc::new(meta_raw_db),
             is_manual,
+            generation_id_sender: Arc::new(generation_id_sender),
+            generation_id_receiver,
             generation_id: Arc::new(RwLock::new(generation_id)),
             next_generation_id: Arc::new(RwLock::new(next_generation_id)),
             if_not_present_writes: std::sync::RwLock::new(HashMap::new()),

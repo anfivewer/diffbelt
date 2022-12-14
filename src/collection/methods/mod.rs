@@ -1,6 +1,9 @@
 pub mod abort_generation;
 pub mod commit_generation;
+pub mod create_reader;
+pub mod delete_reader;
 pub mod errors;
 pub mod get;
 pub mod put;
 pub mod start_generation;
+pub mod update_reader;
