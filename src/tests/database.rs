@@ -3,7 +3,7 @@ use crate::collection::methods::get::CollectionGetOptions;
 use crate::collection::methods::put::{CollectionPutManyOptions, CollectionPutOptions};
 use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::common::{
-    IsByteArrayMut, KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId,
+    GenerationId, KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId,
 };
 use crate::config::Config;
 use crate::database::create_collection::CreateCollectionOptions;
@@ -17,6 +17,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::collection::Collection;
+use std::str::from_utf8;
 use tokio::time::timeout;
 
 #[test]
@@ -74,9 +76,10 @@ async fn database_test_inner() {
     assert!(result.is_ok());
     let result = result.unwrap();
     assert!(result.item.is_none());
+    let initial_generation_id = result.generation_id;
     assert_eq!(
-        result.generation_id,
-        OwnedGenerationId(vec![0; 64].into_boxed_slice())
+        &initial_generation_id,
+        &OwnedGenerationId(vec![0; 64].into_boxed_slice())
     );
 
     let result = collection
@@ -91,20 +94,17 @@ async fn database_test_inner() {
         })
         .await;
 
-    assert!(result.is_ok());
     let result = result.unwrap();
     assert_eq!(result.was_put, true);
-    let mut generation_id_of_put = OwnedGenerationId(vec![0; 64].into_boxed_slice());
-    let generation_id_mut = generation_id_of_put.get_byte_array_mut();
-    generation_id_mut[63] = 1;
-    assert_eq!(result.generation_id, generation_id_of_put);
+    let generation_id_after_put = result.generation_id;
+    assert!(&generation_id_after_put > &initial_generation_id);
 
     let mut generation_id_receiver = collection.get_generation_id_receiver();
 
     loop {
         let is_got_it = {
             let generation_id = generation_id_receiver.borrow_and_update();
-            generation_id.deref() >= &generation_id_of_put
+            generation_id.deref() >= &generation_id_after_put
         };
 
         if is_got_it {
@@ -117,21 +117,13 @@ async fn database_test_inner() {
             .unwrap();
     }
 
-    let result = collection
-        .get(CollectionGetOptions {
-            key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
-            generation_id: None,
-            phantom_id: None,
-        })
-        .await;
-
-    assert!(result.is_ok());
-    let result = result.unwrap();
-    assert!(result.item.is_some());
-    let mut generation_id = OwnedGenerationId(vec![0; 64].into_boxed_slice());
-    let generation_id_mut = generation_id.get_byte_array_mut();
-    generation_id_mut[63] = 1;
-    assert_eq!(result.generation_id, generation_id);
+    assert_get(
+        &collection,
+        b"test",
+        Some("passed"),
+        generation_id_after_put.as_ref(),
+    )
+    .await;
 
     let result = collection
         .put_many(CollectionPutManyOptions {
@@ -152,24 +144,34 @@ async fn database_test_inner() {
         })
         .await;
 
-    // TODO: assert results below
+    let result = result.unwrap();
+    let generation_id_after_put_many = result.generation_id;
+    assert!(&generation_id_after_put_many > &generation_id_after_put);
 
-    println!("put result {:?}", result);
+    assert_get(
+        &collection,
+        b"test",
+        Some("passed"),
+        generation_id_after_put.as_ref(),
+    )
+    .await;
+
+    let commit_generation_id = OwnedGenerationId(b"first".to_vec().into_boxed_slice());
 
     let result = manual_collection
         .start_generation(StartGenerationOptions {
-            generation_id: OwnedGenerationId(b"first".to_vec().into_boxed_slice()),
+            generation_id: commit_generation_id.clone(),
             abort_outdated: false,
         })
         .await;
 
-    println!("start generation result {:?}", result);
+    assert!(result.is_ok());
 
     let result = manual_collection
         .put(CollectionPutOptions {
             update: KeyValueUpdate {
                 key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
-                value: Option::Some(OwnedCollectionValue::new(b"passed")),
+                value: Option::Some(OwnedCollectionValue::new(b"manual passed")),
                 if_not_present: true,
             },
             generation_id: Some(OwnedGenerationId(b"first".to_vec().into_boxed_slice())),
@@ -177,17 +179,21 @@ async fn database_test_inner() {
         })
         .await;
 
-    println!("put in manual result {:?}", result);
+    let result = result.unwrap();
+    assert!(result.was_put);
+    assert_eq!(&commit_generation_id, &result.generation_id);
+
+    assert_get(&manual_collection, b"test", None, GenerationId::empty()).await;
 
     let result = manual_collection
         .commit_generation(CommitGenerationOptions {
-            generation_id: OwnedGenerationId(b"first".to_vec().into_boxed_slice()),
+            generation_id: commit_generation_id.clone(),
         })
         .await;
 
-    println!("commit generation result {:?}", result);
+    assert!(result.is_ok());
 
-    let result = manual_collection
+    let _result = manual_collection
         .get(CollectionGetOptions {
             key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
             generation_id: None,
@@ -195,7 +201,42 @@ async fn database_test_inner() {
         })
         .await;
 
-    println!("get from manual result {:?}", result);
+    assert_get(
+        &manual_collection,
+        b"test",
+        Some("manual passed"),
+        commit_generation_id.as_ref(),
+    )
+    .await;
+}
 
-    // TODO: test readers
+async fn assert_get(
+    collection: &Collection,
+    key: &[u8],
+    expected_value: Option<&str>,
+    expected_generation_id: GenerationId<'_>,
+) {
+    let result = collection
+        .get(CollectionGetOptions {
+            key: OwnedCollectionKey(key.into()),
+            generation_id: None,
+            phantom_id: None,
+        })
+        .await;
+
+    let result = result.unwrap();
+    assert_eq!(result.generation_id.as_ref(), expected_generation_id);
+    assert_eq!(result.item.is_some(), expected_value.is_some());
+
+    match result.item {
+        Some(actual_value) => {
+            let expected_value = expected_value.unwrap();
+            let actual_value = actual_value.value.as_ref();
+            let actual_bytes = actual_value.get_value();
+            let actual_str = from_utf8(actual_bytes).unwrap();
+
+            assert_eq!(actual_str, expected_value);
+        }
+        None => {}
+    }
 }

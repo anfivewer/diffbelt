@@ -12,7 +12,7 @@ pub struct CollectionValue<'a>(pub &'a [u8]);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct OwnedGenerationId(pub Box<[u8]>);
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct GenerationId<'a>(pub &'a [u8]);
 
 pub struct OwnedPhantomId(pub Box<[u8]>);
@@ -43,6 +43,9 @@ impl OwnedGenerationId {
     }
 }
 impl GenerationId<'_> {
+    pub fn empty() -> Self {
+        GenerationId(b"")
+    }
     pub fn to_owned(&self) -> OwnedGenerationId {
         OwnedGenerationId(self.0.into())
     }
@@ -140,6 +143,9 @@ impl OwnedCollectionValue {
     }
 }
 impl CollectionValue<'_> {
+    pub fn get_value(&self) -> &[u8] {
+        &self.0[1..]
+    }
     pub fn to_owned(&self) -> OwnedCollectionValue {
         OwnedCollectionValue(self.0.into())
     }
