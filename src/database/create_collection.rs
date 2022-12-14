@@ -107,8 +107,8 @@ impl Database {
 
         let collection = Collection::open(CollectionOpenOptions {
             id: id.to_string(),
-            config: self.config.clone(),
             is_manual: options.is_manual,
+            data_path: &self.data_path,
             database_inner: self.inner.clone(),
         })
         .await

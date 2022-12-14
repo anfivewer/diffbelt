@@ -29,7 +29,8 @@ pub enum Response {
     String(StringResponse),
 }
 
-type StaticRouteFn = fn(options: StaticRouteOptions) -> BoxFuture<'static, Response>;
+pub type StaticRouteFnResult = BoxFuture<'static, Response>;
+pub type StaticRouteFn = fn(options: StaticRouteOptions) -> StaticRouteFnResult;
 type StaticRoutes = HashMap<String, Arc<StaticRouteFn>>;
 
 pub struct Routing {

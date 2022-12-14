@@ -3,10 +3,10 @@ use crate::context::Context;
 
 use crate::database::open::DatabaseOpenOptions;
 use crate::database::Database;
-use crate::raw_db::{RawDb, RawDbOptions};
+
 use crate::routes::{BaseResponse, Response, StaticRouteOptions, StringResponse};
 use crate::util::global_tokio_runtime::create_global_tokio_runtime;
-use std::path::Path;
+
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
@@ -47,21 +47,8 @@ async fn run() {
     };
     let config = Arc::new(config);
 
-    let path = Path::new(&config.data_path).join("_meta");
-    let path = path.to_str().unwrap();
-
-    let meta_raw_db = RawDb::open_raw_db(RawDbOptions {
-        path,
-        comparator: None,
-        column_families: vec![],
-    })
-    .expect("Cannot open meta raw_db");
-
-    let meta_raw_db = Arc::new(meta_raw_db);
-
     let database = Database::open(DatabaseOpenOptions {
-        config: config.clone(),
-        meta_raw_db: meta_raw_db.clone(),
+        data_path: &config.data_path,
     })
     .await
     .expect("Cannot open database");
@@ -69,7 +56,6 @@ async fn run() {
     let context = Arc::new(RwLock::new(Context {
         config,
         routing: routes::new_routing(),
-        meta_raw_db,
         database: Arc::new(database),
     }));
 

@@ -5,21 +5,21 @@ use crate::collection::util::phantom_key_compare::phantom_key_compare_fn;
 use crate::collection::util::record_key_compare::record_key_compare_fn;
 use crate::collection::Collection;
 use crate::common::{IsByteArray, IsByteArrayMut, NeverEq, OwnedGenerationId};
-use crate::config::Config;
+
 use crate::database::DatabaseInner;
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbMerge, RawDbOpenError, RawDbOptions,
 };
 use crate::util::bytes::increment;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::watch;
 use tokio::sync::{oneshot, RwLock};
 
-pub struct CollectionOpenOptions {
+pub struct CollectionOpenOptions<'a> {
     pub id: String,
-    pub config: Arc<Config>,
+    pub data_path: &'a PathBuf,
     pub is_manual: bool,
     pub database_inner: Arc<DatabaseInner>,
 }
@@ -48,11 +48,12 @@ impl From<RawDbError> for CollectionOpenError {
 
 impl Collection {
     // Create a new column family descriptor with the specified name and options.
-    pub async fn open(options: CollectionOpenOptions) -> Result<Arc<Self>, CollectionOpenError> {
+    pub async fn open(
+        options: CollectionOpenOptions<'_>,
+    ) -> Result<Arc<Self>, CollectionOpenError> {
         let collection_id = options.id;
 
-        let config = options.config;
-        let path = Path::new(&config.data_path).join(&collection_id);
+        let path = options.data_path.join(&collection_id);
         let path = path.to_str().ok_or(CollectionOpenError::PathJoin)?;
 
         let raw_db = RawDb::open_raw_db(RawDbOptions {

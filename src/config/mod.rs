@@ -1,8 +1,9 @@
 use std::env;
 use std::env::VarError;
+use std::path::PathBuf;
 
 pub struct Config {
-    pub data_path: String,
+    pub data_path: PathBuf,
 }
 
 #[derive(Debug)]
@@ -33,6 +34,7 @@ fn get_var(name: &str) -> Result<String, ReadConfigFromEnvError> {
 impl Config {
     pub fn read_from_env() -> Result<Self, ReadConfigFromEnvError> {
         let data_path = get_var("DIFFBELT_DATA_PATH")?;
+        let data_path = PathBuf::from(data_path);
 
         Ok(Config { data_path })
     }

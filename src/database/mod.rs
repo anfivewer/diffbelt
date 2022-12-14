@@ -1,8 +1,9 @@
 use crate::collection::Collection;
 use crate::common::OwnedGenerationId;
-use crate::config::Config;
+
 use crate::raw_db::RawDb;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -10,7 +11,7 @@ pub mod create_collection;
 pub mod open;
 
 pub struct Database {
-    config: Arc<Config>,
+    data_path: PathBuf,
     meta_raw_db: Arc<RawDb>,
     collections_alter_lock: Mutex<()>,
     collections: Arc<std::sync::RwLock<HashMap<String, Arc<Collection>>>>,

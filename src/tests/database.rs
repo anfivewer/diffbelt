@@ -5,16 +5,16 @@ use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::common::{
     GenerationId, KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId,
 };
-use crate::config::Config;
+
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::database::open::DatabaseOpenOptions;
 use crate::database::Database;
-use crate::raw_db::{RawDb, RawDbOptions};
+
 use crate::tests::temp_dir::TempDir;
 use crate::util::global_tokio_runtime::create_global_tokio_runtime;
 
 use std::ops::Deref;
-use std::sync::Arc;
+
 use std::time::Duration;
 
 use crate::collection::Collection;
@@ -32,25 +32,8 @@ async fn database_test_inner() {
 
     println!("Temp dir: {:?}", temp_dir.get_path_buf());
 
-    let config = Arc::new(Config {
-        data_path: temp_dir.get_path_buf().to_str().unwrap().to_string(),
-    });
-
-    let meta_raw_db_path = temp_dir.get_path_buf().join("_meta");
-    let meta_raw_db_path = meta_raw_db_path.to_str().unwrap();
-
-    let meta_raw_db = RawDb::open_raw_db(RawDbOptions {
-        path: meta_raw_db_path,
-        comparator: None,
-        column_families: vec![],
-    })
-    .expect("Cannot open meta raw_db");
-
-    let meta_raw_db = Arc::new(meta_raw_db);
-
     let database = Database::open(DatabaseOpenOptions {
-        config: config.clone(),
-        meta_raw_db: meta_raw_db.clone(),
+        data_path: temp_dir.get_path_buf(),
     })
     .await
     .expect("Cannot open database");
