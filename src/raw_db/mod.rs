@@ -1,14 +1,12 @@
 use rocksdb::merge_operator::MergeFn;
-use rocksdb::{
-    ColumnFamilyDescriptor, Direction, IteratorMode, Options, ReadOptions, DB,
-    DEFAULT_COLUMN_FAMILY_NAME,
-};
+use rocksdb::{ColumnFamilyDescriptor, Options, DB, DEFAULT_COLUMN_FAMILY_NAME};
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::sync::Arc;
 
 pub mod contains_existing_collection_record;
 pub mod get_collection_record;
+pub mod get_range;
 pub mod has_generation_changes;
 pub mod put;
 pub mod put_collection_record;
@@ -62,80 +60,6 @@ impl RawDb {
             };
 
             Ok(value.map(|x| x.into_boxed_slice()))
-        })
-        .await?
-    }
-
-    pub async fn get_key_range(
-        &self,
-        from_key: &[u8],
-        to_key: &[u8],
-    ) -> Result<Vec<Box<[u8]>>, RawDbError> {
-        let from_key = from_key.to_owned().into_boxed_slice();
-        let to_key = to_key.to_owned().into_boxed_slice();
-
-        let db = self.db.clone();
-        let cf_name = self.cf_name.clone();
-
-        tokio::task::spawn_blocking(move || {
-            let iterator_mode = IteratorMode::From(&from_key, Direction::Forward);
-            let mut opts = ReadOptions::default();
-            opts.set_iterate_upper_bound(to_key);
-
-            let iterator = match cf_name.borrow() {
-                Some(cf_name) => {
-                    let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
-                    db.iterator_cf_opt(&cf, opts, iterator_mode)
-                }
-                None => db.iterator_opt(iterator_mode, opts),
-            };
-
-            let mut result: Vec<Box<[u8]>> = Vec::new();
-
-            for item in iterator {
-                let (key, _) = item?;
-
-                result.push(key);
-            }
-
-            Ok(result)
-        })
-        .await?
-    }
-
-    pub async fn get_range(
-        &self,
-        from_key: &[u8],
-        to_key: &[u8],
-    ) -> Result<Vec<(Box<[u8]>, Box<[u8]>)>, RawDbError> {
-        let from_key = from_key.to_owned().into_boxed_slice();
-        let to_key = to_key.to_owned().into_boxed_slice();
-
-        let db = self.db.clone();
-        let cf_name = self.cf_name.clone();
-
-        tokio::task::spawn_blocking(move || {
-            let iterator_mode = IteratorMode::From(&from_key, Direction::Forward);
-            let mut opts = ReadOptions::default();
-            opts.set_iterate_upper_bound(to_key);
-
-            let iterator = match cf_name.borrow() {
-                Some(cf_name) => {
-                    let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
-                    db.iterator_cf_opt(&cf, opts, iterator_mode)
-                }
-                None => db.iterator_opt(iterator_mode, opts),
-            };
-
-            let mut result: Vec<(Box<[u8]>, Box<[u8]>)> = Vec::new();
-
-            for item in iterator {
-                let item = item?;
-
-                result.push(item);
-            }
-
-            Ok(result)
         })
         .await?
     }

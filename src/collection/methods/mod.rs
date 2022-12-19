@@ -4,6 +4,7 @@ pub mod create_reader;
 pub mod delete_reader;
 pub mod errors;
 pub mod get;
+pub mod list_readers;
 pub mod put;
 pub mod start_generation;
 pub mod update_reader;

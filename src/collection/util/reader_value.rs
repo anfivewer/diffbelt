@@ -1,22 +1,29 @@
-use crate::common::IsByteArray;
+use crate::common::{GenerationId, IsByteArray};
+use std::str::from_utf8;
 
 #[derive(Debug)]
 pub struct OwnedReaderValue(Box<[u8]>);
 pub struct ReaderValue<'a>(&'a [u8]);
 
 impl OwnedReaderValue {
-    pub fn new(collection_name: Option<&str>, generation_id: Option<&[u8]>) -> Result<Self, ()> {
-        let collection_name: &[u8] = collection_name.map(|name| name.as_bytes()).unwrap_or(b"");
-        let generation_id: &[u8] = generation_id.unwrap_or(b"");
+    pub fn new(
+        collection_id: Option<&str>,
+        generation_id: Option<GenerationId<'_>>,
+    ) -> Result<Self, ()> {
+        let collection_id: &[u8] = collection_id.map(|name| name.as_bytes()).unwrap_or(b"");
+        let generation_id: &[u8] = generation_id
+            .as_ref()
+            .map(|gen| gen.get_byte_array())
+            .unwrap_or(b"");
 
-        if collection_name.len() > 255 || generation_id.len() > 255 {
+        if collection_id.len() > 255 || generation_id.len() > 255 {
             return Err(());
         }
 
-        let mut value = Vec::with_capacity(2 + collection_name.len() + generation_id.len());
+        let mut value = Vec::with_capacity(2 + collection_id.len() + generation_id.len());
 
-        value.push(collection_name.len() as u8);
-        value.extend_from_slice(collection_name);
+        value.push(collection_id.len() as u8);
+        value.extend_from_slice(collection_id);
         value.push(generation_id.len() as u8);
         value.extend_from_slice(generation_id);
 
@@ -34,12 +41,20 @@ impl OwnedReaderValue {
 }
 
 impl<'a> ReaderValue<'a> {
-    pub fn get_collection_name(&self) -> Result<&str, ()> {
-        let collection_name_len = self.0[0] as usize;
+    pub fn get_collection_id(&self) -> &str {
+        let collection_id_len = self.0[0] as usize;
 
-        let bytes = &self.0[1..(1 + collection_name_len)];
+        let bytes = &self.0[1..(1 + collection_id_len)];
 
-        std::str::from_utf8(bytes).or(Err(()))
+        std::str::from_utf8(bytes).unwrap()
+    }
+
+    pub fn get_generation_id(&self) -> GenerationId<'a> {
+        let collection_id_len = self.0[0] as usize;
+
+        let bytes = &self.0[(2 + collection_id_len)..];
+
+        GenerationId(bytes)
     }
 
     pub fn from_slice(bytes: &'a [u8]) -> Result<Self, ()> {
@@ -47,15 +62,23 @@ impl<'a> ReaderValue<'a> {
             return Err(());
         }
 
-        let collection_name_len = bytes[0] as usize;
+        let collection_id_len = bytes[0] as usize;
 
-        if bytes.len() < 2 + collection_name_len {
+        if bytes.len() < 2 + collection_id_len {
             return Err(());
         }
 
-        let generation_id_len = bytes[1 + collection_name_len] as usize;
+        let utf8_validation = from_utf8(&bytes[1..(1 + collection_id_len)]);
+        match utf8_validation {
+            Err(_) => {
+                return Err(());
+            }
+            _ => {}
+        }
 
-        if bytes.len() != 2 + collection_name_len + generation_id_len {
+        let generation_id_len = bytes[1 + collection_id_len] as usize;
+
+        if bytes.len() != 2 + collection_id_len + generation_id_len {
             return Err(());
         }
 

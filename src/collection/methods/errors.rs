@@ -10,6 +10,8 @@ pub enum CollectionMethodError {
     UnsupportedOperationForThisCollectionType,
     InvalidKey,
     ReaderAlreadyExists(OwnedReaderValue),
+    InvalidUtf8,
+    InvalidReaderValue,
 
     RawDb(RawDbError),
     Channels,

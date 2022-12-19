@@ -77,11 +77,10 @@ impl RawDb {
         };
 
         let old_value = ReaderValue::from_slice(&value).or(Err(RawDbError::InvalidReaderValue))?;
-        let collection_name = old_value
-            .get_collection_name()
-            .or(Err(RawDbError::InvalidReaderValue))?;
+        let collection_id = old_value.get_collection_id();
+        let generation_id = options.generation_id;
 
-        let new_value = OwnedReaderValue::new(Some(collection_name), None)
+        let new_value = OwnedReaderValue::new(Some(collection_id), generation_id)
             .or(Err(RawDbError::InvalidReaderValue))?;
 
         self.db.put_cf(&meta_cf, &key, new_value.get_byte_array())?;

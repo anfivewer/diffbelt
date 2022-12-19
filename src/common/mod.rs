@@ -1,3 +1,5 @@
+pub mod reader;
+
 use crate::collection::util::record_flags::RecordFlags;
 use crate::util::bytes::increment;
 use std::cmp::Ordering;
@@ -48,6 +50,13 @@ impl GenerationId<'_> {
     }
     pub fn to_owned(&self) -> OwnedGenerationId {
         OwnedGenerationId(self.0.into())
+    }
+    pub fn to_opt_owned_if_empty(&self) -> Option<OwnedGenerationId> {
+        if self.0.len() == 0 {
+            None
+        } else {
+            Some(OwnedGenerationId(self.0.into()))
+        }
     }
 }
 
