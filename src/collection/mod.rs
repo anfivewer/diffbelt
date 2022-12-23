@@ -1,3 +1,4 @@
+use crate::collection::cursor::query::QueryCursor;
 use crate::collection::newgen::NewGenerationCommiter;
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{NeverEq, OwnedGenerationId};
@@ -8,6 +9,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{watch, RwLock};
 
+mod cursor;
 mod if_not_present;
 pub mod methods;
 mod newgen;
@@ -28,6 +30,7 @@ pub struct Collection {
     // Not defined for manual collections
     newgen: Option<NewGenerationCommiter>,
     on_put_sender: Option<watch::Sender<NeverEq>>,
+    query_cursors: std::sync::RwLock<HashMap<String, Arc<QueryCursor>>>,
 }
 
 pub enum GetReaderGenerationIdError {

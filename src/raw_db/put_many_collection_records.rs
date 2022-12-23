@@ -38,7 +38,7 @@ impl RawDb {
                 if !is_phantom {
                     let generation_key = OwnedGenerationKey::new(
                         record_key_ref.get_generation_id(),
-                        record_key_ref.get_key(),
+                        record_key_ref.get_collection_key(),
                     )
                     .or(Err(RawDbError::InvalidGenerationKey))?;
 

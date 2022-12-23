@@ -12,6 +12,7 @@ pub enum CollectionMethodError {
     ReaderAlreadyExists(OwnedReaderValue),
     InvalidUtf8,
     InvalidReaderValue,
+    NoSuchCursor,
 
     RawDb(RawDbError),
     Channels,

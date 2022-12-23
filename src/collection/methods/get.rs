@@ -54,7 +54,7 @@ impl Collection {
                 generation_id = record_key.get_generation_id().to_owned();
 
                 KeyValue {
-                    key: record_key.get_key().to_owned(),
+                    key: record_key.get_collection_key().to_owned(),
                     value,
                 }
             },

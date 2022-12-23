@@ -1,0 +1,279 @@
+use crate::collection::util::record_key::{
+    OwnedParsedRecordKey, OwnedRecordKey, ParsedRecordKey, RecordKey,
+};
+use crate::common::{
+    CollectionKey, GenerationId, IsByteArray, KeyValue, OwnedCollectionValue, PhantomId,
+};
+use crate::raw_db::{RawDb, RawDbError};
+use rocksdb::{Direction, IteratorMode};
+use std::cmp::Ordering;
+
+const RECORDS_SEEN_LIMIT: usize = 5000;
+
+pub struct QueryCollectionRecordsOptions<'a> {
+    pub generation_id: Option<GenerationId<'a>>,
+    pub phantom_id: Option<PhantomId<'a>>,
+    // Specified if query has lower bound
+    // if `last_record_key` is specified, this MUST be too
+    // TODO: receive `LastAndNextRecordKey` or this field by enum to lower chance of misuse
+    pub from_record_key: Option<RecordKey<'a>>,
+    // Passed if this is continuation of previous query
+    pub last_record_key: Option<RecordKey<'a>>,
+    pub limit: usize,
+}
+
+pub struct LastAndNextRecordKey {
+    last: OwnedRecordKey,
+    next: OwnedRecordKey,
+}
+
+pub struct QueryCollectionRecordsResult {
+    pub items: Vec<KeyValue>,
+    pub last_and_next_record_key: Option<LastAndNextRecordKey>,
+}
+
+struct LastRecord {
+    key: OwnedParsedRecordKey,
+    value: Option<Box<[u8]>>,
+}
+
+impl RawDb {
+    pub fn query_collection_records_sync(
+        &self,
+        options: QueryCollectionRecordsOptions<'_>,
+    ) -> Result<QueryCollectionRecordsResult, RawDbError> {
+        let QueryCollectionRecordsOptions {
+            generation_id,
+            phantom_id,
+            from_record_key,
+            last_record_key,
+            limit,
+        } = options;
+
+        let iterator_mode = match from_record_key.as_ref() {
+            Some(record_key) => IteratorMode::From(record_key.get_byte_array(), Direction::Forward),
+            None => IteratorMode::Start,
+        };
+
+        let mut iterator = self.db.iterator(iterator_mode);
+
+        let last_record = get_initial_last_record(
+            &self.db,
+            &mut iterator,
+            last_record_key,
+            from_record_key.is_some(),
+        )?;
+        let mut last_record = match last_record {
+            Some(x) => x,
+            None => {
+                return Ok(QueryCollectionRecordsResult {
+                    items: vec![],
+                    last_and_next_record_key: None,
+                });
+            }
+        };
+
+        let mut next_record_key = None;
+        let mut result = Vec::with_capacity(limit);
+        let count = 0;
+        let mut records_seen = 0;
+
+        for kv in iterator {
+            let kv: (Box<[u8]>, Box<[u8]>) = kv?;
+            let (key, value) = kv;
+
+            let record_key = OwnedParsedRecordKey::from_boxed_slice(key)
+                .or(Err(RawDbError::InvalidRecordKey))?;
+
+            records_seen += 1;
+
+            if count >= limit || records_seen >= RECORDS_SEEN_LIMIT {
+                next_record_key = Some(record_key);
+                break;
+            }
+
+            let LastRecord {
+                key: prev_key,
+                value: prev_value,
+            } = &mut last_record;
+
+            let skip_collection_key = prev_value.is_none();
+
+            let ParsedRecordKey {
+                collection_key: prev_collection_key,
+                generation_id: prev_generation_id,
+                phantom_id: prev_phantom_id,
+            } = prev_key.get_parsed();
+
+            let ParsedRecordKey {
+                collection_key: item_collection_key,
+                generation_id: item_generation_id,
+                phantom_id: item_phantom_id,
+            } = record_key.get_parsed();
+
+            let is_same_key = prev_collection_key == item_collection_key;
+
+            if skip_collection_key {
+                if is_same_key {
+                    continue;
+                }
+
+                last_record = LastRecord {
+                    key: record_key,
+                    value: Some(value),
+                };
+                continue;
+            }
+
+            let is_found =
+                !is_same_key || !is_generation_id_less_or_equal(item_generation_id, generation_id);
+
+            if !is_found {
+                if item_phantom_id == phantom_id {
+                    last_record = LastRecord {
+                        key: record_key,
+                        value: Some(value),
+                    };
+                }
+                continue;
+            }
+
+            // Need to check because we can have phantoms/older generations in `last_record`
+            // at collection start or after collection_key skipping
+            if prev_phantom_id == phantom_id
+                && is_generation_id_less_or_equal(prev_generation_id, generation_id)
+            {
+                // `prev_value` cannot be None, because we are continuing if `skip_collection_key`
+                push_to_result(&mut result, prev_collection_key, prev_value.take().unwrap());
+            }
+
+            if is_same_key {
+                // skip this key
+                prev_value.take();
+                continue;
+            }
+
+            // process next key
+            last_record = LastRecord {
+                key: record_key,
+                value: Some(value),
+            };
+        }
+
+        // There is two possible cases:
+        //   - we are at the end of collection
+        //   - we are touched limit (then `next_record_key` will be Some)
+
+        let last_and_next_record_key = match next_record_key {
+            Some(key) => {
+                let last = OwnedRecordKey::from_owned_parsed_record_key(last_record.key);
+                let next = OwnedRecordKey::from_owned_parsed_record_key(key);
+
+                Some(LastAndNextRecordKey { last, next })
+            }
+            None => {
+                (|| {
+                    // In case of collection end we need maybe to push `last_record` to result
+                    let LastRecord {
+                        key: prev_key,
+                        value: prev_value,
+                    } = last_record;
+
+                    let value = match prev_value {
+                        Some(value) => value,
+                        None => {
+                            // this key was already pushed
+                            return;
+                        }
+                    };
+
+                    let ParsedRecordKey {
+                        collection_key: prev_collection_key,
+                        generation_id: prev_generation_id,
+                        phantom_id: prev_phantom_id,
+                    } = prev_key.get_parsed();
+
+                    if prev_phantom_id != phantom_id
+                        || !is_generation_id_less_or_equal(prev_generation_id, generation_id)
+                    {
+                        return;
+                    }
+
+                    push_to_result(&mut result, prev_collection_key, value);
+                })();
+                None
+            }
+        };
+
+        Ok(QueryCollectionRecordsResult {
+            items: result,
+            last_and_next_record_key,
+        })
+    }
+}
+
+type RocksDbIteratorItem = Result<(Box<[u8]>, Box<[u8]>), rocksdb::Error>;
+
+fn get_initial_last_record(
+    db: &rocksdb::DB,
+    mut iterator: impl Iterator<Item = RocksDbIteratorItem>,
+    last_record_key: Option<RecordKey<'_>>,
+    is_from_record_key_specified: bool,
+) -> Result<Option<LastRecord>, RawDbError> {
+    match last_record_key {
+        Some(key) => {
+            let result = db.get(key.get_byte_array())?;
+            let value = match result {
+                Some(x) => x,
+                None => {
+                    return Err(RawDbError::CursorDidNotFoundRecord);
+                }
+            };
+
+            return Ok(Some(LastRecord {
+                key: key.to_owned_parsed(),
+                value: Some(value.into()),
+            }));
+        }
+        None => {}
+    }
+
+    let first_kv = iterator.by_ref().next();
+
+    match first_kv {
+        Some(kv) => {
+            let (key, value) = kv?;
+            let record_key = OwnedParsedRecordKey::from_boxed_slice(key)
+                .or(Err(RawDbError::InvalidRecordKey))?;
+            Ok(Some(LastRecord {
+                key: record_key,
+                value: Some(value),
+            }))
+        }
+        None => {
+            if is_from_record_key_specified {
+                // If record was specified, it should be present in the collection,
+                // because existance of cursor should block garbage collection
+                Err(RawDbError::CursorDidNotFoundRecord)
+            } else {
+                Ok(None)
+            }
+        }
+    }
+}
+
+fn push_to_result(result: &mut Vec<KeyValue>, key: CollectionKey<'_>, value: Box<[u8]>) {
+    let collection_value = OwnedCollectionValue::from_boxed_slice(value);
+
+    result.push(KeyValue {
+        key: key.to_owned(),
+        value: collection_value,
+    });
+}
+
+fn is_generation_id_less_or_equal(a: GenerationId<'_>, b: Option<GenerationId<'_>>) -> bool {
+    match a.cmp_with_opt_as_infinity(b) {
+        Ordering::Greater => false,
+        Ordering::Less | Ordering::Equal => true,
+    }
+}

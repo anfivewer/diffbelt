@@ -195,6 +195,7 @@ impl Collection {
             database_inner: options.database_inner,
             newgen,
             on_put_sender,
+            query_cursors: std::sync::RwLock::new(HashMap::new()),
         };
         let collection = Arc::new(collection);
 

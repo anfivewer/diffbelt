@@ -1,8 +1,56 @@
 use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::util::bytes::{read_u24, write_u24};
+use std::ops::Range;
 
+#[derive(Clone)]
 pub struct RecordKey<'a> {
     pub value: &'a [u8],
+}
+pub struct ParsedRecordKey<'a> {
+    pub collection_key: CollectionKey<'a>,
+    pub generation_id: GenerationId<'a>,
+    pub phantom_id: Option<PhantomId<'a>>,
+}
+
+pub struct OwnedParsedRecordKey {
+    bytes: Box<[u8]>,
+    collection_key: Range<usize>,
+    generation_id: Range<usize>,
+    phantom_id: Option<Range<usize>>,
+}
+
+impl OwnedParsedRecordKey {
+    pub fn from_boxed_slice(bytes: Box<[u8]>) -> Result<Self, ()> {
+        let record_key = RecordKey::validate(&bytes)?;
+        Ok(OwnedParsedRecordKey::from_record_key(record_key))
+    }
+
+    fn from_record_key(record_key: RecordKey<'_>) -> Self {
+        let (collection_key, generation_id, phantom_id) = record_key.parse_to_ranges();
+
+        Self {
+            bytes: record_key.value.into(),
+            collection_key,
+            generation_id,
+            phantom_id,
+        }
+    }
+
+    pub fn get_parsed(&self) -> ParsedRecordKey<'_> {
+        ParsedRecordKey {
+            collection_key: CollectionKey(by_range(&self.bytes, &self.collection_key)),
+            generation_id: GenerationId(by_range(&self.bytes, &self.generation_id)),
+            phantom_id: self
+                .phantom_id
+                .as_ref()
+                .map(|range| PhantomId(by_range(&self.bytes, range))),
+        }
+    }
+}
+
+#[inline]
+fn by_range<'a>(bytes: &'a [u8], range: &Range<usize>) -> &'a [u8] {
+    &bytes[range.clone()]
 }
 
 impl<'a> From<&'a OwnedRecordKey> for RecordKey<'a> {
@@ -42,16 +90,16 @@ const MAX_GENERATION_ID_LENGTH: usize = 255;
 const MAX_PHANTOM_ID_LENGTH: usize = 255;
 
 impl<'a> RecordKey<'a> {
-    pub fn validate(bytes: &'a [u8]) -> Result<Self, ()> {
+    pub fn is_valid(bytes: &'a [u8]) -> bool {
         if bytes.len() < MIN_RECORD_KEY_LENGTH {
-            return Err(());
+            return false;
         }
 
         let mut rest_size = bytes.len() - MIN_RECORD_KEY_LENGTH;
 
         let key_size = read_u24(bytes, 1) as usize;
         if rest_size < key_size {
-            return Err(());
+            return false;
         }
 
         let mut offset = 4 + key_size;
@@ -59,7 +107,7 @@ impl<'a> RecordKey<'a> {
 
         let generation_id_size = bytes[offset] as usize;
         if rest_size < generation_id_size {
-            return Err(());
+            return false;
         }
 
         offset += 1 + generation_id_size;
@@ -67,13 +115,21 @@ impl<'a> RecordKey<'a> {
 
         let phantom_id_size = bytes[offset] as usize;
         if rest_size != phantom_id_size {
+            return false;
+        }
+
+        true
+    }
+
+    pub fn validate(bytes: &'a [u8]) -> Result<Self, ()> {
+        if !Self::is_valid(bytes) {
             return Err(());
         }
 
         Ok(Self { value: bytes })
     }
 
-    pub fn get_key(&self) -> CollectionKey {
+    pub fn get_collection_key(&self) -> CollectionKey {
         let size = read_u24(self.value, 1) as usize;
         CollectionKey(&self.value[4..(4 + size)])
     }
@@ -96,10 +152,50 @@ impl<'a> RecordKey<'a> {
         PhantomId(&self.value[offset..(offset + size)])
     }
 
+    fn parse_to_ranges(&self) -> (Range<usize>, Range<usize>, Option<Range<usize>>) {
+        let key_size = read_u24(self.value, 1) as usize;
+        let collection_key = 4..(4 + key_size);
+
+        let mut offset = 4 + key_size;
+
+        let generation_id_size = self.value[offset] as usize;
+        offset += 1 + generation_id_size;
+        let generation_id = offset..(offset + generation_id_size);
+
+        let phantom_id_size = self.value[offset] as usize;
+        offset += 1;
+
+        let phantom_id_bytes = &self.value[offset..(offset + phantom_id_size)];
+        let phantom_id = if phantom_id_bytes.len() == 0 {
+            None
+        } else {
+            Some(offset..(offset + phantom_id_size))
+        };
+
+        (collection_key, generation_id, phantom_id)
+    }
+    pub fn parse(&self) -> ParsedRecordKey<'a> {
+        let (collection_key, generation_id, phantom_id) = self.parse_to_ranges();
+
+        let collection_key = CollectionKey(&self.value[collection_key]);
+        let generation_id = GenerationId(&self.value[generation_id]);
+        let phantom_id = phantom_id.map(|range| PhantomId(&self.value[range]));
+
+        ParsedRecordKey {
+            collection_key,
+            generation_id,
+            phantom_id,
+        }
+    }
+
     pub fn to_owned(&self) -> OwnedRecordKey {
         OwnedRecordKey {
             value: self.value.into(),
         }
+    }
+
+    pub fn to_owned_parsed(&self) -> OwnedParsedRecordKey {
+        OwnedParsedRecordKey::from_record_key(self.clone())
     }
 }
 
@@ -163,6 +259,20 @@ impl OwnedRecordKey {
         Ok(OwnedRecordKey { value })
     }
 
+    pub fn from_boxed_slice(bytes: Box<[u8]>) -> Result<Self, ()> {
+        if !RecordKey::is_valid(&bytes) {
+            return Err(());
+        }
+
+        Ok(Self { value: bytes })
+    }
+
+    pub fn from_owned_parsed_record_key(parsed: OwnedParsedRecordKey) -> Self {
+        Self {
+            value: parsed.bytes,
+        }
+    }
+
     pub fn get_collection_key_bytes_mut(&mut self) -> &mut [u8] {
         let size = read_u24(&self.value, 1) as usize;
         &mut self.value[4..(4 + size)]
@@ -193,7 +303,7 @@ mod tests {
 
         assert_eq!(RecordKey::validate(record_key.value).is_ok(), true);
 
-        let actual_key = record_key.get_key();
+        let actual_key = record_key.get_collection_key();
         let actual_key = actual_key.get_byte_array();
 
         let actual_generation_id = record_key.get_generation_id();

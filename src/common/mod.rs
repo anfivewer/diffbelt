@@ -14,7 +14,7 @@ pub struct CollectionValue<'a>(pub &'a [u8]);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct OwnedGenerationId(pub Box<[u8]>);
-#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Debug)]
 pub struct GenerationId<'a>(pub &'a [u8]);
 
 pub struct OwnedPhantomId(pub Box<[u8]>);
@@ -48,6 +48,14 @@ impl GenerationId<'_> {
     pub fn empty() -> Self {
         GenerationId(b"")
     }
+
+    pub fn cmp_with_opt_as_infinity(&self, other: Option<Self>) -> Ordering {
+        match other {
+            Some(other) => self.0.cmp(other.0),
+            None => Ordering::Less,
+        }
+    }
+
     pub fn to_owned(&self) -> OwnedGenerationId {
         OwnedGenerationId(self.0.into())
     }
@@ -76,16 +84,6 @@ impl IsByteArrayMut<'_> for OwnedGenerationId {
     }
 }
 
-impl PartialEq for GenerationId<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-impl PartialOrd for GenerationId<'_> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.0.cmp(other.0))
-    }
-}
 impl<'a> From<GenerationId<'a>> for &'a [u8] {
     fn from(gen: GenerationId<'a>) -> Self {
         gen.0
