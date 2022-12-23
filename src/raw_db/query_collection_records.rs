@@ -6,12 +6,11 @@ use crate::common::{
 };
 use crate::raw_db::{RawDb, RawDbError};
 use rocksdb::{Direction, IteratorMode};
-use std::cmp::Ordering;
 
 const RECORDS_SEEN_LIMIT: usize = 5000;
 
 pub struct QueryCollectionRecordsOptions<'a> {
-    pub generation_id: Option<GenerationId<'a>>,
+    pub generation_id: GenerationId<'a>,
     pub phantom_id: Option<PhantomId<'a>>,
     // Specified if query has lower bound
     // if `last_record_key` is specified, this MUST be too
@@ -23,8 +22,8 @@ pub struct QueryCollectionRecordsOptions<'a> {
 }
 
 pub struct LastAndNextRecordKey {
-    last: OwnedRecordKey,
-    next: OwnedRecordKey,
+    pub last: OwnedRecordKey,
+    pub next: OwnedRecordKey,
 }
 
 pub struct QueryCollectionRecordsResult {
@@ -271,9 +270,7 @@ fn push_to_result(result: &mut Vec<KeyValue>, key: CollectionKey<'_>, value: Box
     });
 }
 
-fn is_generation_id_less_or_equal(a: GenerationId<'_>, b: Option<GenerationId<'_>>) -> bool {
-    match a.cmp_with_opt_as_infinity(b) {
-        Ordering::Greater => false,
-        Ordering::Less | Ordering::Equal => true,
-    }
+#[inline]
+fn is_generation_id_less_or_equal(a: GenerationId<'_>, b: GenerationId<'_>) -> bool {
+    a <= b
 }

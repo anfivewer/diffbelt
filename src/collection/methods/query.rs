@@ -2,7 +2,7 @@ use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 
 use crate::collection::cursor::query::get_pack::GetPackOptions;
-use crate::collection::cursor::query::{QueryCursor, QueryCursorPack};
+use crate::collection::cursor::query::{QueryCursor, QueryCursorNewOptions, QueryCursorPack};
 use crate::common::{KeyValue, OwnedGenerationId, OwnedPhantomId};
 use crate::util::base62::rand_b62;
 
@@ -36,17 +36,22 @@ impl Collection {
             }
         };
 
-        let cursor = Arc::new(QueryCursor::new(generation_id.clone(), options.phantom_id));
+        let cursor = Arc::new(QueryCursor::new(QueryCursorNewOptions {
+            generation_id: generation_id.clone(),
+            phantom_id: options.phantom_id,
+        }));
 
         let result = {
             let cursor = cursor.clone();
+            let db = self.raw_db.clone();
             tokio::task::spawn_blocking(move || {
                 cursor.get_pack_sync(GetPackOptions {
                     this_cursor_id: None,
+                    db,
                 })
             })
             .await
-            .or(Err(CollectionMethodError::TaskJoin))?
+            .or(Err(CollectionMethodError::TaskJoin))??
         };
 
         let QueryCursorPack { items, next_cursor } = result;
@@ -76,13 +81,15 @@ impl Collection {
 
         let result = {
             let cursor = cursor.clone();
+            let db = self.raw_db.clone();
             tokio::task::spawn_blocking(move || {
                 cursor.get_pack_sync(GetPackOptions {
                     this_cursor_id: Some(cursor_id),
+                    db,
                 })
             })
             .await
-            .or(Err(CollectionMethodError::TaskJoin))?
+            .or(Err(CollectionMethodError::TaskJoin))??
         };
 
         let QueryCursorPack { items, next_cursor } = result;

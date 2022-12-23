@@ -17,6 +17,7 @@ pub struct OwnedGenerationId(pub Box<[u8]>);
 #[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Debug)]
 pub struct GenerationId<'a>(pub &'a [u8]);
 
+#[derive(Clone)]
 pub struct OwnedPhantomId(pub Box<[u8]>);
 #[derive(Copy, Clone)]
 pub struct PhantomId<'a>(pub &'a [u8]);

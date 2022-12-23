@@ -1,11 +1,19 @@
 use crate::common::{GenerationId, KeyValue, OwnedGenerationId, OwnedPhantomId};
 
+use crate::raw_db::query_collection_records::LastAndNextRecordKey;
+
 pub mod get_pack;
 
 pub struct QueryCursor {
     prev_cursor_id: Option<String>,
     generation_id: OwnedGenerationId,
     phantom_id: Option<OwnedPhantomId>,
+    last_and_next_record_key: Option<LastAndNextRecordKey>,
+}
+
+pub struct QueryCursorNewOptions {
+    pub generation_id: OwnedGenerationId,
+    pub phantom_id: Option<OwnedPhantomId>,
 }
 
 pub struct QueryCursorPack {
@@ -14,11 +22,12 @@ pub struct QueryCursorPack {
 }
 
 impl QueryCursor {
-    pub fn new(generation_id: OwnedGenerationId, phantom_id: Option<OwnedPhantomId>) -> Self {
+    pub fn new(options: QueryCursorNewOptions) -> Self {
         QueryCursor {
             prev_cursor_id: None,
-            generation_id,
-            phantom_id,
+            generation_id: options.generation_id,
+            phantom_id: options.phantom_id,
+            last_and_next_record_key: None,
         }
     }
 
