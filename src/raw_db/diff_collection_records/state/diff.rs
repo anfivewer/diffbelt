@@ -4,9 +4,10 @@ use crate::common::{
     OwnedCollectionValue, PhantomId,
 };
 use crate::raw_db::diff_collection_records::state::{DiffState, PrevDiffState};
-use crate::raw_db::diff_collection_records::{DiffCollectionRecordsResult, DiffCursorState};
+use crate::raw_db::diff_collection_records::{DiffCollectionRecordsOk, DiffCursorState};
 use crate::raw_db::RawDbError;
-use rocksdb::{Direction, IteratorMode};
+use crate::util::owned_peek::OwnedPeek;
+use rocksdb::{DBIterator, Direction, IteratorMode};
 
 struct KeyProcessing {
     record_key: OwnedParsedRecordKey,
@@ -23,12 +24,14 @@ enum HandleDbRecordResult {
     Continue,
 }
 
+type DiffCollectionRecordsResult = Result<DiffCollectionRecordsOk, RawDbError>;
+
 impl DiffState<'_> {
     pub fn diff_collection_records_sync(
         &mut self,
         changed_items_iterator: impl Iterator<Item = Result<OwnedCollectionKey, RawDbError>>,
         items_capacity_hint: Option<usize>,
-    ) -> Result<DiffCollectionRecordsResult, RawDbError> {
+    ) -> DiffCollectionRecordsResult {
         let DiffState {
             db,
             from_generation_id,
@@ -41,7 +44,7 @@ impl DiffState<'_> {
         let capacity = items_capacity_hint.map_or(*pack_limit, |hint| Ord::min(*pack_limit, hint));
         let mut items = Vec::with_capacity(capacity);
 
-        let mut changed_keys_iterator = changed_items_iterator.peekable();
+        let mut changed_keys_iterator = OwnedPeek::new(changed_items_iterator);
         let (mut db_iterator, mut db_next_item) = match prev_state.take() {
             Some(PrevDiffState {
                 first_value,
@@ -72,46 +75,71 @@ impl DiffState<'_> {
                 )
             }
             None => {
-                let changed_key = changed_keys_iterator.peek();
-                let changed_key = match changed_key {
-                    Some(result) => match result {
-                        Ok(key) => (*key).as_ref(),
-                        Err(err) => {
-                            let err = changed_keys_iterator.next().unwrap();
-                            let err = err.unwrap_err();
-                            return Err(err);
+                enum PeekResult<'a> {
+                    Continue((DBIterator<'a>, KeyProcessing)),
+                    Finish(DiffCollectionRecordsResult),
+                    FinishEmpty,
+                }
+
+                let result: PeekResult<'_> = changed_keys_iterator.peek(|changed_key| {
+                    let result = (|| {
+                        let changed_key = match changed_key {
+                            Some(result) => match result {
+                                Ok(key) => key,
+                                Err(err) => {
+                                    return Err(err);
+                                }
+                            },
+                            None => {
+                                return Ok(((PeekResult::FinishEmpty), None));
+                            }
+                        };
+
+                        let mut db_iterator = iterator_mode_for_collection_key(
+                            changed_key.as_ref(),
+                            |iterator_mode| db.iterator(iterator_mode),
+                        )?;
+
+                        let (record_key, value) =
+                            db_iterator_parse_next_require_presense(&mut db_iterator)?;
+
+                        if record_key.get_collection_key() != changed_key.as_ref() {
+                            return Err(RawDbError::DiffNoChangedKeyRecord);
                         }
-                    },
-                    None => {
-                        return Ok(DiffCollectionRecordsResult {
+
+                        Ok((
+                            (PeekResult::Continue((
+                                db_iterator,
+                                KeyProcessing {
+                                    record_key,
+                                    value,
+                                    first_value: None,
+                                    last_value: None,
+                                },
+                            ))),
+                            Some(Ok(changed_key)),
+                        ))
+                    })();
+
+                    match result {
+                        Ok((result, value)) => (result, value),
+                        Err(err) => (PeekResult::Finish(Err(err)), None),
+                    }
+                });
+
+                match result {
+                    PeekResult::Continue(result) => result,
+                    PeekResult::Finish(result) => {
+                        return result;
+                    }
+                    PeekResult::FinishEmpty => {
+                        return Ok(DiffCollectionRecordsOk {
                             to_generation_id: to_generation_id.clone(),
                             items,
                             next_diff_state: None,
                         });
                     }
-                };
-
-                let mut db_iterator =
-                    iterator_mode_for_collection_key(changed_key, |iterator_mode| {
-                        db.iterator(iterator_mode)
-                    })?;
-
-                let (record_key, value) =
-                    db_iterator_parse_next_require_presense(&mut db_iterator)?;
-
-                if record_key.get_collection_key() != changed_key {
-                    return Err(RawDbError::DiffNoChangedKeyRecord);
                 }
-
-                (
-                    db_iterator,
-                    KeyProcessing {
-                        record_key,
-                        value,
-                        first_value: None,
-                        last_value: None,
-                    },
-                )
             }
         };
 
@@ -192,7 +220,7 @@ impl DiffState<'_> {
                         return Err(RawDbError::DiffNoChangedKeyRecord);
                     }
                     HandleDbRecordResult::Finish(record_key) => {
-                        return Ok(DiffCollectionRecordsResult {
+                        return Ok(DiffCollectionRecordsOk {
                             to_generation_id: to_generation_id.clone(),
                             items,
                             next_diff_state: Some(DiffCursorState {
@@ -223,7 +251,7 @@ impl DiffState<'_> {
                             break;
                         }
                         HandleDbRecordResult::Finish(record_key) => {
-                            return Ok(DiffCollectionRecordsResult {
+                            return Ok(DiffCollectionRecordsOk {
                                 to_generation_id: to_generation_id.clone(),
                                 items,
                                 next_diff_state: Some(DiffCursorState {
@@ -250,7 +278,7 @@ impl DiffState<'_> {
                     },
                     None => {
                         // End of iterator
-                        if changed_keys_iterator.peek().is_some() {
+                        if !changed_keys_iterator.is_empty() {
                             return Err(RawDbError::DiffNoChangedKeyRecord);
                         }
 
@@ -261,7 +289,7 @@ impl DiffState<'_> {
                             &mut last_value,
                         )?;
 
-                        return Ok(DiffCollectionRecordsResult {
+                        return Ok(DiffCollectionRecordsOk {
                             to_generation_id: to_generation_id.clone(),
                             items,
                             next_diff_state: None,
@@ -278,7 +306,7 @@ impl DiffState<'_> {
             )?;
         }
 
-        Ok(DiffCollectionRecordsResult {
+        Ok(DiffCollectionRecordsOk {
             to_generation_id: to_generation_id.clone(),
             items,
             next_diff_state: None,

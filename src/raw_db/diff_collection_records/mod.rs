@@ -16,7 +16,7 @@ pub struct DiffCollectionRecordsOptions<'a> {
     pub limit: usize,
 }
 
-pub struct DiffCollectionRecordsResult {
+pub struct DiffCollectionRecordsOk {
     pub to_generation_id: OwnedGenerationId,
     pub items: Vec<KeyValueDiff>,
     pub next_diff_state: Option<DiffCursorState>,
@@ -33,7 +33,7 @@ impl RawDb {
     pub fn diff_collection_records(
         &self,
         options: DiffCollectionRecordsOptions<'_>,
-    ) -> Result<DiffCollectionRecordsResult, RawDbError> {
+    ) -> Result<DiffCollectionRecordsOk, RawDbError> {
         let DiffCollectionRecordsOptions {
             from_generation_id,
             to_generation_id_loose,
@@ -54,7 +54,7 @@ impl RawDb {
 
         let (mut state, mode) = match state {
             DiffStateNewResult::Empty => {
-                return Ok(DiffCollectionRecordsResult {
+                return Ok(DiffCollectionRecordsOk {
                     to_generation_id: to_generation_id_loose.to_owned(),
                     items: Vec::with_capacity(0),
                     next_diff_state: None,

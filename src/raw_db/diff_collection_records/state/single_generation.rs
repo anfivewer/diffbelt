@@ -1,9 +1,6 @@
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
 use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut, OwnedCollectionKey};
-use crate::raw_db::diff_collection_records::state::{
-    DiffState, DiffStateInMemoryMode, DiffStateMode,
-};
-use crate::raw_db::diff_collection_records::DiffCollectionRecordsResult;
+
 use crate::raw_db::RawDbError;
 use crate::util::bytes::increment;
 use rocksdb::{Direction, IteratorMode, ReadOptions};
