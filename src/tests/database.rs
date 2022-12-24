@@ -19,6 +19,7 @@ use std::time::Duration;
 
 use crate::collection::Collection;
 use std::str::from_utf8;
+use std::sync::Arc;
 use tokio::time::timeout;
 
 #[test]
@@ -34,6 +35,7 @@ async fn database_test_inner() {
 
     let database = Database::open(DatabaseOpenOptions {
         data_path: temp_dir.get_path_buf(),
+        config: Arc::new(Default::default()),
     })
     .await
     .expect("Cannot open database");

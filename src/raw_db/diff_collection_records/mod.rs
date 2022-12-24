@@ -13,6 +13,8 @@ pub struct DiffCollectionRecordsOptions<'a> {
     pub to_generation_id_loose: GenerationId<'a>,
     pub prev_diff_state: Option<&'a DiffCursorState>,
     pub limit: usize,
+    pub records_to_view_limit: usize,
+    pub total_count_in_generations_limit: usize,
 }
 
 pub struct DiffCollectionRecordsOk {
@@ -38,6 +40,8 @@ impl RawDb {
             to_generation_id_loose,
             prev_diff_state,
             limit,
+            records_to_view_limit,
+            total_count_in_generations_limit,
         } = options;
 
         let state = match prev_diff_state {
@@ -47,8 +51,16 @@ impl RawDb {
                 to_generation_id_loose,
                 prev_state,
                 limit,
+                records_to_view_limit,
             )?,
-            None => DiffState::new(&self.db, from_generation_id, to_generation_id_loose, limit)?,
+            None => DiffState::new(
+                &self.db,
+                from_generation_id,
+                to_generation_id_loose,
+                limit,
+                records_to_view_limit,
+                total_count_in_generations_limit,
+            )?,
         };
 
         let (mut state, mode) = match state {

@@ -44,10 +44,12 @@ impl Collection {
         let result = {
             let cursor = cursor.clone();
             let db = self.raw_db.clone();
+            let config = self.config.clone();
             tokio::task::spawn_blocking(move || {
                 cursor.get_pack_sync(GetPackOptions {
                     this_cursor_id: None,
                     db,
+                    config,
                 })
             })
             .await
@@ -82,10 +84,12 @@ impl Collection {
         let result = {
             let cursor = cursor.clone();
             let db = self.raw_db.clone();
+            let config = self.config.clone();
             tokio::task::spawn_blocking(move || {
                 cursor.get_pack_sync(GetPackOptions {
                     this_cursor_id: Some(cursor_id),
                     db,
+                    config,
                 })
             })
             .await

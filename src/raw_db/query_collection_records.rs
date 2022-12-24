@@ -8,8 +8,6 @@ use crate::raw_db::cursor_util::{get_initial_last_record, LastRecord};
 use crate::raw_db::{RawDb, RawDbError};
 use rocksdb::{Direction, IteratorMode};
 
-const RECORDS_SEEN_LIMIT: usize = 5000;
-
 pub struct QueryCollectionRecordsOptions<'a> {
     pub generation_id: GenerationId<'a>,
     pub phantom_id: Option<PhantomId<'a>>,
@@ -20,6 +18,7 @@ pub struct QueryCollectionRecordsOptions<'a> {
     // Passed if this is continuation of previous query
     pub last_record_key: Option<RecordKey<'a>>,
     pub limit: usize,
+    pub records_to_view_limit: usize,
 }
 
 pub struct LastAndNextRecordKey {
@@ -43,6 +42,7 @@ impl RawDb {
             from_record_key,
             last_record_key,
             limit,
+            records_to_view_limit,
         } = options;
 
         let iterator_mode = match from_record_key.as_ref() {
@@ -82,7 +82,7 @@ impl RawDb {
 
             records_seen += 1;
 
-            if count >= limit || records_seen >= RECORDS_SEEN_LIMIT {
+            if count >= limit || records_seen >= records_to_view_limit {
                 next_record_key = Some(record_key);
                 break;
             }

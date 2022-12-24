@@ -1,6 +1,7 @@
 use crate::collection::open::{CollectionOpenError, CollectionOpenOptions};
 use crate::collection::Collection;
 
+use crate::database::config::DatabaseConfig;
 use crate::database::{Database, DatabaseInner};
 use crate::protos::database_meta::CollectionRecord;
 use crate::raw_db::{RawDb, RawDbError, RawDbOptions};
@@ -12,6 +13,7 @@ use tokio::sync::Mutex;
 
 pub struct DatabaseOpenOptions<'a> {
     pub data_path: &'a PathBuf,
+    pub config: Arc<DatabaseConfig>,
 }
 
 #[derive(Debug)]
@@ -56,6 +58,7 @@ impl Database {
             let id = record.id;
 
             let collection = Collection::open(CollectionOpenOptions {
+                config: options.config.clone(),
                 id: id.clone(),
                 data_path,
                 is_manual: record.is_manual,
@@ -68,6 +71,7 @@ impl Database {
         }
 
         Ok(Database {
+            config: options.config,
             data_path: data_path.clone(),
             meta_raw_db,
             collections_alter_lock: Mutex::new(()),

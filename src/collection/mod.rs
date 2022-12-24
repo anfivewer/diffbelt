@@ -3,6 +3,7 @@ use crate::collection::cursor::query::QueryCursor;
 use crate::collection::newgen::NewGenerationCommiter;
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{NeverEq, OwnedGenerationId};
+use crate::database::config::DatabaseConfig;
 use crate::database::DatabaseInner;
 use crate::raw_db::{RawDb, RawDbError};
 use if_not_present::ConcurrentPutStatus;
@@ -18,6 +19,7 @@ pub mod open;
 pub mod util;
 
 pub struct Collection {
+    config: Arc<DatabaseConfig>,
     id: String,
     raw_db: Arc<RawDb>,
     meta_raw_db: Arc<RawDb>,

@@ -1,6 +1,7 @@
 use crate::collection::cursor::query::{QueryCursor, QueryCursorPack};
 
 use crate::collection::methods::errors::CollectionMethodError;
+use crate::database::config::DatabaseConfig;
 use crate::raw_db::query_collection_records::{
     QueryCollectionRecordsOptions, QueryCollectionRecordsResult,
 };
@@ -10,16 +11,19 @@ use std::sync::Arc;
 pub struct GetPackOptions {
     pub this_cursor_id: Option<String>,
     pub db: Arc<RawDb>,
+    pub config: Arc<DatabaseConfig>,
 }
-
-const PACK_LIMIT: usize = 200;
 
 impl QueryCursor {
     pub fn get_pack_sync(
         &self,
         options: GetPackOptions,
     ) -> Result<QueryCursorPack, CollectionMethodError> {
-        let GetPackOptions { this_cursor_id, db } = options;
+        let GetPackOptions {
+            this_cursor_id,
+            db,
+            config,
+        } = options;
 
         let phantom_id = self.phantom_id.as_ref().map(|id| id.as_ref());
 
@@ -36,7 +40,8 @@ impl QueryCursor {
             phantom_id: phantom_id.clone(),
             last_record_key,
             from_record_key,
-            limit: PACK_LIMIT,
+            limit: config.query_pack_limit,
+            records_to_view_limit: config.query_pack_records_limit,
         })?;
 
         let QueryCollectionRecordsResult {

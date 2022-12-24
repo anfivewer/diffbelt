@@ -1,16 +1,19 @@
 use crate::collection::{Collection, GetReaderGenerationIdError};
 use crate::common::OwnedGenerationId;
 
+use crate::database::config::DatabaseConfig;
 use crate::raw_db::{RawDb, RawDbError};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+pub mod config;
 pub mod create_collection;
 pub mod open;
 
 pub struct Database {
+    config: Arc<DatabaseConfig>,
     data_path: PathBuf,
     meta_raw_db: Arc<RawDb>,
     collections_alter_lock: Mutex<()>,

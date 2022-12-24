@@ -49,6 +49,7 @@ async fn run() {
 
     let database = Database::open(DatabaseOpenOptions {
         data_path: &config.data_path,
+        config: Arc::new(Default::default()),
     })
     .await
     .expect("Cannot open database");

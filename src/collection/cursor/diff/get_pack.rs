@@ -1,6 +1,7 @@
 use crate::collection::cursor::diff::{DiffCursor, DiffCursorPack, GenerationIdSource};
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::common::reader::ReaderDef;
+use crate::database::config::DatabaseConfig;
 use crate::database::{DatabaseInner, GetReaderGenerationIdFnError};
 use crate::raw_db::diff_collection_records::{
     DiffCollectionRecordsOk, DiffCollectionRecordsOptions,
@@ -12,9 +13,8 @@ pub struct GetPackOptions {
     pub this_cursor_id: Option<String>,
     pub db: Arc<RawDb>,
     pub db_inner: Arc<DatabaseInner>,
+    pub config: Arc<DatabaseConfig>,
 }
-
-const PACK_LIMIT: usize = 200;
 
 impl DiffCursor {
     pub fn get_pack_sync(
@@ -30,6 +30,7 @@ impl DiffCursor {
             this_cursor_id,
             db,
             db_inner,
+            config,
         } = options;
 
         let from_generation_id = match &self.from_generation_id {
@@ -65,7 +66,9 @@ impl DiffCursor {
             from_generation_id: from_generation_id.as_ref().map(|id| id.as_ref()),
             to_generation_id_loose: self.to_generation_id.as_ref(),
             prev_diff_state: self.raw_db_cursor_state.as_ref(),
-            limit: PACK_LIMIT,
+            limit: config.diff_pack_limit,
+            records_to_view_limit: config.query_pack_records_limit,
+            total_count_in_generations_limit: config.diff_changes_limit,
         })?;
 
         let DiffCollectionRecordsOk {

@@ -9,6 +9,7 @@ use crate::common::{IsByteArray, IsByteArrayMut, NeverEq, OwnedGenerationId};
 use crate::collection::util::generation_size_merge::{
     generation_size_full_merge, generation_size_partial_merge,
 };
+use crate::database::config::DatabaseConfig;
 use crate::database::DatabaseInner;
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbMerge, RawDbOpenError, RawDbOptions,
@@ -21,6 +22,7 @@ use tokio::sync::watch;
 use tokio::sync::{oneshot, RwLock};
 
 pub struct CollectionOpenOptions<'a> {
+    pub config: Arc<DatabaseConfig>,
     pub id: String,
     pub data_path: &'a PathBuf,
     pub is_manual: bool,
@@ -195,6 +197,7 @@ impl Collection {
         let (generation_id_sender, generation_id_receiver) = watch::channel(generation_id.clone());
 
         let collection = Collection {
+            config: options.config,
             id: collection_id,
             raw_db: Arc::new(raw_db),
             meta_raw_db: Arc::new(meta_raw_db),

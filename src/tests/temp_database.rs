@@ -1,6 +1,7 @@
 use crate::database::open::DatabaseOpenOptions;
 use crate::database::Database;
 use crate::tests::temp_dir::TempDir;
+use std::sync::Arc;
 
 pub struct TempDatabase {
     temp_dir: TempDir,
@@ -15,6 +16,7 @@ impl TempDatabase {
 
         let database = Database::open(DatabaseOpenOptions {
             data_path: temp_dir.get_path_buf(),
+            config: Arc::new(Default::default()),
         })
         .await
         .expect("Cannot open database");

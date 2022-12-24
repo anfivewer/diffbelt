@@ -14,21 +14,6 @@ mod diff;
 pub mod in_memory;
 pub mod single_generation;
 
-/**
- *  This constant used as follows:
- *    - we try to load in memory this number of changed collection keys
- *    - if we are loaded at least one generation, then process them from memory
- *      (and actual `to_generation_id` will be generation on which we are accumulated enough keys)
- *    - if first generation has more keys than this constant says, then we are working in
- *      "iterator over db keys" mode
- *
- *  Later we'll should tune our puts to have at most key updates count as they can in adequate time,
- *  and then merge changed keys from N generations to increase possible number of items in the
- *  single diff. And also save iterated small-size generations to fictive range-generations.
- */
-const TOTAL_COUNT_IN_GENERATIONS_LIMIT: u32 = 4000;
-const RECORDS_TO_VIEW_LIMIT: usize = 2000;
-
 pub struct DiffStateInMemoryMode {
     pub changed_keys: BTreeSet<OwnedCollectionKey>,
 }
@@ -65,6 +50,8 @@ impl<'a> DiffState<'a> {
         from_generation_id: Option<GenerationId<'a>>,
         to_generation_id_loose: GenerationId<'a>,
         pack_limit: usize,
+        records_to_view_limit: usize,
+        total_count_in_generations_limit: usize,
     ) -> Result<DiffStateNewResult<'a>, RawDbError> {
         let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
         let generations_size_cf = db.cf_handle("gens_size").ok_or(RawDbError::CfHandle)?;
@@ -113,16 +100,16 @@ impl<'a> DiffState<'a> {
                 return Ok(DiffStateNewResult::Empty);
             }
 
-            let count = to_u32_be_unchecked(&value);
+            let count = to_u32_be_unchecked(&value) as usize;
 
-            if count > TOTAL_COUNT_IN_GENERATIONS_LIMIT {
+            if count > total_count_in_generations_limit {
                 return Ok(DiffStateNewResult::State((
                     DiffState {
                         db,
                         from_generation_id,
                         to_generation_id: generation_id,
                         prev_state: None,
-                        records_to_view_left: RECORDS_TO_VIEW_LIMIT,
+                        records_to_view_left: records_to_view_limit,
                         pack_limit,
                     },
                     DiffStateMode::SingleGeneration,
@@ -143,9 +130,9 @@ impl<'a> DiffState<'a> {
                 break;
             }
 
-            let count = to_u32_be_unchecked(&value);
+            let count = to_u32_be_unchecked(&value) as usize;
 
-            if total_count + count > TOTAL_COUNT_IN_GENERATIONS_LIMIT {
+            if total_count + count > total_count_in_generations_limit {
                 break;
             }
 
@@ -167,7 +154,7 @@ impl<'a> DiffState<'a> {
                 from_generation_id,
                 to_generation_id,
                 prev_state: None,
-                records_to_view_left: RECORDS_TO_VIEW_LIMIT,
+                records_to_view_left: records_to_view_limit,
                 pack_limit,
             },
             DiffStateMode::InMemory(DiffStateInMemoryMode { changed_keys: keys }),
@@ -180,6 +167,7 @@ impl<'a> DiffState<'a> {
         to_generation_id: GenerationId<'a>,
         prev_state: &'a DiffCursorState,
         pack_limit: usize,
+        records_to_view_limit: usize,
     ) -> Result<DiffStateNewResult<'a>, RawDbError> {
         let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
 
@@ -212,7 +200,7 @@ impl<'a> DiffState<'a> {
                         .map(|bytes| AsRef::<[u8]>::as_ref(bytes)),
                     next_record_key: next_record_key.as_ref(),
                 }),
-                records_to_view_left: RECORDS_TO_VIEW_LIMIT,
+                records_to_view_left: records_to_view_limit,
                 pack_limit,
             },
             DiffStateMode::InMemory(DiffStateInMemoryMode { changed_keys: keys }),
