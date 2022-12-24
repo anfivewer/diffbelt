@@ -29,6 +29,14 @@ pub struct KeyValue {
     pub value: OwnedCollectionValue,
 }
 
+#[derive(PartialEq, Eq, Debug)]
+pub struct KeyValueDiff {
+    pub key: OwnedCollectionKey,
+    pub from_value: Option<OwnedCollectionValue>,
+    pub intermediate_values: Vec<Option<OwnedCollectionValue>>,
+    pub to_value: Option<OwnedCollectionValue>,
+}
+
 #[derive(Clone)]
 pub struct KeyValueUpdate {
     pub key: OwnedCollectionKey,

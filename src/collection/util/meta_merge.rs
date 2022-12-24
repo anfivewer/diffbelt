@@ -26,7 +26,7 @@ pub fn meta_partial_merge(
     value: Option<&[u8]>,
     ops: &MergeOperands,
 ) -> Option<Vec<u8>> {
-    assert!(value.is_some());
+    assert!(value.is_none());
 
     let first_op = ops.iter().next();
 

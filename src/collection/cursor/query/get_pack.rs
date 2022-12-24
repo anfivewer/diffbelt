@@ -1,9 +1,10 @@
 use crate::collection::cursor::query::{QueryCursor, QueryCursorPack};
 
+use crate::collection::methods::errors::CollectionMethodError;
 use crate::raw_db::query_collection_records::{
     QueryCollectionRecordsOptions, QueryCollectionRecordsResult,
 };
-use crate::raw_db::{RawDb, RawDbError};
+use crate::raw_db::RawDb;
 use std::sync::Arc;
 
 pub struct GetPackOptions {
@@ -14,7 +15,10 @@ pub struct GetPackOptions {
 const PACK_LIMIT: usize = 200;
 
 impl QueryCursor {
-    pub fn get_pack_sync(&self, options: GetPackOptions) -> Result<QueryCursorPack, RawDbError> {
+    pub fn get_pack_sync(
+        &self,
+        options: GetPackOptions,
+    ) -> Result<QueryCursorPack, CollectionMethodError> {
         let GetPackOptions { this_cursor_id, db } = options;
 
         let phantom_id = self.phantom_id.as_ref().map(|id| id.as_ref());

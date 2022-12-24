@@ -6,6 +6,9 @@ use crate::collection::util::record_key_compare::record_key_compare_fn;
 use crate::collection::Collection;
 use crate::common::{IsByteArray, IsByteArrayMut, NeverEq, OwnedGenerationId};
 
+use crate::collection::util::generation_size_merge::{
+    generation_size_full_merge, generation_size_partial_merge,
+};
 use crate::database::DatabaseInner;
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbMerge, RawDbOpenError, RawDbOptions,
@@ -70,6 +73,15 @@ impl Collection {
                         compare_fn: generation_key_compare_fn,
                     }),
                     merge: None,
+                },
+                RawDbColumnFamily {
+                    name: "gens_size".to_string(),
+                    comparator: None,
+                    merge: Some(RawDbMerge {
+                        name: "v1".to_string(),
+                        full_merge: Box::new(generation_size_full_merge),
+                        partial_merge: Box::new(generation_size_partial_merge),
+                    }),
                 },
                 RawDbColumnFamily {
                     name: "phantoms".to_string(),

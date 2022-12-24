@@ -4,6 +4,7 @@ use crate::common::{IsByteArray, OwnedCollectionValue};
 use crate::raw_db::{RawDb, RawDbError};
 
 use crate::raw_db::put_collection_record::unwrap_option_ref_or;
+use crate::util::bytes::ONE_U32_BE;
 use rocksdb::WriteBatchWithTransaction;
 
 pub struct PutManyCollectionRecordsItem {
@@ -25,6 +26,7 @@ impl RawDb {
 
         tokio::task::spawn_blocking(move || {
             let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
+            let generations_size_cf = db.cf_handle("gens_size").ok_or(RawDbError::CfHandle)?;
 
             let mut batch = WriteBatchWithTransaction::<false>::default();
 
@@ -36,13 +38,18 @@ impl RawDb {
                 batch.put(record_key_ref.get_byte_array(), value_bytes);
 
                 if !is_phantom {
-                    let generation_key = OwnedGenerationKey::new(
-                        record_key_ref.get_generation_id(),
-                        record_key_ref.get_collection_key(),
-                    )
-                    .or(Err(RawDbError::InvalidGenerationKey))?;
+                    let generation_id = record_key_ref.get_generation_id();
+
+                    let generation_key =
+                        OwnedGenerationKey::new(generation_id, record_key_ref.get_collection_key())
+                            .or(Err(RawDbError::InvalidGenerationKey))?;
 
                     batch.put_cf(&generations_cf, generation_key.get_byte_array(), b"");
+                    batch.put_cf(
+                        &generations_size_cf,
+                        generation_id.get_byte_array(),
+                        ONE_U32_BE,
+                    );
                 }
             }
 

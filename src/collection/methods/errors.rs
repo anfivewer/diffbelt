@@ -13,6 +13,7 @@ pub enum CollectionMethodError {
     InvalidUtf8,
     InvalidReaderValue,
     NoSuchCursor,
+    NotImplementedYet,
 
     RawDb(RawDbError),
     Channels,

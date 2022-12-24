@@ -11,6 +11,24 @@ pub fn write_u24(bytes: &mut [u8], offset: usize, value: u32) -> () {
     bytes[offset] = (value & 0xff) as u8;
 }
 
+pub const ONE_U32_BE: [u8; 4] = [0, 0, 0, 1];
+
+pub fn to_u32_be_unchecked(bytes: &[u8]) -> u32 {
+    ((bytes[0] as u32) << 24)
+        + ((bytes[1] as u32) << 16)
+        + ((bytes[2] as u32) << 8)
+        + ((bytes[3] as u32) << 0)
+}
+
+pub fn from_u32_be(value: u32) -> [u8; 4] {
+    [
+        ((value >> 24) & 0xff) as u8,
+        ((value >> 16) & 0xff) as u8,
+        ((value >> 8) & 0xff) as u8,
+        ((value >> 0) & 0xff) as u8,
+    ]
+}
+
 pub fn increment(bytes: &mut [u8]) {
     for i in (0..bytes.len()).rev() {
         if bytes[i] == 255 {
