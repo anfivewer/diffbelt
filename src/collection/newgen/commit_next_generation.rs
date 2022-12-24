@@ -14,6 +14,7 @@ pub struct CommitNextGenerationSyncOptions {
     pub generation_id_sender: Arc<watch::Sender<OwnedGenerationId>>,
     pub generation_id: Arc<RwLock<OwnedGenerationId>>,
     pub next_generation_id: Arc<RwLock<Option<OwnedGenerationId>>>,
+    pub is_manual_collection: bool,
 }
 
 pub enum CommitNextGenerationError {
@@ -66,8 +67,13 @@ pub async fn commit_next_generation_sync(
         return Ok(());
     }
 
-    let mut new_next_generation_id = next_generation_id.clone();
-    increment(new_next_generation_id.get_byte_array_mut());
+    let new_next_generation_id = if options.is_manual_collection {
+        OwnedGenerationId::empty()
+    } else {
+        let mut new_next_generation_id = next_generation_id.clone();
+        increment(new_next_generation_id.get_byte_array_mut());
+        new_next_generation_id
+    };
 
     // Store new gens
     options
@@ -92,7 +98,13 @@ pub async fn commit_next_generation_sync(
     let mut generation_id_lock = options.generation_id.write().await;
 
     generation_id_lock.replace(next_generation_id.clone());
-    next_generation_id_lock.replace(new_next_generation_id);
+
+    if options.is_manual_collection {
+        next_generation_id_lock.take();
+    } else {
+        next_generation_id_lock.replace(new_next_generation_id);
+    }
+
     options
         .generation_id_sender
         .send_replace(next_generation_id);

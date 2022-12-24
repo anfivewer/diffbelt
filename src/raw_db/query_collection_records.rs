@@ -74,7 +74,7 @@ impl RawDb {
 
         let mut next_record_key = None;
         let mut result = Vec::with_capacity(limit);
-        let count = 0;
+        let mut count = 0;
         let mut records_seen = 0;
 
         for kv in iterator {
@@ -143,7 +143,12 @@ impl RawDb {
                 && is_generation_id_less_or_equal(prev_generation_id, generation_id)
             {
                 // `prev_value` cannot be None, because we are continuing if `skip_collection_key`
-                push_to_result(&mut result, prev_collection_key, prev_value.take().unwrap());
+                push_to_result(
+                    &mut result,
+                    prev_collection_key,
+                    OwnedCollectionValue::from_boxed_slice(prev_value.take().unwrap()),
+                    &mut count,
+                );
             }
 
             if is_same_key {
@@ -198,7 +203,12 @@ impl RawDb {
                         return;
                     }
 
-                    push_to_result(&mut result, prev_collection_key, value);
+                    push_to_result(
+                        &mut result,
+                        prev_collection_key,
+                        OwnedCollectionValue::from_boxed_slice(value),
+                        &mut count,
+                    );
                 })();
                 None
             }
@@ -261,13 +271,22 @@ fn get_initial_last_record(
     }
 }
 
-fn push_to_result(result: &mut Vec<KeyValue>, key: CollectionKey<'_>, value: Box<[u8]>) {
-    let collection_value = OwnedCollectionValue::from_boxed_slice(value);
+fn push_to_result(
+    result: &mut Vec<KeyValue>,
+    key: CollectionKey<'_>,
+    value: OwnedCollectionValue,
+    count: &mut usize,
+) {
+    if value.is_empty() {
+        return;
+    }
 
     result.push(KeyValue {
         key: key.to_owned(),
-        value: collection_value,
+        value,
     });
+
+    *count += 1;
 }
 
 #[inline]

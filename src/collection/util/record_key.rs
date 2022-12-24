@@ -159,9 +159,10 @@ impl<'a> RecordKey<'a> {
         let mut offset = 4 + key_size;
 
         let generation_id_size = self.value[offset] as usize;
-        offset += 1 + generation_id_size;
+        offset += 1;
         let generation_id = offset..(offset + generation_id_size);
 
+        offset += generation_id_size;
         let phantom_id_size = self.value[offset] as usize;
         offset += 1;
 

@@ -44,7 +44,6 @@ impl Collection {
             match next_generation_id {
                 Some(next_generation_id) => {
                     if &generation_id == next_generation_id {
-                        println!("same");
                         return Ok(());
                     }
 

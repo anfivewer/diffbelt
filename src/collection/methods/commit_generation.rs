@@ -21,6 +21,7 @@ impl Collection {
         let generation_id_sender = self.generation_id_sender.clone();
         let generation_id = self.generation_id.clone();
         let next_generation_id = self.next_generation_id.clone();
+        let is_manual_collection = self.is_manual;
 
         let expected_generation_id = options.generation_id;
 
@@ -32,6 +33,7 @@ impl Collection {
                 generation_id_sender,
                 generation_id,
                 next_generation_id,
+                is_manual_collection,
             })
             .await
         })

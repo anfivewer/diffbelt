@@ -6,9 +6,10 @@ use std::cmp::Ordering;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct OwnedCollectionKey(pub Box<[u8]>);
+#[derive(Debug)]
 pub struct CollectionKey<'a>(pub &'a [u8]);
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct OwnedCollectionValue(Box<[u8]>);
 pub struct CollectionValue<'a>(pub &'a [u8]);
 
@@ -22,12 +23,13 @@ pub struct OwnedPhantomId(pub Box<[u8]>);
 #[derive(Copy, Clone)]
 pub struct PhantomId<'a>(pub &'a [u8]);
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct KeyValue {
     pub key: OwnedCollectionKey,
     pub value: OwnedCollectionValue,
 }
 
+#[derive(Clone)]
 pub struct KeyValueUpdate {
     pub key: OwnedCollectionKey,
     pub value: Option<OwnedCollectionValue>,
@@ -35,6 +37,10 @@ pub struct KeyValueUpdate {
 }
 
 impl OwnedGenerationId {
+    pub fn empty() -> Self {
+        Self(Box::from([]))
+    }
+
     pub fn increment(&mut self) {
         increment(&mut self.0);
     }
@@ -146,6 +152,11 @@ impl OwnedCollectionValue {
     pub fn from_boxed_slice(bytes: Box<[u8]>) -> Self {
         Self(bytes)
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn as_ref(&self) -> CollectionValue<'_> {
         CollectionValue(&self.0)
     }
