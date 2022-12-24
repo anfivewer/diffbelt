@@ -4,8 +4,8 @@ use crate::collection::Collection;
 use crate::collection::cursor::query::get_pack::GetPackOptions;
 use crate::collection::cursor::query::{QueryCursor, QueryCursorNewOptions, QueryCursorPack};
 use crate::common::{KeyValue, OwnedGenerationId, OwnedPhantomId};
-use crate::util::base62::rand_b62;
 
+use crate::collection::cursor::util::save_next_cursor;
 use std::sync::Arc;
 
 type CursorId = String;
@@ -56,7 +56,7 @@ impl Collection {
 
         let QueryCursorPack { items, next_cursor } = result;
 
-        let next_cursor_id = self.save_next_cursor(&cursor, next_cursor);
+        let next_cursor_id = save_next_cursor(&self.query_cursors, &cursor, next_cursor);
 
         Ok(QueryOk {
             generation_id,
@@ -94,54 +94,12 @@ impl Collection {
 
         let QueryCursorPack { items, next_cursor } = result;
 
-        let next_cursor_id = self.save_next_cursor(cursor.as_ref(), next_cursor);
+        let next_cursor_id = save_next_cursor(&self.query_cursors, cursor.as_ref(), next_cursor);
 
         Ok(QueryOk {
             generation_id: cursor.get_generation_id().to_owned(),
             items,
             cursor_id: next_cursor_id,
         })
-    }
-
-    fn save_next_cursor(
-        &self,
-        current_cursor: &QueryCursor,
-        next_cursor: Option<QueryCursor>,
-    ) -> Option<NextCursorId> {
-        match next_cursor {
-            Some(next_cursor) => {
-                let next_cursor = Arc::new(next_cursor);
-
-                let mut cursors_lock = self.query_cursors.write().unwrap();
-                let mut id;
-
-                loop {
-                    id = rand_b62(11);
-                    if !cursors_lock.contains_key(&id) {
-                        break;
-                    }
-                }
-
-                cursors_lock.insert(id.clone(), next_cursor.clone());
-
-                match current_cursor.get_prev_cursor_id() {
-                    Some(prev_cursor_id) => {
-                        // if current cursor was accessed, we can drop previous one
-                        cursors_lock.remove(prev_cursor_id);
-                    }
-                    None => {}
-                }
-
-                Some(id)
-            }
-            None => match current_cursor.get_prev_cursor_id() {
-                Some(prev_cursor_id) => {
-                    let mut cursors_lock = self.query_cursors.write().unwrap();
-                    cursors_lock.remove(prev_cursor_id);
-                    None
-                }
-                None => None,
-            },
-        }
     }
 }

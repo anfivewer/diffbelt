@@ -208,6 +208,7 @@ impl Collection {
             newgen,
             on_put_sender,
             query_cursors: std::sync::RwLock::new(HashMap::new()),
+            diff_cursors: std::sync::RwLock::new(HashMap::new()),
         };
         let collection = Arc::new(collection);
 

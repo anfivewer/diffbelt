@@ -1,9 +1,10 @@
+use crate::collection::cursor::diff::DiffCursor;
 use crate::collection::cursor::query::QueryCursor;
 use crate::collection::newgen::NewGenerationCommiter;
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{NeverEq, OwnedGenerationId};
 use crate::database::DatabaseInner;
-use crate::raw_db::RawDb;
+use crate::raw_db::{RawDb, RawDbError};
 use if_not_present::ConcurrentPutStatus;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -31,10 +32,12 @@ pub struct Collection {
     newgen: Option<NewGenerationCommiter>,
     on_put_sender: Option<watch::Sender<NeverEq>>,
     query_cursors: std::sync::RwLock<HashMap<String, Arc<QueryCursor>>>,
+    diff_cursors: std::sync::RwLock<HashMap<String, Arc<DiffCursor>>>,
 }
 
 pub enum GetReaderGenerationIdError {
     NoSuchReader,
+    RawDb(RawDbError),
 }
 
 impl Collection {
@@ -48,9 +51,17 @@ impl Collection {
 
     pub fn get_reader_generation_id(
         &self,
-        _reader_id: &str,
-    ) -> Result<OwnedGenerationId, GetReaderGenerationIdError> {
-        Ok(OwnedGenerationId(vec![].into_boxed_slice()))
+        reader_id: &str,
+    ) -> Result<Option<OwnedGenerationId>, GetReaderGenerationIdError> {
+        let state = self
+            .raw_db
+            .get_reader_sync(reader_id)
+            .map_err(|err| match err {
+                RawDbError::NoSuchReader => GetReaderGenerationIdError::NoSuchReader,
+                err => GetReaderGenerationIdError::RawDb(err),
+            })?;
+
+        Ok(state.generation_id)
     }
 
     pub fn get_generation_id_receiver(&self) -> watch::Receiver<OwnedGenerationId> {

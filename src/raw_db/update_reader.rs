@@ -1,5 +1,6 @@
 use crate::collection::util::reader_value::{OwnedReaderValue, ReaderValue};
 
+use crate::common::reader::ReaderState;
 use crate::common::{GenerationId, IsByteArray};
 use crate::raw_db::{RawDb, RawDbError};
 
@@ -23,6 +24,42 @@ pub enum RawDbCreateReaderResult {
 }
 
 impl RawDb {
+    pub fn get_reader_sync(&self, reader_id: &str) -> Result<ReaderState, RawDbError> {
+        let meta_cf = self.db.cf_handle("meta").ok_or(RawDbError::CfHandle)?;
+
+        let mut key = String::with_capacity("reader:".len() + reader_id.len());
+        key.push_str("reader:");
+        key.push_str(reader_id);
+
+        let result = self.db.get_cf(&meta_cf, key)?;
+
+        match result {
+            Some(value) => {
+                let reader_value =
+                    OwnedReaderValue::from_vec(value).or(Err(RawDbError::InvalidReaderValue))?;
+
+                let reader_value = reader_value.as_ref();
+
+                // TODO: parse method
+                let collection_id = {
+                    let collection_id = reader_value.get_collection_id();
+                    if collection_id.is_empty() {
+                        None
+                    } else {
+                        Some(collection_id.to_string())
+                    }
+                };
+                let generation_id = reader_value.get_generation_id().to_opt_owned_if_empty();
+
+                Ok(ReaderState {
+                    collection_id,
+                    generation_id,
+                })
+            }
+            None => Err(RawDbError::NoSuchReader),
+        }
+    }
+
     pub fn create_reader_sync(
         &self,
         options: RawDbCreateReaderOptions<'_>,

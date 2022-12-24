@@ -5,14 +5,13 @@ use crate::raw_db::diff_collection_records::state::single_generation::SingleGene
 use crate::raw_db::diff_collection_records::state::{DiffState, DiffStateMode, DiffStateNewResult};
 use crate::raw_db::{RawDb, RawDbError};
 
-pub mod diff;
 mod state;
 
 pub struct DiffCollectionRecordsOptions<'a> {
-    pub from_generation_id: GenerationId<'a>,
+    pub from_generation_id: Option<GenerationId<'a>>,
     // Not loose if `prev_diff_state` is specified
     pub to_generation_id_loose: GenerationId<'a>,
-    pub prev_diff_state: Option<DiffCursorState>,
+    pub prev_diff_state: Option<&'a DiffCursorState>,
     pub limit: usize,
 }
 
@@ -30,7 +29,7 @@ pub struct DiffCursorState {
 }
 
 impl RawDb {
-    pub fn diff_collection_records(
+    pub fn diff_collection_records_sync(
         &self,
         options: DiffCollectionRecordsOptions<'_>,
     ) -> Result<DiffCollectionRecordsOk, RawDbError> {

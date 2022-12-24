@@ -74,6 +74,16 @@ impl GenerationId<'_> {
         }
     }
 
+    pub fn less_or_equal_with_opt_or(&self, other: Option<Self>, default: bool) -> bool {
+        match other {
+            Some(other) => {
+                let cmp = self.0.cmp(other.0);
+                cmp != Ordering::Greater
+            }
+            None => default,
+        }
+    }
+
     pub fn to_owned(&self) -> OwnedGenerationId {
         OwnedGenerationId(self.0.into())
     }

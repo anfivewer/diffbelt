@@ -59,8 +59,7 @@ impl DiffState<'_> {
                 let (record_key, value) =
                     db_iterator_parse_next_require_presense(&mut db_iterator)?;
 
-                if record_key.get_collection_key() != next_record_key.as_ref().get_collection_key()
-                {
+                if record_key.get_collection_key() != next_record_key.get_collection_key() {
                     return Err(RawDbError::DiffNoChangedKeyRecord);
                 }
 
@@ -69,8 +68,8 @@ impl DiffState<'_> {
                     KeyProcessing {
                         record_key,
                         value,
-                        first_value,
-                        last_value,
+                        first_value: first_value.map(|bytes| bytes.into()),
+                        last_value: last_value.map(|bytes| bytes.into()),
                     },
                 )
             }
@@ -205,7 +204,8 @@ impl DiffState<'_> {
                     return HandleDbRecordResult::Continue;
                 }
 
-                if generation_id <= *from_generation_id {
+                // If `from_generation_id` is None, `first_value` should be None
+                if generation_id.less_or_equal_with_opt_or(*from_generation_id, false) {
                     first_value = Some(value);
                 } else {
                     last_value = Some(value);
@@ -320,24 +320,15 @@ fn handle_item(
     first_value: &mut Option<Box<[u8]>>,
     last_value: &mut Option<Box<[u8]>>,
 ) -> Result<(), RawDbError> {
-    let first_value = match first_value.take() {
-        Some(x) => x,
-        None => {
-            return Err(RawDbError::DiffNoChangedKeyRecord);
-        }
-    };
-    let last_value = match last_value.take() {
-        Some(x) => x,
-        None => {
-            return Err(RawDbError::DiffNoChangedKeyRecord);
-        }
-    };
-
     items.push(KeyValueDiff {
         key: collection_key.to_owned(),
-        from_value: OwnedCollectionValue::from_boxed_slice_opt(first_value),
+        from_value: first_value
+            .take()
+            .and_then(|bytes| OwnedCollectionValue::from_boxed_slice_opt(bytes)),
         intermediate_values: Vec::with_capacity(0),
-        to_value: OwnedCollectionValue::from_boxed_slice_opt(last_value),
+        to_value: last_value
+            .take()
+            .and_then(|bytes| OwnedCollectionValue::from_boxed_slice_opt(bytes)),
     });
 
     Ok(())

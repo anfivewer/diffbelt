@@ -1,5 +1,5 @@
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
-use crate::collection::util::record_key::OwnedRecordKey;
+use crate::collection::util::record_key::RecordKey;
 use crate::common::{
     CollectionKey, GenerationId, IsByteArray, IsByteArrayMut, OwnedCollectionKey, OwnedGenerationId,
 };
@@ -39,17 +39,17 @@ pub enum DiffStateMode {
     SingleGeneration,
 }
 
-pub struct PrevDiffState {
-    first_value: Option<Box<[u8]>>,
-    last_value: Option<Box<[u8]>>,
-    next_record_key: OwnedRecordKey,
+pub struct PrevDiffState<'a> {
+    first_value: Option<&'a [u8]>,
+    last_value: Option<&'a [u8]>,
+    next_record_key: RecordKey<'a>,
 }
 
 pub struct DiffState<'a> {
     db: &'a rocksdb::DB,
-    from_generation_id: GenerationId<'a>,
+    from_generation_id: Option<GenerationId<'a>>,
     to_generation_id: OwnedGenerationId,
-    prev_state: Option<PrevDiffState>,
+    prev_state: Option<PrevDiffState<'a>>,
     records_to_view_left: usize,
     pack_limit: usize,
 }
@@ -62,7 +62,7 @@ pub enum DiffStateNewResult<'a> {
 impl<'a> DiffState<'a> {
     pub fn new(
         db: &'a rocksdb::DB,
-        from_generation_id: GenerationId<'a>,
+        from_generation_id: Option<GenerationId<'a>>,
         to_generation_id_loose: GenerationId<'a>,
         pack_limit: usize,
     ) -> Result<DiffStateNewResult<'a>, RawDbError> {
@@ -73,12 +73,16 @@ impl<'a> DiffState<'a> {
         let upper_generation_key_bytes = upper_generation_key.get_byte_array_mut();
         increment(upper_generation_key_bytes);
 
-        let iterator_mode =
-            IteratorMode::From(from_generation_id.get_byte_array(), Direction::Forward);
         let mut opts = ReadOptions::default();
         opts.set_iterate_upper_bound(upper_generation_key_bytes);
 
-        let mut iterator = db.iterator_cf_opt(&generations_size_cf, opts, iterator_mode);
+        let mut iterator = match from_generation_id {
+            Some(id) => {
+                let iterator_mode = IteratorMode::From(id.get_byte_array(), Direction::Forward);
+                db.iterator_cf_opt(&generations_size_cf, opts, iterator_mode)
+            }
+            None => db.iterator_cf_opt(&generations_size_cf, opts, IteratorMode::Start),
+        };
 
         let mut total_count = 0;
         let mut to_generation_id;
@@ -96,11 +100,16 @@ impl<'a> DiffState<'a> {
 
             let (key, value) = result?;
 
-            if key.as_ref() <= from_generation_id.get_byte_array() {
+            let generation_id = OwnedGenerationId::from_boxed_slice(key);
+
+            if generation_id
+                .as_ref()
+                .less_or_equal_with_opt_or(from_generation_id, false)
+            {
                 continue;
             }
 
-            if key.as_ref() > to_generation_id_loose.get_byte_array() {
+            if generation_id.as_ref() > to_generation_id_loose {
                 return Ok(DiffStateNewResult::Empty);
             }
 
@@ -111,7 +120,7 @@ impl<'a> DiffState<'a> {
                     DiffState {
                         db,
                         from_generation_id,
-                        to_generation_id: OwnedGenerationId::from_boxed_slice(key),
+                        to_generation_id: generation_id,
                         prev_state: None,
                         records_to_view_left: RECORDS_TO_VIEW_LIMIT,
                         pack_limit,
@@ -121,7 +130,7 @@ impl<'a> DiffState<'a> {
             }
 
             total_count += count;
-            to_generation_id = OwnedGenerationId::from_boxed_slice(key);
+            to_generation_id = generation_id;
             break;
         }
 
@@ -167,9 +176,9 @@ impl<'a> DiffState<'a> {
 
     pub fn continue_prev(
         db: &'a rocksdb::DB,
-        from_generation_id: GenerationId<'a>,
+        from_generation_id: Option<GenerationId<'a>>,
         to_generation_id: GenerationId<'a>,
-        prev_state: DiffCursorState,
+        prev_state: &'a DiffCursorState,
         pack_limit: usize,
     ) -> Result<DiffStateNewResult<'a>, RawDbError> {
         let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
@@ -195,9 +204,13 @@ impl<'a> DiffState<'a> {
                 from_generation_id,
                 to_generation_id: to_generation_id.to_owned(),
                 prev_state: Some(PrevDiffState {
-                    first_value,
-                    last_value,
-                    next_record_key,
+                    first_value: first_value
+                        .as_ref()
+                        .map(|bytes| AsRef::<[u8]>::as_ref(bytes)),
+                    last_value: last_value
+                        .as_ref()
+                        .map(|bytes| AsRef::<[u8]>::as_ref(bytes)),
+                    next_record_key: next_record_key.as_ref(),
                 }),
                 records_to_view_left: RECORDS_TO_VIEW_LIMIT,
                 pack_limit,
@@ -220,17 +233,13 @@ impl<'a> DiffState<'a> {
 fn collect_changed_keys(
     db: &rocksdb::DB,
     generations_cf: Arc<BoundColumnFamily<'_>>,
-    from_generation_id: GenerationId<'_>,
+    from_generation_id: Option<GenerationId<'_>>,
     to_generation_id: GenerationId<'_>,
     filter_keys_less_than: Option<CollectionKey<'_>>,
 ) -> Result<BTreeSet<OwnedCollectionKey>, RawDbError> {
     let mut keys = BTreeSet::new();
 
     let iterator = {
-        let from_generation_key =
-            OwnedGenerationKey::new(from_generation_id, CollectionKey::empty())
-                .or(Err(RawDbError::InvalidGenerationKey))?;
-
         let to_generation_key = {
             let mut to_generation_id_incremented = to_generation_id.to_owned();
             let to_generation_id_bytes = to_generation_id_incremented.get_byte_array_mut();
@@ -242,11 +251,22 @@ fn collect_changed_keys(
             .or(Err(RawDbError::InvalidGenerationKey))?
         };
 
-        let iterator_mode =
-            IteratorMode::From(from_generation_key.get_byte_array(), Direction::Forward);
         let mut opts = ReadOptions::default();
         opts.set_iterate_upper_bound(to_generation_key.get_byte_array());
-        db.iterator_cf_opt(&generations_cf, opts, iterator_mode)
+
+        match from_generation_id {
+            Some(from_generation_id) => {
+                let from_generation_key =
+                    OwnedGenerationKey::new(from_generation_id, CollectionKey::empty())
+                        .or(Err(RawDbError::InvalidGenerationKey))?;
+
+                let iterator_mode =
+                    IteratorMode::From(from_generation_key.get_byte_array(), Direction::Forward);
+
+                db.iterator_cf_opt(&generations_cf, opts, iterator_mode)
+            }
+            None => db.iterator_cf_opt(&generations_cf, opts, IteratorMode::Start),
+        }
     };
 
     for result in iterator {
@@ -268,7 +288,7 @@ fn collect_changed_keys(
             None => {}
         }
 
-        if generation_id <= from_generation_id {
+        if generation_id.less_or_equal_with_opt_or(from_generation_id, false) {
             continue;
         }
 

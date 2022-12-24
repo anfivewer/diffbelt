@@ -14,6 +14,8 @@ pub enum CollectionMethodError {
     InvalidReaderValue,
     NoSuchCursor,
     NotImplementedYet,
+    NoSuchReader,
+    NoSuchCollection,
 
     RawDb(RawDbError),
     Channels,

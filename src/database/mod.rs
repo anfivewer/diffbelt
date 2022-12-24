@@ -1,7 +1,7 @@
-use crate::collection::Collection;
+use crate::collection::{Collection, GetReaderGenerationIdError};
 use crate::common::OwnedGenerationId;
 
-use crate::raw_db::RawDb;
+use crate::raw_db::{RawDb, RawDbError};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -21,6 +21,7 @@ pub struct Database {
 pub enum GetReaderGenerationIdFnError {
     NoSuchCollection,
     NoSuchReader,
+    RawDb(RawDbError),
 }
 
 pub struct DatabaseInner {
@@ -28,12 +29,28 @@ pub struct DatabaseInner {
 }
 
 impl DatabaseInner {
-    pub fn get_reader_generation_id(
+    pub fn get_reader_generation_id_sync(
         &self,
-        _collection_id: &str,
-        _reader_id: &str,
-    ) -> Result<OwnedGenerationId, GetReaderGenerationIdFnError> {
-        let _collections = self.collections.read().unwrap();
-        todo!()
+        collection_id: &str,
+        reader_id: &str,
+    ) -> Result<Option<OwnedGenerationId>, GetReaderGenerationIdFnError> {
+        let collections_lock = self.collections.read().unwrap();
+
+        let collection = collections_lock
+            .get(collection_id)
+            .ok_or(GetReaderGenerationIdFnError::NoSuchCollection)?;
+
+        let collection = collection.clone();
+
+        drop(collections_lock);
+
+        collection
+            .get_reader_generation_id(reader_id)
+            .map_err(|err| match err {
+                GetReaderGenerationIdError::NoSuchReader => {
+                    GetReaderGenerationIdFnError::NoSuchReader
+                }
+                GetReaderGenerationIdError::RawDb(err) => GetReaderGenerationIdFnError::RawDb(err),
+            })
     }
 }

@@ -1,5 +1,6 @@
 use crate::common::{GenerationId, KeyValue, OwnedGenerationId, OwnedPhantomId};
 
+use crate::collection::cursor::util::BaseCursor;
 use crate::raw_db::query_collection_records::LastAndNextRecordKey;
 
 pub mod get_pack;
@@ -34,8 +35,10 @@ impl QueryCursor {
     pub fn get_generation_id(&self) -> GenerationId<'_> {
         self.generation_id.as_ref()
     }
+}
 
-    pub fn get_prev_cursor_id(&self) -> Option<&String> {
-        self.prev_cursor_id.as_ref()
+impl BaseCursor for QueryCursor {
+    fn get_prev_cursor_id(&self) -> Option<&str> {
+        self.prev_cursor_id.as_ref().map(|x| x.as_str())
     }
 }
