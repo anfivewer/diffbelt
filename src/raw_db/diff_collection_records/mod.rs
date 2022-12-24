@@ -1,7 +1,10 @@
 use crate::collection::util::record_key::OwnedRecordKey;
-use crate::common::{GenerationId, KeyValueDiff};
+use crate::common::{GenerationId, KeyValueDiff, OwnedCollectionKey, OwnedGenerationId};
+use crate::raw_db::diff_collection_records::state::{DiffState, DiffStateMode, DiffStateNewResult};
+use crate::raw_db::{RawDb, RawDbError};
 
 pub mod diff;
+mod state;
 
 pub struct DiffCollectionRecordsOptions<'a> {
     pub from_generation_id: GenerationId<'a>,
@@ -12,11 +15,59 @@ pub struct DiffCollectionRecordsOptions<'a> {
 }
 
 pub struct DiffCollectionRecordsResult {
+    pub to_generation_id: OwnedGenerationId,
     pub items: Vec<KeyValueDiff>,
     pub next_diff_state: Option<DiffCursorState>,
 }
 
 pub struct DiffCursorState {
-    last_record_key: OwnedRecordKey,
+    changed_key: OwnedCollectionKey,
+    first_value: Option<Box<[u8]>>,
+    last_value: Option<Box<[u8]>>,
     next_record_key: OwnedRecordKey,
+}
+
+impl RawDb {
+    pub fn diff_collection_records(
+        &self,
+        options: DiffCollectionRecordsOptions<'_>,
+    ) -> Result<DiffCollectionRecordsResult, RawDbError> {
+        let DiffCollectionRecordsOptions {
+            from_generation_id,
+            to_generation_id_loose,
+            prev_diff_state,
+            limit,
+        } = options;
+
+        let state = match prev_diff_state {
+            Some(prev_state) => DiffState::continue_prev(
+                &self.db,
+                from_generation_id,
+                to_generation_id_loose,
+                prev_state,
+                limit,
+            )?,
+            None => DiffState::new(&self.db, from_generation_id, to_generation_id_loose, limit)?,
+        };
+
+        let (mut state, mode) = match state {
+            DiffStateNewResult::Empty => {
+                return Ok(DiffCollectionRecordsResult {
+                    to_generation_id: to_generation_id_loose.to_owned(),
+                    items: Vec::with_capacity(0),
+                    next_diff_state: None,
+                });
+            }
+            DiffStateNewResult::State(x) => x,
+        };
+
+        match mode {
+            DiffStateMode::InMemory(in_memory) => {
+                in_memory.diff_collection_records_sync(&mut state)
+            }
+            DiffStateMode::SingleGeneration => {
+                todo!()
+            }
+        }
+    }
 }

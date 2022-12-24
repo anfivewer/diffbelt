@@ -15,8 +15,6 @@ impl RawDb {
             limit: _,
         } = options;
 
-        //
-
         todo!()
     }
 }

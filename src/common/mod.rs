@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct OwnedCollectionKey(pub Box<[u8]>);
-#[derive(Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Debug)]
 pub struct CollectionKey<'a>(pub &'a [u8]);
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -45,6 +45,9 @@ pub struct KeyValueUpdate {
 }
 
 impl OwnedGenerationId {
+    pub fn from_boxed_slice(bytes: Box<[u8]>) -> Self {
+        Self(bytes)
+    }
     pub fn empty() -> Self {
         Self(Box::from([]))
     }
@@ -121,11 +124,6 @@ impl CollectionKey<'_> {
         OwnedCollectionKey(self.0.into())
     }
 }
-impl PartialEq for CollectionKey<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
 
 impl IsByteArray for OwnedCollectionKey {
     fn get_byte_array(&self) -> &[u8] {
@@ -159,6 +157,13 @@ impl OwnedCollectionValue {
     }
     pub fn from_boxed_slice(bytes: Box<[u8]>) -> Self {
         Self(bytes)
+    }
+    pub fn from_boxed_slice_opt(bytes: Box<[u8]>) -> Option<Self> {
+        if bytes.is_empty() {
+            None
+        } else {
+            Some(Self(bytes))
+        }
     }
 
     pub fn is_empty(&self) -> bool {

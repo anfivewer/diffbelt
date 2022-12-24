@@ -5,6 +5,7 @@ use std::cmp::Ordering;
 use std::sync::Arc;
 
 pub mod contains_existing_collection_record;
+mod cursor_util;
 pub mod diff_collection_records;
 pub mod get_collection_record;
 pub mod get_range;
@@ -32,6 +33,7 @@ pub enum RawDbError {
     UpdateReader,
     NoSuchReader,
     CursorDidNotFoundRecord,
+    DiffNoChangedKeyRecord,
 }
 
 impl From<rocksdb::Error> for RawDbError {

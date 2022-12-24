@@ -46,6 +46,10 @@ impl OwnedParsedRecordKey {
                 .map(|range| PhantomId(by_range(&self.bytes, range))),
         }
     }
+
+    pub fn get_collection_key(&self) -> CollectionKey<'_> {
+        CollectionKey(by_range(&self.bytes, &self.collection_key))
+    }
 }
 
 #[inline]
