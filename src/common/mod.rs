@@ -120,6 +120,12 @@ impl CollectionKey<'_> {
     pub fn empty() -> Self {
         Self(b"")
     }
+    pub fn or_empty(opt: &Option<Self>) -> Self {
+        match opt {
+            Some(id) => Self(id.0),
+            None => Self(b""),
+        }
+    }
     pub fn to_owned(&self) -> OwnedCollectionKey {
         OwnedCollectionKey(self.0.into())
     }

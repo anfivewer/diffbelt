@@ -10,7 +10,9 @@ use rocksdb::{BoundColumnFamily, Direction, IteratorMode, ReadOptions};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+mod diff;
 pub mod in_memory;
+pub mod single_generation;
 
 /**
  *  This constant used as follows:
@@ -28,7 +30,7 @@ const TOTAL_COUNT_IN_GENERATIONS_LIMIT: u32 = 4000;
 const RECORDS_TO_VIEW_LIMIT: usize = 2000;
 
 pub struct DiffStateInMemoryMode {
-    changed_keys: BTreeSet<OwnedCollectionKey>,
+    pub changed_keys: BTreeSet<OwnedCollectionKey>,
 }
 
 pub enum DiffStateMode {
@@ -202,6 +204,16 @@ impl<'a> DiffState<'a> {
             },
             DiffStateMode::InMemory(DiffStateInMemoryMode { changed_keys: keys }),
         )))
+    }
+
+    pub fn get_to_generation_id(&self) -> GenerationId<'_> {
+        self.to_generation_id.as_ref()
+    }
+
+    pub fn get_from_collection_key(&self) -> Option<CollectionKey<'_>> {
+        self.prev_state
+            .as_ref()
+            .map(|prev_state: &PrevDiffState| prev_state.next_record_key.get_collection_key())
     }
 }
 

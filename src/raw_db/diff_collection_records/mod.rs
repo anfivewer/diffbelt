@@ -1,5 +1,7 @@
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{GenerationId, KeyValueDiff, OwnedCollectionKey, OwnedGenerationId};
+use crate::raw_db::diff_collection_records::state::in_memory::InMemoryChangedKeysIter;
+use crate::raw_db::diff_collection_records::state::single_generation::SingleGenerationChangedKeysIter;
 use crate::raw_db::diff_collection_records::state::{DiffState, DiffStateMode, DiffStateNewResult};
 use crate::raw_db::{RawDb, RawDbError};
 
@@ -63,10 +65,19 @@ impl RawDb {
 
         match mode {
             DiffStateMode::InMemory(in_memory) => {
-                in_memory.diff_collection_records_sync(&mut state)
+                let capacity_hint = Some(in_memory.changed_keys.len());
+                let iterator = InMemoryChangedKeysIter::new(in_memory.changed_keys);
+
+                state.diff_collection_records_sync(iterator, capacity_hint)
             }
             DiffStateMode::SingleGeneration => {
-                todo!()
+                let iterator = SingleGenerationChangedKeysIter::new(
+                    &self.db,
+                    state.get_to_generation_id(),
+                    state.get_from_collection_key(),
+                )?;
+
+                state.diff_collection_records_sync(iterator, None)
             }
         }
     }

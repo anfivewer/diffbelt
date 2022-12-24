@@ -278,6 +278,11 @@ impl OwnedRecordKey {
         }
     }
 
+    pub fn get_collection_key(&self) -> CollectionKey<'_> {
+        let size = read_u24(&self.value, 1) as usize;
+        CollectionKey(&self.value[4..(4 + size)])
+    }
+
     pub fn get_collection_key_bytes_mut(&mut self) -> &mut [u8] {
         let size = read_u24(&self.value, 1) as usize;
         &mut self.value[4..(4 + size)]
