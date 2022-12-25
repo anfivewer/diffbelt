@@ -6,6 +6,7 @@ use crate::common::{
 use crate::raw_db::diff_collection_records::state::{DiffState, PrevDiffState};
 use crate::raw_db::diff_collection_records::{DiffCollectionRecordsOk, DiffCursorState};
 use crate::raw_db::RawDbError;
+use crate::util::option::lift_result_from_option;
 use crate::util::owned_peek::OwnedPeek;
 use rocksdb::{DBIterator, Direction, IteratorMode};
 
@@ -40,6 +41,8 @@ impl DiffState<'_> {
             pack_limit,
             prev_state,
         } = self;
+
+        let mut pack_size_left = *pack_limit;
 
         let capacity = items_capacity_hint.map_or(*pack_limit, |hint| Ord::min(*pack_limit, hint));
         let mut items = Vec::with_capacity(capacity);
@@ -224,7 +227,7 @@ impl DiffState<'_> {
                             to_generation_id: to_generation_id.clone(),
                             items,
                             next_diff_state: Some(DiffCursorState {
-                                changed_key: record_key.get_collection_key().to_owned(),
+                                changed_key,
                                 first_value,
                                 last_value,
                                 next_record_key: OwnedRecordKey::from_owned_parsed_record_key(
@@ -255,7 +258,7 @@ impl DiffState<'_> {
                                 to_generation_id: to_generation_id.clone(),
                                 items,
                                 next_diff_state: Some(DiffCursorState {
-                                    changed_key: record_key.get_collection_key().to_owned(),
+                                    changed_key,
                                     first_value,
                                     last_value,
                                     next_record_key: OwnedRecordKey::from_owned_parsed_record_key(
@@ -304,6 +307,30 @@ impl DiffState<'_> {
                 &mut first_value,
                 &mut last_value,
             )?;
+            pack_size_left -= 1;
+
+            if pack_size_left <= 0 {
+                // Since we are pushed this item, we need to save next key in the cursor
+                let changed_key = lift_result_from_option(changed_keys_iterator.next())?;
+
+                let KeyProcessing {
+                    record_key,
+                    value: _,
+                    first_value,
+                    last_value,
+                } = db_next_item;
+
+                return Ok(DiffCollectionRecordsOk {
+                    to_generation_id: to_generation_id.clone(),
+                    items,
+                    next_diff_state: changed_key.map(|changed_key| DiffCursorState {
+                        changed_key,
+                        first_value,
+                        last_value,
+                        next_record_key: OwnedRecordKey::from_owned_parsed_record_key(record_key),
+                    }),
+                });
+            }
         }
 
         Ok(DiffCollectionRecordsOk {

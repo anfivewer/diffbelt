@@ -45,7 +45,7 @@ impl RawDb {
                             .or(Err(RawDbError::InvalidGenerationKey))?;
 
                     batch.put_cf(&generations_cf, generation_key.get_byte_array(), b"");
-                    batch.put_cf(
+                    batch.merge_cf(
                         &generations_size_cf,
                         generation_id.get_byte_array(),
                         ONE_U32_BE,

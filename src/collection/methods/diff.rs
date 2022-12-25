@@ -1,12 +1,11 @@
 use crate::collection::cursor::diff::get_pack::GetPackOptions;
-use crate::collection::cursor::diff::{
-    DiffCursor, DiffCursorNewOptions, DiffCursorPack, GenerationIdSource,
-};
+use crate::collection::cursor::diff::{DiffCursor, DiffCursorNewOptions, DiffCursorPack};
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::{KeyValueDiff, OwnedGenerationId};
 
 use crate::collection::cursor::util::save_next_cursor;
+use crate::common::generation_id::GenerationIdSource;
 use std::sync::Arc;
 
 type CursorId = String;
@@ -48,7 +47,7 @@ impl Collection {
         let cursor = Arc::new(DiffCursor::new(DiffCursorNewOptions {
             from_generation_id,
             to_generation_id_loose,
-            omit_intermediate_values: false,
+            omit_intermediate_values: true,
         }));
 
         let result = {

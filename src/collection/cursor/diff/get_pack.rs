@@ -67,7 +67,7 @@ impl DiffCursor {
             to_generation_id_loose: self.to_generation_id.as_ref(),
             prev_diff_state: self.raw_db_cursor_state.as_ref(),
             limit: config.diff_pack_limit,
-            records_to_view_limit: config.query_pack_records_limit,
+            records_to_view_limit: config.diff_pack_records_limit,
             total_count_in_generations_limit: config.diff_changes_limit,
         })?;
 

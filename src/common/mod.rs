@@ -1,8 +1,9 @@
-pub mod reader;
-
 use crate::collection::util::record_flags::RecordFlags;
 use crate::util::bytes::increment;
 use std::cmp::Ordering;
+
+pub mod generation_id;
+pub mod reader;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct OwnedCollectionKey(pub Box<[u8]>);

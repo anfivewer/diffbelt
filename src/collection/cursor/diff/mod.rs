@@ -1,7 +1,8 @@
 use crate::common::{GenerationId, KeyValueDiff, OwnedGenerationId};
 
 use crate::collection::cursor::util::BaseCursor;
-use crate::common::reader::ReaderDef;
+
+use crate::common::generation_id::GenerationIdSource;
 use crate::raw_db::diff_collection_records::DiffCursorState;
 
 pub mod get_pack;
@@ -12,11 +13,6 @@ pub struct DiffCursor {
     to_generation_id: OwnedGenerationId,
     omit_intermediate_values: bool,
     raw_db_cursor_state: Option<DiffCursorState>,
-}
-
-pub enum GenerationIdSource {
-    Value(Option<OwnedGenerationId>),
-    Reader(ReaderDef),
 }
 
 pub struct DiffCursorNewOptions {
