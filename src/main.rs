@@ -1,37 +1,24 @@
-use crate::config::{Config, ReadConfigFromEnvError};
-use crate::context::Context;
-
-use crate::database::open::DatabaseOpenOptions;
-use crate::database::Database;
-
-use crate::routes::{BaseResponse, Response, StaticRouteOptions, StringResponse};
-use crate::util::global_tokio_runtime::create_global_tokio_runtime;
-
 use std::sync::Arc;
 
-use tokio::sync::RwLock;
-use warp::http::response::Builder;
-use warp::http::StatusCode;
-use warp::path::FullPath;
-use warp::reject::Reject;
-use warp::{Filter, Rejection};
+use crate::config::{Config, ReadConfigFromEnvError};
+use crate::context::Context;
+use crate::database::open::DatabaseOpenOptions;
+use crate::database::Database;
+use crate::http::routing;
+use crate::http::server::start_http_server;
+use crate::util::global_tokio_runtime::create_global_tokio_runtime;
 
 mod collection;
 mod common;
 mod config;
 mod context;
 mod database;
+mod http;
 mod protos;
 mod raw_db;
-mod routes;
 #[cfg(test)]
 mod tests;
 mod util;
-
-#[derive(Debug)]
-struct Error500;
-
-impl Reject for Error500 {}
 
 async fn run() {
     let config = Config::read_from_env();
@@ -54,70 +41,17 @@ async fn run() {
     .await
     .expect("Cannot open database");
 
-    let context = Arc::new(RwLock::new(Context {
+    let mut context = Context {
         config,
-        routing: routes::new_routing(),
+        routing: routing::Routing::new(),
         database: Arc::new(database),
-    }));
+    };
 
-    async {
-        let mut context = context.write().await;
-        routes::root::register_root_route(&mut context);
-    }
-    .await;
+    routing::register_routes::register_routes(&mut context);
 
-    let routed_get = warp::get()
-        .map(move || context.clone())
-        .and(warp::path::full())
-        .and_then(|context: Arc<RwLock<Context>>, path: FullPath| async move {
-            let path = path.as_str();
+    let context = Arc::new(context);
 
-            let locked_context = context.read().await;
-
-            let static_route = locked_context.routing.static_get_routes.get(path);
-
-            let static_route = match static_route {
-                None => {
-                    return Err(warp::reject::not_found());
-                }
-                Some(static_route) => static_route.clone(),
-            };
-
-            drop(locked_context);
-
-            let result = static_route(StaticRouteOptions { context }).await;
-
-            let response_builder = Builder::new();
-
-            match result {
-                Response::String(StringResponse {
-                    base: BaseResponse { status },
-                    str,
-                }) => response_builder
-                    .status(status)
-                    .body(str)
-                    .map_err(|_| warp::reject::custom(Error500)),
-            }
-        })
-        .recover(|err: Rejection| async move {
-            if let Some(_) = err.find::<Error500>() {
-                return Ok(warp::reply::with_status(
-                    "500",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ));
-            }
-
-            Err(err)
-        });
-
-    // GET /hello/warp => 200 OK with body "Hello, warp!"
-    let hello = warp::path!("hello" / String).map(|name| format!("Hello, {}!", name));
-
-    let hello2 = warp::path!("hello2" / String).map(|name| format!("Hello2, {}!", name));
-
-    let routes = routed_get.or(hello).or(hello2);
-
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    start_http_server(context).await;
 }
 
 fn main() {
