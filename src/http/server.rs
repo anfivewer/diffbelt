@@ -78,6 +78,23 @@ pub async fn start_http_server(context: Arc<Context>) {
                             HttpError::NotFound => {
                                 (StatusCode::NOT_FOUND, "{\"error\":\"404\"}".into())
                             }
+                            HttpError::Generic400(reason)
+                            | HttpError::ContentTypeUnsupported(reason) => (
+                                StatusCode::BAD_REQUEST,
+                                format!(
+                                    "{{\"error\":\"400\",\"reason\":{}}}",
+                                    serde_json::json!(reason).to_string()
+                                )
+                                .into(),
+                            ),
+                            HttpError::TooBigPayload(max_size) => (
+                                StatusCode::PAYLOAD_TOO_LARGE,
+                                format!("{{\"error\":\"413\",\"bytesMax\":{}}}", max_size).into(),
+                            ),
+                            HttpError::InvalidJson => (
+                                StatusCode::BAD_REQUEST,
+                                "{\"error\":\"400\",\"reason\":\"invalid_json\"}".into(),
+                            ),
                             HttpError::PublicInternal500(str) => {
                                 is_json = false;
                                 (
@@ -95,10 +112,14 @@ pub async fn start_http_server(context: Arc<Context>) {
                             HttpError::MethodNotAllowed => {
                                 (StatusCode::METHOD_NOT_ALLOWED, "{\"error\":\"405\"}".into())
                             }
-                            _ => (
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                                "{\"error\":\"500\"}".into(),
-                            ),
+                            err => {
+                                eprintln!("Unhandled HttpError: {:?}", err);
+
+                                (
+                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                    "{\"error\":\"500\"}".into(),
+                                )
+                            }
                         };
 
                         let mut response = Response::new(body);
