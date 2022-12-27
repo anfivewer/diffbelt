@@ -87,7 +87,8 @@ impl<'a> DiffState<'a> {
 
             let (key, value) = result?;
 
-            let generation_id = OwnedGenerationId::from_boxed_slice(key);
+            let generation_id = OwnedGenerationId::from_boxed_slice(key)
+                .or(Err(RawDbError::InvalidGenerationId))?;
 
             if generation_id
                 .as_ref()
@@ -124,7 +125,8 @@ impl<'a> DiffState<'a> {
         for result in iterator {
             let (key, value): (Box<[u8]>, Box<[u8]>) = result?;
 
-            let generation_id = OwnedGenerationId::from_boxed_slice(key);
+            let generation_id = OwnedGenerationId::from_boxed_slice(key)
+                .or(Err(RawDbError::InvalidGenerationId))?;
 
             if generation_id.as_ref() > to_generation_id_loose {
                 break;

@@ -30,7 +30,8 @@ async fn query_test_inner() {
         .await
         .unwrap();
 
-    let first_generation_id = OwnedGenerationId(b"0".to_vec().into_boxed_slice());
+    let first_generation_id =
+        OwnedGenerationId::from_boxed_slice(b"0".to_vec().into_boxed_slice()).unwrap();
 
     collection
         .start_generation(StartGenerationOptions {
@@ -47,7 +48,7 @@ async fn query_test_inner() {
         let value = [(i % 2) as u8, (i % 3) as u8, (i % 4) as u8, (i % 5) as u8];
 
         first_generation_updates.push(KeyValueUpdate {
-            key: OwnedCollectionKey((&key as &[u8]).into()),
+            key: OwnedCollectionKey::from_boxed_slice((&key as &[u8]).into()).unwrap(),
             value: Some(OwnedCollectionValue::new(&value)),
             if_not_present: false,
         });
@@ -81,7 +82,8 @@ async fn query_test_inner() {
     )
     .await;
 
-    let second_generation_id = OwnedGenerationId(b"1".to_vec().into_boxed_slice());
+    let second_generation_id =
+        OwnedGenerationId::from_boxed_slice(b"1".to_vec().into_boxed_slice()).unwrap();
 
     collection
         .start_generation(StartGenerationOptions {
@@ -101,7 +103,7 @@ async fn query_test_inner() {
         let value = [(i % 2) as u8, (i % 3) as u8, (i % 4) as u8, (i % 5) as u8];
 
         second_generation_updates.push(KeyValueUpdate {
-            key: OwnedCollectionKey((&key as &[u8]).into()),
+            key: OwnedCollectionKey::from_boxed_slice((&key as &[u8]).into()).unwrap(),
             value: Some(OwnedCollectionValue::new(&value)),
             if_not_present: false,
         });
@@ -112,7 +114,7 @@ async fn query_test_inner() {
         let key = [(i % 256) as u8];
 
         second_generation_updates.push(KeyValueUpdate {
-            key: OwnedCollectionKey((&key as &[u8]).into()),
+            key: OwnedCollectionKey::from_boxed_slice((&key as &[u8]).into()).unwrap(),
             value: None,
             if_not_present: false,
         });
@@ -124,7 +126,7 @@ async fn query_test_inner() {
         let value = [(i % 2) as u8, (i % 3) as u8, (i % 4) as u8, (i % 5) as u8];
 
         second_generation_updates.push(KeyValueUpdate {
-            key: OwnedCollectionKey((&key as &[u8]).into()),
+            key: OwnedCollectionKey::from_boxed_slice((&key as &[u8]).into()).unwrap(),
             value: Some(OwnedCollectionValue::new(&value)),
             if_not_present: false,
         });

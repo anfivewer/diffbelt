@@ -40,7 +40,8 @@ async fn diff_test_inner() {
         .unwrap();
 
     let mut last_generation_id_bytes = [0u8];
-    let first_generation_id = OwnedGenerationId(last_generation_id_bytes.into());
+    let first_generation_id =
+        OwnedGenerationId::from_boxed_slice(last_generation_id_bytes.into()).unwrap();
 
     let mut first_generation_items = HashMap::with_capacity(1024);
 
@@ -49,7 +50,7 @@ async fn diff_test_inner() {
         let mut items = Vec::with_capacity(500);
 
         for i in 0..500 {
-            let key = OwnedCollectionKey(from_u32_be(i).into());
+            let key = OwnedCollectionKey::from_boxed_slice(from_u32_be(i).into()).unwrap();
             let value = OwnedCollectionValue::new(&from_u32_be(i + 1));
 
             first_generation_items.insert(key.clone(), value.clone());
@@ -104,7 +105,7 @@ async fn diff_test_inner() {
 
             wrap_generation(&collection, generation_id.as_ref(), async {
                 for i in 0..20 {
-                    let key = OwnedCollectionKey(from_u32_be(i).into());
+                    let key = OwnedCollectionKey::from_boxed_slice(from_u32_be(i).into()).unwrap();
                     let value = OwnedCollectionValue::new(&from_u32_be(i + 2 + generation_index));
 
                     last_generation_items.insert(key.clone(), value.clone());
@@ -129,7 +130,8 @@ async fn diff_test_inner() {
         }
     }
 
-    let generation16_id = OwnedGenerationId::from_boxed_slice(last_generation_id_bytes.into());
+    let generation16_id =
+        OwnedGenerationId::from_boxed_slice(last_generation_id_bytes.into()).unwrap();
 
     let mut expected_pack_size_distribution = [20usize; 31];
     expected_pack_size_distribution[0] = 2;

@@ -52,7 +52,7 @@ async fn database_test_inner() {
 
     let result = collection
         .get(CollectionGetOptions {
-            key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
+            key: OwnedCollectionKey::from_boxed_slice(b"test".to_vec().into_boxed_slice()).unwrap(),
             generation_id: None,
             phantom_id: None,
         })
@@ -62,15 +62,13 @@ async fn database_test_inner() {
     let result = result.unwrap();
     assert!(result.item.is_none());
     let initial_generation_id = result.generation_id;
-    assert_eq!(
-        &initial_generation_id,
-        &OwnedGenerationId(vec![0; 64].into_boxed_slice())
-    );
+    assert_eq!(&initial_generation_id, &OwnedGenerationId::zero_64bits());
 
     let result = collection
         .put(CollectionPutOptions {
             update: KeyValueUpdate {
-                key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
+                key: OwnedCollectionKey::from_boxed_slice(b"test".to_vec().into_boxed_slice())
+                    .unwrap(),
                 value: Option::Some(OwnedCollectionValue::new(b"passed")),
                 if_not_present: true,
             },
@@ -114,12 +112,14 @@ async fn database_test_inner() {
         .put_many(CollectionPutManyOptions {
             items: vec![
                 KeyValueUpdate {
-                    key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
+                    key: OwnedCollectionKey::from_boxed_slice(b"test".to_vec().into_boxed_slice())
+                        .unwrap(),
                     value: Option::Some(OwnedCollectionValue::new(b"passed3")),
                     if_not_present: true,
                 },
                 KeyValueUpdate {
-                    key: OwnedCollectionKey(b"test2".to_vec().into_boxed_slice()),
+                    key: OwnedCollectionKey::from_boxed_slice(b"test2".to_vec().into_boxed_slice())
+                        .unwrap(),
                     value: Option::Some(OwnedCollectionValue::new(b"passed again")),
                     if_not_present: true,
                 },
@@ -141,7 +141,8 @@ async fn database_test_inner() {
     )
     .await;
 
-    let commit_generation_id = OwnedGenerationId(b"first".to_vec().into_boxed_slice());
+    let commit_generation_id =
+        OwnedGenerationId::from_boxed_slice(b"first".to_vec().into_boxed_slice()).unwrap();
 
     let result = manual_collection
         .start_generation(StartGenerationOptions {
@@ -155,11 +156,14 @@ async fn database_test_inner() {
     let result = manual_collection
         .put(CollectionPutOptions {
             update: KeyValueUpdate {
-                key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
+                key: OwnedCollectionKey::from_boxed_slice(b"test".to_vec().into_boxed_slice())
+                    .unwrap(),
                 value: Option::Some(OwnedCollectionValue::new(b"manual passed")),
                 if_not_present: true,
             },
-            generation_id: Some(OwnedGenerationId(b"first".to_vec().into_boxed_slice())),
+            generation_id: Some(
+                OwnedGenerationId::from_boxed_slice(b"first".to_vec().into_boxed_slice()).unwrap(),
+            ),
             phantom_id: None,
         })
         .await;
@@ -180,7 +184,7 @@ async fn database_test_inner() {
 
     let _result = manual_collection
         .get(CollectionGetOptions {
-            key: OwnedCollectionKey(b"test".to_vec().into_boxed_slice()),
+            key: OwnedCollectionKey::from_boxed_slice(b"test".to_vec().into_boxed_slice()).unwrap(),
             generation_id: None,
             phantom_id: None,
         })
@@ -203,7 +207,7 @@ async fn assert_get(
 ) {
     let result = collection
         .get(CollectionGetOptions {
-            key: OwnedCollectionKey(key.into()),
+            key: OwnedCollectionKey::from_boxed_slice(key.into()).unwrap(),
             generation_id: None,
             phantom_id: None,
         })

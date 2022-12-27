@@ -32,7 +32,10 @@ async fn readers_test_inner() {
     let result = collection
         .update_reader(UpdateReaderOptions {
             reader_id: "not_exists".to_string(),
-            generation_id: Some(OwnedGenerationId(b"some_gen".to_vec().into_boxed_slice())),
+            generation_id: Some(
+                OwnedGenerationId::from_boxed_slice(b"some_gen".to_vec().into_boxed_slice())
+                    .unwrap(),
+            ),
         })
         .await;
     assert!(result.is_err());
@@ -80,7 +83,10 @@ async fn readers_test_inner() {
     let result = collection
         .update_reader(UpdateReaderOptions {
             reader_id: "first".to_string(),
-            generation_id: Some(OwnedGenerationId(b"some_gen".to_vec().into_boxed_slice())),
+            generation_id: Some(
+                OwnedGenerationId::from_boxed_slice(b"some_gen".to_vec().into_boxed_slice())
+                    .unwrap(),
+            ),
         })
         .await;
     assert!(result.is_ok());
@@ -88,9 +94,10 @@ async fn readers_test_inner() {
     let result = collection
         .update_reader(UpdateReaderOptions {
             reader_id: "second".to_string(),
-            generation_id: Some(OwnedGenerationId(
-                b"another_gen".to_vec().into_boxed_slice(),
-            )),
+            generation_id: Some(
+                OwnedGenerationId::from_boxed_slice(b"another_gen".to_vec().into_boxed_slice())
+                    .unwrap(),
+            ),
         })
         .await;
     assert!(result.is_ok());
@@ -105,14 +112,18 @@ async fn readers_test_inner() {
         ReaderRecord {
             reader_id: "first".to_string(),
             collection_id: Some("other_collection".to_string()),
-            generation_id: Some(OwnedGenerationId(b"some_gen".to_vec().into_boxed_slice())),
+            generation_id: Some(
+                OwnedGenerationId::from_boxed_slice(b"some_gen".to_vec().into_boxed_slice())
+                    .unwrap(),
+            ),
         },
         ReaderRecord {
             reader_id: "second".to_string(),
             collection_id: None,
-            generation_id: Some(OwnedGenerationId(
-                b"another_gen".to_vec().into_boxed_slice(),
-            )),
+            generation_id: Some(
+                OwnedGenerationId::from_boxed_slice(b"another_gen".to_vec().into_boxed_slice())
+                    .unwrap(),
+            ),
         },
     ];
 

@@ -1,3 +1,6 @@
+use crate::common::constants::{
+    MAX_COLLECTION_KEY_LENGTH, MAX_GENERATION_ID_LENGTH, MAX_PHANTOM_ID_LENGTH,
+};
 use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::util::bytes::{read_u24, write_u24};
 use std::ops::Range;
@@ -38,17 +41,20 @@ impl OwnedParsedRecordKey {
 
     pub fn get_parsed(&self) -> ParsedRecordKey<'_> {
         ParsedRecordKey {
-            collection_key: CollectionKey(by_range(&self.bytes, &self.collection_key)),
-            generation_id: GenerationId(by_range(&self.bytes, &self.generation_id)),
+            collection_key: CollectionKey::new_unchecked(by_range(
+                &self.bytes,
+                &self.collection_key,
+            )),
+            generation_id: GenerationId::new_unchecked(by_range(&self.bytes, &self.generation_id)),
             phantom_id: self
                 .phantom_id
                 .as_ref()
-                .map(|range| PhantomId(by_range(&self.bytes, range))),
+                .map(|range| PhantomId::new_unchecked(by_range(&self.bytes, range))),
         }
     }
 
     pub fn get_collection_key(&self) -> CollectionKey<'_> {
-        CollectionKey(by_range(&self.bytes, &self.collection_key))
+        CollectionKey::new_unchecked(by_range(&self.bytes, &self.collection_key))
     }
 }
 
@@ -89,9 +95,6 @@ impl IsByteArray for OwnedRecordKey {
     1 -- size of phantomId
 */
 const MIN_RECORD_KEY_LENGTH: usize = 1 + 3 + 1 + 1;
-const MAX_KEY_LENGTH: usize = (2 as usize).pow(24) - 1;
-const MAX_GENERATION_ID_LENGTH: usize = 255;
-const MAX_PHANTOM_ID_LENGTH: usize = 255;
 
 impl<'a> RecordKey<'a> {
     pub fn is_valid(bytes: &'a [u8]) -> bool {
@@ -135,7 +138,7 @@ impl<'a> RecordKey<'a> {
 
     pub fn get_collection_key(&self) -> CollectionKey {
         let size = read_u24(self.value, 1) as usize;
-        CollectionKey(&self.value[4..(4 + size)])
+        CollectionKey::new_unchecked(&self.value[4..(4 + size)])
     }
 
     pub fn get_generation_id(&self) -> GenerationId {
@@ -143,7 +146,7 @@ impl<'a> RecordKey<'a> {
         let mut offset = 4 + key_size;
         let size = self.value[offset] as usize;
         offset += 1;
-        GenerationId(&self.value[offset..(offset + size)])
+        GenerationId::new_unchecked(&self.value[offset..(offset + size)])
     }
 
     pub fn get_phantom_id(&self) -> PhantomId {
@@ -153,7 +156,7 @@ impl<'a> RecordKey<'a> {
         offset += 1 + generation_id_size;
         let size = self.value[offset] as usize;
         offset += 1;
-        PhantomId(&self.value[offset..(offset + size)])
+        PhantomId::new_unchecked(&self.value[offset..(offset + size)])
     }
 
     fn parse_to_ranges(&self) -> (Range<usize>, Range<usize>, Option<Range<usize>>) {
@@ -182,9 +185,9 @@ impl<'a> RecordKey<'a> {
     pub fn parse(&self) -> ParsedRecordKey<'a> {
         let (collection_key, generation_id, phantom_id) = self.parse_to_ranges();
 
-        let collection_key = CollectionKey(&self.value[collection_key]);
-        let generation_id = GenerationId(&self.value[generation_id]);
-        let phantom_id = phantom_id.map(|range| PhantomId(&self.value[range]));
+        let collection_key = CollectionKey::new_unchecked(&self.value[collection_key]);
+        let generation_id = GenerationId::new_unchecked(&self.value[generation_id]);
+        let phantom_id = phantom_id.map(|range| PhantomId::new_unchecked(&self.value[range]));
 
         ParsedRecordKey {
             collection_key,
@@ -214,7 +217,7 @@ impl OwnedRecordKey {
         let generation_id_bytes = generation_id.get_byte_array();
         let phantom_id_bytes = phantom_id.get_byte_array();
 
-        if key_bytes.len() > MAX_KEY_LENGTH
+        if key_bytes.len() > MAX_COLLECTION_KEY_LENGTH
             || generation_id_bytes.len() > MAX_GENERATION_ID_LENGTH
             || phantom_id_bytes.len() > MAX_PHANTOM_ID_LENGTH
         {
@@ -280,7 +283,7 @@ impl OwnedRecordKey {
 
     pub fn get_collection_key(&self) -> CollectionKey<'_> {
         let size = read_u24(&self.value, 1) as usize;
-        CollectionKey(&self.value[4..(4 + size)])
+        CollectionKey::new_unchecked(&self.value[4..(4 + size)])
     }
 
     pub fn get_collection_key_bytes_mut(&mut self) -> &mut [u8] {
@@ -300,9 +303,13 @@ mod tests {
 
     #[test]
     fn test_create_record_key() {
-        let key = OwnedCollectionKey(vec![1, 2, 3, 4, 5, 6, 7].into_boxed_slice());
-        let generation_id = OwnedGenerationId(vec![8, 0, 2].into_boxed_slice());
-        let phantom_id = OwnedPhantomId(vec![8, 2, 5, 1, 1].into_boxed_slice());
+        let key =
+            OwnedCollectionKey::from_boxed_slice(vec![1, 2, 3, 4, 5, 6, 7].into_boxed_slice())
+                .unwrap();
+        let generation_id =
+            OwnedGenerationId::from_boxed_slice(vec![8, 0, 2].into_boxed_slice()).unwrap();
+        let phantom_id =
+            OwnedPhantomId::from_boxed_slice(vec![8, 2, 5, 1, 1].into_boxed_slice()).unwrap();
 
         let record_key =
             OwnedRecordKey::new(key.as_ref(), generation_id.as_ref(), phantom_id.as_ref());

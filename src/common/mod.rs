@@ -1,28 +1,32 @@
-use crate::collection::util::record_flags::RecordFlags;
+use crate::collection::util::existing_value_flags::ExistingValueFlags;
+use crate::common::constants::{
+    MAX_COLLECTION_KEY_LENGTH, MAX_GENERATION_ID_LENGTH, MAX_PHANTOM_ID_LENGTH,
+};
 use crate::util::bytes::increment;
 use std::cmp::Ordering;
 
+pub mod constants;
 pub mod generation_id;
 pub mod reader;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct OwnedCollectionKey(pub Box<[u8]>);
+pub struct OwnedCollectionKey(Box<[u8]>);
 #[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Debug)]
-pub struct CollectionKey<'a>(pub &'a [u8]);
+pub struct CollectionKey<'a>(&'a [u8]);
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct OwnedCollectionValue(Box<[u8]>);
-pub struct CollectionValue<'a>(pub &'a [u8]);
+pub struct CollectionValue<'a>(&'a [u8]);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
-pub struct OwnedGenerationId(pub Box<[u8]>);
+pub struct OwnedGenerationId(Box<[u8]>);
 #[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Debug)]
-pub struct GenerationId<'a>(pub &'a [u8]);
+pub struct GenerationId<'a>(&'a [u8]);
 
 #[derive(Clone)]
-pub struct OwnedPhantomId(pub Box<[u8]>);
+pub struct OwnedPhantomId(Box<[u8]>);
 #[derive(Copy, Clone)]
-pub struct PhantomId<'a>(pub &'a [u8]);
+pub struct PhantomId<'a>(&'a [u8]);
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct KeyValue {
@@ -46,11 +50,18 @@ pub struct KeyValueUpdate {
 }
 
 impl OwnedGenerationId {
-    pub fn from_boxed_slice(bytes: Box<[u8]>) -> Self {
-        Self(bytes)
+    pub fn from_boxed_slice(bytes: Box<[u8]>) -> Result<Self, ()> {
+        if bytes.len() > MAX_GENERATION_ID_LENGTH {
+            return Err(());
+        }
+
+        Ok(Self(bytes))
     }
     pub fn empty() -> Self {
         Self(Box::from([]))
+    }
+    pub fn zero_64bits() -> Self {
+        Self(vec![0; 64].into_boxed_slice())
     }
 
     pub fn increment(&mut self) {
@@ -63,7 +74,18 @@ impl OwnedGenerationId {
         self.0 = other.0
     }
 }
-impl GenerationId<'_> {
+impl<'a> GenerationId<'a> {
+    pub fn new_unchecked(bytes: &'a [u8]) -> Self {
+        Self(bytes)
+    }
+    pub fn validate(bytes: &'a [u8]) -> Result<Self, ()> {
+        if bytes.len() > MAX_GENERATION_ID_LENGTH {
+            return Err(());
+        }
+
+        Ok(Self(bytes))
+    }
+
     pub fn empty() -> Self {
         GenerationId(b"")
     }
@@ -120,6 +142,13 @@ impl<'a> From<GenerationId<'a>> for &'a [u8] {
 }
 
 impl OwnedCollectionKey {
+    pub fn from_boxed_slice(bytes: Box<[u8]>) -> Result<Self, ()> {
+        if bytes.len() > MAX_COLLECTION_KEY_LENGTH {
+            return Err(());
+        }
+
+        Ok(Self(bytes))
+    }
     pub fn empty() -> Self {
         Self(vec![].into_boxed_slice())
     }
@@ -127,7 +156,17 @@ impl OwnedCollectionKey {
         CollectionKey(&self.0)
     }
 }
-impl CollectionKey<'_> {
+impl<'a> CollectionKey<'a> {
+    pub fn new_unchecked(bytes: &'a [u8]) -> Self {
+        Self(bytes)
+    }
+    pub fn validate(bytes: &'a [u8]) -> Result<Self, ()> {
+        if bytes.len() > MAX_COLLECTION_KEY_LENGTH {
+            return Err(());
+        }
+
+        Ok(Self(bytes))
+    }
     pub fn empty() -> Self {
         Self(b"")
     }
@@ -162,11 +201,11 @@ impl OwnedCollectionValue {
     // Value is prepended with single byte to allow to store empty strings
     pub fn new(bytes: &[u8]) -> Self {
         let mut vec = Vec::with_capacity(bytes.len() + 1);
-        vec.push(RecordFlags::new().get_byte());
+        vec.push(ExistingValueFlags::new().get_byte());
         vec.extend_from_slice(bytes);
         Self(vec.into_boxed_slice())
     }
-    pub fn new_flags(bytes: &[u8], flags: RecordFlags) -> Self {
+    pub fn new_flags(bytes: &[u8], flags: ExistingValueFlags) -> Self {
         let mut vec = Vec::with_capacity(bytes.len() + 1);
         vec.push(flags.get_byte());
         vec.extend_from_slice(bytes);
@@ -217,6 +256,13 @@ impl IsByteArrayMut<'_> for OwnedCollectionValue {
 }
 
 impl OwnedPhantomId {
+    pub fn from_boxed_slice(bytes: Box<[u8]>) -> Result<Self, ()> {
+        if bytes.len() > MAX_PHANTOM_ID_LENGTH {
+            return Err(());
+        }
+
+        Ok(Self(bytes))
+    }
     pub fn empty() -> Self {
         Self(vec![].into_boxed_slice())
     }
@@ -230,7 +276,17 @@ impl OwnedPhantomId {
         }
     }
 }
-impl PhantomId<'_> {
+impl<'a> PhantomId<'a> {
+    pub fn new_unchecked(bytes: &'a [u8]) -> Self {
+        Self(bytes)
+    }
+    pub fn validate(bytes: &'a [u8]) -> Result<Self, ()> {
+        if bytes.len() > MAX_PHANTOM_ID_LENGTH {
+            return Err(());
+        }
+
+        Ok(Self(bytes))
+    }
     pub fn empty() -> Self {
         Self(b"")
     }

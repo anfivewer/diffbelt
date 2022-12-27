@@ -30,6 +30,7 @@ pub enum RawDbError {
     InvalidRecordKey,
     InvalidGenerationKey,
     InvalidReaderValue,
+    InvalidGenerationId,
     UpdateReader,
     NoSuchReader,
     CursorDidNotFoundRecord,

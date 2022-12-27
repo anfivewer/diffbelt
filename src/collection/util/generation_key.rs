@@ -73,12 +73,12 @@ impl<'a> GenerationKey<'a> {
         let mut offset = 2 + generation_id_size;
         let size = read_u24(self.value, offset) as usize;
         offset += 3;
-        CollectionKey(&self.value[offset..(offset + size)])
+        CollectionKey::new_unchecked(&self.value[offset..(offset + size)])
     }
 
     pub fn get_generation_id(&self) -> GenerationId {
         let size = self.value[1] as usize;
-        GenerationId(&self.value[2..(2 + size)])
+        GenerationId::new_unchecked(&self.value[2..(2 + size)])
     }
 }
 
@@ -135,8 +135,11 @@ mod tests {
 
     #[test]
     fn test_create_generation_key() {
-        let key = OwnedCollectionKey(vec![1, 2, 3, 4, 5, 6, 7].into_boxed_slice());
-        let generation_id = OwnedGenerationId(vec![8, 0, 2].into_boxed_slice());
+        let key =
+            OwnedCollectionKey::from_boxed_slice(vec![1, 2, 3, 4, 5, 6, 7].into_boxed_slice())
+                .unwrap();
+        let generation_id =
+            OwnedGenerationId::from_boxed_slice(vec![8, 0, 2].into_boxed_slice()).unwrap();
 
         let generation_key = OwnedGenerationKey::new(generation_id.as_ref(), key.as_ref());
         assert_eq!(generation_key.is_ok(), true);

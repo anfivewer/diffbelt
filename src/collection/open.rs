@@ -37,6 +37,7 @@ pub enum CollectionOpenError {
     ManualModeMissmatch,
     KeyCreation,
     DbContainsInvalidKeys,
+    InvalidGenerationId,
 }
 
 impl From<RawDbOpenError> for CollectionOpenError {
@@ -134,27 +135,31 @@ impl Collection {
 
         let generation_id_stored = meta_raw_db.get(b"generation_id").await?;
         let generation_id = match generation_id_stored {
-            Some(generation_id) => OwnedGenerationId(generation_id),
+            Some(generation_id) => OwnedGenerationId::from_boxed_slice(generation_id)
+                .or(Err(CollectionOpenError::InvalidGenerationId))?,
             None => {
                 if is_manual {
                     meta_raw_db
                         .put(b"generation_id", &vec![].into_boxed_slice())
                         .await?;
 
-                    OwnedGenerationId(vec![].into_boxed_slice())
+                    OwnedGenerationId::empty()
                 } else {
                     meta_raw_db
                         .put(b"generation_id", &vec![0; 64].into_boxed_slice())
                         .await?;
 
-                    OwnedGenerationId(vec![0; 64].into_boxed_slice())
+                    OwnedGenerationId::zero_64bits()
                 }
             }
         };
 
         let next_generation_id_stored = meta_raw_db.get(b"next_generation_id").await?;
         let next_generation_id = match next_generation_id_stored {
-            Some(next_generation_id) => Some(OwnedGenerationId(next_generation_id)),
+            Some(next_generation_id) => Some(
+                OwnedGenerationId::from_boxed_slice(next_generation_id)
+                    .or(Err(CollectionOpenError::InvalidGenerationId))?,
+            ),
             None => {
                 if is_manual {
                     None

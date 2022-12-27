@@ -54,7 +54,7 @@ impl<'a> ReaderValue<'a> {
 
         let bytes = &self.0[(2 + collection_id_len)..];
 
-        GenerationId(bytes)
+        GenerationId::new_unchecked(bytes)
     }
 
     pub fn from_slice(bytes: &'a [u8]) -> Result<Self, ()> {
