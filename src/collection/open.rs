@@ -211,7 +211,7 @@ impl Collection {
             generation_id_receiver,
             generation_id: Arc::new(RwLock::new(generation_id)),
             next_generation_id: Arc::new(RwLock::new(next_generation_id)),
-            if_not_present_writes: std::sync::RwLock::new(HashMap::new()),
+            if_not_present_writes: Arc::new(RwLock::new(HashMap::new())),
             database_inner: options.database_inner,
             newgen,
             on_put_sender,

@@ -1,7 +1,9 @@
 use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::request::HyperRequestWrapped;
-use crate::http::routing::response::{BaseResponse, Response as ResponseByRoute, StringResponse};
+use crate::http::routing::response::{
+    BaseResponse, BytesVecResponse, Response as ResponseByRoute, StringResponse,
+};
 use crate::http::routing::StaticRouteOptions;
 use hyper::http::HeaderValue;
 use hyper::service::{make_service_fn, service_fn};
@@ -41,20 +43,34 @@ async fn handle_request(
     .await?;
 
     match result {
-        ResponseByRoute::String(StringResponse {
-            base: BaseResponse { status },
-            str,
-        }) => {
+        ResponseByRoute::String(StringResponse { base, str }) => {
             let mut response = Response::new(str.into());
-
-            let status_code = StatusCode::from_u16(status)
-                .or(Err(HttpError::PublicInternal500("status_code")))?;
-
-            *response.status_mut() = status_code;
-
+            init_response(&mut response, &base)?;
+            Ok(response)
+        }
+        ResponseByRoute::BytesVec(BytesVecResponse { base, bytes }) => {
+            let mut response = Response::new(bytes.into());
+            init_response(&mut response, &base)?;
             Ok(response)
         }
     }
+}
+
+fn init_response(response: &mut Response<Body>, base: &BaseResponse) -> Result<(), HttpError> {
+    let BaseResponse {
+        status,
+        content_type,
+    } = base;
+
+    let status_code =
+        StatusCode::from_u16(*status).or(Err(HttpError::PublicInternal500("status_code")))?;
+
+    *response.status_mut() = status_code;
+
+    let headers = response.headers_mut();
+    headers.insert("Content-Type", content_type.parse().unwrap());
+
+    Ok(())
 }
 
 pub async fn start_http_server(context: Arc<Context>) {
@@ -75,6 +91,10 @@ pub async fn start_http_server(context: Arc<Context>) {
                         let mut is_json = true;
 
                         let (status_code, body): (StatusCode, Body) = match err {
+                            HttpError::Unspecified => (
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                "{\"error\":\"500\"}".into(),
+                            ),
                             HttpError::NotFound => {
                                 (StatusCode::NOT_FOUND, "{\"error\":\"404\"}".into())
                             }
@@ -87,6 +107,17 @@ pub async fn start_http_server(context: Arc<Context>) {
                                 )
                                 .into(),
                             ),
+                            HttpError::GenericString400(reason) => {
+                                is_json = false;
+                                (
+                                    StatusCode::BAD_REQUEST,
+                                    format!(
+                                        "{{\"error\":\"400\",\"reason\":{}}}",
+                                        serde_json::json!(reason).to_string()
+                                    )
+                                    .into(),
+                                )
+                            }
                             HttpError::TooBigPayload(max_size) => (
                                 StatusCode::PAYLOAD_TOO_LARGE,
                                 format!("{{\"error\":\"413\",\"bytesMax\":{}}}", max_size).into(),

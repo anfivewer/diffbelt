@@ -28,7 +28,7 @@ pub struct Collection {
     generation_id_receiver: watch::Receiver<OwnedGenerationId>,
     generation_id: Arc<RwLock<OwnedGenerationId>>,
     next_generation_id: Arc<RwLock<Option<OwnedGenerationId>>>,
-    if_not_present_writes: std::sync::RwLock<HashMap<OwnedRecordKey, ConcurrentPutStatus>>,
+    if_not_present_writes: Arc<RwLock<HashMap<OwnedRecordKey, ConcurrentPutStatus>>>,
     database_inner: Arc<DatabaseInner>,
     // Not defined for manual collections
     newgen: Option<NewGenerationCommiter>,

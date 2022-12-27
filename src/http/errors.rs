@@ -3,6 +3,7 @@ pub enum HttpError {
     NotFound,
     Unspecified,
     Generic400(&'static str),
+    GenericString400(String),
     /** max_size */
     TooBigPayload(usize),
     InvalidJson,

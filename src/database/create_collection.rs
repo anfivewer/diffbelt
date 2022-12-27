@@ -22,6 +22,13 @@ pub enum CreateCollectionError {
 const PREFIX: &[u8] = b"collection:";
 
 impl Database {
+    pub async fn get_collection(&self, id: &str) -> Option<Arc<Collection>> {
+        let collections_lock = self.collections.read().unwrap();
+        let collection = collections_lock.get(id);
+
+        collection.map(|collection| collection.clone())
+    }
+
     pub async fn get_or_create_collection(
         &self,
         id: &str,

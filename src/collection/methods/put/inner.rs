@@ -1,5 +1,7 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use crate::collection::if_not_present::{ConcurrentPutStatus, CuncurrentPutStatusProgress};
 use crate::collection::methods::errors::CollectionMethodError;
@@ -9,6 +11,7 @@ use crate::collection::Collection;
 use crate::common::{GenerationId, KeyValueUpdate, NeverEq, PhantomId};
 use crate::raw_db::contains_existing_collection_record::ContainsExistingCollectionRecordOptions;
 use crate::util::bytes::is_byte_array_equal_both_opt;
+use crate::util::tokio::spawn;
 
 pub struct ValidatePutOptions<'a> {
     pub is_manual_collection: bool,
@@ -88,7 +91,7 @@ impl Collection {
         if update.if_not_present {
             // Check hashmap of current puts or take a put lock
             let result = handle_if_not_present(
-                &self.if_not_present_writes,
+                self.if_not_present_writes.clone(),
                 record_key.clone(),
                 record_generation_id,
             )
@@ -157,20 +160,20 @@ pub enum HandleIfNotPresentResolve<'a> {
     Err,
 }
 
-pub type ResolvePutFn<'a> = Box<dyn FnOnce(HandleIfNotPresentResolve<'_>) -> () + 'a>;
+pub type ResolvePutFn<'a> = Box<dyn FnOnce(HandleIfNotPresentResolve<'_>) -> () + Send + 'a>;
 
 enum HandleIfNotPresentResult<'a> {
     Return(CollectionPutResult),
     NeedPut(ResolvePutFn<'a>),
 }
 
-async fn handle_if_not_present<'a>(
-    rw_hash: &'a std::sync::RwLock<HashMap<OwnedRecordKey, ConcurrentPutStatus>>,
+async fn handle_if_not_present(
+    rw_hash: Arc<RwLock<HashMap<OwnedRecordKey, ConcurrentPutStatus>>>,
     key: OwnedRecordKey,
-    generation_id: GenerationId<'a>,
-) -> HandleIfNotPresentResult<'a> {
+    generation_id: GenerationId<'_>,
+) -> HandleIfNotPresentResult {
     'outer: loop {
-        let mut keys = rw_hash.write().unwrap();
+        let mut keys = rw_hash.write().await;
 
         let value = keys.get(&key);
 
@@ -230,11 +233,9 @@ async fn handle_if_not_present<'a>(
 
                 keys.insert(key.clone(), ConcurrentPutStatus::InProgress(receiver));
 
-                return HandleIfNotPresentResult::NeedPut(Box::new(move |resolution| {
-                    let mut keys = rw_hash.write().unwrap();
-                    keys.remove(&key);
-                    drop(keys);
+                let rw_hash = rw_hash.clone();
 
+                return HandleIfNotPresentResult::NeedPut(Box::new(move |resolution| {
                     let value_to_send = match resolution {
                         HandleIfNotPresentResolve::WasPut => {
                             CuncurrentPutStatusProgress::WasPut(generation_id.to_owned())
@@ -245,7 +246,13 @@ async fn handle_if_not_present<'a>(
                         HandleIfNotPresentResolve::Err => CuncurrentPutStatusProgress::Err,
                     };
 
-                    sender.send_replace(value_to_send);
+                    spawn(async move {
+                        let mut keys = rw_hash.write().await;
+                        keys.remove(&key);
+                        drop(keys);
+
+                        sender.send_replace(value_to_send);
+                    });
                 }));
             }
         }
