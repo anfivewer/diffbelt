@@ -1,13 +1,13 @@
-use crate::http::routing::{IntoFullBodyAsReadReturn, Request as RoutingRequest, RequestReadError};
-use futures::future::BoxFuture;
 use hyper::body::{Buf, Bytes, HttpBody};
-use hyper::{Body, Request};
+use hyper::{Body, Request as HyperRequest};
+pub use request_trait::*;
 use std::collections::VecDeque;
 
 mod full_read;
+mod request_trait;
 
-pub struct HyperRequest {
-    inner: Request<Body>,
+pub struct HyperRequestWrapped {
+    inner: HyperRequest<Body>,
 }
 
 pub struct HyperBody {
@@ -19,13 +19,13 @@ pub struct FullBody {
     offset: usize,
 }
 
-impl HyperRequest {
-    pub fn from(request: Request<Body>) -> Self {
+impl HyperRequestWrapped {
+    pub fn from(request: HyperRequest<Body>) -> Self {
         Self { inner: request }
     }
 }
 
-impl RoutingRequest for HyperRequest {
+impl Request for HyperRequestWrapped {
     fn method(&self) -> &str {
         self.inner.method().as_str()
     }
@@ -95,7 +95,7 @@ impl RoutingRequest for HyperRequest {
 
             let full = FullBody { bufs, offset: 0 };
 
-            Ok(Box::new(full) as Box<dyn std::io::Read>)
+            Ok(full)
         })
     }
 }

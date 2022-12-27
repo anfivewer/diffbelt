@@ -5,7 +5,7 @@ use futures::future::BoxFuture;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::http::request::HyperRequest;
+use crate::http::request::HyperRequestWrapped;
 
 pub mod register_routes;
 pub mod response;
@@ -13,7 +13,7 @@ mod routes;
 
 pub struct StaticRouteOptions {
     pub context: Arc<Context>,
-    pub request: HyperRequest,
+    pub request: HyperRequestWrapped,
 }
 
 pub type StaticRouteFnResult = BoxFuture<'static, Result<Response, HttpError>>;
@@ -35,26 +35,4 @@ impl Routing {
         self.static_get_routes
             .insert(path.to_string(), Box::new(handler));
     }
-}
-
-pub enum RequestReadError {
-    IO,
-    SizeLimit,
-}
-
-pub type IntoFullBodyAsReadReturn = BoxFuture<'static, Result<Box<dyn std::io::Read>, RequestReadError>>;
-
-pub trait Request {
-    fn method(&self) -> &str;
-    fn get_header(&self, name: &str) -> Option<&str>;
-    fn reduce_multi_header<R, F: FnMut(R, &str) -> R>(
-        &self,
-        name: &str,
-        reducer: F,
-        initial: R,
-    ) -> R;
-    fn into_full_body_as_read(
-        self,
-        max_size: usize,
-    ) -> IntoFullBodyAsReadReturn;
 }

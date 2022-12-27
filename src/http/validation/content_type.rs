@@ -1,7 +1,6 @@
 use crate::http::errors::HttpError;
-use crate::http::routing::Request;
-use rand::distributions::Uniform;
-use rand::Rng;
+use crate::http::request::Request;
+
 use regex::Regex;
 use regex::RegexBuilder;
 

@@ -1,5 +1,5 @@
 use crate::http::errors::HttpError;
-use crate::http::routing::Request;
+use crate::http::request::Request;
 
 pub trait MethodsValidation: Request {
     fn allow_only_methods(&self, methods: &[&str]) -> Result<(), HttpError>;

@@ -1,9 +1,10 @@
 use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::routing::response::{Response, StringResponse};
-use crate::http::routing::{Request, RequestReadError, StaticRouteFnResult, StaticRouteOptions};
+use crate::http::routing::{StaticRouteFnResult, StaticRouteOptions};
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
-use hyper::Body;
+
+use crate::http::request::{Request, RequestReadError};
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]

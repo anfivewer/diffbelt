@@ -1,6 +1,6 @@
 use crate::context::Context;
 use crate::http::errors::HttpError;
-use crate::http::request::HyperRequest;
+use crate::http::request::HyperRequestWrapped;
 use crate::http::routing::response::{BaseResponse, Response as ResponseByRoute, StringResponse};
 use crate::http::routing::StaticRouteOptions;
 use hyper::http::HeaderValue;
@@ -32,7 +32,7 @@ async fn handle_request(
         Some(static_route) => static_route,
     };
 
-    let request = HyperRequest::from(req);
+    let request = HyperRequestWrapped::from(req);
 
     let result = static_route(StaticRouteOptions {
         context: context.clone(),

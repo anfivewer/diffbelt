@@ -1,6 +1,5 @@
 use crate::http::request::FullBody;
 use std::io::Read;
-use std::ops::Deref;
 
 // Implemented for Serde, but maybe we can do it with zero-copy somehow
 impl Read for FullBody {
@@ -49,6 +48,7 @@ impl Read for FullBody {
 
             result_offset += size_left_in_current_buf;
             bytes_written += size_left_in_current_buf;
+            result_bytes_left -= size_left_in_current_buf;
 
             bufs.pop_front();
             *offset = 0;
