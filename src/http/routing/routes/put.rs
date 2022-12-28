@@ -9,9 +9,13 @@ use crate::common::{
     IsByteArray, KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId,
     OwnedPhantomId,
 };
-use crate::http::request::{Request, RequestReadError};
+use crate::http::constants::PUT_REQUEST_MAX_BYTES;
+
+use crate::http::util::encoding::StringDecoder;
+use crate::http::util::read_body::read_limited_body;
+use crate::http::util::read_json::read_json;
 use crate::util::json::serde::deserialize_strict_null;
-use crate::util::option::lift_result_from_option;
+
 use crate::util::str_serialization::StrSerializationType;
 use serde::{Deserialize, Serialize};
 
@@ -21,28 +25,20 @@ struct PutRequestJsonData {
     collection_id: String,
 
     key: String,
-    #[serde(default)]
     key_encoding: Option<String>,
-    #[serde(default)]
     if_not_present: Option<bool>,
 
     #[serde(deserialize_with = "deserialize_strict_null")]
     value: Option<String>,
-    #[serde(default)]
     value_encoding: Option<String>,
 
-    #[serde(default)]
     generation_id: Option<String>,
-    #[serde(default)]
     generation_id_encoding: Option<String>,
 
-    #[serde(default)]
     phantom_id: Option<String>,
-    #[serde(default)]
     phantom_id_encoding: Option<String>,
 
     // Default encoding for all fields
-    #[serde(default)]
     encoding: Option<String>,
 }
 
@@ -54,8 +50,6 @@ struct PutResponseJsonData {
     was_put: Option<bool>,
 }
 
-const MAX_SIZE: usize = 4 * 1024 * 1024;
-
 fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
     Box::pin(async move {
         let context = options.context;
@@ -64,80 +58,73 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
         request.allow_only_methods(&["POST"])?;
         request.allow_only_utf8_json_by_default()?;
 
-        let body = request
-            .into_full_body_as_read(MAX_SIZE)
-            .await
-            .map_err(|err| match err {
-                RequestReadError::IO => HttpError::Generic400("io"),
-                RequestReadError::SizeLimit => HttpError::TooBigPayload(MAX_SIZE),
-            })?;
-
-        let data: PutRequestJsonData =
-            serde_json::from_reader(body).or(Err(HttpError::InvalidJson))?;
+        let body = read_limited_body(request, PUT_REQUEST_MAX_BYTES).await?;
+        let data: PutRequestJsonData = read_json(body)?;
 
         let collection_id = data.collection_id;
 
         let collection = context.database.get_collection(&collection_id).await;
         let Some(collection) = collection else { return Err(HttpError::Generic400("no such collection")); };
 
-        let default_encoding_type =
-            into_encoding_or_err("encoding", data.encoding, StrSerializationType::Utf8)?;
-        let key_encoding_type =
-            into_encoding_or_err("keyEncoding", data.key_encoding, default_encoding_type)?;
-        let value_encoding_type =
-            into_encoding_or_err("valueEncoding", data.value_encoding, default_encoding_type)?;
-        let generation_id_encoding_type = into_encoding_or_err(
-            "generationIdEncoding",
-            data.generation_id_encoding,
-            default_encoding_type,
+        let decoder = StringDecoder::from_default_encoding_string("encoding", data.encoding)?;
+
+        let key = decoder.decode_field_with_map(
+            "key",
+            data.key,
+            "keyEncoding",
+            data.key_encoding,
+            |bytes| {
+                OwnedCollectionKey::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
+                    "invalid key, length should be <= 16777215",
+                )))
+            },
         )?;
-        let phantom_id_encoding_type = into_encoding_or_err(
+
+        let value = decoder.decode_opt_field_with_map(
+            "value",
+            data.value,
+            "valueEncoding",
+            data.value_encoding,
+            |bytes| Ok(OwnedCollectionValue::new(&bytes)),
+        )?;
+
+        let (generation_id, generation_id_encoding_type) = decoder
+            .decode_opt_field_with_map_and_type(
+                "generationId",
+                data.generation_id,
+                "generationIdEncoding",
+                data.generation_id_encoding,
+                |bytes| {
+                    OwnedGenerationId::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
+                        "invalid generationId, length should be <= 255",
+                    )))
+                },
+            )?;
+
+        let phantom_id = decoder.decode_opt_field_with_map(
+            "phantomId",
+            data.phantom_id,
             "phantomIdEncoding",
             data.phantom_id_encoding,
-            default_encoding_type,
+            |bytes| {
+                if bytes.is_empty() {
+                    return Err(HttpError::Generic400(
+                        "invalid phantomId, it cannot be empty",
+                    ));
+                }
+
+                OwnedPhantomId::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
+                    "invalid phantomId, length should be <= 255",
+                )))
+            },
         )?;
 
         let if_not_present = data.if_not_present.unwrap_or(false);
 
-        let key = into_decoded_value("key", data.key, key_encoding_type)?;
-        let value = lift_result_from_option(
-            data.value
-                .map(|value| into_decoded_value("value", value, value_encoding_type)),
-        )?;
-
-        let generation_id =
-            lift_result_from_option(data.generation_id.map(|value| {
-                into_decoded_value("generationId", value, generation_id_encoding_type)
-            }))?;
-        let generation_id = lift_result_from_option(
-            generation_id.map(|id| OwnedGenerationId::from_boxed_slice(id)),
-        )
-        .or(Err(HttpError::Generic400(
-            "invalid generationId, length should be <= 255",
-        )))?;
-
-        let phantom_id = lift_result_from_option(data.phantom_id.map(|value| {
-            if value.is_empty() {
-                return Err(HttpError::Generic400(
-                    "invalid phantomId, it cannot be empty",
-                ));
-            }
-
-            into_decoded_value("phantomId", value, phantom_id_encoding_type)
-        }))?;
-        let phantom_id = lift_result_from_option(
-            phantom_id.map(|id| OwnedPhantomId::from_boxed_slice(id)),
-        )
-        .or(Err(HttpError::Generic400(
-            "invalid phantomId, length should be <= 255",
-        )))?;
-
         let options = CollectionPutOptions {
             update: KeyValueUpdate {
-                key: OwnedCollectionKey::from_boxed_slice(key).or(Err(HttpError::Generic400(
-                    "invalid key, length should be <= 16777215",
-                )))?,
-                value: value.map(|value| OwnedCollectionValue::new(&value)),
+                key,
+                value,
                 if_not_present,
             },
             generation_id,

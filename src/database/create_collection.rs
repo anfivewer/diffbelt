@@ -23,7 +23,7 @@ const PREFIX: &[u8] = b"collection:";
 
 impl Database {
     pub async fn get_collection(&self, id: &str) -> Option<Arc<Collection>> {
-        let collections_lock = self.collections.read().unwrap();
+        let collections_lock = self.collections.read().await;
         let collection = collections_lock.get(id);
 
         collection.map(|collection| collection.clone())
@@ -40,7 +40,7 @@ impl Database {
             match result {
                 Err(err) => match err {
                     CreateCollectionError::AlreadyExist => {
-                        let collections = self.collections.read().unwrap();
+                        let collections = self.collections.read().await;
                         let collection = collections.get(id);
 
                         match collection {
@@ -86,7 +86,7 @@ impl Database {
         // new collection/saving record to meta_raw_db, so it's in a separate lock
         let guard = self.collections_alter_lock.lock().await;
 
-        let collections = self.collections.read().unwrap();
+        let collections = self.collections.read().await;
         if collections.contains_key(id) {
             return Err(CreateCollectionError::AlreadyExist);
         }
@@ -122,7 +122,7 @@ impl Database {
         .await
         .or_else(|err| Err(CreateCollectionError::CollectionOpen(err)))?;
 
-        let mut collections = self.collections.write().unwrap();
+        let mut collections = self.collections.write().await;
         collections.insert(id.to_string(), collection.clone());
         drop(collections);
 

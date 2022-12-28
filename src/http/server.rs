@@ -2,7 +2,7 @@ use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::request::HyperRequestWrapped;
 use crate::http::routing::response::{
-    BaseResponse, BytesVecResponse, Response as ResponseByRoute, StringResponse,
+    BaseResponse, BytesVecResponse, Response as ResponseByRoute, StaticStrResponse, StringResponse,
 };
 use crate::http::routing::StaticRouteOptions;
 use hyper::http::HeaderValue;
@@ -42,18 +42,18 @@ async fn handle_request(
     })
     .await?;
 
-    match result {
-        ResponseByRoute::String(StringResponse { base, str }) => {
-            let mut response = Response::new(str.into());
-            init_response(&mut response, &base)?;
-            Ok(response)
+    let (mut response, base) = match result {
+        ResponseByRoute::String(StringResponse { base, str }) => (Response::new(str.into()), base),
+        ResponseByRoute::StaticStr(StaticStrResponse { base, str }) => {
+            (Response::new(str.into()), base)
         }
         ResponseByRoute::BytesVec(BytesVecResponse { base, bytes }) => {
-            let mut response = Response::new(bytes.into());
-            init_response(&mut response, &base)?;
-            Ok(response)
+            (Response::new(bytes.into()), base)
         }
-    }
+    };
+
+    init_response(&mut response, &base)?;
+    Ok(response)
 }
 
 fn init_response(response: &mut Response<Body>, base: &BaseResponse) -> Result<(), HttpError> {

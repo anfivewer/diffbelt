@@ -6,7 +6,7 @@ use crate::raw_db::{RawDb, RawDbError};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 pub mod config;
 pub mod create_collection;
@@ -17,7 +17,7 @@ pub struct Database {
     data_path: PathBuf,
     meta_raw_db: Arc<RawDb>,
     collections_alter_lock: Mutex<()>,
-    collections: Arc<std::sync::RwLock<HashMap<String, Arc<Collection>>>>,
+    collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
     inner: Arc<DatabaseInner>,
 }
 
@@ -28,7 +28,7 @@ pub enum GetReaderGenerationIdFnError {
 }
 
 pub struct DatabaseInner {
-    collections: Arc<std::sync::RwLock<HashMap<String, Arc<Collection>>>>,
+    collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
 }
 
 impl DatabaseInner {
@@ -37,7 +37,7 @@ impl DatabaseInner {
         collection_id: &str,
         reader_id: &str,
     ) -> Result<Option<OwnedGenerationId>, GetReaderGenerationIdFnError> {
-        let collections_lock = self.collections.read().unwrap();
+        let collections_lock = self.collections.blocking_read();
 
         let collection = collections_lock
             .get(collection_id)

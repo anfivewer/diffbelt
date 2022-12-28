@@ -15,21 +15,39 @@ mod tests {
     use serde::Deserialize;
 
     #[derive(Deserialize, Debug)]
-    struct TestStruct {
+    struct WithStrictNull {
         #[serde(deserialize_with = "deserialize_strict_null")]
         value: Option<String>,
     }
 
     #[test]
-    fn test_deserialize() {
-        let result: Result<TestStruct, _> = serde_json::from_str(r#"{"value":"some str"}"#);
+    fn test_strict_null() {
+        let result: Result<WithStrictNull, _> = serde_json::from_str(r#"{"value":"some str"}"#);
         assert_eq!(result.unwrap().value, Some("some str".to_string()));
 
-        let result: Result<TestStruct, _> = serde_json::from_str(r#"{"value":null}"#);
+        let result: Result<WithStrictNull, _> = serde_json::from_str(r#"{"value":null}"#);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().value, None);
 
-        let result: Result<TestStruct, _> = serde_json::from_str(r"{}");
+        let result: Result<WithStrictNull, _> = serde_json::from_str(r"{}");
         assert!(result.is_err());
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct NonStrictNull {
+        value: Option<String>,
+    }
+
+    #[test]
+    fn test_non_strict_null() {
+        let result: Result<NonStrictNull, _> = serde_json::from_str(r#"{"value":"some str"}"#);
+        assert_eq!(result.unwrap().value, Some("some str".to_string()));
+
+        let result: Result<NonStrictNull, _> = serde_json::from_str(r#"{"value":null}"#);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().value, None);
+
+        let result: Result<NonStrictNull, _> = serde_json::from_str(r"{}");
+        assert_eq!(result.unwrap().value, None);
     }
 }

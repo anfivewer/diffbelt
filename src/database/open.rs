@@ -9,7 +9,7 @@ use protobuf::Message;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 pub struct DatabaseOpenOptions<'a> {
     pub data_path: &'a PathBuf,
@@ -44,8 +44,8 @@ impl Database {
             .await
             .or_else(|err| Err(DatabaseOpenError::RawDb(err)))?;
 
-        let collections_arc = Arc::new(std::sync::RwLock::new(HashMap::new()));
-        let mut collections = collections_arc.write().unwrap();
+        let collections_arc = Arc::new(RwLock::new(HashMap::new()));
+        let mut collections = collections_arc.write().await;
 
         let database_inner = Arc::new(DatabaseInner {
             collections: collections_arc.clone(),

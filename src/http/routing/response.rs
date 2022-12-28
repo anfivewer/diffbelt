@@ -12,6 +12,11 @@ impl Default for BaseResponse {
     }
 }
 
+pub struct StaticStrResponse {
+    pub base: BaseResponse,
+    pub str: &'static str,
+}
+
 pub struct StringResponse {
     pub base: BaseResponse,
     pub str: String,
@@ -23,6 +28,7 @@ pub struct BytesVecResponse {
 }
 
 pub enum Response {
+    StaticStr(StaticStrResponse),
     String(StringResponse),
     BytesVec(BytesVecResponse),
 }
