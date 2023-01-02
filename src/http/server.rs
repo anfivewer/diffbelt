@@ -122,9 +122,13 @@ pub async fn start_http_server(context: Arc<Context>) {
                                 StatusCode::PAYLOAD_TOO_LARGE,
                                 format!("{{\"error\":\"413\",\"bytesMax\":{}}}", max_size).into(),
                             ),
-                            HttpError::InvalidJson => (
+                            HttpError::InvalidJson(reason) => (
                                 StatusCode::BAD_REQUEST,
-                                "{\"error\":\"400\",\"reason\":\"invalid_json\"}".into(),
+                                format!(
+                                    "{{\"error\":\"400\",\"type\":\"invalidJson\",\"reason\":{}}}",
+                                    serde_json::json!(reason).to_string()
+                                )
+                                .into(),
                             ),
                             HttpError::PublicInternal500(str) => {
                                 is_json = false;

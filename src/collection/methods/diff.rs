@@ -50,6 +50,11 @@ impl Collection {
             omit_intermediate_values: true,
         }));
 
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
+
         let result = {
             let cursor = cursor.clone();
             let db = self.raw_db.clone();
@@ -76,6 +81,8 @@ impl Collection {
 
         let next_cursor_id = save_next_cursor(&self.diff_cursors, &cursor, next_cursor);
 
+        drop(deletion_lock);
+
         Ok(DiffOk {
             from_generation_id,
             to_generation_id,
@@ -97,6 +104,11 @@ impl Collection {
                 .ok_or(CollectionMethodError::NoSuchCursor)?;
             cursor.clone()
         };
+
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
 
         let result = {
             let cursor = cursor.clone();
@@ -123,6 +135,8 @@ impl Collection {
         } = result;
 
         let next_cursor_id = save_next_cursor(&self.diff_cursors, cursor.as_ref(), next_cursor);
+
+        drop(deletion_lock);
 
         Ok(DiffOk {
             from_generation_id,

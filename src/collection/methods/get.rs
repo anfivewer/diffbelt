@@ -39,12 +39,19 @@ impl Collection {
         )
         .or(Err(CollectionMethodError::InvalidKey))?;
 
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
+
         let result = self
             .raw_db
             .get_collection_record(GetCollectionRecordOptions {
                 record_key: record_key.as_ref(),
             })
             .await?;
+
+        drop(deletion_lock);
 
         let mut generation_id = generation_id;
 

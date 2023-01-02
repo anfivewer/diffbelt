@@ -54,6 +54,11 @@ impl Collection {
             .or(next_generation_id)
             .expect("Collection::put, no either generation_id or next_generation");
 
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
+
         let inner_result = self
             .put_inner(CollectionPutInnerOptions {
                 update,
@@ -106,6 +111,8 @@ impl Collection {
         }
 
         self.on_put();
+
+        drop(deletion_lock);
 
         result
     }

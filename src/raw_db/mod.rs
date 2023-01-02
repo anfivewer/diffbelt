@@ -6,6 +6,8 @@ use std::sync::Arc;
 
 pub mod contains_existing_collection_record;
 mod cursor_util;
+pub mod delete;
+pub mod destroy;
 pub mod diff_collection_records;
 pub mod get_collection_record;
 pub mod get_range;
@@ -18,6 +20,7 @@ pub mod remove_all_records_of_generation;
 pub mod update_reader;
 
 pub struct RawDb {
+    path: String,
     db: Arc<DB>,
     cf_name: Arc<Option<String>>,
 }
@@ -68,6 +71,18 @@ impl RawDb {
             Ok(value.map(|x| x.into_boxed_slice()))
         })
         .await?
+    }
+
+    pub fn get_sync(&self, key: &[u8]) -> Result<Option<Box<[u8]>>, RawDbError> {
+        let value = match self.cf_name.borrow() {
+            Some(cf_name) => {
+                let cf = self.db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
+                self.db.get_cf(&cf, key)?
+            }
+            None => self.db.get(key)?,
+        };
+
+        Ok(value.map(|x| x.into_boxed_slice()))
     }
 }
 
@@ -145,6 +160,7 @@ impl RawDb {
         let db = DB::open_cf_descriptors(&opts, path, column_family_descriptors)?;
 
         return Ok(RawDb {
+            path: path.to_string(),
             db: Arc::new(db),
             cf_name: Arc::new(None),
         });
@@ -152,6 +168,7 @@ impl RawDb {
 
     pub fn with_cf<S: Into<String>>(&self, name: S) -> Self {
         RawDb {
+            path: self.path.clone(),
             db: self.db.clone(),
             cf_name: Arc::new(Some(name.into())),
         }

@@ -30,6 +30,11 @@ impl Collection {
 
         let next_generation_id = self.next_generation_id.clone();
 
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
+
         spawn_blocking_async(async move {
             let mut next_generation_id_lock = next_generation_id.write().await;
             let generation_id_lock = current_generation_id.read().await;
@@ -78,6 +83,8 @@ impl Collection {
         })
         .await
         .or(Err(CollectionMethodError::TaskJoin))??;
+
+        drop(deletion_lock);
 
         Ok(())
     }

@@ -1,8 +1,8 @@
-use crate::collection::{Collection, GetReaderGenerationIdError};
-use crate::common::OwnedGenerationId;
+use crate::collection::Collection;
 
 use crate::database::config::DatabaseConfig;
-use crate::raw_db::{RawDb, RawDbError};
+pub use crate::database::database_inner::{DatabaseInner, GetReaderGenerationIdFnError};
+use crate::raw_db::RawDb;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -10,6 +10,7 @@ use tokio::sync::{Mutex, RwLock};
 
 pub mod config;
 pub mod create_collection;
+mod database_inner;
 pub mod open;
 
 pub struct Database {
@@ -19,41 +20,4 @@ pub struct Database {
     collections_alter_lock: Mutex<()>,
     collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
     inner: Arc<DatabaseInner>,
-}
-
-pub enum GetReaderGenerationIdFnError {
-    NoSuchCollection,
-    NoSuchReader,
-    RawDb(RawDbError),
-}
-
-pub struct DatabaseInner {
-    collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
-}
-
-impl DatabaseInner {
-    pub fn get_reader_generation_id_sync(
-        &self,
-        collection_id: &str,
-        reader_id: &str,
-    ) -> Result<Option<OwnedGenerationId>, GetReaderGenerationIdFnError> {
-        let collections_lock = self.collections.blocking_read();
-
-        let collection = collections_lock
-            .get(collection_id)
-            .ok_or(GetReaderGenerationIdFnError::NoSuchCollection)?;
-
-        let collection = collection.clone();
-
-        drop(collections_lock);
-
-        collection
-            .get_reader_generation_id(reader_id)
-            .map_err(|err| match err {
-                GetReaderGenerationIdError::NoSuchReader => {
-                    GetReaderGenerationIdFnError::NoSuchReader
-                }
-                GetReaderGenerationIdError::RawDb(err) => GetReaderGenerationIdFnError::RawDb(err),
-            })
-    }
 }

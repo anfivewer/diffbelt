@@ -50,6 +50,13 @@ impl NewGenerationCommiter {
                     return;
                 }
 
+                let deletion_lock = collection.is_deleted.read().await;
+                let is_deleted = deletion_lock.to_owned();
+
+                if is_deleted {
+                    return;
+                }
+
                 if need_create_next_generation {
                     commit_next_generation_sync(CommitNextGenerationSyncOptions {
                         expected_generation_id: None,
@@ -63,6 +70,8 @@ impl NewGenerationCommiter {
                     .await
                     .unwrap_or(());
                 }
+
+                drop(deletion_lock);
 
                 let result = on_put_receiver.changed().await;
                 match result {

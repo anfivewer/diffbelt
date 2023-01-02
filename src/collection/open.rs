@@ -59,7 +59,7 @@ impl Collection {
     ) -> Result<Arc<Self>, CollectionOpenError> {
         let collection_id = options.id;
 
-        let path = options.data_path.join(&collection_id);
+        let path = Collection::get_path(options.data_path, &collection_id);
         let path = path.to_str().ok_or(CollectionOpenError::PathJoin)?;
 
         let raw_db = RawDb::open_raw_db(RawDbOptions {
@@ -207,6 +207,7 @@ impl Collection {
             raw_db: Arc::new(raw_db),
             meta_raw_db: Arc::new(meta_raw_db),
             is_manual,
+            is_deleted: RwLock::new(false),
             generation_id_sender: Arc::new(generation_id_sender),
             generation_id_receiver,
             generation_id: Arc::new(RwLock::new(generation_id)),
@@ -231,5 +232,9 @@ impl Collection {
         }
 
         Ok(collection)
+    }
+
+    pub fn get_path(data_path: &PathBuf, collection_id: &str) -> PathBuf {
+        data_path.join(collection_id)
     }
 }

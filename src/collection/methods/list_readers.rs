@@ -19,10 +19,17 @@ impl Collection {
 
         let meta_raw_db = self.meta_raw_db.clone();
 
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
+
         let result =
             spawn_blocking_async(async move { meta_raw_db.get_range_sync(b"reader:", b"reader;") })
                 .await
                 .or(Err(CollectionMethodError::TaskJoin))??;
+
+        drop(deletion_lock);
 
         let mut items = Vec::<ReaderRecord>::with_capacity(result.len());
 

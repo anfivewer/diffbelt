@@ -41,6 +41,11 @@ impl Collection {
             phantom_id: options.phantom_id,
         }));
 
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
+
         let result = {
             let cursor = cursor.clone();
             let db = self.raw_db.clone();
@@ -59,6 +64,8 @@ impl Collection {
         let QueryCursorPack { items, next_cursor } = result;
 
         let next_cursor_id = save_next_cursor(&self.query_cursors, &cursor, next_cursor);
+
+        drop(deletion_lock);
 
         Ok(QueryOk {
             generation_id,
@@ -81,6 +88,11 @@ impl Collection {
             cursor.clone()
         };
 
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
+
         let result = {
             let cursor = cursor.clone();
             let db = self.raw_db.clone();
@@ -99,6 +111,8 @@ impl Collection {
         let QueryCursorPack { items, next_cursor } = result;
 
         let next_cursor_id = save_next_cursor(&self.query_cursors, cursor.as_ref(), next_cursor);
+
+        drop(deletion_lock);
 
         Ok(QueryOk {
             generation_id: cursor.get_generation_id().to_owned(),

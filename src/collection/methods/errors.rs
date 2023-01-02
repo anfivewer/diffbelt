@@ -20,6 +20,7 @@ pub enum CollectionMethodError {
     RawDb(RawDbError),
     Channels,
     TaskJoin,
+    CannotDeleteRawDbPath,
 }
 
 impl From<RawDbError> for CollectionMethodError {

@@ -24,6 +24,8 @@ pub struct Collection {
     raw_db: Arc<RawDb>,
     meta_raw_db: Arc<RawDb>,
     is_manual: bool,
+    // you need to lock it for reading before any operations with raw_db
+    is_deleted: RwLock<bool>,
     generation_id_sender: Arc<watch::Sender<OwnedGenerationId>>,
     generation_id_receiver: watch::Receiver<OwnedGenerationId>,
     generation_id: Arc<RwLock<OwnedGenerationId>>,

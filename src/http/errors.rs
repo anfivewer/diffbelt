@@ -6,7 +6,7 @@ pub enum HttpError {
     GenericString400(String),
     /** max_size */
     TooBigPayload(usize),
-    InvalidJson,
+    InvalidJson(String),
     PublicInternal500(&'static str),
     PublicInternalString500(String),
     MethodNotAllowed,

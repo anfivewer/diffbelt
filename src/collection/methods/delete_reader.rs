@@ -21,6 +21,11 @@ impl Collection {
         let reader_id = options.reader_id;
         let meta_raw_db = self.meta_raw_db.clone();
 
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
+
         let result = spawn_blocking_async(async move {
             meta_raw_db.delete_reader_sync(RawDbDeleteReaderOptions {
                 reader_id: reader_id.as_str(),
@@ -28,6 +33,8 @@ impl Collection {
         })
         .await
         .or(Err(CollectionMethodError::TaskJoin))??;
+
+        drop(deletion_lock);
 
         Ok(result)
     }

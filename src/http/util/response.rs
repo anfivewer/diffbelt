@@ -9,3 +9,7 @@ pub fn create_ok_static_str_json_response<E>(str: &'static str) -> Result<Respon
         str,
     }))
 }
+
+pub fn create_ok_no_error_json_response<E>() -> Result<Response, E> {
+    create_ok_static_str_json_response(r#"{"error":null}"#)
+}

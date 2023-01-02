@@ -25,6 +25,11 @@ impl Collection {
 
         let expected_generation_id = options.generation_id;
 
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
+
         spawn_blocking_async(async move {
             commit_next_generation_sync(CommitNextGenerationSyncOptions {
                 expected_generation_id: Some(expected_generation_id),
@@ -45,6 +50,8 @@ impl Collection {
                 CollectionMethodError::OutdatedGeneration
             }
         })?;
+
+        drop(deletion_lock);
 
         Ok(())
     }

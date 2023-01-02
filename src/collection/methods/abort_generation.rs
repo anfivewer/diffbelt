@@ -15,6 +15,11 @@ impl Collection {
     ) -> Result<(), CollectionMethodError> {
         let raw_db = self.raw_db.clone();
 
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
+
         tokio::task::spawn_blocking(move || {
             let err = abort_generation_sync(AbortGenerationSyncOptions {
                 raw_db: raw_db.as_ref(),
@@ -28,6 +33,8 @@ impl Collection {
         })
         .await
         .or(Err(CollectionMethodError::TaskJoin))??;
+
+        drop(deletion_lock);
 
         Ok(())
     }

@@ -21,6 +21,8 @@ pub enum DatabaseOpenError {
     CollectionOpen(CollectionOpenError),
     RawDb(RawDbError),
     CollectionsReading,
+    CollectionRawDbDeletion(std::io::Error),
+    JoinError,
 }
 
 impl Database {
@@ -42,20 +44,48 @@ impl Database {
         let collection_records = meta_raw_db
             .get_range(b"collection:", b"collection;")
             .await
-            .or_else(|err| Err(DatabaseOpenError::RawDb(err)))?;
+            .map_err(|err| DatabaseOpenError::RawDb(err))?;
 
         let collections_arc = Arc::new(RwLock::new(HashMap::new()));
-        let mut collections = collections_arc.write().await;
+        let mut collections_lock = collections_arc.write().await;
 
-        let database_inner = Arc::new(DatabaseInner {
-            collections: collections_arc.clone(),
-        });
+        let database_inner = Arc::new(DatabaseInner::new(
+            meta_raw_db.clone(),
+            collections_arc.clone(),
+        ));
 
         for (_, value) in collection_records {
             let record = CollectionRecord::parse_from_bytes(&value)
                 .or(Err(DatabaseOpenError::CollectionsReading))?;
 
             let id = record.id;
+
+            println!("Open collection {}", id);
+
+            let is_deleted = database_inner
+                .is_marked_for_deletion_sync(id.as_str())
+                .map_err(|err| DatabaseOpenError::RawDb(err))?;
+
+            if is_deleted {
+                let path = Collection::get_path(data_path, &id);
+                std::fs::remove_dir_all(path).or_else(|err| {
+                    match err.kind() {
+                        std::io::ErrorKind::NotFound => {
+                            return Ok(());
+                        }
+                        _ => {}
+                    }
+
+                    Err(DatabaseOpenError::CollectionRawDbDeletion(err))
+                })?;
+
+                let database_inner = database_inner.clone();
+                database_inner
+                    .finish_delete_collection_with_collections(&mut collections_lock, &id)
+                    .map_err(|err| DatabaseOpenError::RawDb(err))?;
+
+                continue;
+            }
 
             let collection = Collection::open(CollectionOpenOptions {
                 config: options.config.clone(),
@@ -67,8 +97,10 @@ impl Database {
             .await
             .or_else(|err| Err(DatabaseOpenError::CollectionOpen(err)))?;
 
-            collections.insert(id, collection);
+            collections_lock.insert(id, collection);
         }
+
+        println!("hey");
 
         Ok(Database {
             config: options.config,

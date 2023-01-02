@@ -9,7 +9,7 @@ use crate::http::routing::{StaticRouteFnResult, StaticRouteOptions};
 use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
-use crate::http::util::response::create_ok_static_str_json_response;
+use crate::http::util::response::create_ok_no_error_json_response;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 
 use serde::Deserialize;
@@ -80,7 +80,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
             };
         }
 
-        create_ok_static_str_json_response(r#"{"error":null}"#)
+        create_ok_no_error_json_response()
     })
 }
 
