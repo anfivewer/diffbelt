@@ -3,11 +3,12 @@ use crate::common::OwnedGenerationId;
 use crate::raw_db::{RawDb, RawDbError};
 use std::collections::HashMap;
 
+use crate::database::constants::DATABASE_RAW_DB_CF;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct DatabaseInner {
-    meta_raw_db: Arc<RawDb>,
+    database_raw_db: Arc<RawDb>,
     collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
 }
 
@@ -19,11 +20,11 @@ pub enum GetReaderGenerationIdFnError {
 
 impl DatabaseInner {
     pub fn new(
-        meta_raw_db: Arc<RawDb>,
+        database_raw_db: Arc<RawDb>,
         collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
     ) -> Self {
         Self {
-            meta_raw_db,
+            database_raw_db,
             collections,
         }
     }
@@ -58,7 +59,8 @@ impl DatabaseInner {
         key.push_str("deleteCollection:");
         key.push_str(collection_id);
 
-        self.meta_raw_db.put_sync(key.as_bytes(), b"")?;
+        self.database_raw_db
+            .put_cf_sync(DATABASE_RAW_DB_CF, key.as_bytes(), b"")?;
 
         Ok(())
     }
@@ -68,7 +70,8 @@ impl DatabaseInner {
         key.push_str("deleteCollection:");
         key.push_str(collection_id);
 
-        self.meta_raw_db.delete_sync(key.as_bytes())?;
+        self.database_raw_db
+            .delete_cf_sync(DATABASE_RAW_DB_CF, key.as_bytes())?;
 
         Ok(())
     }
@@ -78,8 +81,8 @@ impl DatabaseInner {
         key.push_str("deleteCollection:");
         key.push_str(collection_id);
 
-        self.meta_raw_db
-            .delete(key.into_bytes().into_boxed_slice())
+        self.database_raw_db
+            .delete_cf(DATABASE_RAW_DB_CF, key.into_bytes().into_boxed_slice())
             .await?;
 
         Ok(())
@@ -90,7 +93,10 @@ impl DatabaseInner {
         key.push_str("deleteCollection:");
         key.push_str(collection_id);
 
-        let is_marked = self.meta_raw_db.get_sync(key.as_bytes())?.is_some();
+        let is_marked = self
+            .database_raw_db
+            .get_cf_sync(DATABASE_RAW_DB_CF, key.as_bytes())?
+            .is_some();
 
         Ok(is_marked)
     }

@@ -73,6 +73,21 @@ impl RawDb {
         .await?
     }
 
+    pub async fn get_cf(&self, cf_name: &str, key: &[u8]) -> Result<Option<Box<[u8]>>, RawDbError> {
+        let key = key.to_owned().into_boxed_slice();
+
+        let db = self.db.clone();
+        let cf_name = cf_name.to_string();
+
+        tokio::task::spawn_blocking(move || {
+            let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
+            let value = db.get_cf(&cf, key)?;
+
+            Ok(value.map(|x| x.into_boxed_slice()))
+        })
+        .await?
+    }
+
     pub fn get_sync(&self, key: &[u8]) -> Result<Option<Box<[u8]>>, RawDbError> {
         let value = match self.cf_name.borrow() {
             Some(cf_name) => {
@@ -81,6 +96,13 @@ impl RawDb {
             }
             None => self.db.get(key)?,
         };
+
+        Ok(value.map(|x| x.into_boxed_slice()))
+    }
+
+    pub fn get_cf_sync(&self, cf_name: &str, key: &[u8]) -> Result<Option<Box<[u8]>>, RawDbError> {
+        let cf = self.db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
+        let value = self.db.get_cf(&cf, key)?;
 
         Ok(value.map(|x| x.into_boxed_slice()))
     }

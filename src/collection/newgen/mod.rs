@@ -61,7 +61,6 @@ impl NewGenerationCommiter {
                     commit_next_generation_sync(CommitNextGenerationSyncOptions {
                         expected_generation_id: None,
                         raw_db: collection.raw_db.clone(),
-                        meta_raw_db: collection.meta_raw_db.clone(),
                         generation_id_sender: collection.generation_id_sender.clone(),
                         generation_id: collection.generation_id.clone(),
                         next_generation_id: collection.next_generation_id.clone(),

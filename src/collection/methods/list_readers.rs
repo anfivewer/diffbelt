@@ -4,6 +4,7 @@ use crate::collection::Collection;
 use crate::collection::util::reader_value::ReaderValue;
 use crate::common::reader::ReaderRecord;
 
+use crate::collection::constants::COLLECTION_CF_META;
 use crate::util::tokio::spawn_blocking_async;
 use std::str::from_utf8;
 
@@ -17,17 +18,18 @@ impl Collection {
             return Err(CollectionMethodError::UnsupportedOperationForThisCollectionType);
         }
 
-        let meta_raw_db = self.meta_raw_db.clone();
+        let raw_db = self.raw_db.clone();
 
         let deletion_lock = self.is_deleted.read().await;
         if deletion_lock.to_owned() {
             return Err(CollectionMethodError::NoSuchCollection);
         }
 
-        let result =
-            spawn_blocking_async(async move { meta_raw_db.get_range_sync(b"reader:", b"reader;") })
-                .await
-                .or(Err(CollectionMethodError::TaskJoin))??;
+        let result = spawn_blocking_async(async move {
+            raw_db.get_range_sync_cf(COLLECTION_CF_META, b"reader:", b"reader;")
+        })
+        .await
+        .or(Err(CollectionMethodError::TaskJoin))??;
 
         drop(deletion_lock);
 

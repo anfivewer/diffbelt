@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{watch, RwLock};
 
+pub mod constants;
 mod cursor;
 mod if_not_present;
 pub mod methods;
@@ -22,7 +23,6 @@ pub struct Collection {
     config: Arc<DatabaseConfig>,
     id: String,
     raw_db: Arc<RawDb>,
-    meta_raw_db: Arc<RawDb>,
     is_manual: bool,
     // you need to lock it for reading before any operations with raw_db
     is_deleted: RwLock<bool>,

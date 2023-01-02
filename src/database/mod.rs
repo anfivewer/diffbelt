@@ -9,6 +9,7 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
 pub mod config;
+pub mod constants;
 pub mod create_collection;
 mod database_inner;
 pub mod open;

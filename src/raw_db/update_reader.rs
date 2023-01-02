@@ -1,3 +1,4 @@
+use crate::collection::constants::COLLECTION_CF_META;
 use crate::collection::util::reader_value::{OwnedReaderValue, ReaderValue};
 
 use crate::common::reader::ReaderState;
@@ -64,7 +65,10 @@ impl RawDb {
         &self,
         options: RawDbCreateReaderOptions<'_>,
     ) -> Result<RawDbCreateReaderResult, RawDbError> {
-        let meta_cf = self.db.cf_handle("meta").ok_or(RawDbError::CfHandle)?;
+        let meta_cf = self
+            .db
+            .cf_handle(COLLECTION_CF_META)
+            .ok_or(RawDbError::CfHandle)?;
 
         let mut key = String::with_capacity("reader:".len() + options.reader_id.len());
         key.push_str("reader:");
@@ -98,7 +102,10 @@ impl RawDb {
         &self,
         options: RawDbUpdateReaderOptions<'_>,
     ) -> Result<(), RawDbError> {
-        let meta_cf = self.db.cf_handle("meta").ok_or(RawDbError::CfHandle)?;
+        let meta_cf = self
+            .db
+            .cf_handle(COLLECTION_CF_META)
+            .ok_or(RawDbError::CfHandle)?;
 
         let mut key = String::with_capacity("reader:".len() + options.reader_id.len());
         key.push_str("reader:");
@@ -129,7 +136,10 @@ impl RawDb {
         &self,
         options: RawDbDeleteReaderOptions<'_>,
     ) -> Result<(), RawDbError> {
-        let meta_cf = self.db.cf_handle("meta").ok_or(RawDbError::CfHandle)?;
+        let meta_cf = self
+            .db
+            .cf_handle(COLLECTION_CF_META)
+            .ok_or(RawDbError::CfHandle)?;
 
         let mut key = String::with_capacity("reader:".len() + options.reader_id.len());
         key.push_str("reader:");

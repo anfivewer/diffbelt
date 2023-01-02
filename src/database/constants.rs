@@ -1,0 +1,1 @@
+pub const DATABASE_RAW_DB_CF: &str = rocksdb::DEFAULT_COLUMN_FAMILY_NAME;

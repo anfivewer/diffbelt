@@ -1,3 +1,4 @@
+use crate::collection::constants::COLLECTION_CF_META;
 use crate::collection::methods::abort_generation::{
     abort_generation_sync, AbortGenerationSyncOptions,
 };
@@ -26,7 +27,6 @@ impl Collection {
         let abort_outdated = options.abort_outdated;
 
         let raw_db = self.raw_db.clone();
-        let meta_raw_db = self.meta_raw_db.clone();
 
         let next_generation_id = self.next_generation_id.clone();
 
@@ -75,7 +75,11 @@ impl Collection {
                 None => {}
             };
 
-            meta_raw_db.put_sync(b"next_generation_id", generation_id.get_byte_array())?;
+            raw_db.put_cf_sync(
+                COLLECTION_CF_META,
+                b"next_generation_id",
+                generation_id.get_byte_array(),
+            )?;
 
             next_generation_id_lock.replace(generation_id);
 

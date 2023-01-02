@@ -21,7 +21,7 @@ impl Collection {
 
         let reader_id = options.reader_id;
         let generation_id = options.generation_id;
-        let meta_raw_db = self.meta_raw_db.clone();
+        let raw_db = self.raw_db.clone();
 
         let deletion_lock = self.is_deleted.read().await;
         if deletion_lock.to_owned() {
@@ -29,7 +29,7 @@ impl Collection {
         }
 
         let result = spawn_blocking_async(async move {
-            meta_raw_db.update_reader_sync(RawDbUpdateReaderOptions {
+            raw_db.update_reader_sync(RawDbUpdateReaderOptions {
                 reader_id: reader_id.as_str(),
                 generation_id: generation_id.as_ref().map(|id| id.as_ref()),
             })

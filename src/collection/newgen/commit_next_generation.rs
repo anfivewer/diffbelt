@@ -1,3 +1,4 @@
+use crate::collection::constants::COLLECTION_CF_META;
 use crate::common::{IsByteArray, IsByteArrayMut, OwnedGenerationId};
 use crate::raw_db::has_generation_changes::HasGenerationChangesOptions;
 use crate::raw_db::put::PutKeyValue;
@@ -10,7 +11,6 @@ use tokio::sync::RwLock;
 pub struct CommitNextGenerationSyncOptions {
     pub expected_generation_id: Option<OwnedGenerationId>,
     pub raw_db: Arc<RawDb>,
-    pub meta_raw_db: Arc<RawDb>,
     pub generation_id_sender: Arc<watch::Sender<OwnedGenerationId>>,
     pub generation_id: Arc<RwLock<OwnedGenerationId>>,
     pub next_generation_id: Arc<RwLock<Option<OwnedGenerationId>>>,
@@ -77,8 +77,9 @@ pub async fn commit_next_generation_sync(
 
     // Store new gens
     options
-        .meta_raw_db
-        .put_two_sync(
+        .raw_db
+        .put_two_sync_cf(
+            COLLECTION_CF_META,
             PutKeyValue {
                 key: b"generation_id",
                 value: next_generation_id.get_byte_array(),

@@ -6,6 +6,7 @@ use crate::collection::util::record_key_compare::record_key_compare_fn;
 use crate::collection::Collection;
 use crate::common::{IsByteArray, IsByteArrayMut, NeverEq, OwnedGenerationId};
 
+use crate::collection::constants::COLLECTION_CF_META;
 use crate::collection::util::generation_size_merge::{
     generation_size_full_merge, generation_size_partial_merge,
 };
@@ -106,9 +107,7 @@ impl Collection {
             ],
         })?;
 
-        let meta_raw_db = raw_db.with_cf("meta");
-
-        let is_manual_stored = meta_raw_db.get(b"is_manual").await?;
+        let is_manual_stored = raw_db.get(b"is_manual").await?;
         let is_manual = match is_manual_stored {
             Some(is_manual_vec) => {
                 if is_manual_vec.len() != 1 {
@@ -118,8 +117,9 @@ impl Collection {
                 is_manual_vec[0] == 1
             }
             None => {
-                meta_raw_db
-                    .put(
+                raw_db
+                    .put_cf(
+                        COLLECTION_CF_META,
                         b"is_manual",
                         &vec![if options.is_manual { 1 } else { 0 }].into_boxed_slice(),
                     )
@@ -133,20 +133,28 @@ impl Collection {
             return Err(CollectionOpenError::ManualModeMissmatch);
         }
 
-        let generation_id_stored = meta_raw_db.get(b"generation_id").await?;
+        let generation_id_stored = raw_db.get_cf(COLLECTION_CF_META, b"generation_id").await?;
         let generation_id = match generation_id_stored {
             Some(generation_id) => OwnedGenerationId::from_boxed_slice(generation_id)
                 .or(Err(CollectionOpenError::InvalidGenerationId))?,
             None => {
                 if is_manual {
-                    meta_raw_db
-                        .put(b"generation_id", &vec![].into_boxed_slice())
+                    raw_db
+                        .put_cf(
+                            COLLECTION_CF_META,
+                            b"generation_id",
+                            &vec![].into_boxed_slice(),
+                        )
                         .await?;
 
                     OwnedGenerationId::empty()
                 } else {
-                    meta_raw_db
-                        .put(b"generation_id", &vec![0; 64].into_boxed_slice())
+                    raw_db
+                        .put_cf(
+                            COLLECTION_CF_META,
+                            b"generation_id",
+                            &vec![0; 64].into_boxed_slice(),
+                        )
                         .await?;
 
                     OwnedGenerationId::zero_64bits()
@@ -154,7 +162,9 @@ impl Collection {
             }
         };
 
-        let next_generation_id_stored = meta_raw_db.get(b"next_generation_id").await?;
+        let next_generation_id_stored = raw_db
+            .get_cf(COLLECTION_CF_META, b"next_generation_id")
+            .await?;
         let next_generation_id = match next_generation_id_stored {
             Some(next_generation_id) => Some(
                 OwnedGenerationId::from_boxed_slice(next_generation_id)
@@ -171,8 +181,9 @@ impl Collection {
 
                     let next_generation_id_cloned = next_generation_id.clone();
 
-                    meta_raw_db
-                        .put(
+                    raw_db
+                        .put_cf(
+                            COLLECTION_CF_META,
                             b"next_generation_id",
                             next_generation_id.as_ref().get_byte_array(),
                         )
@@ -205,7 +216,6 @@ impl Collection {
             config: options.config,
             id: collection_id,
             raw_db: Arc::new(raw_db),
-            meta_raw_db: Arc::new(meta_raw_db),
             is_manual,
             is_deleted: RwLock::new(false),
             generation_id_sender: Arc::new(generation_id_sender),

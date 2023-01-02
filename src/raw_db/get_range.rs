@@ -76,8 +76,9 @@ impl RawDb {
         .await?
     }
 
-    pub fn get_range_sync(
+    pub fn get_range_sync_cf(
         &self,
+        cf_name: &str,
         from_key: &[u8],
         to_key: &[u8],
     ) -> Result<Vec<(Box<[u8]>, Box<[u8]>)>, RawDbError> {
@@ -85,19 +86,13 @@ impl RawDb {
         let to_key = to_key.to_owned().into_boxed_slice();
 
         let db = &self.db;
-        let cf_name = self.cf_name.as_ref();
 
         let iterator_mode = IteratorMode::From(&from_key, Direction::Forward);
         let mut opts = ReadOptions::default();
         opts.set_iterate_upper_bound(to_key);
 
-        let iterator = match cf_name {
-            Some(cf_name) => {
-                let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
-                db.iterator_cf_opt(&cf, opts, iterator_mode)
-            }
-            None => db.iterator_opt(iterator_mode, opts),
-        };
+        let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
+        let iterator = db.iterator_cf_opt(&cf, opts, iterator_mode);
 
         let mut result: Vec<(Box<[u8]>, Box<[u8]>)> = Vec::new();
 
