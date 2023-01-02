@@ -50,10 +50,12 @@ impl RawDb {
             None => IteratorMode::Start,
         };
 
-        let mut iterator = self.db.iterator(iterator_mode);
+        let db = self.db.get_db();
+
+        let mut iterator = db.iterator(iterator_mode);
 
         let last_record = get_initial_last_record(
-            &self.db,
+            db,
             &mut iterator,
             last_record_key,
             from_record_key.is_some(),

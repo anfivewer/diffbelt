@@ -6,12 +6,10 @@ pub struct DestroyOk {
 }
 
 impl RawDb {
-    pub fn destroy(&self) -> Result<DestroyOk, RawDbError> {
+    pub fn destroy(path: &str) -> Result<(), RawDbError> {
         let opts = Options::default();
-        rocksdb::DB::destroy(&opts, &self.path).map_err(|err| RawDbError::RocksDb(err))?;
+        rocksdb::DB::destroy(&opts, path).map_err(|err| RawDbError::RocksDb(err))?;
 
-        Ok(DestroyOk {
-            path: self.path.clone(),
-        })
+        Ok(())
     }
 }

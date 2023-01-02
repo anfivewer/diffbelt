@@ -25,7 +25,7 @@ pub struct Collection {
     raw_db: Arc<RawDb>,
     is_manual: bool,
     // you need to lock it for reading before any operations with raw_db
-    is_deleted: RwLock<bool>,
+    is_deleted: Arc<RwLock<bool>>,
     generation_id_sender: Arc<watch::Sender<OwnedGenerationId>>,
     generation_id_receiver: watch::Receiver<OwnedGenerationId>,
     generation_id: Arc<RwLock<OwnedGenerationId>>,
@@ -33,7 +33,7 @@ pub struct Collection {
     if_not_present_writes: Arc<RwLock<HashMap<OwnedRecordKey, ConcurrentPutStatus>>>,
     database_inner: Arc<DatabaseInner>,
     // Not defined for manual collections
-    newgen: Option<NewGenerationCommiter>,
+    newgen: Arc<RwLock<Option<NewGenerationCommiter>>>,
     on_put_sender: Option<watch::Sender<NeverEq>>,
     query_cursors: std::sync::RwLock<HashMap<String, Arc<QueryCursor>>>,
     diff_cursors: std::sync::RwLock<HashMap<String, Arc<DiffCursor>>>,

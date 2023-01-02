@@ -25,6 +25,8 @@ impl RawDb {
         let items = options.items;
 
         tokio::task::spawn_blocking(move || {
+            let db = db.get_db();
+
             let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
             let generations_size_cf = db.cf_handle("gens_size").ok_or(RawDbError::CfHandle)?;
 

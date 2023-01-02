@@ -1,13 +1,14 @@
 use crate::collection::{Collection, GetReaderGenerationIdError};
 use crate::common::OwnedGenerationId;
 use crate::raw_db::{RawDb, RawDbError};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::database::constants::DATABASE_RAW_DB_CF;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct DatabaseInner {
+    collections_for_deletion: Arc<RwLock<HashSet<String>>>,
     database_raw_db: Arc<RawDb>,
     collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
 }
@@ -20,10 +21,12 @@ pub enum GetReaderGenerationIdFnError {
 
 impl DatabaseInner {
     pub fn new(
+        collections_for_deletion: Arc<RwLock<HashSet<String>>>,
         database_raw_db: Arc<RawDb>,
         collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
     ) -> Self {
         Self {
+            collections_for_deletion,
             database_raw_db,
             collections,
         }
@@ -101,7 +104,7 @@ impl DatabaseInner {
         Ok(is_marked)
     }
 
-    pub fn start_delete_collection_sync(&self, collection_id: &str) -> Result<(), RawDbError> {
+    pub async fn start_delete_collection(&self, collection_id: &str) -> Result<(), RawDbError> {
         // Now we need remove this collection from `Database.collections` and remove its raw_db,
         // cleanup collection data from meta_raw_db of `Database`
         // Order here matters, we need expect that process can crash in any moment,
@@ -113,32 +116,20 @@ impl DatabaseInner {
         // Mark for deletion, this will delete this collection on database open
         self.mark_collection_for_deletion_sync(collection_id)?;
 
+        // Block creation of this collection
+        let mut collections_for_deletion = self.collections_for_deletion.write().await;
+        collections_for_deletion.insert(collection_id.to_string());
+        drop(collections_for_deletion);
+
+        // Remove from collections to not hold Arc<Collection>
+        let mut collections_lock = self.collections.write().await;
+        collections_lock.remove(collection_id);
+        drop(collections_lock);
+
         Ok(())
     }
 
     pub fn finish_delete_collection_sync(&self, collection_id: &str) -> Result<(), RawDbError> {
-        // Remove from collections hashmap
-        // It should happen in the end, to not accidentally create new collection with the same name
-        // before raw_db files are removed
-        let mut collections_lock = self.collections.blocking_write();
-        collections_lock.remove(collection_id);
-        drop(collections_lock);
-
-        self.unmark_collection_for_deletion_sync(collection_id)?;
-
-        Ok(())
-    }
-
-    pub fn finish_delete_collection_with_collections(
-        &self,
-        collections: &mut HashMap<String, Arc<Collection>>,
-        collection_id: &str,
-    ) -> Result<(), RawDbError> {
-        // Remove from collections hashmap
-        // It should happen in the end, to not accidentally create new collection with the same name
-        // before raw_db files are removed
-        collections.remove(collection_id);
-
         self.unmark_collection_for_deletion_sync(collection_id)?;
 
         Ok(())

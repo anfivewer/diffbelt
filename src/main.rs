@@ -34,16 +34,12 @@ async fn run() {
     };
     let config = Arc::new(config);
 
-    println!("Start open database");
-
     let database = Database::open(DatabaseOpenOptions {
         data_path: &config.data_path,
         config: Arc::new(Default::default()),
     })
     .await
     .expect("Cannot open database");
-
-    println!("Database is open");
 
     let mut context = Context {
         config,
@@ -54,8 +50,6 @@ async fn run() {
     routing::register_routes::register_routes(&mut context);
 
     let context = Arc::new(context);
-
-    println!("Starting server");
 
     start_http_server(context).await;
 }

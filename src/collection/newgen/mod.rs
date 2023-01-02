@@ -46,10 +46,6 @@ impl NewGenerationCommiter {
             }
 
             loop {
-                if is_stopped(&mut stop_receiver) {
-                    return;
-                }
-
                 let deletion_lock = collection.is_deleted.read().await;
                 let is_deleted = deletion_lock.to_owned();
 
@@ -72,12 +68,18 @@ impl NewGenerationCommiter {
 
                 drop(deletion_lock);
 
-                let result = on_put_receiver.changed().await;
-                match result {
-                    Ok(_) => {}
-                    Err(_) => {
+                tokio::select! {
+                    result = on_put_receiver.changed() => {
+                        match result {
+                            Ok(_) => {}
+                            Err(_) => {
+                                return;
+                            }
+                        }
+                    },
+                    _ = &mut stop_receiver => {
                         return;
-                    }
+                    },
                 }
             }
         };
@@ -88,6 +90,12 @@ impl NewGenerationCommiter {
         NewGenerationCommiter {
             stop_sender: Some(stop_sender),
         }
+    }
+
+    pub fn stop(&mut self) {
+        let Some(sender) = self.stop_sender.take() else { return; };
+
+        sender.send(()).unwrap_or(());
     }
 }
 
@@ -101,17 +109,5 @@ impl Drop for NewGenerationCommiter {
             }
             None => {}
         }
-    }
-}
-
-fn is_stopped(stop_receiver: &mut oneshot::Receiver<()>) -> bool {
-    let result = stop_receiver.try_recv();
-
-    match result {
-        Ok(_) => true,
-        Err(err) => match err {
-            oneshot::error::TryRecvError::Empty => false,
-            oneshot::error::TryRecvError::Closed => true,
-        },
     }
 }

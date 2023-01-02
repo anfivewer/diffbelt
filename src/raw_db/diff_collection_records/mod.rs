@@ -44,9 +44,11 @@ impl RawDb {
             total_count_in_generations_limit,
         } = options;
 
+        let db = self.db.get_db();
+
         let state = match prev_diff_state {
             Some(prev_state) => DiffState::continue_prev(
-                &self.db,
+                db,
                 from_generation_id,
                 to_generation_id_loose,
                 prev_state,
@@ -54,7 +56,7 @@ impl RawDb {
                 records_to_view_limit,
             )?,
             None => DiffState::new(
-                &self.db,
+                db,
                 from_generation_id,
                 to_generation_id_loose,
                 limit,
@@ -83,7 +85,7 @@ impl RawDb {
             }
             DiffStateMode::SingleGeneration => {
                 let iterator = SingleGenerationChangedKeysIter::new(
-                    &self.db,
+                    db,
                     state.get_to_generation_id(),
                     state.get_from_collection_key(),
                 )?;

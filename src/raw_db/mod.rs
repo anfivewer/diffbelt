@@ -1,6 +1,7 @@
 use rocksdb::{ColumnFamilyDescriptor, MergeOperands, Options, DB, DEFAULT_COLUMN_FAMILY_NAME};
 
 use std::cmp::Ordering;
+
 use std::sync::Arc;
 
 pub mod contains_existing_collection_record;
@@ -18,9 +19,40 @@ pub mod query_collection_records;
 pub mod remove_all_records_of_generation;
 pub mod update_reader;
 
+pub struct DbWrap {
+    inner: Option<DB>,
+    is_alive_sender: tokio::sync::watch::Sender<bool>,
+    is_alive_receiver: tokio::sync::watch::Receiver<bool>,
+}
+
+impl Drop for DbWrap {
+    fn drop(&mut self) {
+        // DB now should be dropped
+        self.inner.take();
+
+        self.is_alive_sender.send_replace(false);
+    }
+}
+
+impl DbWrap {
+    fn get_db(&self) -> &DB {
+        self.inner.as_ref().unwrap()
+    }
+}
+
 pub struct RawDb {
     path: String,
-    db: Arc<DB>,
+    db: Arc<DbWrap>,
+}
+
+impl RawDb {
+    pub fn get_path(&self) -> &str {
+        self.path.as_str()
+    }
+
+    pub fn get_is_alive_receiver(&self) -> tokio::sync::watch::Receiver<bool> {
+        self.db.is_alive_receiver.clone()
+    }
 }
 
 #[derive(Debug)]
@@ -58,6 +90,8 @@ impl RawDb {
         let cf_name = cf_name.to_string();
 
         tokio::task::spawn_blocking(move || {
+            let db = db.get_db();
+
             let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
             let value = db.get_cf(&cf, key)?;
 
@@ -67,8 +101,10 @@ impl RawDb {
     }
 
     pub fn get_cf_sync(&self, cf_name: &str, key: &[u8]) -> Result<Option<Box<[u8]>>, RawDbError> {
-        let cf = self.db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
-        let value = self.db.get_cf(&cf, key)?;
+        let db = self.db.get_db();
+
+        let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
+        let value = db.get_cf(&cf, key)?;
 
         Ok(value.map(|x| x.into_boxed_slice()))
     }
@@ -151,9 +187,15 @@ impl RawDb {
 
         let db = DB::open_cf_descriptors(&opts, path, column_family_descriptors)?;
 
+        let (is_alive_sender, is_alive_receiver) = tokio::sync::watch::channel(true);
+
         return Ok(RawDb {
             path: path.to_string(),
-            db: Arc::new(db),
+            db: Arc::new(DbWrap {
+                inner: Some(db),
+                is_alive_sender,
+                is_alive_receiver,
+            }),
         });
     }
 }

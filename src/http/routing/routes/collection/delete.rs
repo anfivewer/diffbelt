@@ -34,7 +34,11 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
             return Err(HttpError::Generic400("no such collection"));
         };
 
-        let result = collection.delete_collection().await;
+        let result = collection.delete_collection();
+
+        drop(collection);
+
+        let result = result.await;
 
         if let Err(err) = result {
             return match err {

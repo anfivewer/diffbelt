@@ -26,13 +26,15 @@ pub enum RawDbCreateReaderResult {
 
 impl RawDb {
     pub fn get_reader_sync(&self, reader_id: &str) -> Result<ReaderState, RawDbError> {
-        let meta_cf = self.db.cf_handle("meta").ok_or(RawDbError::CfHandle)?;
+        let db = self.db.get_db();
+
+        let meta_cf = db.cf_handle("meta").ok_or(RawDbError::CfHandle)?;
 
         let mut key = String::with_capacity("reader:".len() + reader_id.len());
         key.push_str("reader:");
         key.push_str(reader_id);
 
-        let result = self.db.get_cf(&meta_cf, key)?;
+        let result = db.get_cf(&meta_cf, key)?;
 
         match result {
             Some(value) => {
@@ -65,8 +67,9 @@ impl RawDb {
         &self,
         options: RawDbCreateReaderOptions<'_>,
     ) -> Result<RawDbCreateReaderResult, RawDbError> {
-        let meta_cf = self
-            .db
+        let db = self.db.get_db();
+
+        let meta_cf = db
             .cf_handle(COLLECTION_CF_META)
             .ok_or(RawDbError::CfHandle)?;
 
@@ -78,9 +81,9 @@ impl RawDb {
             .or(Err(RawDbError::InvalidReaderValue))?;
         let expected_value = expected_value.get_byte_array();
 
-        self.db.merge_cf(&meta_cf, &key, expected_value)?;
+        db.merge_cf(&meta_cf, &key, expected_value)?;
 
-        let result = self.db.get_cf(&meta_cf, &key)?;
+        let result = db.get_cf(&meta_cf, &key)?;
 
         match result {
             Some(value) => {
@@ -102,8 +105,9 @@ impl RawDb {
         &self,
         options: RawDbUpdateReaderOptions<'_>,
     ) -> Result<(), RawDbError> {
-        let meta_cf = self
-            .db
+        let db = self.db.get_db();
+
+        let meta_cf = db
             .cf_handle(COLLECTION_CF_META)
             .ok_or(RawDbError::CfHandle)?;
 
@@ -111,7 +115,7 @@ impl RawDb {
         key.push_str("reader:");
         key.push_str(options.reader_id);
 
-        let value = self.db.get_cf(&meta_cf, &key)?;
+        let value = db.get_cf(&meta_cf, &key)?;
 
         let value = match value {
             Some(value) => value,
@@ -127,7 +131,7 @@ impl RawDb {
         let new_value = OwnedReaderValue::new(Some(collection_id), generation_id)
             .or(Err(RawDbError::InvalidReaderValue))?;
 
-        self.db.put_cf(&meta_cf, &key, new_value.get_byte_array())?;
+        db.put_cf(&meta_cf, &key, new_value.get_byte_array())?;
 
         Ok(())
     }
@@ -136,8 +140,9 @@ impl RawDb {
         &self,
         options: RawDbDeleteReaderOptions<'_>,
     ) -> Result<(), RawDbError> {
-        let meta_cf = self
-            .db
+        let db = self.db.get_db();
+
+        let meta_cf = db
             .cf_handle(COLLECTION_CF_META)
             .ok_or(RawDbError::CfHandle)?;
 
@@ -145,7 +150,7 @@ impl RawDb {
         key.push_str("reader:");
         key.push_str(options.reader_id);
 
-        self.db.delete_cf(&meta_cf, &key)?;
+        db.delete_cf(&meta_cf, &key)?;
 
         Ok(())
     }

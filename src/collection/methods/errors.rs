@@ -20,7 +20,7 @@ pub enum CollectionMethodError {
     RawDb(RawDbError),
     Channels,
     TaskJoin,
-    CannotDeleteRawDbPath,
+    CannotDeleteRawDbPath(std::io::Error),
 }
 
 impl From<RawDbError> for CollectionMethodError {

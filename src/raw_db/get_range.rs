@@ -15,6 +15,8 @@ impl RawDb {
         let cf_name = cf_name.to_string();
 
         tokio::task::spawn_blocking(move || {
+            let db = db.get_db();
+
             let iterator_mode = IteratorMode::From(&from_key, Direction::Forward);
             let mut opts = ReadOptions::default();
             opts.set_iterate_upper_bound(to_key);
@@ -46,7 +48,7 @@ impl RawDb {
         let from_key = from_key.to_owned().into_boxed_slice();
         let to_key = to_key.to_owned().into_boxed_slice();
 
-        let db = &self.db;
+        let db = self.db.get_db();
 
         let iterator_mode = IteratorMode::From(&from_key, Direction::Forward);
         let mut opts = ReadOptions::default();

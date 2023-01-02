@@ -14,12 +14,14 @@ impl RawDb {
     ) -> Result<bool, RawDbError> {
         let generation_id = options.generation_id;
 
-        let generations_cf = self.db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
+        let db = self.db.get_db();
+
+        let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
 
         let from_generation_key = OwnedGenerationKey::new(generation_id, CollectionKey::empty())
             .or(Err(RawDbError::InvalidGenerationKey))?;
 
-        let iterator = self.db.iterator_cf(
+        let iterator = db.iterator_cf(
             &generations_cf,
             IteratorMode::From(from_generation_key.get_byte_array(), Direction::Forward),
         );

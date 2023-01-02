@@ -7,7 +7,7 @@ use crate::database::{Database, DatabaseInner};
 use crate::protos::database_meta::CollectionRecord;
 use crate::raw_db::{RawDb, RawDbError, RawDbOptions};
 use protobuf::Message;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
@@ -50,7 +50,10 @@ impl Database {
         let collections_arc = Arc::new(RwLock::new(HashMap::new()));
         let mut collections_lock = collections_arc.write().await;
 
+        let collections_for_deletion = Arc::new(RwLock::new(HashSet::new()));
+
         let database_inner = Arc::new(DatabaseInner::new(
+            collections_for_deletion.clone(),
             database_raw_db.clone(),
             collections_arc.clone(),
         ));
@@ -60,8 +63,6 @@ impl Database {
                 .or(Err(DatabaseOpenError::CollectionsReading))?;
 
             let id = record.id;
-
-            println!("Open collection {}", id);
 
             let is_deleted = database_inner
                 .is_marked_for_deletion_sync(id.as_str())
@@ -82,7 +83,7 @@ impl Database {
 
                 let database_inner = database_inner.clone();
                 database_inner
-                    .finish_delete_collection_with_collections(&mut collections_lock, &id)
+                    .finish_delete_collection_sync(&id)
                     .map_err(|err| DatabaseOpenError::RawDb(err))?;
 
                 continue;
@@ -101,12 +102,11 @@ impl Database {
             collections_lock.insert(id, collection);
         }
 
-        println!("hey");
-
         Ok(Database {
             config: options.config,
             data_path: data_path.clone(),
-            database_raw_db: database_raw_db,
+            database_raw_db,
+            collections_for_deletion,
             collections_alter_lock: Mutex::new(()),
             collections: collections_arc.clone(),
             inner: database_inner,

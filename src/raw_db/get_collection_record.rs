@@ -17,6 +17,8 @@ impl RawDb {
         let record_key = options.record_key.to_owned();
 
         tokio::task::spawn_blocking(move || {
+            let db = db.get_db();
+
             let mut lower_record_key = record_key.clone();
             let record_collection_key = lower_record_key.get_collection_key_bytes_mut();
             decrement(record_collection_key);

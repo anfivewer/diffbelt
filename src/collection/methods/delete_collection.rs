@@ -1,56 +1,96 @@
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
-use crate::raw_db::destroy::DestroyOk;
-use crate::raw_db::RawDbError;
+
+use crate::raw_db::{RawDb, RawDbError};
+use crate::util::tokio::spawn_blocking_async;
+use std::future::Future;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 
 impl Collection {
-    pub async fn delete_collection(&self) -> Result<(), CollectionMethodError> {
-        // Make all methods return `NoSuchCollection` after this write
-        // if they have ref to this Collection
-        let mut deletion_lock = self.is_deleted.write().await;
-        if deletion_lock.to_owned() {
-            return Err(CollectionMethodError::NoSuchCollection);
-        }
+    pub fn delete_collection(&self) -> impl Future<Output = Result<(), CollectionMethodError>> {
+        let is_deleted = self.is_deleted.clone();
+        let collection_id = self.id.clone();
+        let database_inner = self.database_inner.clone();
+        let raw_db = self.raw_db.clone();
+        let newgen = self.newgen.clone();
 
-        let is_deleted = deletion_lock.deref_mut();
-        *is_deleted = true;
+        let join = spawn_blocking_async(async move {
+            // Make all methods return `NoSuchCollection` after this write
+            // if they have ref to this Collection
+            let mut deletion_lock = is_deleted.write().await;
+            if deletion_lock.to_owned() {
+                return Err(CollectionMethodError::NoSuchCollection);
+            }
 
-        {
-            let collection_id = self.id.clone();
-            let database_inner = self.database_inner.clone();
-            let raw_db = self.raw_db.clone();
+            let is_deleted = deletion_lock.deref_mut();
+            *is_deleted = true;
 
-            tokio::task::spawn_blocking(move || {
-                // Preparation to delete
-                database_inner.start_delete_collection_sync(&collection_id)?;
+            {
+                let mut newgen_lock = newgen.write().await;
+                let newgen = newgen_lock.take();
+                match newgen {
+                    Some(mut newgen) => {
+                        newgen.stop();
+                    }
+                    None => {}
+                }
+            }
 
-                // Destroy raw_db, remove files
-                let DestroyOk { path } = raw_db.destroy()?;
+            // Preparation to delete
+            database_inner
+                .start_delete_collection(&collection_id)
+                .await?;
 
-                // TODO: do not delete, move it and then delete after a few hours/days
-                //       as config says and give ability to restore it
-                let path = PathBuf::from(path);
-                let path = path.as_path();
+            // Destroy raw_db, remove files
+            let path = raw_db.get_path().to_string();
+            let mut is_alive_receiver = raw_db.get_is_alive_receiver();
+            drop(raw_db);
 
-                println!("REMOVE {:?}", path.to_str());
+            loop {
+                let result = is_alive_receiver.changed().await;
+                match result {
+                    Ok(_) => {}
+                    Err(_) => {
+                        // error is possible only if it was droppped, so db should be dropped
+                        break;
+                    }
+                }
 
-                std::fs::remove_dir_all(path)
-                    .or(Err(CollectionMethodError::CannotDeleteRawDbPath))?;
+                let is_alive = *is_alive_receiver.borrow();
 
-                // Finalization of deletion
-                database_inner.finish_delete_collection_sync(&collection_id)?;
+                if !is_alive {
+                    break;
+                }
+            }
 
-                Ok::<(), CollectionMethodError>(())
-            })
-            .await
-            .or(Err(CollectionMethodError::TaskJoin))??;
-        }
+            RawDb::destroy(&path)?;
 
-        drop(deletion_lock);
+            // TODO: do not delete, move it and then delete after a few hours/days
+            //       as config says and give ability to restore it
+            let path = PathBuf::from(path);
+            let path = path.as_path();
 
-        Ok(())
+            std::fs::remove_dir_all(path).or_else(|err| {
+                match err.kind() {
+                    std::io::ErrorKind::NotFound => {
+                        return Ok(());
+                    }
+                    _ => {}
+                }
+
+                Err(CollectionMethodError::CannotDeleteRawDbPath(err))
+            })?;
+
+            // Finalization of deletion
+            database_inner.finish_delete_collection_sync(&collection_id)?;
+
+            drop(deletion_lock);
+
+            Ok::<(), CollectionMethodError>(())
+        });
+
+        async move { join.await.map_err(|_| CollectionMethodError::TaskJoin)? }
     }
 
     fn destroy(&self) -> Result<(), RawDbError> {

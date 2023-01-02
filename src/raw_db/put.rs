@@ -15,6 +15,8 @@ impl RawDb {
         let cf_name = cf_name.to_string();
 
         tokio::task::spawn_blocking(move || {
+            let db = db.get_db();
+
             let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
             db.put_cf(&cf, key, value)?;
 
@@ -29,8 +31,10 @@ impl RawDb {
         key: &'_ [u8],
         value: &'_ [u8],
     ) -> Result<(), RawDbError> {
-        let cf = self.db.cf_handle(cf_name).ok_or(RawDbError::CfHandle)?;
-        self.db.put_cf(&cf, key, value)?;
+        let db = self.db.get_db();
+
+        let cf = db.cf_handle(cf_name).ok_or(RawDbError::CfHandle)?;
+        db.put_cf(&cf, key, value)?;
 
         Ok(())
     }
@@ -43,12 +47,14 @@ impl RawDb {
     ) -> Result<(), RawDbError> {
         let mut batch = WriteBatchWithTransaction::<false>::default();
 
-        let cf = self.db.cf_handle(cf_name).ok_or(RawDbError::CfHandle)?;
+        let db = self.db.get_db();
+
+        let cf = db.cf_handle(cf_name).ok_or(RawDbError::CfHandle)?;
 
         batch.put_cf(&cf, first.key, first.value);
         batch.put_cf(&cf, second.key, second.value);
 
-        self.db.write(batch)?;
+        db.write(batch)?;
 
         Ok(())
     }

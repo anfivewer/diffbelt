@@ -18,8 +18,10 @@ impl RawDb {
 
         let mut batch = WriteBatchWithTransaction::<false>::default();
 
-        let generations_cf = self.db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
-        let generations_size_cf = self.db.cf_handle("gens_size").ok_or(RawDbError::CfHandle)?;
+        let db = self.db.get_db();
+
+        let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
+        let generations_size_cf = db.cf_handle("gens_size").ok_or(RawDbError::CfHandle)?;
 
         let generation_key = OwnedGenerationKey::new(generation_id, CollectionKey::empty())
             .or(Err(RawDbError::InvalidGenerationKey))?;
@@ -32,9 +34,9 @@ impl RawDb {
         let mut opts = ReadOptions::default();
         opts.set_iterate_upper_bound(upper_generation_key_bytes);
 
-        let iterator = self
-            .db
-            .iterator_cf_opt(&generations_cf, opts, iterator_mode);
+        let db = self.db.get_db();
+
+        let iterator = db.iterator_cf_opt(&generations_cf, opts, iterator_mode);
 
         for item in iterator {
             let (key, _) = item?;
@@ -59,7 +61,7 @@ impl RawDb {
             batch.delete(record_key.get_byte_array());
         }
 
-        self.db.write(batch)?;
+        db.write(batch)?;
 
         Ok(())
     }
