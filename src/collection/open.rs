@@ -107,7 +107,7 @@ impl Collection {
             ],
         })?;
 
-        let is_manual_stored = raw_db.get(b"is_manual").await?;
+        let is_manual_stored = raw_db.get_cf(COLLECTION_CF_META, b"is_manual").await?;
         let is_manual = match is_manual_stored {
             Some(is_manual_vec) => {
                 if is_manual_vec.len() != 1 {

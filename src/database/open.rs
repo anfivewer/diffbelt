@@ -2,6 +2,7 @@ use crate::collection::open::{CollectionOpenError, CollectionOpenOptions};
 use crate::collection::Collection;
 
 use crate::database::config::DatabaseConfig;
+use crate::database::constants::DATABASE_RAW_DB_CF;
 use crate::database::{Database, DatabaseInner};
 use crate::protos::database_meta::CollectionRecord;
 use crate::raw_db::{RawDb, RawDbError, RawDbOptions};
@@ -39,10 +40,10 @@ impl Database {
         })
         .expect("Cannot open meta raw_db");
 
-        let meta_raw_db = Arc::new(meta_raw_db);
+        let database_raw_db = Arc::new(meta_raw_db);
 
-        let collection_records = meta_raw_db
-            .get_range(b"collection:", b"collection;")
+        let collection_records = database_raw_db
+            .get_range_cf(DATABASE_RAW_DB_CF, b"collection:", b"collection;")
             .await
             .map_err(|err| DatabaseOpenError::RawDb(err))?;
 
@@ -50,7 +51,7 @@ impl Database {
         let mut collections_lock = collections_arc.write().await;
 
         let database_inner = Arc::new(DatabaseInner::new(
-            meta_raw_db.clone(),
+            database_raw_db.clone(),
             collections_arc.clone(),
         ));
 
@@ -105,7 +106,7 @@ impl Database {
         Ok(Database {
             config: options.config,
             data_path: data_path.clone(),
-            meta_raw_db,
+            database_raw_db: database_raw_db,
             collections_alter_lock: Mutex::new(()),
             collections: collections_arc.clone(),
             inner: database_inner,

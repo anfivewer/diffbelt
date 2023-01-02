@@ -1,6 +1,5 @@
 use crate::raw_db::{RawDb, RawDbError};
 use rocksdb::WriteBatchWithTransaction;
-use std::borrow::Borrow;
 
 pub struct PutKeyValue<'a> {
     pub key: &'a [u8],
@@ -8,27 +7,6 @@ pub struct PutKeyValue<'a> {
 }
 
 impl RawDb {
-    pub async fn put(&self, key: &[u8], value: &[u8]) -> Result<(), RawDbError> {
-        let key = key.to_owned().into_boxed_slice();
-        let value = value.to_owned().into_boxed_slice();
-
-        let db = self.db.clone();
-        let cf_name = self.cf_name.clone();
-
-        tokio::task::spawn_blocking(move || {
-            match cf_name.borrow() {
-                Some(cf_name) => {
-                    let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
-                    db.put_cf(&cf, key, value)?
-                }
-                None => db.put(key, value)?,
-            };
-
-            Ok(())
-        })
-        .await?
-    }
-
     pub async fn put_cf(&self, cf_name: &str, key: &[u8], value: &[u8]) -> Result<(), RawDbError> {
         let key = key.to_owned().into_boxed_slice();
         let value = value.to_owned().into_boxed_slice();

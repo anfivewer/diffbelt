@@ -17,7 +17,7 @@ pub mod open;
 pub struct Database {
     config: Arc<DatabaseConfig>,
     data_path: PathBuf,
-    meta_raw_db: Arc<RawDb>,
+    database_raw_db: Arc<RawDb>,
     collections_alter_lock: Mutex<()>,
     collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
     inner: Arc<DatabaseInner>,

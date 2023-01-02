@@ -1,6 +1,5 @@
-use rocksdb::merge_operator::MergeFn;
-use rocksdb::{ColumnFamilyDescriptor, Options, DB, DEFAULT_COLUMN_FAMILY_NAME};
-use std::borrow::Borrow;
+use rocksdb::{ColumnFamilyDescriptor, MergeOperands, Options, DB, DEFAULT_COLUMN_FAMILY_NAME};
+
 use std::cmp::Ordering;
 use std::sync::Arc;
 
@@ -22,7 +21,6 @@ pub mod update_reader;
 pub struct RawDb {
     path: String,
     db: Arc<DB>,
-    cf_name: Arc<Option<String>>,
 }
 
 #[derive(Debug)]
@@ -53,26 +51,6 @@ impl From<tokio::task::JoinError> for RawDbError {
 }
 
 impl RawDb {
-    pub async fn get(&self, key: &[u8]) -> Result<Option<Box<[u8]>>, RawDbError> {
-        let key = key.to_owned().into_boxed_slice();
-
-        let db = self.db.clone();
-        let cf_name = self.cf_name.clone();
-
-        tokio::task::spawn_blocking(move || {
-            let value = match cf_name.borrow() {
-                Some(cf_name) => {
-                    let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
-                    db.get_cf(&cf, key)?
-                }
-                None => db.get(key)?,
-            };
-
-            Ok(value.map(|x| x.into_boxed_slice()))
-        })
-        .await?
-    }
-
     pub async fn get_cf(&self, cf_name: &str, key: &[u8]) -> Result<Option<Box<[u8]>>, RawDbError> {
         let key = key.to_owned().into_boxed_slice();
 
@@ -86,18 +64,6 @@ impl RawDb {
             Ok(value.map(|x| x.into_boxed_slice()))
         })
         .await?
-    }
-
-    pub fn get_sync(&self, key: &[u8]) -> Result<Option<Box<[u8]>>, RawDbError> {
-        let value = match self.cf_name.borrow() {
-            Some(cf_name) => {
-                let cf = self.db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
-                self.db.get_cf(&cf, key)?
-            }
-            None => self.db.get(key)?,
-        };
-
-        Ok(value.map(|x| x.into_boxed_slice()))
     }
 
     pub fn get_cf_sync(&self, cf_name: &str, key: &[u8]) -> Result<Option<Box<[u8]>>, RawDbError> {
@@ -115,8 +81,12 @@ pub struct RawDbComparator {
 
 pub struct RawDbMerge {
     pub name: String,
-    pub full_merge: Box<dyn MergeFn>,
-    pub partial_merge: Box<dyn MergeFn>,
+    pub full_merge: Box<
+        dyn Fn(&[u8], Option<&[u8]>, &MergeOperands) -> Option<Vec<u8>> + Send + Sync + 'static,
+    >,
+    pub partial_merge: Box<
+        dyn Fn(&[u8], Option<&[u8]>, &MergeOperands) -> Option<Vec<u8>> + Send + Sync + 'static,
+    >,
 }
 
 pub struct RawDbColumnFamily {
@@ -184,15 +154,6 @@ impl RawDb {
         return Ok(RawDb {
             path: path.to_string(),
             db: Arc::new(db),
-            cf_name: Arc::new(None),
         });
-    }
-
-    pub fn with_cf<S: Into<String>>(&self, name: S) -> Self {
-        RawDb {
-            path: self.path.clone(),
-            db: self.db.clone(),
-            cf_name: Arc::new(Some(name.into())),
-        }
     }
 }

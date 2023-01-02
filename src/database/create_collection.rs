@@ -1,5 +1,6 @@
 use crate::collection::open::{CollectionOpenError, CollectionOpenOptions};
 use crate::collection::Collection;
+use crate::database::constants::DATABASE_RAW_DB_CF;
 use crate::database::Database;
 use crate::protos::database_meta::CollectionRecord;
 use crate::raw_db::RawDbError;
@@ -107,8 +108,12 @@ impl Database {
             .write_to_bytes()
             .or_else(|err| Err(CreateCollectionError::Protobuf(err)))?;
 
-        self.meta_raw_db
-            .put(meta_collection_record_key, &collection_record)
+        self.database_raw_db
+            .put_cf(
+                DATABASE_RAW_DB_CF,
+                meta_collection_record_key,
+                &collection_record,
+            )
             .await
             .or_else(|err| Err(CreateCollectionError::RawDb(err)))?;
 
