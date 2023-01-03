@@ -153,7 +153,7 @@ impl Collection {
                         .put_cf(
                             COLLECTION_CF_META,
                             b"generation_id",
-                            &vec![0; 64].into_boxed_slice(),
+                            &vec![0; 8].into_boxed_slice(),
                         )
                         .await?;
 

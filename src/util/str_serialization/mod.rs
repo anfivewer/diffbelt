@@ -36,6 +36,15 @@ impl StrSerializationType {
     pub fn serialize_with_priority(&self, bytes: &[u8]) -> (String, StrSerializationType) {
         match self {
             StrSerializationType::Utf8 => {
+                // Check that all characters are visible
+                let is_serializable = is_serializable_as_utf8(bytes);
+                if !is_serializable {
+                    return (
+                        StrSerializationType::serialize_to_base64(bytes),
+                        StrSerializationType::Base64,
+                    );
+                }
+
                 // if it's valid utf8, use it
                 let result = from_utf8(bytes);
                 match result {
@@ -63,4 +72,16 @@ impl StrSerializationType {
             StrSerializationType::Base64 => Ok(base64::decode(s).or(Err(()))?.into_boxed_slice()),
         }
     }
+}
+
+fn is_serializable_as_utf8(bytes: &[u8]) -> bool {
+    for b in bytes {
+        let is_visible = 33 <= *b && *b <= 126;
+
+        if !is_visible {
+            return false;
+        }
+    }
+
+    true
 }

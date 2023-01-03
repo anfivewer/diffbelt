@@ -61,7 +61,7 @@ impl OwnedGenerationId {
         Self(Box::from([]))
     }
     pub fn zero_64bits() -> Self {
-        Self(vec![0; 64].into_boxed_slice())
+        Self(vec![0; 8].into_boxed_slice())
     }
 
     pub fn increment(&mut self) {

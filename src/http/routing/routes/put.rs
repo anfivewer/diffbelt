@@ -18,6 +18,7 @@ use crate::util::json::serde::deserialize_strict_null;
 
 use crate::util::str_serialization::StrSerializationType;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +43,7 @@ struct PutRequestJsonData {
     encoding: Option<String>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PutResponseJsonData {
