@@ -1,4 +1,5 @@
 pub const CREATE_COLLECTION_REQUEST_MAX_BYTES: usize = 4 * 1024;
 pub const DELETE_COLLECTION_REQUEST_MAX_BYTES: usize = 2 * 1024;
 
+pub const GET_REQUEST_MAX_BYTES: usize = 2 * 1024;
 pub const PUT_REQUEST_MAX_BYTES: usize = 4 * 1024 * 1024;

@@ -222,6 +222,10 @@ impl OwnedCollectionValue {
         }
     }
 
+    pub fn get_value(&self) -> &[u8] {
+        &self.0[1..]
+    }
+
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
