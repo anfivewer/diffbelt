@@ -12,6 +12,7 @@ pub mod config;
 pub mod constants;
 pub mod create_collection;
 mod database_inner;
+pub mod list_collections;
 pub mod open;
 
 pub struct Database {

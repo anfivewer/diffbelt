@@ -53,6 +53,11 @@ impl Collection {
         self.is_manual
     }
 
+    pub async fn get_generation_id(&self) -> OwnedGenerationId {
+        let generation_id = self.generation_id.read().await;
+        generation_id.clone()
+    }
+
     pub fn get_reader_generation_id(
         &self,
         reader_id: &str,

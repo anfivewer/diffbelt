@@ -1,6 +1,7 @@
 use crate::context::Context;
 use crate::http::routing::routes::collection::create::register_create_collection_route;
 use crate::http::routing::routes::collection::delete::register_delete_collection_route;
+use crate::http::routing::routes::collection::list::register_list_collections_route;
 use crate::http::routing::routes::diff::abort::register_abort_diff_route;
 use crate::http::routing::routes::diff::next::register_next_diff_route;
 use crate::http::routing::routes::diff::start::register_start_diff_route;
@@ -26,6 +27,7 @@ pub fn register_routes(context: &mut Context) {
     register_get_many_route(context);
     register_put_route(context);
     register_put_many_route(context);
+    register_list_collections_route(context);
     register_create_collection_route(context);
     register_delete_collection_route(context);
     register_create_reader_route(context);
