@@ -22,7 +22,7 @@ fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
         };
 
         match request.method() {
-            "GET" => get_collection(collection).await,
+            "GET" => get_collection(request, collection).await,
             "DELETE" => delete_collection(collection).await,
             _ => Err(HttpError::MethodNotAllowed),
         }

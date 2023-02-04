@@ -18,6 +18,8 @@ serde_with = "2.1.0"
 regex = "1.7.0"
 lazy_static = "1.4.0"
 base64 = "0.20.0"
+querystring = "1.1.0"
+urlencoding = "2.1.2"
 
 [build-dependencies]
 protobuf-codegen = "3.2.0"

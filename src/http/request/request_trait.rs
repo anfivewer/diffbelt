@@ -1,5 +1,6 @@
 use crate::http::request::FullBody;
 use futures::future::BoxFuture;
+use std::borrow::Cow;
 
 pub enum RequestReadError {
     IO,
@@ -11,6 +12,7 @@ pub type IntoFullBodyAsReadReturn = BoxFuture<'static, Result<FullBody, RequestR
 pub trait Request {
     fn method(&self) -> &str;
     fn get_path(&self) -> &str;
+    fn query_params(&self) -> Result<Vec<(Cow<str>, Cow<str>)>, ()>;
     fn get_header(&self, name: &str) -> Option<&str>;
     fn reduce_multi_header<R, F: FnMut(R, &str) -> R>(
         &self,

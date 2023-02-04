@@ -12,7 +12,8 @@ where
 #[cfg(test)]
 mod tests {
     use crate::util::json::serde::deserialize_strict_null;
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
+    use serde_with::skip_serializing_none;
 
     #[derive(Deserialize, Debug)]
     struct WithStrictNull {
@@ -49,5 +50,26 @@ mod tests {
 
         let result: Result<NonStrictNull, _> = serde_json::from_str(r"{}");
         assert_eq!(result.unwrap().value, None);
+    }
+
+    #[skip_serializing_none]
+    #[derive(Serialize, Debug)]
+    struct WithCustomNull {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<Option<String>>,
+    }
+
+    #[test]
+    fn test_custom_null() {
+        let data = WithCustomNull { value: None };
+        assert_eq!(serde_json::to_string(&data).unwrap(), r#"{}"#);
+
+        let data = WithCustomNull { value: Some(None) };
+        assert_eq!(serde_json::to_string(&data).unwrap(), r#"{"value":null}"#);
+
+        let data = WithCustomNull {
+            value: Some(Some("test".to_string())),
+        };
+        assert_eq!(serde_json::to_string(&data).unwrap(), r#"{"value":"test"}"#);
     }
 }

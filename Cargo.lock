@@ -246,6 +246,7 @@ dependencies = [
  "protobuf 3.2.0",
  "protobuf-codegen 3.2.0",
  "protoc-rust",
+ "querystring",
  "rand",
  "regex",
  "rocksdb",
@@ -253,6 +254,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "tokio",
+ "urlencoding",
 ]
 
 [[package]]
@@ -856,6 +858,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "querystring"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9318ead08c799aad12a55a3e78b82e0b6167271ffd1f627b758891282f739187"
+
+[[package]]
 name = "quote"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1237,6 +1245,12 @@ name = "unicode-width"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
+
+[[package]]
+name = "urlencoding"
+version = "2.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8db7427f936968176eaa7cdf81b7f98b980b18495ec28f1b5791ac3bfe3eea9"
 
 [[package]]
 name = "vcpkg"

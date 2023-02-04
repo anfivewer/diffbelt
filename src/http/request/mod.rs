@@ -1,6 +1,7 @@
 use hyper::body::{Buf, Bytes, HttpBody};
 use hyper::{Body, Request as HyperRequest};
 pub use request_trait::*;
+use std::borrow::Cow;
 use std::collections::VecDeque;
 
 mod full_read;
@@ -32,6 +33,25 @@ impl Request for HyperRequestWrapped {
 
     fn get_path(&self) -> &str {
         self.inner.uri().path()
+    }
+
+    fn query_params(&self) -> Result<Vec<(Cow<str>, Cow<str>)>, ()> {
+        let query = self.inner.uri().query();
+        let Some(query) = query else {
+            return Ok(Vec::with_capacity(0));
+        };
+
+        let params = querystring::querify(query);
+        let mut result = Vec::with_capacity(params.len());
+
+        for (key, value) in params {
+            let key = urlencoding::decode(key).map_err(|_| ())?;
+            let value = urlencoding::decode(value).map_err(|_| ())?;
+
+            result.push((key, value));
+        }
+
+        Ok(result)
     }
 
     fn get_header(&self, name: &str) -> Option<&str> {
