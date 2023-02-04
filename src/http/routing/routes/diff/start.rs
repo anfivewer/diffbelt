@@ -16,5 +16,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
 }
 
 pub fn register_start_diff_route(context: &mut Context) {
-    context.routing.add_static_get_route("/diff/start", handler);
+    context
+        .routing
+        .add_static_post_route("/diff/start", handler);
 }

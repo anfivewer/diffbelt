@@ -12,5 +12,5 @@ fn root_handle(_options: StaticRouteOptions) -> StaticRouteFnResult {
 }
 
 pub fn register_root_route(context: &mut Context) {
-    context.routing.add_static_get_route("/", root_handle);
+    context.routing.add_static_post_route("/", root_handle);
 }

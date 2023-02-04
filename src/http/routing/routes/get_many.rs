@@ -16,5 +16,5 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
 }
 
 pub fn register_get_many_route(context: &mut Context) {
-    context.routing.add_static_get_route("/getMany", handler);
+    context.routing.add_static_post_route("/getMany", handler);
 }

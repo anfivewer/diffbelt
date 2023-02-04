@@ -10,6 +10,7 @@ pub type IntoFullBodyAsReadReturn = BoxFuture<'static, Result<FullBody, RequestR
 
 pub trait Request {
     fn method(&self) -> &str;
+    fn get_path(&self) -> &str;
     fn get_header(&self, name: &str) -> Option<&str>;
     fn reduce_multi_header<R, F: FnMut(R, &str) -> R>(
         &self,

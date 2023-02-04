@@ -30,6 +30,10 @@ impl Request for HyperRequestWrapped {
         self.inner.method().as_str()
     }
 
+    fn get_path(&self) -> &str {
+        self.inner.uri().path()
+    }
+
     fn get_header(&self, name: &str) -> Option<&str> {
         let headers = self.inner.headers();
 

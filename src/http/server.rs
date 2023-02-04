@@ -29,7 +29,7 @@ async fn handle_request(
 
     let static_route = match static_route {
         None => {
-            return Err(HttpError::NotFound);
+            return handle_pattern_request(context, req).await;
         }
         Some(static_route) => static_route,
     };
@@ -42,6 +42,41 @@ async fn handle_request(
     })
     .await?;
 
+    handle_response(result).await
+}
+
+async fn handle_pattern_request(
+    context: Arc<Context>,
+    req: Request<Body>,
+) -> Result<Response<Body>, HttpError> {
+    let routing = &context.routing;
+    let _path = req.uri().path();
+
+    let mut options = StaticRouteOptions {
+        context: context.clone(),
+        request: HyperRequestWrapped::from(req),
+    };
+
+    for route in &routing.pattern_routes {
+        let handler = &route.handler;
+
+        let result = handler(options, &route.path);
+
+        match result {
+            Ok(result) => {
+                let result = result.await?;
+                return handle_response(result).await;
+            }
+            Err(opts) => {
+                options = opts;
+            }
+        }
+    }
+
+    return Err(HttpError::NotFound);
+}
+
+async fn handle_response(result: ResponseByRoute) -> Result<Response<Body>, HttpError> {
     let (mut response, base) = match result {
         ResponseByRoute::String(StringResponse { base, str }) => (Response::new(str.into()), base),
         ResponseByRoute::StaticStr(StaticStrResponse { base, str }) => {

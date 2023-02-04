@@ -16,5 +16,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
 }
 
 pub fn register_abort_diff_route(context: &mut Context) {
-    context.routing.add_static_get_route("/diff/abort", handler);
+    context
+        .routing
+        .add_static_post_route("/diff/abort", handler);
 }

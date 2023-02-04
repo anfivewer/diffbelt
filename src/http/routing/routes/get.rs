@@ -143,5 +143,5 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
 }
 
 pub fn register_get_route(context: &mut Context) {
-    context.routing.add_static_get_route("/get", handler);
+    context.routing.add_static_post_route("/get", handler);
 }

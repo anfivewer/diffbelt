@@ -18,5 +18,5 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
 pub fn register_create_reader_route(context: &mut Context) {
     context
         .routing
-        .add_static_get_route("/reader/create", handler);
+        .add_static_post_route("/reader/create", handler);
 }

@@ -18,5 +18,5 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
 pub fn register_abort_query_route(context: &mut Context) {
     context
         .routing
-        .add_static_get_route("/query/abort", handler);
+        .add_static_post_route("/query/abort", handler);
 }

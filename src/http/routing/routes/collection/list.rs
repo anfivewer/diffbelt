@@ -68,5 +68,5 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
 pub fn register_list_collections_route(context: &mut Context) {
     context
         .routing
-        .add_static_get_route("/collection/list", handler);
+        .add_static_get_route("/collections/", handler);
 }

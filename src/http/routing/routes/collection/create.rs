@@ -10,7 +10,7 @@ use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
 use crate::http::util::response::create_ok_no_error_json_response;
-use crate::http::validation::{ContentTypeValidation, MethodsValidation};
+use crate::http::validation::ContentTypeValidation;
 
 use serde::Deserialize;
 
@@ -30,7 +30,6 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
         let context = options.context;
         let request = options.request;
 
-        request.allow_only_methods(&["POST"])?;
         request.allow_only_utf8_json_by_default()?;
 
         let body = read_limited_body(request, CREATE_COLLECTION_REQUEST_MAX_BYTES).await?;
@@ -87,5 +86,5 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
 pub fn register_create_collection_route(context: &mut Context) {
     context
         .routing
-        .add_static_get_route("/collection/create", handler);
+        .add_static_post_route("/collections/", handler);
 }
