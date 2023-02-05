@@ -14,6 +14,12 @@ impl StrSerializationType {
         Self::from_str(&t)
     }
 
+    pub fn from_opt_str<T: AsRef<str>>(str_like: Option<T>) -> Result<Self, ()> {
+        let Some(t) = str_like else { return Ok(StrSerializationType::Utf8); };
+
+        Self::from_str(t.as_ref())
+    }
+
     pub fn from_str(t: &str) -> Result<StrSerializationType, ()> {
         let t = match t {
             "utf8" => StrSerializationType::Utf8,
@@ -66,10 +72,14 @@ impl StrSerializationType {
         base64::encode(bytes)
     }
 
-    pub fn deserialize(&self, s: &str) -> Result<Box<[u8]>, ()> {
+    pub fn deserialize<T: AsRef<str>>(&self, s: T) -> Result<Box<[u8]>, ()> {
         match self {
-            StrSerializationType::Utf8 => Ok(s.to_string().into_bytes().into_boxed_slice()),
-            StrSerializationType::Base64 => Ok(base64::decode(s).or(Err(()))?.into_boxed_slice()),
+            StrSerializationType::Utf8 => {
+                Ok(s.as_ref().to_string().into_bytes().into_boxed_slice())
+            }
+            StrSerializationType::Base64 => {
+                Ok(base64::decode(s.as_ref()).or(Err(()))?.into_boxed_slice())
+            }
         }
     }
 }
