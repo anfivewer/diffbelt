@@ -83,6 +83,10 @@ impl OwnedParsedRecordKey {
     pub fn get_collection_key(&self) -> CollectionKey<'_> {
         CollectionKey::new_unchecked(by_range(&self.bytes, &self.collection_key))
     }
+
+    pub fn to_owned_record_key(self) -> OwnedRecordKey {
+        OwnedRecordKey::from_owned_parsed_record_key(self)
+    }
 }
 
 #[inline]

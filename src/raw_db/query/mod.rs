@@ -5,6 +5,7 @@ use crate::common::{
 };
 use crate::raw_db::RawDbError;
 use rocksdb::{DBIteratorWithThreadMode, Direction, IteratorMode, DB};
+use std::io::Write;
 
 use std::mem;
 
@@ -15,8 +16,8 @@ pub struct QueryDirectionBackward;
 pub struct QueryDirectionForward;
 
 pub struct ContinuationState {
-    last_candidate_key: OwnedRecordKey,
-    next_iterator_key: OwnedRecordKey,
+    pub last_candidate_key: OwnedRecordKey,
+    pub next_iterator_key: OwnedRecordKey,
 }
 
 pub struct QueryOptions<'a, K: QueryKind, D: QueryDirection> {
@@ -240,6 +241,25 @@ impl<'a, K: QueryKind, D: QueryDirection> QueryState<'a, K, D> {
         }
     }
 
+    pub fn is_end(&self) -> bool {
+        self.is_empty
+    }
+
+    pub fn is_records_limit_achieved(&self) -> bool {
+        self.records_seen >= self.records_to_view_limit
+    }
+
+    pub fn into_continuation(self) -> Option<ContinuationState> {
+        if self.is_end() {
+            return None;
+        }
+
+        Some(ContinuationState {
+            last_candidate_key: self.last_record.key.to_owned_record_key(),
+            next_iterator_key: self.next_record.unwrap().key.to_owned_record_key(),
+        })
+    }
+
     fn inner_next(&mut self) -> Result<Option<K::Item>, RawDbError> {
         if self.is_empty {
             return Ok(None);
@@ -266,6 +286,9 @@ impl<'a, K: QueryKind, D: QueryDirection> QueryState<'a, K, D> {
 
         let iterator = self.iterator.as_mut().unwrap().by_ref();
 
+        let generation_id = self.generation_id.as_ref();
+        let phantom_id = OwnedPhantomId::as_opt_ref(&self.phantom_id);
+
         for kv in iterator {
             let (key, value) = kv?;
 
@@ -277,80 +300,93 @@ impl<'a, K: QueryKind, D: QueryDirection> QueryState<'a, K, D> {
                 value: K::value_from_box(value),
             };
 
-            let ParsedRecordKey {
-                collection_key: last_collection_key,
-                generation_id: last_generation_id,
-                phantom_id: last_phantom_id,
-            } = self.last_record.key.get_parsed();
+            let action = handle_last_and_next::<D>(
+                generation_id,
+                phantom_id,
+                self.last_record.key.get_parsed(),
+                self.next_record.as_ref().unwrap().key.get_parsed(),
+            );
 
-            let ParsedRecordKey {
-                collection_key: next_collection_key,
-                generation_id: next_generation_id,
-                phantom_id: next_phantom_id,
-            } = self.next_record.as_ref().unwrap().key.get_parsed();
-
-            let is_key_differs = last_collection_key != next_collection_key;
-
-            if is_key_differs {
-                if is_key_satisties(
-                    self.generation_id.as_ref(),
-                    OwnedPhantomId::as_opt_ref(&self.phantom_id),
-                    self.last_record.key.get_parsed(),
-                ) {
+            match action {
+                LastAndNextHandleResult::PushLast => {
                     let old_next_record =
                         mem::replace(&mut self.next_record, Some(new_next_record));
                     let last_record = mem::replace(&mut self.last_record, old_next_record.unwrap());
 
-                    return Ok(K::make_item(last_record));
+                    let item = K::make_item(last_record);
+                    match item {
+                        Some(item) => {
+                            return Ok(Some(item));
+                        }
+                        None => {}
+                    }
                 }
-
-                let old_next_record = mem::replace(&mut self.next_record, Some(new_next_record));
-                self.last_record = old_next_record.unwrap();
-
-                if self.records_seen >= self.records_to_view_limit {
-                    return Ok(None);
+                LastAndNextHandleResult::ReplaceLastWithNext => {
+                    let old_next_record =
+                        mem::replace(&mut self.next_record, Some(new_next_record));
+                    self.last_record = old_next_record.unwrap();
                 }
-                continue;
+                LastAndNextHandleResult::UpdateNext => {
+                    self.next_record = Some(new_next_record);
+                }
             }
-
-            let should_skip = last_phantom_id != next_phantom_id
-                || !D::is_suitable_generation_id(
-                    self.generation_id.as_ref(),
-                    last_generation_id,
-                    next_generation_id,
-                );
-
-            if should_skip {
-                self.next_record = Some(new_next_record);
-
-                if self.records_seen >= self.records_to_view_limit {
-                    return Ok(None);
-                }
-                continue;
-            }
-
-            let old_next_record = mem::replace(&mut self.next_record, Some(new_next_record));
-            self.last_record = old_next_record.unwrap();
 
             if self.records_seen >= self.records_to_view_limit {
                 return Ok(None);
             }
         }
 
-        let last_record = mem::replace(&mut self.last_record, K::empty_kv_record());
-        self.is_empty = true;
-        self.next_record.take();
-        self.iterator.take();
+        let action = handle_last_and_next::<D>(
+            generation_id,
+            phantom_id,
+            self.last_record.key.get_parsed(),
+            self.next_record.as_ref().unwrap().key.get_parsed(),
+        );
 
-        if !is_key_satisties(
-            self.generation_id.as_ref(),
-            OwnedPhantomId::as_opt_ref(&self.phantom_id),
-            last_record.key.get_parsed(),
-        ) {
-            return Ok(None);
+        match action {
+            LastAndNextHandleResult::PushLast => {
+                let old_next_record = self.next_record.take();
+                let last_record = mem::replace(&mut self.last_record, old_next_record.unwrap());
+
+                let item = K::make_item(last_record);
+                match item {
+                    Some(item) => Ok(Some(item)),
+                    None => {
+                        let last_record = mem::replace(&mut self.last_record, K::empty_kv_record());
+
+                        if !is_key_satisties(
+                            generation_id,
+                            phantom_id,
+                            last_record.key.get_parsed(),
+                        ) {
+                            return Ok(None);
+                        }
+
+                        Ok(K::make_item(last_record))
+                    }
+                }
+            }
+            action => {
+                let last_record = match action {
+                    LastAndNextHandleResult::UpdateNext => {
+                        self.next_record.take();
+                        mem::replace(&mut self.last_record, K::empty_kv_record())
+                    }
+                    LastAndNextHandleResult::ReplaceLastWithNext => {
+                        self.next_record.take().unwrap()
+                    }
+                    _ => panic!("impossible"),
+                };
+
+                self.is_empty = true;
+
+                if !is_key_satisties(generation_id, phantom_id, last_record.key.get_parsed()) {
+                    return Ok(None);
+                }
+
+                Ok(K::make_item(last_record))
+            }
         }
-
-        Ok(K::make_item(last_record))
     }
 }
 
@@ -365,6 +401,42 @@ impl<'a, K: QueryKind, D: QueryDirection> Iterator for QueryState<'a, K, D> {
             Err(err) => Some(Err(err)),
         }
     }
+}
+
+enum LastAndNextHandleResult {
+    PushLast,
+    ReplaceLastWithNext,
+    UpdateNext,
+}
+
+fn handle_last_and_next<D: QueryDirection>(
+    generation_id: GenerationId<'_>,
+    phantom_id: Option<PhantomId<'_>>,
+    last_parsed_record: ParsedRecordKey<'_>,
+    next_parsed_record: ParsedRecordKey<'_>,
+) -> LastAndNextHandleResult {
+    let is_key_differs = last_parsed_record.collection_key != next_parsed_record.collection_key;
+
+    if is_key_differs {
+        if is_key_satisties(generation_id, phantom_id, last_parsed_record) {
+            return LastAndNextHandleResult::PushLast;
+        }
+
+        return LastAndNextHandleResult::ReplaceLastWithNext;
+    }
+
+    let should_skip = last_parsed_record.phantom_id != next_parsed_record.phantom_id
+        || !D::is_suitable_generation_id(
+            generation_id,
+            last_parsed_record.generation_id,
+            next_parsed_record.generation_id,
+        );
+
+    if should_skip {
+        return LastAndNextHandleResult::UpdateNext;
+    }
+
+    LastAndNextHandleResult::ReplaceLastWithNext
 }
 
 fn is_key_satisties(
