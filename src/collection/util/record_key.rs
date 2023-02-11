@@ -5,7 +5,7 @@ use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::util::bytes::{read_u24, write_u24};
 use std::ops::Range;
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct RecordKey<'a> {
     pub value: &'a [u8],
 }
@@ -25,7 +25,25 @@ pub struct OwnedParsedRecordKey {
 impl OwnedParsedRecordKey {
     pub fn from_boxed_slice(bytes: Box<[u8]>) -> Result<Self, ()> {
         let record_key = RecordKey::validate(&bytes)?;
-        Ok(OwnedParsedRecordKey::from_record_key(record_key))
+        let (collection_key, generation_id, phantom_id) = record_key.parse_to_ranges();
+
+        Ok(Self {
+            bytes,
+            collection_key,
+            generation_id,
+            phantom_id,
+        })
+    }
+
+    pub fn from_owned_record_key(record_key: OwnedRecordKey) -> Self {
+        let (collection_key, generation_id, phantom_id) = record_key.as_ref().parse_to_ranges();
+
+        Self {
+            bytes: record_key.value,
+            collection_key,
+            generation_id,
+            phantom_id,
+        }
     }
 
     fn from_record_key(record_key: RecordKey<'_>) -> Self {
@@ -36,6 +54,15 @@ impl OwnedParsedRecordKey {
             collection_key,
             generation_id,
             phantom_id,
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            bytes: Box::new([]),
+            collection_key: 0..0,
+            generation_id: 0..0,
+            phantom_id: None,
         }
     }
 

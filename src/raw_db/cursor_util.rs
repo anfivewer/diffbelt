@@ -7,7 +7,7 @@ pub struct LastRecord {
     pub value: Option<Box<[u8]>>,
 }
 
-type RocksDbIteratorItem = Result<(Box<[u8]>, Box<[u8]>), rocksdb::Error>;
+pub type RocksDbIteratorItem = Result<(Box<[u8]>, Box<[u8]>), rocksdb::Error>;
 
 pub fn get_initial_last_record(
     db: &rocksdb::DB,

@@ -3,6 +3,7 @@ use crate::common::constants::{
     MAX_COLLECTION_KEY_LENGTH, MAX_GENERATION_ID_LENGTH, MAX_PHANTOM_ID_LENGTH,
 };
 use crate::util::bytes::increment;
+use regex::internal::Input;
 use std::cmp::Ordering;
 
 pub mod constants;
@@ -234,9 +235,15 @@ impl OwnedCollectionValue {
         CollectionValue(&self.0)
     }
 }
-impl CollectionValue<'_> {
+impl<'a> CollectionValue<'a> {
+    pub fn from_slice(bytes: &'a [u8]) -> Self {
+        Self(bytes)
+    }
     pub fn get_value(&self) -> &[u8] {
         &self.0[1..]
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
     pub fn to_owned(&self) -> OwnedCollectionValue {
         OwnedCollectionValue(self.0.into())
@@ -267,11 +274,17 @@ impl OwnedPhantomId {
 
         Ok(Self(bytes))
     }
+    pub fn from_boxed_slice_unchecked(bytes: Box<[u8]>) -> Self {
+        Self(bytes)
+    }
     pub fn empty() -> Self {
         Self(vec![].into_boxed_slice())
     }
     pub fn as_ref(&self) -> PhantomId<'_> {
         PhantomId(&self.0)
+    }
+    pub fn as_opt_ref(opt: &Option<OwnedPhantomId>) -> Option<PhantomId> {
+        opt.as_ref().map(|x| x.as_ref())
     }
     pub fn or_empty_as_ref(opt: &Option<Self>) -> PhantomId<'_> {
         match opt {
@@ -299,6 +312,9 @@ impl<'a> PhantomId<'a> {
             Some(id) => Self(id.0),
             None => Self(b""),
         }
+    }
+    pub fn to_owned(self: &Self) -> OwnedPhantomId {
+        OwnedPhantomId::from_boxed_slice_unchecked(self.0.into())
     }
 }
 
