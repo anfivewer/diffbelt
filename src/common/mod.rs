@@ -313,8 +313,15 @@ impl<'a> PhantomId<'a> {
             None => Self(b""),
         }
     }
-    pub fn to_owned(self: &Self) -> OwnedPhantomId {
+    pub fn to_owned(&self) -> OwnedPhantomId {
         OwnedPhantomId::from_boxed_slice_unchecked(self.0.into())
+    }
+    pub fn to_opt_if_empty(&self) -> Option<Self> {
+        if !self.0.is_empty() {
+            Some(*self)
+        } else {
+            None
+        }
     }
 }
 

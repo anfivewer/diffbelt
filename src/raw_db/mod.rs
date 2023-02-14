@@ -10,6 +10,7 @@ pub mod delete;
 pub mod destroy;
 pub mod diff_collection_records;
 pub mod get_collection_record;
+pub mod get_keys_around;
 pub mod get_range;
 pub mod has_generation_changes;
 pub mod put;
