@@ -1,11 +1,11 @@
 use crate::collection::util::record_key::RecordKey;
-use crate::common::{CollectionKey, GenerationId, IsByteArray, OwnedCollectionKey, PhantomId};
+use crate::common::{CollectionKey, GenerationId, OwnedCollectionKey, PhantomId};
 use crate::raw_db::query::{
     QueryDirection, QueryDirectionBackward, QueryDirectionForward, QueryKeysOnly, QueryOptions,
     QueryState,
 };
 use crate::raw_db::{RawDb, RawDbError};
-use rocksdb::{Direction, IteratorMode, DB};
+use rocksdb::DB;
 
 pub struct RawDbGetKeysAroundOptions<'a> {
     pub record_key: RecordKey<'a>,
@@ -17,7 +17,7 @@ pub struct RawDbGetKeysAroundResult {
     pub left: Vec<OwnedCollectionKey>,
     pub right: Vec<OwnedCollectionKey>,
     pub has_more_on_the_left: bool,
-    pub has_more_one_the_right: bool,
+    pub has_more_on_the_right: bool,
 }
 
 impl RawDb {
@@ -38,7 +38,7 @@ impl RawDb {
             left: Vec::with_capacity(limit),
             right: Vec::with_capacity(limit),
             has_more_on_the_left: false,
-            has_more_one_the_right: false,
+            has_more_on_the_right: false,
         };
 
         let start_key = record_key.get_collection_key();
@@ -52,7 +52,7 @@ impl RawDb {
             phantom_id,
             limit,
             records_to_view_limit,
-            &mut result.has_more_one_the_right,
+            &mut result.has_more_on_the_right,
             &mut result.right,
         )?;
 

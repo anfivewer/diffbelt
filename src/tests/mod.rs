@@ -1,5 +1,6 @@
 mod database;
 mod diff;
+mod get_keys_around;
 mod query;
 mod readers;
 mod temp_database;
