@@ -5,7 +5,7 @@ use crate::http::constants::GET_REQUEST_MAX_BYTES;
 use crate::http::data::key_value::KeyValueJsonData;
 use crate::http::errors::HttpError;
 use crate::http::routing::response::{BaseResponse, BytesVecResponse, Response};
-use crate::http::routing::{StaticRouteFnResult, StaticRouteOptions};
+use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
@@ -43,7 +43,7 @@ struct GetResponseJsonData {
     item: Option<KeyValueJsonData>,
 }
 
-fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
+fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
     Box::pin(async move {
         let context = options.context;
         let request = options.request;

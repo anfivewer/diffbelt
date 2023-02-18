@@ -1,0 +1,11 @@
+[package]
+name = "diffbelt_macro_test"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+
+[dependencies]
+
+[dependencies.diffbelt_macro]
+path = "../diffbelt_macro"

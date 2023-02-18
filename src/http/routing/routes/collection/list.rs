@@ -5,7 +5,7 @@ use futures::stream::FuturesOrdered;
 use futures::StreamExt;
 use std::sync::Arc;
 
-use crate::http::routing::{StaticRouteFnResult, StaticRouteOptions};
+use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 
 use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::MethodsValidation;
@@ -33,7 +33,7 @@ struct ListCollectionsResponseJsonData {
     items: Vec<ListCollectionsItemJsonData>,
 }
 
-fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
+fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
     Box::pin(async move {
         let context = options.context;
         let request = options.request;

@@ -240,6 +240,7 @@ name = "diffbelt"
 version = "0.0.1"
 dependencies = [
  "base64 0.20.0",
+ "diffbelt_macro",
  "futures",
  "hyper",
  "lazy_static",
@@ -256,6 +257,10 @@ dependencies = [
  "tokio",
  "urlencoding",
 ]
+
+[[package]]
+name = "diffbelt_macro"
+version = "0.0.1"
 
 [[package]]
 name = "either"

@@ -1,7 +1,7 @@
 use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::routing::response::{BaseResponse, BytesVecResponse, Response};
-use crate::http::routing::{StaticRouteFnResult, StaticRouteOptions};
+use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 
 use crate::collection::methods::put::CollectionPutOptions;
@@ -43,7 +43,7 @@ struct PutResponseJsonData {
     was_put: Option<bool>,
 }
 
-fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
+fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
     Box::pin(async move {
         let context = options.context;
         let request = options.request;

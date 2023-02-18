@@ -5,7 +5,7 @@ use crate::database::create_collection::{CreateCollectionError, CreateCollection
 use crate::http::constants::CREATE_COLLECTION_REQUEST_MAX_BYTES;
 use crate::http::errors::HttpError;
 
-use crate::http::routing::{StaticRouteFnResult, StaticRouteOptions};
+use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
@@ -25,7 +25,7 @@ struct CreateCollectionRequestJsonData {
     encoding: Option<String>,
 }
 
-fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
+fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
     Box::pin(async move {
         let context = options.context;
         let request = options.request;

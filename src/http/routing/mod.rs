@@ -17,8 +17,9 @@ pub struct StaticRouteOptions {
     pub request: HyperRequestWrapped,
 }
 
-pub type StaticRouteFnResult = BoxFuture<'static, Result<Response, HttpError>>;
-pub type StaticRouteFn = fn(options: StaticRouteOptions) -> StaticRouteFnResult;
+pub type StaticRouteFnResult = Result<Response, HttpError>;
+pub type StaticRouteFnFutureResult = BoxFuture<'static, Result<Response, HttpError>>;
+pub type StaticRouteFn = fn(options: StaticRouteOptions) -> StaticRouteFnFutureResult;
 
 pub struct PatternRouteOptions<T> {
     pub context: Arc<Context>,
@@ -26,7 +27,7 @@ pub struct PatternRouteOptions<T> {
     pub groups: T,
 }
 
-pub type PatternRouteFnResult = StaticRouteFnResult;
+pub type PatternRouteFnResult = StaticRouteFnFutureResult;
 pub type PatternRouteFn<T> = fn(options: PatternRouteOptions<T>) -> PatternRouteFnResult;
 
 pub struct PatternRoute {

@@ -1,8 +1,8 @@
 use crate::context::Context;
 use crate::http::routing::response::{Response, StringResponse};
-use crate::http::routing::{StaticRouteFnResult, StaticRouteOptions};
+use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 
-fn root_handle(_options: StaticRouteOptions) -> StaticRouteFnResult {
+fn root_handle(_options: StaticRouteOptions) -> StaticRouteFnFutureResult {
     Box::pin(async move {
         Ok(Response::String(StringResponse {
             base: Default::default(),

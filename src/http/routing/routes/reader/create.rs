@@ -1,9 +1,9 @@
 use crate::context::Context;
 use crate::http::errors::HttpError;
-use crate::http::routing::{StaticRouteFnResult, StaticRouteOptions};
+use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 
-fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
+fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
     Box::pin(async move {
         let _context = options.context;
         let request = options.request;
