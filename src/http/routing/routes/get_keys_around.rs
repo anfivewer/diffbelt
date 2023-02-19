@@ -1,11 +1,15 @@
 use crate::collection::methods::get_keys_around::CollectionGetKeysAroundOptions;
-use crate::common::{IsByteArray, OwnedCollectionKey, OwnedGenerationId, OwnedPhantomId};
+
 use crate::context::Context;
 use crate::http::constants::GET_KEYS_AROUND_REQUEST_MAX_BYTES;
-use crate::http::data::encoded_key::EncodedKeyJsonData;
+use crate::http::data::encoded_key::{EncodedKeyFlatJsonData, EncodedKeyJsonData};
 
 use crate::http::errors::HttpError;
 
+use crate::http::data::encoded_generation_id::{
+    EncodedGenerationIdFlatJsonData, EncodedOptionalGenerationIdFlatJsonData,
+};
+use crate::http::data::encoded_phantom_id::EncodedOptionalPhantomIdFlatJsonData;
 use crate::http::routing::{StaticRouteFnResult, StaticRouteOptions};
 use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
@@ -22,17 +26,17 @@ use serde_with::skip_serializing_none;
 struct RequestJsonData {
     collection_id: String,
 
-    key: String,
-    key_encoding: Option<String>,
+    #[serde(flatten)]
+    key: EncodedKeyFlatJsonData,
 
     require_key_existance: bool,
     limit: usize,
 
-    generation_id: Option<String>,
-    generation_id_encoding: Option<String>,
+    #[serde(flatten)]
+    generation_id: EncodedOptionalGenerationIdFlatJsonData,
 
-    phantom_id: Option<String>,
-    phantom_id_encoding: Option<String>,
+    #[serde(flatten)]
+    phantom_id: EncodedOptionalPhantomIdFlatJsonData,
 
     // Default encoding for all fields
     encoding: Option<String>,
@@ -42,8 +46,8 @@ struct RequestJsonData {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ResponseJsonData {
-    generation_id: String,
-    generation_id_encoding: Option<String>,
+    #[serde(flatten)]
+    generation_id: EncodedGenerationIdFlatJsonData,
 
     left: Vec<EncodedKeyJsonData>,
     right: Vec<EncodedKeyJsonData>,
@@ -75,47 +79,9 @@ async fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
 
     let decoder = StringDecoder::from_default_encoding_string("encoding", data.encoding)?;
 
-    let key = decoder.decode_field_with_map(
-        "key",
-        data.key,
-        "keyEncoding",
-        data.key_encoding,
-        |bytes| {
-            OwnedCollectionKey::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
-                "invalid key, length should be <= 16777215",
-            )))
-        },
-    )?;
-
-    let generation_id = decoder.decode_opt_field_with_map(
-        "generationId",
-        data.generation_id,
-        "generationIdEncoding",
-        data.generation_id_encoding,
-        |bytes| {
-            OwnedGenerationId::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
-                "invalid generationId, length should be <= 255",
-            )))
-        },
-    )?;
-
-    let phantom_id = decoder.decode_opt_field_with_map(
-        "phantomId",
-        data.phantom_id,
-        "phantomIdEncoding",
-        data.phantom_id_encoding,
-        |bytes| {
-            if bytes.is_empty() {
-                return Err(HttpError::Generic400(
-                    "invalid phantomId, it cannot be empty",
-                ));
-            }
-
-            OwnedPhantomId::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
-                "invalid phantomId, length should be <= 255",
-            )))
-        },
-    )?;
+    let key = data.key.decode(&decoder)?;
+    let generation_id = data.generation_id.decode(&decoder)?;
+    let phantom_id = data.phantom_id.decode(&decoder)?;
 
     let options = CollectionGetKeysAroundOptions {
         key,
@@ -135,12 +101,11 @@ async fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
         }
     };
 
-    let (generation_id, generation_id_encoding) =
-        StrSerializationType::Utf8.serialize_with_priority(result.generation_id.get_byte_array());
-
     let response = ResponseJsonData {
-        generation_id,
-        generation_id_encoding: generation_id_encoding.to_optional_string(),
+        generation_id: EncodedGenerationIdFlatJsonData::encode(
+            result.generation_id.as_ref(),
+            StrSerializationType::Utf8,
+        ),
         left: EncodedKeyJsonData::encode_vec(result.left),
         right: EncodedKeyJsonData::encode_vec(result.right),
         has_more_on_the_left: result.has_more_on_the_left,

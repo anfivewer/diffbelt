@@ -1,6 +1,8 @@
 use crate::common::{IsByteArray, OwnedCollectionKey};
+use crate::http::errors::HttpError;
+use crate::http::util::encoding::StringDecoder;
 use crate::util::str_serialization::StrSerializationType;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
@@ -26,5 +28,23 @@ impl EncodedKeyJsonData {
         }
 
         result
+    }
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EncodedKeyFlatJsonData {
+    key: String,
+    key_encoding: Option<String>,
+}
+
+impl EncodedKeyFlatJsonData {
+    pub fn decode(self, decoder: &StringDecoder) -> Result<OwnedCollectionKey, HttpError> {
+        decoder.decode_field_with_map("key", self.key, "keyEncoding", self.key_encoding, |bytes| {
+            OwnedCollectionKey::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
+                "invalid key, length should be <= 16777215",
+            )))
+        })
     }
 }
