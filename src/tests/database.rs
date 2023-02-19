@@ -177,6 +177,7 @@ async fn database_test_inner() {
     let result = manual_collection
         .commit_generation(CommitGenerationOptions {
             generation_id: commit_generation_id.clone(),
+            update_readers: None,
         })
         .await;
 

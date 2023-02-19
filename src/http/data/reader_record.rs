@@ -1,8 +1,13 @@
+use crate::collection::CommitGenerationUpdateReader;
 use crate::common::reader::ReaderRecord;
-use crate::common::{GenerationId, IsByteArray, KeyValue, OwnedGenerationId};
-use crate::http::data::encoded_generation_id::EncodedOptionalGenerationIdFlatJsonData;
+use crate::common::GenerationId;
+use crate::http::data::encoded_generation_id::{
+    EncodedGenerationIdFlatJsonData, EncodedOptionalGenerationIdFlatJsonData,
+};
+use crate::http::errors::HttpError;
+use crate::http::util::encoding::StringDecoder;
 use crate::util::str_serialization::StrSerializationType;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
@@ -13,6 +18,14 @@ pub struct ReaderRecordJsonData {
     collection_name: Option<String>,
     #[serde(flatten)]
     generation_id: EncodedOptionalGenerationIdFlatJsonData,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateReaderJsonData {
+    reader_id: String,
+    #[serde(flatten)]
+    generation_id: EncodedGenerationIdFlatJsonData,
 }
 
 impl From<ReaderRecord> for ReaderRecordJsonData {
@@ -43,5 +56,30 @@ impl ReaderRecordJsonData {
         }
 
         result
+    }
+}
+
+impl UpdateReaderJsonData {
+    pub fn decode_vec(
+        items: Vec<UpdateReaderJsonData>,
+        decoder: &StringDecoder,
+    ) -> Result<Vec<CommitGenerationUpdateReader>, HttpError> {
+        let mut result = Vec::with_capacity(items.len());
+
+        for item in items {
+            let UpdateReaderJsonData {
+                reader_id,
+                generation_id,
+            } = item;
+
+            let generation_id = generation_id.decode(&decoder)?;
+
+            result.push(CommitGenerationUpdateReader {
+                reader_id,
+                generation_id,
+            });
+        }
+
+        Ok(result)
     }
 }

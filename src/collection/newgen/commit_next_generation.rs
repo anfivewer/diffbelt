@@ -1,7 +1,8 @@
-use crate::collection::constants::COLLECTION_CF_META;
-use crate::common::{IsByteArray, IsByteArrayMut, OwnedGenerationId};
+use crate::common::{IsByteArrayMut, OwnedGenerationId};
+use crate::raw_db::commit_generation::{RawDbCommitGenerationOptions, RawDbUpdateReader};
 use crate::raw_db::has_generation_changes::HasGenerationChangesOptions;
-use crate::raw_db::put::PutKeyValue;
+
+use crate::collection::CommitGenerationUpdateReader;
 use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::increment;
 use std::sync::Arc;
@@ -15,6 +16,7 @@ pub struct CommitNextGenerationSyncOptions {
     pub generation_id: Arc<RwLock<OwnedGenerationId>>,
     pub next_generation_id: Arc<RwLock<Option<OwnedGenerationId>>>,
     pub is_manual_collection: bool,
+    pub update_readers: Option<Vec<CommitGenerationUpdateReader>>,
 }
 
 pub enum CommitNextGenerationError {
@@ -78,17 +80,24 @@ pub async fn commit_next_generation_sync(
     // Store new gens
     options
         .raw_db
-        .put_two_sync_cf(
-            COLLECTION_CF_META,
-            PutKeyValue {
-                key: b"generation_id",
-                value: next_generation_id.get_byte_array(),
-            },
-            PutKeyValue {
-                key: b"next_generation_id",
-                value: new_next_generation_id.get_byte_array(),
-            },
-        )
+        .commit_generation_sync(RawDbCommitGenerationOptions {
+            generation_id: next_generation_id.as_ref(),
+            next_generation_id: new_next_generation_id.as_ref(),
+            update_readers: options.update_readers.as_ref().map(|update_readers| {
+                update_readers
+                    .iter()
+                    .map(
+                        |CommitGenerationUpdateReader {
+                             reader_id,
+                             generation_id,
+                         }| RawDbUpdateReader {
+                            reader_id: reader_id.as_str(),
+                            generation_id: generation_id.as_ref(),
+                        },
+                    )
+                    .collect()
+            }),
+        })
         .map_err(|err| CommitNextGenerationError::RawDb(err))?;
 
     // Lock next generation first to prevent more puts

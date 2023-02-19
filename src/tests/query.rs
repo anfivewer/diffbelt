@@ -68,6 +68,7 @@ async fn query_test_inner() {
     collection
         .commit_generation(CommitGenerationOptions {
             generation_id: first_generation_id.clone(),
+            update_readers: None,
         })
         .await
         .unwrap();
@@ -146,6 +147,7 @@ async fn query_test_inner() {
     collection
         .commit_generation(CommitGenerationOptions {
             generation_id: second_generation_id.clone(),
+            update_readers: None,
         })
         .await
         .unwrap();

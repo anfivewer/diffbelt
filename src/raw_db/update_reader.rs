@@ -1,5 +1,7 @@
 use crate::collection::constants::COLLECTION_CF_META;
 use crate::collection::util::reader_value::{OwnedReaderValue, ReaderValue};
+use rocksdb::{BoundColumnFamily, WriteBatchWithTransaction};
+use std::sync::Arc;
 
 use crate::common::reader::ReaderState;
 use crate::common::{GenerationId, IsByteArray};
@@ -139,6 +141,37 @@ impl RawDb {
             .or(Err(RawDbError::InvalidReaderValue))?;
 
         db.put_cf(&meta_cf, &key, new_value.get_byte_array())?;
+
+        Ok(())
+    }
+
+    pub fn update_reader_batch(
+        &self,
+        batch: &mut WriteBatchWithTransaction<false>,
+        meta_cf: Arc<BoundColumnFamily>,
+        options: RawDbUpdateReaderOptions<'_>,
+    ) -> Result<(), RawDbError> {
+        let mut key = String::with_capacity("reader:".len() + options.reader_id.len());
+        key.push_str("reader:");
+        key.push_str(options.reader_id);
+
+        let value = self.db.get_db().get_cf(&meta_cf, &key)?;
+
+        let value = match value {
+            Some(value) => value,
+            None => {
+                return Err(RawDbError::NoSuchReader);
+            }
+        };
+
+        let old_value = ReaderValue::from_slice(&value).or(Err(RawDbError::InvalidReaderValue))?;
+        let collection_id = old_value.get_collection_id();
+        let generation_id = options.generation_id;
+
+        let new_value = OwnedReaderValue::new(Some(collection_id), generation_id)
+            .or(Err(RawDbError::InvalidReaderValue))?;
+
+        batch.put_cf(&meta_cf, &key, new_value.get_byte_array());
 
         Ok(())
     }

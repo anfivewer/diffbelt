@@ -78,6 +78,7 @@ async fn get_keys_around_inner() {
     collection
         .commit_generation(CommitGenerationOptions {
             generation_id: first_generation_id.clone(),
+            update_readers: None,
         })
         .await
         .unwrap();

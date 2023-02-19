@@ -1,34 +1,21 @@
-use crate::collection::methods::create_reader::CreateReaderOptions;
 use crate::collection::methods::delete_reader::DeleteReaderOptions;
-use crate::collection::methods::diff::DiffOptions;
-use crate::collection::methods::list_readers::ListReadersOk;
-use crate::collection::methods::update_reader::UpdateReaderOptions;
+
 use diffbelt_macro::fn_box_pin_async;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
+use serde::Deserialize;
 
-use crate::common::generation_id::GenerationIdSource;
-use crate::common::reader::ReaderDef;
-use crate::common::OwnedGenerationId;
 use crate::context::Context;
-use crate::http::constants::{QUERY_START_REQUEST_MAX_BYTES, READER_REQUEST_MAX_BYTES};
-use crate::http::data::diff_response::DiffResponseJsonData;
-use crate::http::data::encoded_generation_id::{
-    EncodedNullableGenerationIdFlatJsonData, EncodedOptionalGenerationIdFlatJsonData,
-};
-use crate::http::data::reader_record::ReaderRecordJsonData;
+use crate::http::constants::READER_REQUEST_MAX_BYTES;
 
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
-use crate::http::util::encoding::StringDecoder;
+
 use crate::http::util::get_collection::get_collection;
 use crate::http::util::id_group::{id_only_group, IdOnlyGroup};
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
-use crate::http::util::response::{create_ok_json_response, create_ok_no_error_json_response};
+use crate::http::util::response::create_ok_no_error_json_response;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
-use crate::util::str_serialization::StrSerializationType;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,9 +36,6 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     let data: RequestJsonData = read_json(body)?;
 
     let RequestJsonData { reader_id } = data;
-
-    let decoder = StringDecoder::new(StrSerializationType::Utf8);
-    let generation_id = generation_id.decode(&decoder)?;
 
     let collection = get_collection(&context, &collection_id).await?;
 

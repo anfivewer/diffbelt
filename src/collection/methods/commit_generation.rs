@@ -2,13 +2,13 @@ use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::newgen::commit_next_generation::{
     commit_next_generation_sync, CommitNextGenerationError, CommitNextGenerationSyncOptions,
 };
-use crate::collection::Collection;
+use crate::collection::{Collection, CommitGenerationUpdateReader};
 use crate::common::OwnedGenerationId;
 use crate::util::tokio::spawn_blocking_async;
 
 pub struct CommitGenerationOptions {
     pub generation_id: OwnedGenerationId,
-    // TODO: update readers
+    pub update_readers: Option<Vec<CommitGenerationUpdateReader>>,
 }
 
 impl Collection {
@@ -22,7 +22,10 @@ impl Collection {
         let next_generation_id = self.next_generation_id.clone();
         let is_manual_collection = self.is_manual;
 
-        let expected_generation_id = options.generation_id;
+        let CommitGenerationOptions {
+            generation_id: expected_generation_id,
+            update_readers,
+        } = options;
 
         let deletion_lock = self.is_deleted.read().await;
         if deletion_lock.to_owned() {
@@ -37,6 +40,7 @@ impl Collection {
                 generation_id,
                 next_generation_id,
                 is_manual_collection,
+                update_readers,
             })
             .await
         })

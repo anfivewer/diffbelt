@@ -22,6 +22,7 @@ pub async fn wrap_generation(
     collection
         .commit_generation(CommitGenerationOptions {
             generation_id: generation_id.to_owned(),
+            update_readers: None,
         })
         .await
         .unwrap();

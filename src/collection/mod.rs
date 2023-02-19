@@ -82,3 +82,8 @@ impl Collection {
         self.generation_id_receiver.clone()
     }
 }
+
+pub struct CommitGenerationUpdateReader {
+    pub reader_id: String,
+    pub generation_id: OwnedGenerationId,
+}
