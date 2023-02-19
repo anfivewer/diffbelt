@@ -18,6 +18,7 @@ use serde::Serialize;
 use serde_with::skip_serializing_none;
 use tokio::select;
 use tokio::time::{sleep, Instant};
+use crate::http::custom_errors::no_such_collection_error;
 
 #[skip_serializing_none]
 #[derive(Serialize)]
@@ -38,7 +39,7 @@ fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
         let result = context.database.get_collection(&collection_id).await;
 
         let Some(collection) = result else {
-            return Err(HttpError::Generic400("no such collection"));
+            return Err(no_such_collection_error());
         };
 
         let params = request

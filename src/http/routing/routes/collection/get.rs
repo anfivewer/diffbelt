@@ -54,6 +54,7 @@ impl ApplyPart for Option<NextGenerationIdPart> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct GetCollectionResponseJsonData {
+    is_manual: bool,
     generation_id: Option<String>,
     generation_id_encoding: Option<String>,
     next_generation_id: Option<Option<String>>,
@@ -94,6 +95,7 @@ pub async fn get_collection(
     }
 
     let mut response = GetCollectionResponseJsonData {
+        is_manual: collection.is_manual(),
         generation_id: None,
         generation_id_encoding: None,
         next_generation_id: None,

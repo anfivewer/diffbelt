@@ -8,6 +8,7 @@ use crate::http::routing::{PatternRouteFnResult, PatternRouteOptions};
 use crate::http::util::id_group::{id_only_group, IdOnlyGroup};
 
 use regex::Regex;
+use crate::http::custom_errors::no_such_collection_error;
 
 fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
     Box::pin(async move {
@@ -18,7 +19,7 @@ fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
         let result = context.database.get_collection(&collection_id).await;
 
         let Some(collection) = result else {
-            return Err(HttpError::Generic400("no such collection"));
+            return Err(no_such_collection_error());
         };
 
         match request.method() {

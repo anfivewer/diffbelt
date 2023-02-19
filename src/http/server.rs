@@ -25,7 +25,8 @@ async fn handle_request(
     let path = path_and_query.path();
 
     let routing = &context.routing;
-    let static_route = routing.static_get_routes.get(path);
+    let routes = routing.get_static_routes_by_method(req.method().as_str());
+    let static_route = routes.and_then(|routes| routes.get(path));
 
     let static_route = match static_route {
         None => {
@@ -142,6 +143,7 @@ pub async fn start_http_server(context: Arc<Context>) {
                                 )
                                 .into(),
                             ),
+                            HttpError::CustomJson400(json) => (StatusCode::BAD_REQUEST, json.into()),
                             HttpError::GenericString400(reason) => {
                                 is_json = false;
                                 (

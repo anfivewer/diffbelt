@@ -34,6 +34,10 @@ async fn run() {
     };
     let config = Arc::new(config);
 
+    if config.is_clear {
+        std::fs::remove_dir_all(&config.data_path).expect("cannot remove data_path");
+    }
+
     let database = Database::open(DatabaseOpenOptions {
         data_path: &config.data_path,
         config: Arc::new(Default::default()),

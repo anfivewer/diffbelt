@@ -9,10 +9,13 @@ use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
-use crate::http::util::response::create_ok_no_error_json_response;
+use crate::http::util::response::{create_ok_json_response, create_ok_no_error_json_response};
 use crate::http::validation::ContentTypeValidation;
 
-use serde::Deserialize;
+use crate::http::data::encoded_generation_id::EncodedGenerationIdFlatJsonData;
+use crate::util::str_serialization::StrSerializationType;
+use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -23,6 +26,14 @@ struct CreateCollectionRequestJsonData {
     initial_generation_id: Option<String>,
     initial_generation_id_encoding: Option<String>,
     encoding: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ResponseJsonData {
+    #[serde(flatten)]
+    generation_id: EncodedGenerationIdFlatJsonData,
 }
 
 fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
@@ -67,19 +78,31 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
             .create_collection(&collection_id, CreateCollectionOptions { is_manual })
             .await;
 
-        if let Err(err) = result {
-            return match err {
-                CreateCollectionError::AlreadyExist => Err(HttpError::Generic400(
-                    "collection with such id already exists",
-                )),
-                _ => {
-                    eprintln!("create collection error {:?}", err);
-                    Err(HttpError::Unspecified)
-                }
-            };
-        }
+        let collection = match result {
+            Ok(collection) => collection,
+            Err(err) => {
+                return match err {
+                    CreateCollectionError::AlreadyExist => Err(HttpError::Generic400(
+                        "collection with such id already exists",
+                    )),
+                    _ => {
+                        eprintln!("create collection error {:?}", err);
+                        Err(HttpError::Unspecified)
+                    }
+                };
+            }
+        };
 
-        create_ok_no_error_json_response()
+        let generation_id = collection.get_generation_id().await;
+
+        let response = ResponseJsonData {
+            generation_id: EncodedGenerationIdFlatJsonData::encode(
+                generation_id.as_ref(),
+                StrSerializationType::Utf8,
+            ),
+        };
+
+        create_ok_json_response(&response)
     })
 }
 

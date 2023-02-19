@@ -61,6 +61,14 @@ impl Routing {
         self.static_post_routes.insert(path.to_string(), handler);
     }
 
+    pub fn get_static_routes_by_method(&self, method: &str) -> Option<&HashMap<String, StaticRouteFn>> {
+        match method {
+            "GET" => Some(&self.static_get_routes),
+            "POST" => Some(&self.static_post_routes),
+            _ => None,
+        }
+    }
+
     fn add_pattern_route<T: 'static>(
         &mut self,
         path: Regex,

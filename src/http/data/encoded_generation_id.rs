@@ -16,6 +16,14 @@ pub struct EncodedGenerationIdFlatJsonData {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct EncodedGenerationIdJsonData {
+    value: String,
+    encoding: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EncodedOptionalGenerationIdFlatJsonData {
     generation_id: Option<String>,
     generation_id_encoding: Option<String>,
@@ -52,6 +60,18 @@ impl EncodedGenerationIdFlatJsonData {
                 )))
             },
         )
+    }
+}
+
+impl EncodedGenerationIdJsonData {
+    pub fn encode(generation_id: GenerationId<'_>, encoding: StrSerializationType) -> Self {
+        let (value, generation_id_encoding) =
+            encoding.serialize_with_priority(generation_id.get_byte_array());
+
+        Self {
+            value,
+            encoding: generation_id_encoding.to_optional_string(),
+        }
     }
 }
 
