@@ -10,7 +10,7 @@ use crate::http::data::encoded_generation_id::{
     EncodedGenerationIdFlatJsonData, EncodedOptionalGenerationIdFlatJsonData,
 };
 use crate::http::data::encoded_phantom_id::EncodedOptionalPhantomIdFlatJsonData;
-use crate::http::routing::{StaticRouteFnResult, StaticRouteOptions};
+use crate::http::routing::{HttpHandlerResult, StaticRouteOptions};
 use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
@@ -59,7 +59,7 @@ struct ResponseJsonData {
 }
 
 #[fn_box_pin_async]
-async fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
+async fn handler(options: StaticRouteOptions) -> HttpHandlerResult {
     let context = options.context;
     let request = options.request;
 
@@ -96,7 +96,7 @@ async fn handler(options: StaticRouteOptions) -> StaticRouteFnResult {
     let result = match result {
         Ok(result) => result,
         Err(err) => {
-            eprintln!("get error {:?}", err);
+            eprintln!("get_keys_around error {:?}", err);
             return Err(HttpError::Unspecified);
         }
     };

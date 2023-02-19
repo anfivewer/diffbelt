@@ -17,7 +17,7 @@ pub struct StaticRouteOptions {
     pub request: HyperRequestWrapped,
 }
 
-pub type StaticRouteFnResult = Result<Response, HttpError>;
+pub type HttpHandlerResult = Result<Response, HttpError>;
 pub type StaticRouteFnFutureResult = BoxFuture<'static, Result<Response, HttpError>>;
 pub type StaticRouteFn = fn(options: StaticRouteOptions) -> StaticRouteFnFutureResult;
 

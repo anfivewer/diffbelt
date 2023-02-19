@@ -3,3 +3,4 @@ pub mod encoded_key;
 pub mod encoded_phantom_id;
 pub mod key_value;
 pub mod key_value_update;
+pub mod query_response;

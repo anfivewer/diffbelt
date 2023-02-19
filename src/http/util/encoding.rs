@@ -6,6 +6,12 @@ pub struct StringDecoder {
 }
 
 impl StringDecoder {
+    pub fn new(default_encoding: StrSerializationType) -> Self {
+        Self {
+            default_type: default_encoding,
+        }
+    }
+
     pub fn from_default_encoding_string(
         default_encoding_field_name: &str,
         encoding: Option<String>,
