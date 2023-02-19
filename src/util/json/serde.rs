@@ -55,7 +55,6 @@ mod tests {
     #[skip_serializing_none]
     #[derive(Serialize, Debug)]
     struct WithCustomNull {
-        #[serde(skip_serializing_if = "Option::is_none")]
         value: Option<Option<String>>,
     }
 

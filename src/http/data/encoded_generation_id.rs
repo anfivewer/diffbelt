@@ -21,6 +21,14 @@ pub struct EncodedOptionalGenerationIdFlatJsonData {
     generation_id_encoding: Option<String>,
 }
 
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EncodedNullableGenerationIdFlatJsonData {
+    generation_id: Option<Option<String>>,
+    generation_id_encoding: Option<String>,
+}
+
 impl EncodedGenerationIdFlatJsonData {
     pub fn encode(generation_id: GenerationId<'_>, encoding: StrSerializationType) -> Self {
         let (generation_id, generation_id_encoding) =
@@ -77,5 +85,24 @@ impl EncodedOptionalGenerationIdFlatJsonData {
                 )))
             },
         )
+    }
+}
+
+impl EncodedNullableGenerationIdFlatJsonData {
+    pub fn encode(generation_id: Option<GenerationId<'_>>, encoding: StrSerializationType) -> Self {
+        let Some(generation_id) = generation_id else {
+            return Self {
+                generation_id: Some(None),
+                generation_id_encoding: None,
+            };
+        };
+
+        let (generation_id, generation_id_encoding) =
+            encoding.serialize_with_priority(generation_id.get_byte_array());
+
+        Self {
+            generation_id: Some(Some(generation_id)),
+            generation_id_encoding: generation_id_encoding.to_optional_string(),
+        }
     }
 }

@@ -34,15 +34,7 @@ impl Collection {
             to_generation_id_loose,
         } = options;
 
-        let to_generation_id_loose = {
-            match to_generation_id_loose {
-                Some(id) => id,
-                None => {
-                    let generation_id_lock = self.generation_id.read().await;
-                    generation_id_lock.as_ref().to_owned()
-                }
-            }
-        };
+        let to_generation_id_loose = self.generation_id_or_current(to_generation_id_loose).await;
 
         let cursor = Arc::new(DiffCursor::new(DiffCursorNewOptions {
             from_generation_id,
