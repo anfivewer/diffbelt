@@ -7,3 +7,4 @@ pub mod key_value;
 pub mod key_value_diff;
 pub mod key_value_update;
 pub mod query_response;
+pub mod reader_record;

@@ -1,5 +1,6 @@
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
+use crate::common::{GenerationId, OwnedGenerationId};
 
 use crate::raw_db::update_reader::{RawDbCreateReaderOptions, RawDbCreateReaderResult};
 
@@ -8,6 +9,7 @@ use crate::util::tokio::spawn_blocking_async;
 pub struct CreateReaderOptions {
     pub reader_id: String,
     pub collection_id: Option<String>,
+    pub generation_id: Option<OwnedGenerationId>,
 }
 
 impl Collection {
@@ -21,6 +23,7 @@ impl Collection {
 
         let reader_id = options.reader_id;
         let collection_id = options.collection_id;
+        let generation_id = options.generation_id;
         let raw_db = self.raw_db.clone();
 
         let deletion_lock = self.is_deleted.read().await;
@@ -32,6 +35,7 @@ impl Collection {
             raw_db.create_reader_sync(RawDbCreateReaderOptions {
                 reader_id: reader_id.as_str(),
                 collection_id: collection_id.as_ref().map(|id| id.as_str()),
+                generation_id: GenerationId::from_opt_owned(&generation_id),
             })
         })
         .await

@@ -56,6 +56,23 @@ impl EncodedGenerationIdFlatJsonData {
 }
 
 impl EncodedOptionalGenerationIdFlatJsonData {
+    pub fn encode(generation_id: Option<GenerationId<'_>>, encoding: StrSerializationType) -> Self {
+        let Some(generation_id) = generation_id else {
+            return Self {
+                generation_id: None,
+                generation_id_encoding: None,
+            };
+        };
+
+        let (generation_id, generation_id_encoding) =
+            encoding.serialize_with_priority(generation_id.get_byte_array());
+
+        Self {
+            generation_id: Some(generation_id),
+            generation_id_encoding: generation_id_encoding.to_optional_string(),
+        }
+    }
+
     pub fn decode(self, decoder: &StringDecoder) -> Result<Option<OwnedGenerationId>, HttpError> {
         decoder.decode_opt_field_with_map(
             "generationId",
@@ -104,5 +121,25 @@ impl EncodedNullableGenerationIdFlatJsonData {
             generation_id: Some(Some(generation_id)),
             generation_id_encoding: generation_id_encoding.to_optional_string(),
         }
+    }
+
+    pub fn decode(self, decoder: &StringDecoder) -> Result<Option<OwnedGenerationId>, HttpError> {
+        let Some(Some(generation_id)) = self.generation_id else {
+            return Ok(None);
+        };
+
+        decoder
+            .decode_field_with_map(
+                "generationId",
+                generation_id,
+                "generationIdEncoding",
+                self.generation_id_encoding,
+                |bytes| {
+                    OwnedGenerationId::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
+                        "invalid generationId, length should be <= 255",
+                    )))
+                },
+            )
+            .map(|x| Some(x))
     }
 }

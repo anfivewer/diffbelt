@@ -8,6 +8,7 @@ use crate::raw_db::{RawDb, RawDbError};
 pub struct RawDbCreateReaderOptions<'a> {
     pub reader_id: &'a str,
     pub collection_id: Option<&'a str>,
+    pub generation_id: Option<GenerationId<'a>>,
 }
 
 pub struct RawDbUpdateReaderOptions<'a> {
@@ -73,11 +74,17 @@ impl RawDb {
             .cf_handle(COLLECTION_CF_META)
             .ok_or(RawDbError::CfHandle)?;
 
-        let mut key = String::with_capacity("reader:".len() + options.reader_id.len());
-        key.push_str("reader:");
-        key.push_str(options.reader_id);
+        let RawDbCreateReaderOptions {
+            reader_id,
+            collection_id,
+            generation_id,
+        } = options;
 
-        let expected_value = OwnedReaderValue::new(options.collection_id, None)
+        let mut key = String::with_capacity("reader:".len() + reader_id.len());
+        key.push_str("reader:");
+        key.push_str(reader_id);
+
+        let expected_value = OwnedReaderValue::new(collection_id, generation_id)
             .or(Err(RawDbError::InvalidReaderValue))?;
         let expected_value = expected_value.get_byte_array();
 

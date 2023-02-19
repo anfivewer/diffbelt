@@ -47,6 +47,7 @@ async fn readers_test_inner() {
         .create_reader(CreateReaderOptions {
             reader_id: "first".to_string(),
             collection_id: Some("other_collection".to_string()),
+            generation_id: None,
         })
         .await;
     assert!(result.is_ok());
@@ -55,6 +56,7 @@ async fn readers_test_inner() {
         .create_reader(CreateReaderOptions {
             reader_id: "second".to_string(),
             collection_id: None,
+            generation_id: None,
         })
         .await;
     assert!(result.is_ok());

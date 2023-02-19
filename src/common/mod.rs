@@ -118,6 +118,10 @@ impl<'a> GenerationId<'a> {
             Some(OwnedGenerationId(self.0.into()))
         }
     }
+
+    pub fn from_opt_owned(value: &'a Option<OwnedGenerationId>) -> Option<Self> {
+        value.as_ref().map(|x| x.as_ref())
+    }
 }
 
 impl IsByteArray for OwnedGenerationId {
