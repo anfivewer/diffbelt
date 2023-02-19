@@ -22,9 +22,9 @@ pub struct EncodedOptionalGenerationIdFlatJsonData {
 }
 
 impl EncodedGenerationIdFlatJsonData {
-    pub fn encode(generation_id: GenerationId<'_>, _encoding: StrSerializationType) -> Self {
+    pub fn encode(generation_id: GenerationId<'_>, encoding: StrSerializationType) -> Self {
         let (generation_id, generation_id_encoding) =
-            StrSerializationType::Utf8.serialize_with_priority(generation_id.get_byte_array());
+            encoding.serialize_with_priority(generation_id.get_byte_array());
 
         Self {
             generation_id,
@@ -50,6 +50,23 @@ impl EncodedGenerationIdFlatJsonData {
 impl EncodedOptionalGenerationIdFlatJsonData {
     pub fn decode(self, decoder: &StringDecoder) -> Result<Option<OwnedGenerationId>, HttpError> {
         decoder.decode_opt_field_with_map(
+            "generationId",
+            self.generation_id,
+            "generationIdEncoding",
+            self.generation_id_encoding,
+            |bytes| {
+                OwnedGenerationId::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
+                    "invalid generationId, length should be <= 255",
+                )))
+            },
+        )
+    }
+
+    pub fn decode_with_type(
+        self,
+        decoder: &StringDecoder,
+    ) -> Result<(Option<OwnedGenerationId>, StrSerializationType), HttpError> {
+        decoder.decode_opt_field_with_map_and_type(
             "generationId",
             self.generation_id,
             "generationIdEncoding",

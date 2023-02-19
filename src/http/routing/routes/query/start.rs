@@ -12,6 +12,7 @@ use crate::http::data::query_response::QueryResponseJsonData;
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
 use crate::http::util::encoding::StringDecoder;
+use crate::http::util::get_collection::get_collection;
 use crate::http::util::id_group::{id_only_group, IdOnlyGroup};
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
@@ -45,8 +46,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     let generation_id = data.generation_id.decode(&decoder)?;
     let phantom_id = data.phantom_id.decode(&decoder)?;
 
-    let collection = context.database.get_collection(&collection_id).await;
-    let Some(collection) = collection else { return Err(HttpError::Generic400("no such collection")); };
+    let collection = get_collection(&context, &collection_id).await?;
 
     let options = QueryOptions {
         generation_id,
