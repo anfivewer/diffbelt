@@ -4,6 +4,7 @@ pub mod generation;
 pub mod get;
 pub mod get_keys_around;
 pub mod get_many;
+pub mod phantom;
 pub mod put;
 pub mod put_many;
 pub mod query;

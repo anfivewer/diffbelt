@@ -1,7 +1,8 @@
-use crate::common::OwnedPhantomId;
+use crate::common::{IsByteArray, OwnedPhantomId};
 use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
 
+use crate::util::str_serialization::StrSerializationType;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
@@ -22,6 +23,15 @@ pub struct EncodedOptionalPhantomIdFlatJsonData {
 }
 
 impl EncodedPhantomIdFlatJsonData {
+    pub fn new(phantom_id: OwnedPhantomId, encoding: StrSerializationType) -> Self {
+        let (phantom_id, encoding) = encoding.serialize_with_priority(phantom_id.get_byte_array());
+
+        Self {
+            phantom_id,
+            phantom_id_encoding: encoding.to_optional_string(),
+        }
+    }
+
     pub fn decode(self, decoder: &StringDecoder) -> Result<OwnedPhantomId, HttpError> {
         decoder.decode_field_with_map(
             "phantomId",

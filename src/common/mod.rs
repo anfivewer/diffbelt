@@ -284,6 +284,9 @@ impl OwnedPhantomId {
     pub fn empty() -> Self {
         Self(vec![].into_boxed_slice())
     }
+    pub fn zero_64bits() -> Self {
+        Self(vec![0; 8].into_boxed_slice())
+    }
     pub fn as_ref(&self) -> PhantomId<'_> {
         PhantomId(&self.0)
     }

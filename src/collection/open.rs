@@ -4,7 +4,7 @@ use crate::collection::util::meta_merge::{meta_full_merge, meta_partial_merge};
 use crate::collection::util::phantom_key_compare::phantom_key_compare_fn;
 use crate::collection::util::record_key_compare::record_key_compare_fn;
 use crate::collection::Collection;
-use crate::common::{IsByteArray, IsByteArrayMut, NeverEq, OwnedGenerationId};
+use crate::common::{IsByteArray, IsByteArrayMut, NeverEq, OwnedGenerationId, OwnedPhantomId};
 
 use crate::collection::constants::COLLECTION_CF_META;
 use crate::collection::util::generation_size_merge::{
@@ -39,6 +39,7 @@ pub enum CollectionOpenError {
     KeyCreation,
     DbContainsInvalidKeys,
     InvalidGenerationId,
+    InvalidPhantomId,
 }
 
 impl From<RawDbOpenError> for CollectionOpenError {
@@ -194,6 +195,15 @@ impl Collection {
             }
         };
 
+        let prev_phantom_id_stored = raw_db
+            .get_cf(COLLECTION_CF_META, b"prev_phantom_id")
+            .await?;
+        let prev_phantom_id = match prev_phantom_id_stored {
+            Some(prev_phantom_id) => OwnedPhantomId::from_boxed_slice(prev_phantom_id)
+                .map_err(|_| CollectionOpenError::InvalidPhantomId)?,
+            None => OwnedPhantomId::zero_64bits(),
+        };
+
         let (newgen, collection_sender, on_put_sender) = if !is_manual {
             let (on_put_sender, on_put_receiver) = watch::channel(NeverEq);
             let (collection_sender, collection_receiver) = oneshot::channel();
@@ -228,6 +238,7 @@ impl Collection {
             on_put_sender,
             query_cursors: std::sync::RwLock::new(HashMap::new()),
             diff_cursors: std::sync::RwLock::new(HashMap::new()),
+            prev_phantom_id: RwLock::new(prev_phantom_id),
         };
         let collection = Arc::new(collection);
 

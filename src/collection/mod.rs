@@ -2,7 +2,7 @@ use crate::collection::cursor::diff::DiffCursor;
 use crate::collection::cursor::query::QueryCursor;
 use crate::collection::newgen::NewGenerationCommiter;
 use crate::collection::util::record_key::OwnedRecordKey;
-use crate::common::{NeverEq, OwnedGenerationId};
+use crate::common::{NeverEq, OwnedGenerationId, OwnedPhantomId};
 use crate::database::config::DatabaseConfig;
 use crate::database::DatabaseInner;
 use crate::raw_db::{RawDb, RawDbError};
@@ -37,6 +37,7 @@ pub struct Collection {
     on_put_sender: Option<watch::Sender<NeverEq>>,
     query_cursors: std::sync::RwLock<HashMap<String, Arc<QueryCursor>>>,
     diff_cursors: std::sync::RwLock<HashMap<String, Arc<DiffCursor>>>,
+    prev_phantom_id: RwLock<OwnedPhantomId>,
 }
 
 pub enum GetReaderGenerationIdError {

@@ -8,6 +8,7 @@ pub mod errors;
 pub mod get;
 pub mod get_keys_around;
 pub mod list_readers;
+pub mod phantom;
 pub mod put;
 pub mod query;
 pub mod start_generation;

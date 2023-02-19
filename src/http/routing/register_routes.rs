@@ -12,6 +12,7 @@ use crate::http::routing::routes::generation::start::register_start_generation_r
 use crate::http::routing::routes::get::register_get_route;
 use crate::http::routing::routes::get_keys_around::register_get_keys_around_route;
 use crate::http::routing::routes::get_many::register_get_many_route;
+use crate::http::routing::routes::phantom::start::register_start_phantom_route;
 use crate::http::routing::routes::put::register_put_route;
 use crate::http::routing::routes::put_many::register_put_many_route;
 use crate::http::routing::routes::query::abort::register_abort_query_route;
@@ -47,4 +48,5 @@ pub fn register_routes(context: &mut Context) {
     register_start_diff_route(context);
     register_next_diff_route(context);
     register_abort_diff_route(context);
+    register_start_phantom_route(context);
 }
