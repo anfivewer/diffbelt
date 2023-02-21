@@ -65,7 +65,7 @@ pub async fn commit_next_generation_sync(
         })
         .map_err(|err| CommitNextGenerationError::RawDb(err))?;
 
-    if !has_changes {
+    if !has_changes && !options.is_manual_collection {
         return Ok(());
     }
 

@@ -28,13 +28,7 @@ pub struct QueryOk {
 
 impl Collection {
     pub async fn query(&self, options: QueryOptions) -> Result<QueryOk, CollectionMethodError> {
-        let generation_id = match options.generation_id {
-            Some(gen) => gen,
-            None => {
-                let generation_id_lock = self.generation_id.read().await;
-                generation_id_lock.as_ref().to_owned()
-            }
-        };
+        let generation_id = self.generation_id_or_current(options.generation_id).await;
 
         let cursor = Arc::new(QueryCursor::new(QueryCursorNewOptions {
             generation_id: generation_id.clone(),

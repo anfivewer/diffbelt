@@ -26,11 +26,7 @@ impl Collection {
         &self,
         options: CollectionGetOptions,
     ) -> Result<CollectionGetOk, CollectionMethodError> {
-        let current_generation_id_lock = self.generation_id.read().await;
-        let current_generation_id = current_generation_id_lock.clone();
-        drop(current_generation_id_lock);
-
-        let generation_id = options.generation_id.unwrap_or(current_generation_id);
+        let generation_id = self.generation_id_or_current(options.generation_id).await;
 
         let record_key = OwnedRecordKey::new(
             options.key.as_ref(),

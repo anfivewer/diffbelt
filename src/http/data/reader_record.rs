@@ -1,9 +1,7 @@
 use crate::collection::CommitGenerationUpdateReader;
 use crate::common::reader::ReaderRecord;
 use crate::common::GenerationId;
-use crate::http::data::encoded_generation_id::{
-    EncodedGenerationIdFlatJsonData, EncodedOptionalGenerationIdFlatJsonData,
-};
+use crate::http::data::encoded_generation_id::{EncodedGenerationIdFlatJsonData, EncodedNullableGenerationIdFlatJsonData, EncodedOptionalGenerationIdFlatJsonData};
 use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
 use crate::util::str_serialization::StrSerializationType;
@@ -17,7 +15,7 @@ pub struct ReaderRecordJsonData {
     reader_id: String,
     collection_name: Option<String>,
     #[serde(flatten)]
-    generation_id: EncodedOptionalGenerationIdFlatJsonData,
+    generation_id: EncodedGenerationIdFlatJsonData,
 }
 
 #[derive(Deserialize)]
@@ -39,8 +37,8 @@ impl From<ReaderRecord> for ReaderRecordJsonData {
         Self {
             reader_id,
             collection_name: collection_id,
-            generation_id: EncodedOptionalGenerationIdFlatJsonData::encode(
-                GenerationId::from_opt_owned(&generation_id),
+            generation_id: EncodedGenerationIdFlatJsonData::encode(
+                GenerationId::from_opt_owned(&generation_id).unwrap_or(GenerationId::empty()),
                 StrSerializationType::Utf8,
             ),
         }
