@@ -5,6 +5,7 @@ use crate::common::constants::{
 use crate::util::bytes::increment;
 use regex::internal::Input;
 use std::cmp::Ordering;
+use crate::util::bytes_constants::BYTES_255_FF;
 
 pub mod constants;
 pub mod generation_id;
@@ -26,7 +27,7 @@ pub struct GenerationId<'a>(&'a [u8]);
 
 #[derive(Clone)]
 pub struct OwnedPhantomId(Box<[u8]>);
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct PhantomId<'a>(&'a [u8]);
 
 #[derive(PartialEq, Eq, Debug)]
@@ -88,7 +89,11 @@ impl<'a> GenerationId<'a> {
     }
 
     pub fn empty() -> Self {
-        GenerationId(b"")
+        Self(b"")
+    }
+
+    pub fn max_value() -> Self {
+        Self(BYTES_255_FF)
     }
 
     pub fn cmp_with_opt_as_infinity(&self, other: Option<Self>) -> Ordering {
@@ -314,6 +319,11 @@ impl<'a> PhantomId<'a> {
     pub fn empty() -> Self {
         Self(b"")
     }
+
+    pub fn max_value() -> Self {
+        Self(BYTES_255_FF)
+    }
+
     pub fn or_empty(opt: &Option<Self>) -> Self {
         match opt {
             Some(id) => Self(id.0),

@@ -15,10 +15,6 @@ impl Collection {
         &self,
         options: UpdateReaderOptions,
     ) -> Result<(), CollectionMethodError> {
-        if !self.is_manual {
-            return Err(CollectionMethodError::UnsupportedOperationForThisCollectionType);
-        }
-
         let reader_id = options.reader_id;
         let generation_id = options.generation_id;
         let raw_db = self.raw_db.clone();

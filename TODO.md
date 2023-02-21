@@ -9,5 +9,5 @@
 Regexp for purging dev printlines:
 
 ```
-[^e]println!\("(?!cargo|Temp)
+[^e]println!\((?!"cargo|"Temp)
 ```

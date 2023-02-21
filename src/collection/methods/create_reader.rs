@@ -17,10 +17,6 @@ impl Collection {
         &self,
         options: CreateReaderOptions,
     ) -> Result<(), CollectionMethodError> {
-        if !self.is_manual {
-            return Err(CollectionMethodError::UnsupportedOperationForThisCollectionType);
-        }
-
         let reader_id = options.reader_id;
         let collection_id = options.collection_id;
         let generation_id = options.generation_id;

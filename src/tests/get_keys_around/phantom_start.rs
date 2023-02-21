@@ -10,12 +10,13 @@ use crate::tests::temp_database::TempDatabase;
 use crate::util::global_tokio_runtime::create_global_tokio_runtime;
 
 #[test]
-fn get_keys_around_test() {
+fn get_keys_around_phantom_start_test() {
     let runtime = create_global_tokio_runtime().unwrap();
-    runtime.block_on(get_keys_around_inner());
+    runtime.block_on(get_keys_around_phantom_start_inner());
 }
 
-async fn get_keys_around_inner() {
+// Should handle case when left/right key removed in the next generation
+async fn get_keys_around_phantom_start_inner() {
     let temp_database = TempDatabase::new().await;
 
     let database = temp_database.get_database();
@@ -39,11 +40,6 @@ async fn get_keys_around_inner() {
         .put_many(CollectionPutManyOptions {
             items: vec![
                 KeyValueUpdate {
-                    key: OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),
-                    value: Some(OwnedCollectionValue::new(b"")),
-                    if_not_present: false,
-                },
-                KeyValueUpdate {
                     key: OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
                     value: Some(OwnedCollectionValue::new(b"")),
                     if_not_present: false,
@@ -55,16 +51,6 @@ async fn get_keys_around_inner() {
                 },
                 KeyValueUpdate {
                     key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
-                    value: Some(OwnedCollectionValue::new(b"")),
-                    if_not_present: false,
-                },
-                KeyValueUpdate {
-                    key: OwnedCollectionKey::from_boxed_slice((b"4" as &[u8]).into()).unwrap(),
-                    value: Some(OwnedCollectionValue::new(b"")),
-                    if_not_present: false,
-                },
-                KeyValueUpdate {
-                    key: OwnedCollectionKey::from_boxed_slice((b"5" as &[u8]).into()).unwrap(),
                     value: Some(OwnedCollectionValue::new(b"")),
                     if_not_present: false,
                 },
@@ -83,11 +69,51 @@ async fn get_keys_around_inner() {
         .await
         .unwrap();
 
+    let second_generation_id = OwnedGenerationId::from_boxed_slice((b"1" as &[u8]).into()).unwrap();
+
+    collection
+        .start_generation(StartGenerationOptions {
+            generation_id: second_generation_id.clone(),
+            abort_outdated: false,
+        })
+        .await
+        .unwrap();
+
+    collection
+        .put_many(CollectionPutManyOptions {
+            items: vec![
+                KeyValueUpdate {
+                    key: OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
+                    value: None,
+                    if_not_present: false,
+                },
+                KeyValueUpdate {
+                    key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
+                    value: None,
+                    if_not_present: false,
+                },
+            ],
+            generation_id: Some(second_generation_id.clone()),
+            phantom_id: None,
+        })
+        .await
+        .unwrap();
+
+    collection
+        .commit_generation(CommitGenerationOptions {
+            generation_id: second_generation_id.clone(),
+            update_readers: None,
+        })
+        .await
+        .unwrap();
+
+    let phantom_id = collection.start_phantom().await.unwrap();
+
     let result = collection
         .get_keys_around(CollectionGetKeysAroundOptions {
-            key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
-            generation_id: None,
-            phantom_id: None,
+            key: OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
+            generation_id: Some(first_generation_id.clone()),
+            phantom_id: Some(phantom_id.clone()),
             require_key_existance: true,
             limit: 100,
         })
@@ -102,20 +128,17 @@ async fn get_keys_around_inner() {
         has_more_on_the_right,
     } = result;
 
+    // Non-phantom get_keys_around should not see phantom records, but only own phantoms
     assert_eq!(&generation_id, &first_generation_id);
     assert_eq!(
         left,
-        vec![
-            OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
-            OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
-            OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),
-        ]
+        vec![]
     );
     assert_eq!(
         right,
         vec![
-            OwnedCollectionKey::from_boxed_slice((b"4" as &[u8]).into()).unwrap(),
-            OwnedCollectionKey::from_boxed_slice((b"5" as &[u8]).into()).unwrap(),
+            OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
+            OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
         ]
     );
     assert!(!has_more_on_the_left);
@@ -123,11 +146,11 @@ async fn get_keys_around_inner() {
 
     let result = collection
         .get_keys_around(CollectionGetKeysAroundOptions {
-            key: OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
-            generation_id: None,
-            phantom_id: None,
+            key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
+            generation_id: Some(first_generation_id.clone()),
+            phantom_id: Some(phantom_id.clone()),
             require_key_existance: true,
-            limit: 2,
+            limit: 100,
         })
         .await
         .unwrap();
@@ -140,18 +163,19 @@ async fn get_keys_around_inner() {
         has_more_on_the_right,
     } = result;
 
+    // Non-phantom get_keys_around should not see phantom records, but only own phantoms
     assert_eq!(&generation_id, &first_generation_id);
     assert_eq!(
         left,
-        vec![OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),]
+        vec![
+            OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
+            OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
+        ]
     );
     assert_eq!(
         right,
-        vec![
-            OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
-            OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
-        ]
+        vec![]
     );
     assert!(!has_more_on_the_left);
-    assert!(has_more_on_the_right);
+    assert!(!has_more_on_the_right);
 }

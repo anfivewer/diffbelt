@@ -111,6 +111,8 @@ impl QueryKind for QueryKeysOnly {
 
 pub trait QueryDirection {
     fn is_forward() -> bool;
+    fn get_initial_record_generation_id() -> GenerationId<'static>;
+    fn get_initial_record_phantom_id() -> PhantomId<'static>;
     fn get_default_iterator_mode() -> IteratorMode<'static>;
     fn get_direction() -> Direction;
     fn is_suitable_generation_id(
@@ -123,6 +125,12 @@ pub trait QueryDirection {
 impl QueryDirection for QueryDirectionBackward {
     fn is_forward() -> bool {
         false
+    }
+    fn get_initial_record_generation_id() -> GenerationId<'static> {
+        GenerationId::max_value()
+    }
+    fn get_initial_record_phantom_id() -> PhantomId<'static> {
+        PhantomId::max_value()
     }
     fn get_default_iterator_mode() -> IteratorMode<'static> {
         IteratorMode::End
@@ -146,6 +154,12 @@ impl QueryDirection for QueryDirectionBackward {
 impl QueryDirection for QueryDirectionForward {
     fn is_forward() -> bool {
         true
+    }
+    fn get_initial_record_generation_id() -> GenerationId<'static> {
+        GenerationId::empty()
+    }
+    fn get_initial_record_phantom_id() -> PhantomId<'static> {
+        PhantomId::empty()
     }
     fn get_default_iterator_mode() -> IteratorMode<'static> {
         IteratorMode::Start
@@ -273,7 +287,7 @@ impl<'a, K: QueryKind, D: QueryDirection> QueryState<'a, K, D> {
             let last_record = mem::replace(&mut self.last_record, K::empty_kv_record());
             self.is_empty = true;
 
-            if !is_key_satisties(
+            if !is_need_to_push_last_record(
                 self.generation_id.as_ref(),
                 OwnedPhantomId::as_opt_ref(&self.phantom_id),
                 last_record.key.get_parsed(),
@@ -354,7 +368,7 @@ impl<'a, K: QueryKind, D: QueryDirection> QueryState<'a, K, D> {
                     None => {
                         let last_record = mem::replace(&mut self.last_record, K::empty_kv_record());
 
-                        if !is_key_satisties(
+                        if !is_need_to_push_last_record(
                             generation_id,
                             phantom_id,
                             last_record.key.get_parsed(),
@@ -380,7 +394,11 @@ impl<'a, K: QueryKind, D: QueryDirection> QueryState<'a, K, D> {
 
                 self.is_empty = true;
 
-                if !is_key_satisties(generation_id, phantom_id, last_record.key.get_parsed()) {
+                if !is_need_to_push_last_record(
+                    generation_id,
+                    phantom_id,
+                    last_record.key.get_parsed(),
+                ) {
                     return Ok(None);
                 }
 
@@ -418,28 +436,29 @@ fn handle_last_and_next<D: QueryDirection>(
     let is_key_differs = last_parsed_record.collection_key != next_parsed_record.collection_key;
 
     if is_key_differs {
-        if is_key_satisties(generation_id, phantom_id, last_parsed_record) {
+        if is_need_to_push_last_record(generation_id, phantom_id, last_parsed_record) {
             return LastAndNextHandleResult::PushLast;
         }
 
         return LastAndNextHandleResult::ReplaceLastWithNext;
     }
 
-    let should_skip = last_parsed_record.phantom_id != next_parsed_record.phantom_id
-        || !D::is_suitable_generation_id(
-            generation_id,
-            last_parsed_record.generation_id,
-            next_parsed_record.generation_id,
-        );
+    if next_parsed_record.phantom_id.is_some() && next_parsed_record.phantom_id != phantom_id {
+        return LastAndNextHandleResult::UpdateNext;
+    }
 
-    if should_skip {
+    if !D::is_suitable_generation_id(
+        generation_id,
+        last_parsed_record.generation_id,
+        next_parsed_record.generation_id,
+    ) {
         return LastAndNextHandleResult::UpdateNext;
     }
 
     LastAndNextHandleResult::ReplaceLastWithNext
 }
 
-fn is_key_satisties(
+fn is_need_to_push_last_record(
     generation_id: GenerationId<'_>,
     phantom_id: Option<PhantomId<'_>>,
     key: ParsedRecordKey<'_>,
@@ -450,7 +469,7 @@ fn is_key_satisties(
         phantom_id: record_phantom_id,
     } = key;
 
-    if record_phantom_id != phantom_id {
+    if record_phantom_id.is_some() && record_phantom_id != phantom_id {
         return false;
     }
 
@@ -476,9 +495,12 @@ fn create_iterator<'a, D: QueryDirection>(
         }
         None => match start_key {
             Some(start_key) => {
-                let record_key =
-                    OwnedRecordKey::new(start_key, generation_id, PhantomId::or_empty(&phantom_id))
-                        .map_err(|_| RawDbError::InvalidRecordKey)?;
+                let record_key = OwnedRecordKey::new(
+                    start_key,
+                    D::get_initial_record_generation_id(),
+                    D::get_initial_record_phantom_id(),
+                )
+                .map_err(|_| RawDbError::InvalidRecordKey)?;
 
                 let iterator_mode =
                     IteratorMode::From(record_key.get_byte_array(), D::get_direction());

@@ -86,7 +86,7 @@ impl StrSerializationType {
 
 fn is_serializable_as_utf8(bytes: &[u8]) -> bool {
     for b in bytes {
-        let is_visible = 33 <= *b && *b <= 126;
+        let is_visible = 32 <= *b && *b <= 126;
 
         if !is_visible {
             return false;

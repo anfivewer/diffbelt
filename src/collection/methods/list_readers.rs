@@ -14,10 +14,6 @@ pub struct ListReadersOk {
 
 impl Collection {
     pub async fn list_readers(&self) -> Result<ListReadersOk, CollectionMethodError> {
-        if !self.is_manual {
-            return Err(CollectionMethodError::UnsupportedOperationForThisCollectionType);
-        }
-
         let raw_db = self.raw_db.clone();
 
         let deletion_lock = self.is_deleted.read().await;
