@@ -1,11 +1,13 @@
 use crate::common::{IsByteArray, OwnedCollectionValue};
 
+use crate::http::errors::HttpError;
+use crate::http::util::encoding::StringDecoder;
 use crate::util::str_serialization::StrSerializationType;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EncodedValueJsonData {
     value: String,
@@ -25,17 +27,21 @@ impl From<OwnedCollectionValue> for EncodedValueJsonData {
 }
 
 impl EncodedValueJsonData {
+    pub fn encode(value: OwnedCollectionValue) -> Self {
+        let (value, encoding) =
+            StrSerializationType::Utf8.serialize_with_priority(value.get_value());
+
+        Self {
+            value,
+            encoding: encoding.to_optional_string(),
+        }
+    }
+
     pub fn encode_vec(items: Vec<OwnedCollectionValue>) -> Vec<Self> {
         let mut result = Vec::with_capacity(items.len());
 
         for item in items {
-            let (value, encoding) =
-                StrSerializationType::Utf8.serialize_with_priority(item.get_byte_array());
-
-            result.push(Self {
-                value,
-                encoding: encoding.to_optional_string(),
-            });
+            result.push(Self::encode(item));
         }
 
         result
@@ -50,15 +56,30 @@ impl EncodedValueJsonData {
                 continue;
             };
 
-            let (value, encoding) =
-                StrSerializationType::Utf8.serialize_with_priority(value.get_byte_array());
-
-            result.push(Some(Self {
-                value,
-                encoding: encoding.to_optional_string(),
-            }));
+            result.push(Some(Self::encode(value)));
         }
 
         result
+    }
+
+    pub fn into_collection_value(self) -> Result<OwnedCollectionValue, HttpError> {
+        let encoding = StrSerializationType::from_opt_str(self.encoding)
+            .map_err(|_| HttpError::Generic400("invalid encoding"))?;
+        let bytes = encoding
+            .deserialize(self.value)
+            .map_err(|_| HttpError::Generic400("invalid serialization"))?;
+        Ok(OwnedCollectionValue::new(&bytes))
+    }
+
+    pub fn decode_opt(
+        value: Option<EncodedValueJsonData>,
+    ) -> Result<Option<OwnedCollectionValue>, HttpError> {
+        let Some(value) = value else {
+            return Ok(None);
+        };
+
+        let value = value.into_collection_value()?;
+
+        Ok(Some(value))
     }
 }

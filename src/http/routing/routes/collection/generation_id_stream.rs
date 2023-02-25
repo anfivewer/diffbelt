@@ -9,6 +9,8 @@ use crate::http::routing::{PatternRouteFnResult, PatternRouteOptions};
 use crate::http::util::id_group::{id_only_group, IdOnlyGroup};
 
 use crate::common::{IsByteArray, OwnedGenerationId};
+use crate::http::custom_errors::no_such_collection_error;
+use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
 use crate::http::routing::response::Response;
 use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::MethodsValidation;
@@ -18,14 +20,12 @@ use serde::Serialize;
 use serde_with::skip_serializing_none;
 use tokio::select;
 use tokio::time::{sleep, Instant};
-use crate::http::custom_errors::no_such_collection_error;
 
 #[skip_serializing_none]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CollectionGenerationIdStreamResponseJsonData {
-    generation_id: String,
-    generation_id_encoding: Option<String>,
+    generation_id: EncodedGenerationIdJsonData,
 }
 
 fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
@@ -129,11 +129,8 @@ pub fn register_collection_generation_id_stream_route(context: &mut Context) {
 }
 
 fn make_response(id: OwnedGenerationId) -> Result<Response, HttpError> {
-    let (generation_id, encoding) =
-        StrSerializationType::Utf8.serialize_with_priority(id.get_byte_array());
+    let generation_id =
+        EncodedGenerationIdJsonData::encode(id.as_ref(), StrSerializationType::Utf8);
 
-    create_ok_json_response(&CollectionGenerationIdStreamResponseJsonData {
-        generation_id,
-        generation_id_encoding: encoding.to_optional_string(),
-    })
+    create_ok_json_response(&CollectionGenerationIdStreamResponseJsonData { generation_id })
 }

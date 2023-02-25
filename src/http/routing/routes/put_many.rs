@@ -4,10 +4,7 @@ use regex::Regex;
 
 use crate::context::Context;
 use crate::http::constants::PUT_MANY_REQUEST_MAX_BYTES;
-use crate::http::data::encoded_generation_id::{
-    EncodedGenerationIdFlatJsonData, EncodedOptionalGenerationIdFlatJsonData,
-};
-use crate::http::data::encoded_phantom_id::EncodedOptionalPhantomIdFlatJsonData;
+use crate::http::data::encoded_generation_id::{EncodedGenerationIdJsonData};
 use crate::http::data::key_value_update::KeyValueUpdateJsonData;
 use crate::http::errors::HttpError;
 use crate::http::routing::response::{BaseResponse, BytesVecResponse, Response};
@@ -20,28 +17,22 @@ use crate::http::util::read_json::read_json;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
+use crate::util::str_serialization::StrSerializationType;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PutManyRequestJsonData {
     items: Vec<KeyValueUpdateJsonData>,
-
-    #[serde(flatten)]
-    generation_id: EncodedOptionalGenerationIdFlatJsonData,
-
-    #[serde(flatten)]
-    phantom_id: EncodedOptionalPhantomIdFlatJsonData,
-
-    // Default encoding for all fields
-    encoding: Option<String>,
+    generation_id: Option<EncodedGenerationIdJsonData>,
+    phantom_id: Option<EncodedPhantomIdJsonData>,
 }
 
 #[skip_serializing_none]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PutManyResponseJsonData {
-    #[serde(flatten)]
-    generation_id: EncodedGenerationIdFlatJsonData,
+    generation_id: EncodedGenerationIdJsonData,
 }
 
 #[fn_box_pin_async]
@@ -58,7 +49,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
 
     let collection = get_collection(&context, &collection_id).await?;
 
-    let decoder = StringDecoder::from_default_encoding_string("encoding", data.encoding)?;
+    let decoder = StringDecoder::new(StrSerializationType::Utf8);
 
     let mut items = Vec::with_capacity(data.items.len());
 
@@ -67,10 +58,8 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
         items.push(update);
     }
 
-    let (generation_id, generation_id_encoding_type) =
-        data.generation_id.decode_with_type(&decoder)?;
-
-    let phantom_id = data.phantom_id.decode(&decoder)?;
+    let generation_id = EncodedGenerationIdJsonData::decode_opt(data.generation_id)?;
+    let phantom_id = EncodedPhantomIdJsonData::decode_opt(data.phantom_id, &decoder)?;
 
     let options = CollectionPutManyOptions {
         items,
@@ -89,9 +78,9 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     };
 
     let response = PutManyResponseJsonData {
-        generation_id: EncodedGenerationIdFlatJsonData::encode(
+        generation_id: EncodedGenerationIdJsonData::encode(
             result.generation_id.as_ref(),
-            generation_id_encoding_type,
+            StrSerializationType::Utf8,
         ),
     };
 

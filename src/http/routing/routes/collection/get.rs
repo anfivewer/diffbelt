@@ -12,16 +12,15 @@ use serde_with::skip_serializing_none;
 
 use std::ops::Deref;
 
+use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
 use std::sync::Arc;
 
 struct GenerationIdPart {
-    generation_id: Option<String>,
-    generation_id_encoding: Option<String>,
+    generation_id: Option<EncodedGenerationIdJsonData>,
 }
 
 struct NextGenerationIdPart {
-    next_generation_id: Option<Option<String>>,
-    next_generation_id_encoding: Option<String>,
+    next_generation_id: Option<EncodedGenerationIdJsonData>,
 }
 
 trait ApplyPart {
@@ -35,7 +34,6 @@ impl ApplyPart for Option<GenerationIdPart> {
         };
 
         response.generation_id = part.generation_id;
-        response.generation_id_encoding = part.generation_id_encoding;
     }
 }
 
@@ -45,8 +43,7 @@ impl ApplyPart for Option<NextGenerationIdPart> {
             return;
         };
 
-        response.next_generation_id = part.next_generation_id;
-        response.next_generation_id_encoding = part.next_generation_id_encoding;
+        response.next_generation_id = Some(part.next_generation_id);
     }
 }
 
@@ -55,10 +52,8 @@ impl ApplyPart for Option<NextGenerationIdPart> {
 #[serde(rename_all = "camelCase")]
 struct GetCollectionResponseJsonData {
     is_manual: bool,
-    generation_id: Option<String>,
-    generation_id_encoding: Option<String>,
-    next_generation_id: Option<Option<String>>,
-    next_generation_id_encoding: Option<String>,
+    generation_id: Option<EncodedGenerationIdJsonData>,
+    next_generation_id: Option<Option<EncodedGenerationIdJsonData>>,
 }
 
 pub async fn get_collection(
@@ -97,9 +92,7 @@ pub async fn get_collection(
     let mut response = GetCollectionResponseJsonData {
         is_manual: collection.is_manual(),
         generation_id: None,
-        generation_id_encoding: None,
         next_generation_id: None,
-        next_generation_id_encoding: None,
     };
 
     type ResponseRef<'a> = &'a mut GetCollectionResponseJsonData;
@@ -113,12 +106,11 @@ pub async fn get_collection(
 
             let id = collection.get_generation_id().await;
 
-            let (id, encoding) =
-                StrSerializationType::Utf8.serialize_with_priority(id.get_byte_array());
-
             Some(GenerationIdPart {
-                generation_id: Some(id),
-                generation_id_encoding: encoding.to_optional_string(),
+                generation_id: Some(EncodedGenerationIdJsonData::encode(
+                    id.as_ref(),
+                    StrSerializationType::Utf8,
+                )),
             })
         },
         async {
@@ -128,15 +120,16 @@ pub async fn get_collection(
 
             let id = collection.get_next_generation_id().await;
             let Some(id) = id else {
-                return None;
+                return Some(NextGenerationIdPart {
+                    next_generation_id: None,
+                });
             };
 
-            let (id, encoding) =
-                StrSerializationType::Utf8.serialize_with_priority(id.get_byte_array());
-
             Some(NextGenerationIdPart {
-                next_generation_id: Some(Some(id)),
-                next_generation_id_encoding: encoding.to_optional_string(),
+                next_generation_id: Some(EncodedGenerationIdJsonData::encode(
+                    id.as_ref(),
+                    StrSerializationType::Utf8,
+                )),
             })
         }
     );

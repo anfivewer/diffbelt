@@ -46,29 +46,20 @@ Input/output parameters types are described in TypeScript-like type definitions.
 // default value is 'utf8'
 type Encoding = 'utf8' | 'base64';
 
-type KeyValue = {
-    key: string;
-    keyEncoding?: Encoding;
+type EncodedString = {
     value: string;
-    valueEncoding?: Encoding;
+    encoding?: Encoding;
+};
+
+type KeyValue = {
+    key: EncodedString;
+    value: EncodedString;
 };
 
 type KeyValueUpdate = {
-    key: string;
-    keyEncoding?: Encoding;
+    key: EncodedString;
     ifNotPresent?: boolean;
-    value: string | null;
-    valueEncoding?: Encoding;
-};
-
-type EncodedKey = {
-    key: string;
-    keyEncoding?: Encoding;
-};
-
-type EncodedValue = {
-    value: string;
-    encoding?: Encoding;
+    value: EncodedString | null;
 };
 ```
 
@@ -79,8 +70,6 @@ type Response = {
     items: {
         name: string;
         isManual: boolean;
-        generationId: string;
-        generationIdEncoding?: Encoding;
     }[];
 };
 ```
@@ -100,14 +89,12 @@ type Request = {
     }
   | {
         isManual: true,
-        initialGenerationId: string;
-        initialGenerationIdEncoding?: Encoding;
+        initialGenerationId: EncodedString;
     }
 );
 
 type Response = {
-    generationId: string;
-    generationIdEncoding?: Encoding;
+    generationId: EncodedString;
 };
 ```
 
@@ -123,10 +110,8 @@ type QueryParams = {
 
 type Response = {
     isManual: boolean;
-    generationId?: string;
-    generationIdEncoding?: Encoding;
-    nextGenerationId?: string;
-    nextGenerationIdEncoding?: Encoding;
+    generationId?: EncodedString;
+    nextGenerationId?: EncodedString;
 };
 ```
 
@@ -137,10 +122,8 @@ GET /collections/log-lines?fields=generationId,nextGenerationId
 
 {
     "isManual": false,
-    "generationId": "AAAAAAAACm4=",
-    "generationIdEncoding": "base64",
-    "nextGenerationId": "AAAAAAAACm8=",
-    "nextGenerationIdEncoding": "base64"
+    "generationId": {"value": "AAAAAAAACm4=", "encoding": "base64"},
+    "nextGenerationId": {"value": "AAAAAAAACm8=", "encoding": "base64"}
 }
 ```
 
@@ -159,8 +142,7 @@ type QueryParams = {
 };
 
 type Response = {
-    generationId: string;
-    generationIdEncoding?: Encoding;
+    generationId: EncodedString;
 };
 ```
 
@@ -173,18 +155,13 @@ This long-polling is useful to wait for commits of non-manual collection, or wai
 ```
 type Request = {
     collectionId: string;
-    key: string;
-    keyEncoding?: Encoding;
-    generationId?: string;
-    generationIdEncoding?: Encoding;
-    phantomId?: string;
-    phantomIdEncoding?: Encoding;
-    encoding?: Encoding;
+    key: EncodedString;
+    generationId?: EncodedString;
+    phantomId?: EncodedString;
 };
 
 type Response = {
-    generationId: string;
-    generationIdEncoding?: Encoding;
+    generationId: EncodedString;
     item: KeyValue | null;
 };
 ```
@@ -194,21 +171,16 @@ type Response = {
 ```
 type Request = {
     collectionId: string;
-    key: string;
-    keyEncoding?: Encoding;
+    key: EncodedString;
     requireKeyExistance: boolean;
-    generationId?: string;
-    generationIdEncoding?: Encoding;
-    phantomId?: string;
-    phantomIdEncoding?: Encoding;
-    encoding?: Encoding,
+    generationId?: EncodedString;
+    phantomId?: EncodedString;
 };
 
 type Response = {
-    generationId: string,
-    generationIdEncoding?: Encoding,
-    left: EncodedKey[];
-    right: EncodedKey[];
+    generationId: EncodedString,
+    left: EncodedString[];
+    right: EncodedString[];
     hasMoreOnTheLeft: boolean;
     hasMoreOnTheRight: boolean;
     foundKey: boolean;
@@ -228,21 +200,13 @@ Not implemented yet.
 ```
 type Request = {
     collectionId: string;
-    key: string;
-    keyEncoding?: Encoding;
-    ifNotPresent?: boolean;
-    value: string | null;
-    valueEncoding?: Encoding;
-    generationId?: string;
-    generationIdEncoding?: Encoding;
-    phantomId?: string;
-    phantomIdEncoding?: Encoding;
-    encoding?: Encoding;
+    item: KeyValueUpdate;
+    generationId?: EncodedString;
+    phantomId?: EncodedString;
 };
 
 type Response = {
-    generationId: string;
-    generationIdEncoding?: Encoding;
+    generationId: EncodedString;
     wasPut?: boolean;
 };
 ```
@@ -258,16 +222,12 @@ Warning: without `ifNotPresent` key-value record will be updated even if it has 
 ```
 type Request = {
     items: KeyValueUpdate[];
-    generationId?: string;
-    generationIdEncoding?: Encoding;
-    phantomId?: string;
-    phantomIdEncoding?: Encoding;
-    encoding?: Encoding;
+    generationId?: EncodedString;
+    phantomId?: EncodedString;
 };
 
 type Response = {
-    generationId: string;
-    generationIdEncoding?: Encoding;
+    generationId: EncodedString;
 };
 ```
 
@@ -280,8 +240,7 @@ type Response = {
     items: {
         readerId: string;
         collectionName?: string;
-        generationId: string;
-        generationIdEncoding?: Encoding;
+        generationId: EncodedString;
     }[];
 };
 ```
@@ -292,8 +251,7 @@ type Response = {
 type Request = {
     readerId: string;
     collectionName?: string;
-    generationId?: string | null;
-    generationIdEncoding?: Encoding;
+    generationId?: EncodedString | null;
 };
 
 type Response = {};
@@ -314,8 +272,7 @@ type Response = {};
 ```
 type Request = {
     readerId: string;
-    generationId?: string | null;
-    generationIdEncoding?: Encoding;
+    generationId?: EncodedString | null;
 };
 
 type Response = {};
@@ -327,26 +284,29 @@ Request parameters are broken, see issue [#5](https://github.com/anfivewer/diffb
 
 ```
 type Request = {
-    // FIXME
-    readerId?: string;
-    readerCollectionName?: string;
-};
+    toGenerationId?: EncodedString;
+} & (
+    {
+        fromGenerationId: EncodedString;
+    }
+  | {
+        fromReader: {
+            readerId: string;
+            collectionName?: string;
+        };
+    }    
+);
 
 type KeyValueDiff = {
-    key: string;
-    keyEncoding?: Encoding;
-    fromValue: EncodedValue | null,
-    intermediateValues: (EncodedValue | null)[];
-    toValue: EncodedValue | null,
+    key: EncodedString;
+    fromValue: EncodedString | null,
+    intermediateValues: (EncodedString | null)[];
+    toValue: EncodedString | null,
 };
 
 type DiffResponse = {
-    fromGenerationId: {
-        value: string;
-        encoding?: Encoding;
-    },
-    generationId: string;
-    generationIdEncoding?: Encoding;
+    fromGenerationId: EncodedString,
+    toGenerationId: EncodedString;
     items: KeyValueDiff[];
     cursorId?: string;
 };
@@ -357,7 +317,7 @@ type Response = DiffResponse
 There is two ways to specify `fromGenerationId`:
 
 * Manually by providing `fromGenerationId`
-* By providing `readerId` and `readerCollectionName`. If specified, diff will read `readerId` from collection `readerCollectionName`, take its `generationId`
+* By providing `fromReader`. If specified, diff will read `readerId` from collection `collectionName`, take its `generationId`
 
 Response can have `generationId` that is less or equal to `toGenerationId` (if it is specified, or to current `generationId`). You should repeat diff requests until it will respond with `fromGenerationId == generationId`.
 
@@ -383,15 +343,12 @@ Not implemented yet. Issue [#7](https://github.com/anfivewer/diffbelt/issues/7).
 
 ```
 type Request = {
-    generationId?: string;
-    generationIdEncoding?: Encoding;
-    phantomId?: string;
-    phantomIdEncoding?: Encoding;
+    generationId?: EncodedString;
+    phantomId?: EncodedString;
 };
 
 type QueryResponse = {
-    generationId: string;
-    generationIdEncoding?: Encoding;
+    generationId: EncodedString;
     items: KeyValue[];
     cursorId?: string;
 };
@@ -423,8 +380,7 @@ Not implemented yet. Issue [#7](https://github.com/anfivewer/diffbelt/issues/7).
 type Request = {};
 
 type Response = {
-    phantomId: string;
-    phantomIdEncoding?: Encoding;
+    phantomId: EncodedString;
 };
 ```
 
@@ -436,8 +392,7 @@ Phantoms are relatively short-living entity. Currently, their TTL is not specifi
 
 ```
 type Request = {
-    generationId: string;
-    generationIdEncoding?: Encoding;
+    generationId: EncodedString;
     abortOutdated?: boolean;
 };
 
@@ -452,8 +407,7 @@ If `abortOutdated` specified and there is generation that is already started and
 
 ```
 type Request = {
-    generationId: string;
-    generationIdEncoding?: Encoding;
+    generationId: EncodedString;
 };
 
 type Response = {};
@@ -465,12 +419,10 @@ Aborts generation, deletes all records that was put in this generation.
 
 ```
 type Request = {
-    generationId: string;
-    generationIdEncoding?: Encoding;
+    generationId: EncodedString;
     updateReaders?: {
         readerId: string;
-        generationId: string;
-        generationIdEncoding?: Encoding;
+        generationId: EncodedString;
     }[];
 };
 
@@ -481,9 +433,9 @@ Commits generation (makes new records visible), atomically with readers updates.
 
 <a name="transformExample"></a>For example, you need to transform collections `A` and `B` to collection `C`. Initialization:
 
-* Create manual collection `C` with `generationId: "AAAAAAAAAAA=", "generationIdEncoding": "base64"` (64 zero bits)
-* Create reader in collection `C`: `{"readerId": "from_a", "collectionName": "A", "generationId": ""}`
-* Create reader in collection `C`: `{"readerId": "from_b", "collectionName": "B", "generationId": ""}`
+* Create manual collection `C` with `generationId: {value: "AAAAAAAAAAA=", "encoding": "base64"}` (64 zero bits)
+* Create reader in collection `C`: `{"readerId": "from_a", "collectionName": "A", "generationId": {value:""}}`
+* Create reader in collection `C`: `{"readerId": "from_b", "collectionName": "B", "generationId": {value:""}}`
 
 Transform iteration:
 

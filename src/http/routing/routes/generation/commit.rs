@@ -7,7 +7,7 @@ use crate::collection::methods::commit_generation::CommitGenerationOptions;
 use crate::context::Context;
 use crate::http::constants::READER_REQUEST_MAX_BYTES;
 
-use crate::http::data::encoded_generation_id::EncodedGenerationIdFlatJsonData;
+use crate::http::data::encoded_generation_id::{EncodedGenerationIdJsonData};
 use crate::http::data::reader_record::UpdateReaderJsonData;
 
 use crate::http::errors::HttpError;
@@ -25,8 +25,7 @@ use crate::util::str_serialization::StrSerializationType;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RequestJsonData {
-    #[serde(flatten)]
-    generation_id: EncodedGenerationIdFlatJsonData,
+    generation_id: EncodedGenerationIdJsonData,
     update_readers: Option<Vec<UpdateReaderJsonData>>,
 }
 
@@ -48,7 +47,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     } = data;
 
     let decoder = StringDecoder::new(StrSerializationType::Utf8);
-    let generation_id = generation_id.decode(&decoder)?;
+    let generation_id = generation_id.into_generation_id()?;
     let update_readers = update_readers
         .map(|update_readers| UpdateReaderJsonData::decode_vec(update_readers, &decoder));
     let update_readers = lift_result_from_option(update_readers)?;

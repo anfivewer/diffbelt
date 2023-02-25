@@ -1,12 +1,19 @@
 use crate::collection::CommitGenerationUpdateReader;
 use crate::common::reader::ReaderRecord;
 use crate::common::GenerationId;
-use crate::http::data::encoded_generation_id::{EncodedGenerationIdFlatJsonData, EncodedNullableGenerationIdFlatJsonData, EncodedOptionalGenerationIdFlatJsonData};
 use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
 use crate::util::str_serialization::StrSerializationType;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReaderDiffFromDefJsonData {
+    pub reader_id: String,
+    pub collection_name: Option<String>,
+}
 
 #[skip_serializing_none]
 #[derive(Serialize)]
@@ -14,16 +21,14 @@ use serde_with::skip_serializing_none;
 pub struct ReaderRecordJsonData {
     reader_id: String,
     collection_name: Option<String>,
-    #[serde(flatten)]
-    generation_id: EncodedGenerationIdFlatJsonData,
+    generation_id: EncodedGenerationIdJsonData,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateReaderJsonData {
     reader_id: String,
-    #[serde(flatten)]
-    generation_id: EncodedGenerationIdFlatJsonData,
+    generation_id: EncodedGenerationIdJsonData,
 }
 
 impl From<ReaderRecord> for ReaderRecordJsonData {
@@ -37,7 +42,7 @@ impl From<ReaderRecord> for ReaderRecordJsonData {
         Self {
             reader_id,
             collection_name: collection_id,
-            generation_id: EncodedGenerationIdFlatJsonData::encode(
+            generation_id: EncodedGenerationIdJsonData::encode(
                 GenerationId::from_opt_owned(&generation_id).unwrap_or(GenerationId::empty()),
                 StrSerializationType::Utf8,
             ),
@@ -70,7 +75,7 @@ impl UpdateReaderJsonData {
                 generation_id,
             } = item;
 
-            let generation_id = generation_id.decode(&decoder)?;
+            let generation_id = generation_id.into_generation_id()?;
 
             result.push(CommitGenerationUpdateReader {
                 reader_id,

@@ -1,11 +1,7 @@
 use crate::collection::methods::diff::DiffOk;
 
-use crate::http::data::encoded_generation_id::{
-    EncodedGenerationIdFlatJsonData, EncodedGenerationIdJsonData,
-    EncodedNullableGenerationIdFlatJsonData,
-};
-
 use crate::common::GenerationId;
+use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
 use crate::http::data::key_value_diff::KeyValueDiffJsonData;
 use crate::util::str_serialization::StrSerializationType;
 use serde::Serialize;
@@ -16,8 +12,7 @@ use serde_with::skip_serializing_none;
 #[serde(rename_all = "camelCase")]
 pub struct DiffResponseJsonData {
     from_generation_id: EncodedGenerationIdJsonData,
-    #[serde(flatten)]
-    generation_id: EncodedGenerationIdFlatJsonData,
+    to_generation_id: EncodedGenerationIdJsonData,
     items: Vec<KeyValueDiffJsonData>,
     cursor_id: Option<String>,
 }
@@ -36,7 +31,7 @@ impl From<DiffOk> for DiffResponseJsonData {
                 GenerationId::from_opt_owned(&from_generation_id).unwrap_or(GenerationId::empty()),
                 StrSerializationType::Utf8,
             ),
-            generation_id: EncodedGenerationIdFlatJsonData::encode(
+            to_generation_id: EncodedGenerationIdJsonData::encode(
                 to_generation_id.as_ref(),
                 StrSerializationType::Utf8,
             ),

@@ -9,7 +9,8 @@ use crate::common::OwnedGenerationId;
 use crate::context::Context;
 use crate::http::constants::QUERY_START_REQUEST_MAX_BYTES;
 use crate::http::data::diff_response::DiffResponseJsonData;
-use crate::http::data::encoded_generation_id::EncodedOptionalGenerationIdFlatJsonData;
+use crate::http::data::encoded_generation_id::{EncodedGenerationIdJsonData};
+use crate::http::data::reader_record::ReaderDiffFromDefJsonData;
 
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
@@ -25,13 +26,10 @@ use crate::util::str_serialization::StrSerializationType;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RequestJsonData {
-    #[serde(flatten)]
-    from_generation_id: EncodedOptionalGenerationIdFlatJsonData,
-    #[serde(flatten)]
-    to_generation_id: EncodedOptionalGenerationIdFlatJsonData,
+    from_generation_id: Option<EncodedGenerationIdJsonData>,
+    to_generation_id: Option<EncodedGenerationIdJsonData>,
 
-    reader_id: Option<String>,
-    reader_collection_name: Option<String>,
+    from_reader: Option<ReaderDiffFromDefJsonData>,
 }
 
 #[fn_box_pin_async]
@@ -46,15 +44,11 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     let body = read_limited_body(request, QUERY_START_REQUEST_MAX_BYTES).await?;
     let data: RequestJsonData = read_json(body)?;
 
-    let decoder = StringDecoder::new(StrSerializationType::Utf8);
-
-    let from_generation_id = data.from_generation_id.decode(&decoder)?;
-    let to_generation_id = data.to_generation_id.decode(&decoder)?;
-    let reader_id = data.reader_id;
-    let reader_collection_name = data.reader_collection_name;
+    let from_generation_id = EncodedGenerationIdJsonData::decode_opt(data.from_generation_id)?;
+    let to_generation_id = EncodedGenerationIdJsonData::decode_opt(data.to_generation_id)?;
 
     let from_generation_id =
-        into_from_generation_id_source(from_generation_id, reader_id, reader_collection_name)?;
+        into_from_generation_id_source(from_generation_id, data.from_reader)?;
     let collection = get_collection(&context, &collection_id).await?;
 
     let options = DiffOptions {
@@ -78,21 +72,20 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
 
 fn into_from_generation_id_source(
     from_generation_id: Option<OwnedGenerationId>,
-    reader_id: Option<String>,
-    reader_collection_name: Option<String>,
+    reader: Option<ReaderDiffFromDefJsonData>,
 ) -> Result<GenerationIdSource, HttpError> {
     match from_generation_id {
         Some(generation_id) => return Ok(GenerationIdSource::Value(Some(generation_id))),
         None => {}
     }
 
-    let Some(reader_id) = reader_id else {
+    let Some(reader) = reader else {
         return Err(HttpError::Generic400("either fromGenerationId or readerId should be present"));
     };
 
     Ok(GenerationIdSource::Reader(ReaderDef {
-        collection_id: reader_collection_name,
-        reader_id,
+        collection_id: reader.collection_name,
+        reader_id: reader.reader_id,
     }))
 }
 

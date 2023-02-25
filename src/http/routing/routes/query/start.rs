@@ -5,8 +5,8 @@ use serde::Deserialize;
 use crate::collection::methods::query::QueryOptions;
 use crate::context::Context;
 use crate::http::constants::QUERY_START_REQUEST_MAX_BYTES;
-use crate::http::data::encoded_generation_id::EncodedOptionalGenerationIdFlatJsonData;
-use crate::http::data::encoded_phantom_id::EncodedOptionalPhantomIdFlatJsonData;
+use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
+use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 
 use crate::http::data::query_response::QueryResponseJsonData;
 use crate::http::errors::HttpError;
@@ -23,10 +23,8 @@ use crate::util::str_serialization::StrSerializationType;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RequestJsonData {
-    #[serde(flatten)]
-    generation_id: EncodedOptionalGenerationIdFlatJsonData,
-    #[serde(flatten)]
-    phantom_id: EncodedOptionalPhantomIdFlatJsonData,
+    generation_id: Option<EncodedGenerationIdJsonData>,
+    phantom_id: Option<EncodedPhantomIdJsonData>,
 }
 
 #[fn_box_pin_async]
@@ -43,8 +41,8 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
 
     let decoder = StringDecoder::new(StrSerializationType::Utf8);
 
-    let generation_id = data.generation_id.decode(&decoder)?;
-    let phantom_id = data.phantom_id.decode(&decoder)?;
+    let generation_id = EncodedGenerationIdJsonData::decode_opt(data.generation_id)?;
+    let phantom_id = EncodedPhantomIdJsonData::decode_opt(data.phantom_id, &decoder)?;
 
     let collection = get_collection(&context, &collection_id).await?;
 

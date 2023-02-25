@@ -6,42 +6,42 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EncodedKeyJsonData {
-    key: String,
+    value: String,
     encoding: Option<String>,
 }
 
 impl EncodedKeyJsonData {
+    pub fn encode(value: OwnedCollectionKey) -> Self {
+        let (value, encoding) =
+            StrSerializationType::Utf8.serialize_with_priority(value.get_byte_array());
+
+        Self {
+            value,
+            encoding: encoding.to_optional_string(),
+        }
+    }
+
     pub fn encode_vec(items: Vec<OwnedCollectionKey>) -> Vec<Self> {
         let mut result = Vec::with_capacity(items.len());
 
         for item in items {
-            let (key, encoding) =
+            let (value, encoding) =
                 StrSerializationType::Utf8.serialize_with_priority(item.get_byte_array());
 
             result.push(EncodedKeyJsonData {
-                key,
+                value,
                 encoding: encoding.to_optional_string(),
             });
         }
 
         result
     }
-}
 
-#[skip_serializing_none]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EncodedKeyFlatJsonData {
-    key: String,
-    key_encoding: Option<String>,
-}
-
-impl EncodedKeyFlatJsonData {
     pub fn decode(self, decoder: &StringDecoder) -> Result<OwnedCollectionKey, HttpError> {
-        decoder.decode_field_with_map("key", self.key, "keyEncoding", self.key_encoding, |bytes| {
+        decoder.decode_field_with_map("value", self.value, "encoding", self.encoding, |bytes| {
             OwnedCollectionKey::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
                 "invalid key, length should be <= 16777215",
             )))

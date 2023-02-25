@@ -53,8 +53,9 @@ mod tests {
     }
 
     #[skip_serializing_none]
-    #[derive(Serialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     struct WithCustomNull {
+        #[serde(deserialize_with = "deserialize_strict_null")]
         value: Option<Option<String>>,
     }
 
@@ -70,5 +71,23 @@ mod tests {
             value: Some(Some("test".to_string())),
         };
         assert_eq!(serde_json::to_string(&data).unwrap(), r#"{"value":"test"}"#);
+    }
+
+    #[test]
+    fn should_deserialize_from_null() {
+        let data: WithCustomNull = serde_json::from_str(r#"{"value":null}"#).unwrap();
+        assert_eq!(data.value, None);
+    }
+
+    #[test]
+    fn should_deserialize_from_str() {
+        let data: WithCustomNull = serde_json::from_str(r#"{"value":"passed"}"#).unwrap();
+        assert_eq!(data.value, Some(Some("passed".to_string())));
+    }
+
+    #[test]
+    fn should_fail_without_null() {
+        let result: Result<WithCustomNull, _> = serde_json::from_str(r#"{}"#);
+        assert!(result.is_err());
     }
 }

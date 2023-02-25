@@ -2,6 +2,9 @@ use crate::collection::methods::get::CollectionGetOptions;
 use crate::common::{IsByteArray, OwnedCollectionKey, OwnedGenerationId, OwnedPhantomId};
 use crate::context::Context;
 use crate::http::constants::GET_REQUEST_MAX_BYTES;
+use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
+use crate::http::data::encoded_key::EncodedKeyJsonData;
+use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 use crate::http::data::key_value::KeyValueJsonData;
 use crate::http::errors::HttpError;
 use crate::http::routing::response::{BaseResponse, BytesVecResponse, Response};
@@ -9,6 +12,7 @@ use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
+use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 use crate::util::str_serialization::StrSerializationType;
 use serde::{Deserialize, Serialize};
@@ -19,25 +23,16 @@ use serde_with::skip_serializing_none;
 struct GetRequestJsonData {
     collection_id: String,
 
-    key: String,
-    key_encoding: Option<String>,
-
-    generation_id: Option<String>,
-    generation_id_encoding: Option<String>,
-
-    phantom_id: Option<String>,
-    phantom_id_encoding: Option<String>,
-
-    // Default encoding for all fields
-    encoding: Option<String>,
+    key: EncodedKeyJsonData,
+    generation_id: Option<EncodedGenerationIdJsonData>,
+    phantom_id: Option<EncodedPhantomIdJsonData>,
 }
 
 #[skip_serializing_none]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct GetResponseJsonData {
-    generation_id: String,
-    generation_id_encoding: Option<String>,
+    generation_id: EncodedGenerationIdJsonData,
 
     #[serialize_always]
     item: Option<KeyValueJsonData>,
@@ -59,49 +54,11 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
         let collection = context.database.get_collection(&collection_id).await;
         let Some(collection) = collection else { return Err(HttpError::Generic400("no such collection")); };
 
-        let decoder = StringDecoder::from_default_encoding_string("encoding", data.encoding)?;
+        let decoder = StringDecoder::new(StrSerializationType::Utf8);
 
-        let key = decoder.decode_field_with_map(
-            "key",
-            data.key,
-            "keyEncoding",
-            data.key_encoding,
-            |bytes| {
-                OwnedCollectionKey::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
-                    "invalid key, length should be <= 16777215",
-                )))
-            },
-        )?;
-
-        let generation_id = decoder.decode_opt_field_with_map(
-            "generationId",
-            data.generation_id,
-            "generationIdEncoding",
-            data.generation_id_encoding,
-            |bytes| {
-                OwnedGenerationId::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
-                    "invalid generationId, length should be <= 255",
-                )))
-            },
-        )?;
-
-        let phantom_id = decoder.decode_opt_field_with_map(
-            "phantomId",
-            data.phantom_id,
-            "phantomIdEncoding",
-            data.phantom_id_encoding,
-            |bytes| {
-                if bytes.is_empty() {
-                    return Err(HttpError::Generic400(
-                        "invalid phantomId, it cannot be empty",
-                    ));
-                }
-
-                OwnedPhantomId::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
-                    "invalid phantomId, length should be <= 255",
-                )))
-            },
-        )?;
+        let key = EncodedKeyJsonData::decode(data.key, &decoder)?;
+        let generation_id = EncodedGenerationIdJsonData::decode_opt(data.generation_id)?;
+        let phantom_id = EncodedPhantomIdJsonData::decode_opt(data.phantom_id, &decoder)?;
 
         let options = CollectionGetOptions {
             key,
@@ -119,26 +76,15 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
             }
         };
 
-        let (generation_id, generation_id_encoding) = StrSerializationType::Utf8
-            .serialize_with_priority(result.generation_id.get_byte_array());
-
         let response = GetResponseJsonData {
-            generation_id,
-            generation_id_encoding: generation_id_encoding.to_optional_string(),
+            generation_id: EncodedGenerationIdJsonData::encode(
+                result.generation_id.as_ref(),
+                StrSerializationType::Utf8,
+            ),
             item: result.item.map(|item| item.into()),
         };
 
-        let response = serde_json::to_vec(&response).or(Err(HttpError::PublicInternal500(
-            "result serialization failed",
-        )))?;
-
-        Ok(Response::BytesVec(BytesVecResponse {
-            base: BaseResponse {
-                content_type: "application/json; charset=utf-8",
-                ..Default::default()
-            },
-            bytes: response,
-        }))
+        create_ok_json_response(&response)
     })
 }
 

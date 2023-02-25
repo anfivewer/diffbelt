@@ -12,7 +12,7 @@ use crate::http::util::read_json::read_json;
 use crate::http::util::response::{create_ok_json_response, create_ok_no_error_json_response};
 use crate::http::validation::ContentTypeValidation;
 
-use crate::http::data::encoded_generation_id::EncodedGenerationIdFlatJsonData;
+use crate::http::data::encoded_generation_id::{EncodedGenerationIdJsonData};
 use crate::util::str_serialization::StrSerializationType;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -23,17 +23,14 @@ struct CreateCollectionRequestJsonData {
     collection_id: String,
     is_manual: bool,
     // Only for manual collections
-    initial_generation_id: Option<String>,
-    initial_generation_id_encoding: Option<String>,
-    encoding: Option<String>,
+    initial_generation_id: Option<EncodedGenerationIdJsonData>,
 }
 
 #[skip_serializing_none]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ResponseJsonData {
-    #[serde(flatten)]
-    generation_id: EncodedGenerationIdFlatJsonData,
+    generation_id: EncodedGenerationIdJsonData,
 }
 
 fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
@@ -53,19 +50,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
             return Err(HttpError::Generic400("collectionId cannot be > 512"));
         }
 
-        let decoder = StringDecoder::from_default_encoding_string("encoding", data.encoding)?;
-
-        let initial_generation_id = decoder.decode_opt_field_with_map(
-            "initialGenerationId",
-            data.initial_generation_id,
-            "initialGenerationIdEncoding",
-            data.initial_generation_id_encoding,
-            |bytes| {
-                OwnedGenerationId::from_boxed_slice(bytes).or(Err(HttpError::Generic400(
-                    "invalid generationId, length should be <= 255",
-                )))
-            },
-        )?;
+        let initial_generation_id = EncodedGenerationIdJsonData::decode_opt(data.initial_generation_id)?;
 
         if initial_generation_id.is_some() != is_manual {
             return Err(HttpError::Generic400(
@@ -96,7 +81,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
         let generation_id = collection.get_generation_id().await;
 
         let response = ResponseJsonData {
-            generation_id: EncodedGenerationIdFlatJsonData::encode(
+            generation_id: EncodedGenerationIdJsonData::encode(
                 generation_id.as_ref(),
                 StrSerializationType::Utf8,
             ),

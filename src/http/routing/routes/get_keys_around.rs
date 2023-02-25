@@ -2,14 +2,11 @@ use crate::collection::methods::get_keys_around::CollectionGetKeysAroundOptions;
 
 use crate::context::Context;
 use crate::http::constants::GET_KEYS_AROUND_REQUEST_MAX_BYTES;
-use crate::http::data::encoded_key::{EncodedKeyFlatJsonData, EncodedKeyJsonData};
+use crate::http::data::encoded_key::{EncodedKeyJsonData};
 
 use crate::http::errors::HttpError;
 
-use crate::http::data::encoded_generation_id::{
-    EncodedGenerationIdFlatJsonData, EncodedOptionalGenerationIdFlatJsonData,
-};
-use crate::http::data::encoded_phantom_id::EncodedOptionalPhantomIdFlatJsonData;
+use crate::http::data::encoded_generation_id::{EncodedGenerationIdJsonData};
 use crate::http::routing::{HttpHandlerResult, StaticRouteOptions};
 use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
@@ -20,34 +17,27 @@ use crate::util::str_serialization::StrSerializationType;
 use diffbelt_macro::fn_box_pin_async;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RequestJsonData {
     collection_id: String,
 
-    #[serde(flatten)]
-    key: EncodedKeyFlatJsonData,
+    key: EncodedKeyJsonData,
 
     require_key_existance: bool,
     limit: usize,
 
-    #[serde(flatten)]
-    generation_id: EncodedOptionalGenerationIdFlatJsonData,
-
-    #[serde(flatten)]
-    phantom_id: EncodedOptionalPhantomIdFlatJsonData,
-
-    // Default encoding for all fields
-    encoding: Option<String>,
+    generation_id: Option<EncodedGenerationIdJsonData>,
+    phantom_id: Option<EncodedPhantomIdJsonData>,
 }
 
 #[skip_serializing_none]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ResponseJsonData {
-    #[serde(flatten)]
-    generation_id: EncodedGenerationIdFlatJsonData,
+    generation_id: EncodedGenerationIdJsonData,
 
     left: Vec<EncodedKeyJsonData>,
     right: Vec<EncodedKeyJsonData>,
@@ -77,11 +67,11 @@ async fn handler(options: StaticRouteOptions) -> HttpHandlerResult {
     let require_key_existance = data.require_key_existance;
     let limit = data.limit;
 
-    let decoder = StringDecoder::from_default_encoding_string("encoding", data.encoding)?;
+    let decoder = StringDecoder::new(StrSerializationType::Utf8);
 
     let key = data.key.decode(&decoder)?;
-    let generation_id = data.generation_id.decode(&decoder)?;
-    let phantom_id = data.phantom_id.decode(&decoder)?;
+    let generation_id = EncodedGenerationIdJsonData::decode_opt(data.generation_id)?;
+    let phantom_id = EncodedPhantomIdJsonData::decode_opt(data.phantom_id, &decoder)?;
 
     let options = CollectionGetKeysAroundOptions {
         key,
@@ -102,7 +92,7 @@ async fn handler(options: StaticRouteOptions) -> HttpHandlerResult {
     };
 
     let response = ResponseJsonData {
-        generation_id: EncodedGenerationIdFlatJsonData::encode(
+        generation_id: EncodedGenerationIdJsonData::encode(
             result.generation_id.as_ref(),
             StrSerializationType::Utf8,
         ),

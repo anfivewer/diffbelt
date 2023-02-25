@@ -22,8 +22,6 @@ use serde_with::skip_serializing_none;
 struct ListCollectionsItemJsonData {
     name: String,
     is_manual: bool,
-    generation_id: String,
-    generation_id_encoding: Option<String>,
 }
 
 #[skip_serializing_none]
@@ -45,16 +43,9 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
         let items: FuturesOrdered<_> = collections
             .into_iter()
             .map(|collection: Arc<Collection>| async move {
-                let generation_id = collection.get_generation_id().await;
-
-                let (generation_id, encoding) = StrSerializationType::Utf8
-                    .serialize_with_priority(generation_id.get_byte_array());
-
                 ListCollectionsItemJsonData {
                     name: collection.get_id().to_string(),
                     is_manual: collection.is_manual(),
-                    generation_id,
-                    generation_id_encoding: encoding.to_optional_string(),
                 }
             })
             .collect();

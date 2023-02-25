@@ -5,7 +5,7 @@ use serde_with::skip_serializing_none;
 
 use crate::context::Context;
 
-use crate::http::data::encoded_phantom_id::EncodedPhantomIdFlatJsonData;
+use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
@@ -21,8 +21,7 @@ use crate::util::str_serialization::StrSerializationType;
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ResponseJsonData {
-    #[serde(flatten)]
-    phantom_id: EncodedPhantomIdFlatJsonData,
+    phantom_id: EncodedPhantomIdJsonData,
 }
 
 #[fn_box_pin_async]
@@ -47,7 +46,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     };
 
     let response = ResponseJsonData {
-        phantom_id: EncodedPhantomIdFlatJsonData::new(phantom_id, StrSerializationType::Utf8),
+        phantom_id: EncodedPhantomIdJsonData::new(phantom_id, StrSerializationType::Utf8),
     };
 
     create_ok_json_response(&response)

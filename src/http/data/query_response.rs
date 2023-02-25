@@ -1,5 +1,5 @@
 use crate::collection::methods::query::QueryOk;
-use crate::http::data::encoded_generation_id::EncodedGenerationIdFlatJsonData;
+use crate::http::data::encoded_generation_id::{EncodedGenerationIdJsonData};
 use crate::http::data::key_value::KeyValueJsonData;
 use crate::util::str_serialization::StrSerializationType;
 use serde::Serialize;
@@ -9,8 +9,7 @@ use serde_with::skip_serializing_none;
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryResponseJsonData {
-    #[serde(flatten)]
-    generation_id: EncodedGenerationIdFlatJsonData,
+    generation_id: EncodedGenerationIdJsonData,
     items: Vec<KeyValueJsonData>,
     cursor_id: Option<String>,
 }
@@ -24,7 +23,7 @@ impl From<QueryOk> for QueryResponseJsonData {
         } = data;
 
         QueryResponseJsonData {
-            generation_id: EncodedGenerationIdFlatJsonData::encode(
+            generation_id: EncodedGenerationIdJsonData::encode(
                 generation_id.as_ref(),
                 StrSerializationType::Utf8,
             ),

@@ -6,7 +6,7 @@ use serde::Deserialize;
 use crate::context::Context;
 use crate::http::constants::READER_REQUEST_MAX_BYTES;
 
-use crate::http::data::encoded_generation_id::EncodedNullableGenerationIdFlatJsonData;
+use crate::http::data::encoded_generation_id::{EncodedGenerationIdJsonData};
 
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
@@ -23,8 +23,7 @@ use crate::util::str_serialization::StrSerializationType;
 #[serde(rename_all = "camelCase")]
 struct RequestJsonData {
     reader_id: String,
-    #[serde(flatten)]
-    generation_id: EncodedNullableGenerationIdFlatJsonData,
+    generation_id: Option<EncodedGenerationIdJsonData>,
 }
 
 #[fn_box_pin_async]
@@ -44,8 +43,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
         generation_id,
     } = data;
 
-    let decoder = StringDecoder::new(StrSerializationType::Utf8);
-    let generation_id = generation_id.decode(&decoder)?;
+    let generation_id = EncodedGenerationIdJsonData::decode_opt(generation_id)?;
 
     let collection = get_collection(&context, &collection_id).await?;
 
