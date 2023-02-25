@@ -19,7 +19,7 @@ Immutable key-value database with main focus on taking diffs belween versions of
   * **GenerationId** — zero to `255` bytes. Any query always uses some `generationId` (latest for the collection or provided by user), if record's `generationId` is bigger than `generationId` for the query's, this record is invisible. Only one **record** with the maximally close `generationId` to the query's `generationId` is visible
   * **PhantomId** — `1` to `255` bytes. Records with `phantomId` are visible only for queries with the same `phantomId`
 * **Reader** — item of **collection**, consists of:
-  * **ReaderId** — non-empty UTF-8 string (TODO: add limit, issue #10)
+  * **ReaderId** — non-empty UTF-8 string (TODO: add limit, issue [#10](https://github.com/anfivewer/diffbelt/issues/10))
   * **CollectionName** — optional **CollectionId**, if not specified — it means current collection
   * **GenerationId** — **CurrentGenerationId**, marker to some generation in foreign collection (specified by **CollectionName**). It prevents garbage collection of generations of target collection and may be used for `diff` calls as `fromGenerationId` source
 
@@ -148,7 +148,7 @@ GET /collections/log-lines?fields=generationId,nextGenerationId
 
 Deletes the collection. Warning: this will delete it with all files immediately. In the future I plan to just move it and delete in a week or something like that to be able to recover it if it was unattended action.
 
-Deletion of associated readers is not implemented yet. Issue #2.
+Deletion of associated readers is not implemented yet. Issue [#2](https://github.com/anfivewer/diffbelt/issues/2).
 
 ## `GET /collections/:collectionId/generationId/stream`
 
@@ -217,7 +217,7 @@ type Response = {
 
 Beware, `Response['left']` is in reversed keys order. For example, if you are requesting keys around `4`, `left` will contain `[{"key": "3"}, {"key": "2"}, {"key": "1"}]`.
 
-`requireKeyExistance: false` case is not implemented yet. Issue #3.
+`requireKeyExistance: false` case is not implemented yet. Issue [#3](https://github.com/anfivewer/diffbelt/issues/3).
 
 ## `/getMany`
 
@@ -251,7 +251,7 @@ Writes single key-value entry (or deletes it if `value: null`). For manual colle
 
 If `ifNotPresent: true`, then if `key` already exists, its value will not be overwritten and `generationId` of this `key` will not be updated. `wasPut` will indicate, was value updated or not.
 
-Warning: without `ifNotPresent` key-value record will be updated even if it has the same value. For example if you have `{"key":"a", "value":"42", "generationId":"001"}` stored in the database and next `generationId` is `002`, if you'll `/put` `{"key":"a", "value":"42"}`, new record `{"key":"a", "value":"42", "generationId":"002"}` will be created. Vote for issue #1.
+Warning: without `ifNotPresent` key-value record will be updated even if it has the same value. For example if you have `{"key":"a", "value":"42", "generationId":"001"}` stored in the database and next `generationId` is `002`, if you'll `/put` `{"key":"a", "value":"42"}`, new record `{"key":"a", "value":"42", "generationId":"002"}` will be created. Vote for issue [#1](https://github.com/anfivewer/diffbelt/issues/1).
 
 ## `POST /collections/:collectionId/putMany`
 
@@ -323,7 +323,7 @@ type Response = {};
 
 ## `POST /collections/:collectionId/diff/start`
 
-Request parameters are broken, see issue #5.
+Request parameters are broken, see issue [#5](https://github.com/anfivewer/diffbelt/issues/5).
 
 ```
 type Request = {
@@ -361,7 +361,7 @@ There is two ways to specify `fromGenerationId`:
 
 Response can have `generationId` that is less or equal to `toGenerationId` (if it is specified, or to current `generationId`). You should repeat diff requests until it will respond with `fromGenerationId == generationId`.
 
-`intermediateValues` currently always is an empty array. Later there will be `omitIntermediateValues: false` option that will provide those values. See issue #6.
+`intermediateValues` currently always is an empty array. Later there will be `omitIntermediateValues: false` option that will provide those values. See issue [#6](https://github.com/anfivewer/diffbelt/issues/6).
 
 ## `POST /collections/:collectionId/diff/next`
 
@@ -377,7 +377,7 @@ If `diff/start` responded with `cursorId` you should call this method to get the
 
 ## `POST /collections/:collectionId/diff/abort`
 
-Not implemented yet. Issue #7.
+Not implemented yet. Issue [#7](https://github.com/anfivewer/diffbelt/issues/7).
 
 ## `POST /collections/:collectionId/query/start`
 
@@ -415,7 +415,7 @@ If `query/start` responded with `cursorId` you should call this method to get th
 
 ## `POST /collections/:collectionId/query/abort`
 
-Not implemented yet. Issue #7.
+Not implemented yet. Issue [#7](https://github.com/anfivewer/diffbelt/issues/7).
 
 ## `POST /collections/:collectionId/phantom/start`
 
