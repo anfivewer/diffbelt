@@ -264,7 +264,7 @@ type Request = {
 type Response = {};
 ```
 
-## `POST /collections/:collectionName/diff/start`
+## `POST /collections/:collectionName/diff/`
 
 Request parameters are broken, see issue [#5](https://github.com/anfivewer/diffbelt/issues/5).
 
@@ -309,23 +309,19 @@ Response can have `generationId` that is less or equal to `toGenerationId` (if i
 
 `intermediateValues` currently always is an empty array. Later there will be `omitIntermediateValues: false` option that will provide those values. See issue [#6](https://github.com/anfivewer/diffbelt/issues/6).
 
-## `POST /collections/:collectionName/diff/next`
+## `GET /collections/:collectionName/diff/:cursorId`
 
 ```
-type Request = {
-    cursorId: string;
-};
-
 type Response = DiffResponse;
 ```
 
 If `diff/start` responded with `cursorId` you should call this method to get the rest of output.
 
-## `POST /collections/:collectionName/diff/abort`
+## `DELETE /collections/:collectionName/diff/:cursorId`
 
-Not implemented yet. Issue [#7](https://github.com/anfivewer/diffbelt/issues/7).
+Abort diff.
 
-## `POST /collections/:collectionName/query/start`
+## `POST /collections/:collectionName/query/`
 
 ```
 type Request = {
@@ -344,7 +340,7 @@ type Response = QueryResponse
 
 Reads all key-value records from collection. If `generationId` is specified, items that was added/updated/deleted after this generation will be omitted from the result.
 
-## `POST /collections/:collectionName/query/next`
+## `GET /collections/:collectionName/query/:cursorId`
 
 ```
 type Request = {
@@ -356,9 +352,9 @@ type Response = DiffResponse;
 
 If `query/start` responded with `cursorId` you should call this method to get the rest of output.
 
-## `POST /collections/:collectionName/query/abort`
+## `DELETE /collections/:collectionName/query/:cursorId`
 
-Not implemented yet. Issue [#7](https://github.com/anfivewer/diffbelt/issues/7).
+Aborts query.
 
 ## `POST /collections/:collectionName/phantom/start`
 

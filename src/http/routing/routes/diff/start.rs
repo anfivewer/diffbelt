@@ -91,7 +91,7 @@ fn into_from_generation_id_source(
 
 pub fn register_start_diff_route(context: &mut Context) {
     context.routing.add_pattern_route(
-        Regex::new("^/collections/(?P<id>[^/]+)/diff/start$").unwrap(),
+        Regex::new("^/collections/(?P<id>[^/]+)/diff/$").unwrap(),
         id_only_group,
         handler,
     );

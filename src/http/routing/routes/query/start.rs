@@ -67,7 +67,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
 
 pub fn register_start_query_route(context: &mut Context) {
     context.routing.add_pattern_route(
-        Regex::new("^/collections/(?P<id>[^/]+)/query/start$").unwrap(),
+        Regex::new("^/collections/(?P<id>[^/]+)/query/$").unwrap(),
         id_only_group,
         handler,
     );

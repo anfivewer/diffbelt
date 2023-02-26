@@ -3,8 +3,7 @@ use crate::http::routing::routes::collection::by_id::register_collection_by_id_r
 use crate::http::routing::routes::collection::create::register_create_collection_route;
 use crate::http::routing::routes::collection::generation_id_stream::register_collection_generation_id_stream_route;
 use crate::http::routing::routes::collection::list::register_list_collections_route;
-use crate::http::routing::routes::diff::abort::register_abort_diff_route;
-use crate::http::routing::routes::diff::next::register_next_diff_route;
+use crate::http::routing::routes::diff::by_id::register_next_diff_route;
 use crate::http::routing::routes::diff::start::register_start_diff_route;
 use crate::http::routing::routes::generation::abort::register_abort_generation_route;
 use crate::http::routing::routes::generation::commit::register_commit_generation_route;
@@ -14,8 +13,7 @@ use crate::http::routing::routes::get_keys_around::register_get_keys_around_rout
 use crate::http::routing::routes::phantom::start::register_start_phantom_route;
 use crate::http::routing::routes::put::register_put_route;
 use crate::http::routing::routes::put_many::register_put_many_route;
-use crate::http::routing::routes::query::abort::register_abort_query_route;
-use crate::http::routing::routes::query::next::register_next_query_route;
+use crate::http::routing::routes::query::by_id::register_next_query_route;
 use crate::http::routing::routes::query::start::register_start_query_route;
 use crate::http::routing::routes::reader::by_root::register_readers_root_route;
 use crate::http::routing::routes::reader::by_name::register_reader_by_name_route;
@@ -38,9 +36,7 @@ pub fn register_routes(context: &mut Context) {
     register_commit_generation_route(context);
     register_start_query_route(context);
     register_next_query_route(context);
-    register_abort_query_route(context);
     register_start_diff_route(context);
     register_next_diff_route(context);
-    register_abort_diff_route(context);
     register_start_phantom_route(context);
 }
