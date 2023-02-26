@@ -7,7 +7,7 @@ use crate::http::data::encoded_key::{EncodedKeyJsonData};
 use crate::http::errors::HttpError;
 
 use crate::http::data::encoded_generation_id::{EncodedGenerationIdJsonData};
-use crate::http::routing::{HttpHandlerResult, StaticRouteOptions};
+use crate::http::routing::{HttpHandlerResult, PatternRouteOptions, StaticRouteOptions};
 use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
@@ -15,15 +15,15 @@ use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 use crate::util::str_serialization::StrSerializationType;
 use diffbelt_macro::fn_box_pin_async;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
+use crate::http::util::id_group::{id_only_group, IdOnlyGroup};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RequestJsonData {
-    collection_name: String,
-
     key: EncodedKeyJsonData,
 
     require_key_existance: bool,
@@ -49,17 +49,16 @@ struct ResponseJsonData {
 }
 
 #[fn_box_pin_async]
-async fn handler(options: StaticRouteOptions) -> HttpHandlerResult {
+async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult {
     let context = options.context;
     let request = options.request;
+    let collection_name = options.groups.0;
 
     request.allow_only_methods(&["POST"])?;
     request.allow_only_utf8_json_by_default()?;
 
     let body = read_limited_body(request, GET_KEYS_AROUND_REQUEST_MAX_BYTES).await?;
     let data: RequestJsonData = read_json(body)?;
-
-    let collection_name = data.collection_name;
 
     let collection = context.database.get_collection(&collection_name).await;
     let Some(collection) = collection else { return Err(HttpError::Generic400("no such collection")); };
@@ -107,7 +106,9 @@ async fn handler(options: StaticRouteOptions) -> HttpHandlerResult {
 }
 
 pub fn register_get_keys_around_route(context: &mut Context) {
-    context
-        .routing
-        .add_static_post_route("/getKeysAround", handler);
+    context.routing.add_pattern_route(
+        Regex::new("^/collections/(?P<id>[^/]+)/getKeysAround$").unwrap(),
+        id_only_group,
+        handler,
+    );
 }

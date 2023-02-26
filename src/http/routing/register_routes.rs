@@ -11,7 +11,6 @@ use crate::http::routing::routes::generation::commit::register_commit_generation
 use crate::http::routing::routes::generation::start::register_start_generation_route;
 use crate::http::routing::routes::get::register_get_route;
 use crate::http::routing::routes::get_keys_around::register_get_keys_around_route;
-use crate::http::routing::routes::get_many::register_get_many_route;
 use crate::http::routing::routes::phantom::start::register_start_phantom_route;
 use crate::http::routing::routes::put::register_put_route;
 use crate::http::routing::routes::put_many::register_put_many_route;
@@ -27,7 +26,6 @@ use crate::http::routing::routes::root::register_root_route;
 pub fn register_routes(context: &mut Context) {
     register_root_route(context);
     register_get_route(context);
-    register_get_many_route(context);
     register_get_keys_around_route(context);
     register_put_route(context);
     register_put_many_route(context);

@@ -150,11 +150,10 @@ If `generationId` query param is not set, responds immediately with collection c
 
 This long-polling is useful to wait for commits of non-manual collection, or wait for changes to run diff on some collection.
 
-## `POST /get`
+## `POST /collections/:collectionName/get`
 
 ```
 type Request = {
-    collectionName: string;
     key: EncodedString;
     generationId?: EncodedString;
     phantomId?: EncodedString;
@@ -166,11 +165,10 @@ type Response = {
 };
 ```
 
-## `POST /getKeysAround`
+## `POST /collections/:collectionName/getKeysAround`
 
 ```
 type Request = {
-    collectionName: string;
     key: EncodedString;
     requireKeyExistance: boolean;
     generationId?: EncodedString;
@@ -191,15 +189,10 @@ Beware, `Response['left']` is in reversed keys order. For example, if you are re
 
 `requireKeyExistance: false` case is not implemented yet. Issue [#3](https://github.com/anfivewer/diffbelt/issues/3).
 
-## `/getMany`
-
-Not implemented yet.
-
-## `POST /put`
+## `POST /collections/:collectionName/put`
 
 ```
 type Request = {
-    collectionName: string;
     item: KeyValueUpdate;
     generationId?: EncodedString;
     phantomId?: EncodedString;
