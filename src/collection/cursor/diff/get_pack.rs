@@ -36,11 +36,11 @@ impl DiffCursor {
         let from_generation_id = match &self.from_generation_id {
             GenerationIdSource::Value(value) => value.clone(),
             GenerationIdSource::Reader(ReaderDef {
-                collection_id,
-                reader_id,
-            }) => match collection_id {
-                Some(collection_id) => db_inner
-                    .get_reader_generation_id_sync(&collection_id, &reader_id)
+                collection_name,
+                reader_name,
+            }) => match collection_name {
+                Some(collection_name) => db_inner
+                    .get_reader_generation_id_sync(&collection_name, &reader_name)
                     .or_else(|err| {
                         let err = match err {
                             GetReaderGenerationIdFnError::NoSuchReader => {
@@ -56,7 +56,7 @@ impl DiffCursor {
                         Err(err)
                     })?,
                 None => {
-                    let reader = db.get_reader_sync(&reader_id)?;
+                    let reader = db.get_reader_sync(&reader_name)?;
                     reader.generation_id
                 }
             },

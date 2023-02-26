@@ -5,7 +5,7 @@ use crate::raw_db::{RawDb, RawDbError};
 use rocksdb::WriteBatchWithTransaction;
 
 pub struct RawDbUpdateReader<'a> {
-    pub reader_id: &'a str,
+    pub reader_name: &'a str,
     pub generation_id: GenerationId<'a>,
 }
 
@@ -44,7 +44,7 @@ impl RawDb {
         if let Some(update_readers) = update_readers {
             for update in update_readers {
                 let RawDbUpdateReader {
-                    reader_id,
+                    reader_name,
                     generation_id,
                 } = update;
 
@@ -52,7 +52,7 @@ impl RawDb {
                     &mut batch,
                     meta_cf.clone(),
                     RawDbUpdateReaderOptions {
-                        reader_id,
+                        reader_name,
                         generation_id: Some(generation_id),
                     },
                 )?;

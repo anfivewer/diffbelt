@@ -31,7 +31,7 @@ async fn readers_test_inner() {
 
     let result = collection
         .update_reader(UpdateReaderOptions {
-            reader_id: "not_exists".to_string(),
+            reader_name: "not_exists".to_string(),
             generation_id: Some(
                 OwnedGenerationId::from_boxed_slice(b"some_gen".to_vec().into_boxed_slice())
                     .unwrap(),
@@ -45,8 +45,8 @@ async fn readers_test_inner() {
 
     let result = collection
         .create_reader(CreateReaderOptions {
-            reader_id: "first".to_string(),
-            collection_id: Some("other_collection".to_string()),
+            reader_name: "first".to_string(),
+            collection_name: Some("other_collection".to_string()),
             generation_id: None,
         })
         .await;
@@ -54,8 +54,8 @@ async fn readers_test_inner() {
 
     let result = collection
         .create_reader(CreateReaderOptions {
-            reader_id: "second".to_string(),
-            collection_id: None,
+            reader_name: "second".to_string(),
+            collection_name: None,
             generation_id: None,
         })
         .await;
@@ -65,17 +65,17 @@ async fn readers_test_inner() {
     let mut items = readers.items;
     assert_eq!(items.len(), 2);
 
-    items.sort_by(|a, b| a.reader_id.cmp(&b.reader_id));
+    items.sort_by(|a, b| a.reader_name.cmp(&b.reader_name));
 
     let expected_items = vec![
         ReaderRecord {
-            reader_id: "first".to_string(),
-            collection_id: Some("other_collection".to_string()),
+            reader_name: "first".to_string(),
+            collection_name: Some("other_collection".to_string()),
             generation_id: None,
         },
         ReaderRecord {
-            reader_id: "second".to_string(),
-            collection_id: None,
+            reader_name: "second".to_string(),
+            collection_name: None,
             generation_id: None,
         },
     ];
@@ -84,7 +84,7 @@ async fn readers_test_inner() {
 
     let result = collection
         .update_reader(UpdateReaderOptions {
-            reader_id: "first".to_string(),
+            reader_name: "first".to_string(),
             generation_id: Some(
                 OwnedGenerationId::from_boxed_slice(b"some_gen".to_vec().into_boxed_slice())
                     .unwrap(),
@@ -95,7 +95,7 @@ async fn readers_test_inner() {
 
     let result = collection
         .update_reader(UpdateReaderOptions {
-            reader_id: "second".to_string(),
+            reader_name: "second".to_string(),
             generation_id: Some(
                 OwnedGenerationId::from_boxed_slice(b"another_gen".to_vec().into_boxed_slice())
                     .unwrap(),
@@ -108,20 +108,20 @@ async fn readers_test_inner() {
     let mut items = readers.items;
     assert_eq!(items.len(), 2);
 
-    items.sort_by(|a, b| a.reader_id.cmp(&b.reader_id));
+    items.sort_by(|a, b| a.reader_name.cmp(&b.reader_name));
 
     let expected_items = vec![
         ReaderRecord {
-            reader_id: "first".to_string(),
-            collection_id: Some("other_collection".to_string()),
+            reader_name: "first".to_string(),
+            collection_name: Some("other_collection".to_string()),
             generation_id: Some(
                 OwnedGenerationId::from_boxed_slice(b"some_gen".to_vec().into_boxed_slice())
                     .unwrap(),
             ),
         },
         ReaderRecord {
-            reader_id: "second".to_string(),
-            collection_id: None,
+            reader_name: "second".to_string(),
+            collection_name: None,
             generation_id: Some(
                 OwnedGenerationId::from_boxed_slice(b"another_gen".to_vec().into_boxed_slice())
                     .unwrap(),

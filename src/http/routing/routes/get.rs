@@ -21,7 +21,7 @@ use serde_with::skip_serializing_none;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GetRequestJsonData {
-    collection_id: String,
+    collection_name: String,
 
     key: EncodedKeyJsonData,
     generation_id: Option<EncodedGenerationIdJsonData>,
@@ -49,9 +49,9 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
         let body = read_limited_body(request, GET_REQUEST_MAX_BYTES).await?;
         let data: GetRequestJsonData = read_json(body)?;
 
-        let collection_id = data.collection_id;
+        let collection_name = data.collection_name;
 
-        let collection = context.database.get_collection(&collection_id).await;
+        let collection = context.database.get_collection(&collection_name).await;
         let Some(collection) = collection else { return Err(HttpError::Generic400("no such collection")); };
 
         let decoder = StringDecoder::new(StrSerializationType::Utf8);

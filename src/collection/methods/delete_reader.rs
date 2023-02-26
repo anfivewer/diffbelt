@@ -6,7 +6,7 @@ use crate::raw_db::update_reader::RawDbDeleteReaderOptions;
 use crate::util::tokio::spawn_blocking_async;
 
 pub struct DeleteReaderOptions {
-    pub reader_id: String,
+    pub reader_name: String,
 }
 
 impl Collection {
@@ -14,7 +14,7 @@ impl Collection {
         &self,
         options: DeleteReaderOptions,
     ) -> Result<(), CollectionMethodError> {
-        let reader_id = options.reader_id;
+        let reader_name = options.reader_name;
         let raw_db = self.raw_db.clone();
 
         let deletion_lock = self.is_deleted.read().await;
@@ -24,7 +24,7 @@ impl Collection {
 
         let result = spawn_blocking_async(async move {
             raw_db.delete_reader_sync(RawDbDeleteReaderOptions {
-                reader_id: reader_id.as_str(),
+                reader_name: reader_name.as_str(),
             })
         })
         .await

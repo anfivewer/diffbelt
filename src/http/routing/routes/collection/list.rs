@@ -44,7 +44,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
             .into_iter()
             .map(|collection: Arc<Collection>| async move {
                 ListCollectionsItemJsonData {
-                    name: collection.get_id().to_string(),
+                    name: collection.get_name().to_string(),
                     is_manual: collection.is_manual(),
                 }
             })

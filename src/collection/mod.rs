@@ -21,7 +21,7 @@ pub mod util;
 
 pub struct Collection {
     config: Arc<DatabaseConfig>,
-    id: String,
+    name: String,
     raw_db: Arc<RawDb>,
     is_manual: bool,
     // you need to lock it for reading before any operations with raw_db
@@ -46,8 +46,8 @@ pub enum GetReaderGenerationIdError {
 }
 
 impl Collection {
-    pub fn get_id(&self) -> &str {
-        &self.id
+    pub fn get_name(&self) -> &str {
+        &self.name
     }
 
     pub fn is_manual(&self) -> bool {
@@ -66,11 +66,11 @@ impl Collection {
 
     pub fn get_reader_generation_id(
         &self,
-        reader_id: &str,
+        reader_name: &str,
     ) -> Result<Option<OwnedGenerationId>, GetReaderGenerationIdError> {
         let state = self
             .raw_db
-            .get_reader_sync(reader_id)
+            .get_reader_sync(reader_name)
             .map_err(|err| match err {
                 RawDbError::NoSuchReader => GetReaderGenerationIdError::NoSuchReader,
                 err => GetReaderGenerationIdError::RawDb(err),
@@ -85,6 +85,6 @@ impl Collection {
 }
 
 pub struct CommitGenerationUpdateReader {
-    pub reader_id: String,
+    pub reader_name: String,
     pub generation_id: OwnedGenerationId,
 }

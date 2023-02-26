@@ -32,23 +32,23 @@ impl Collection {
         let mut items = Vec::<ReaderRecord>::with_capacity(result.len());
 
         for (key, value) in result {
-            let reader_id = &key[(b"reader:".len())..];
-            let reader_id = from_utf8(reader_id).or(Err(CollectionMethodError::InvalidUtf8))?;
+            let reader_name = &key[(b"reader:".len())..];
+            let reader_name = from_utf8(reader_name).or(Err(CollectionMethodError::InvalidUtf8))?;
             let reader_value = ReaderValue::from_slice(&value)
                 .or(Err(CollectionMethodError::InvalidReaderValue))?;
 
             let generation_id = reader_value.get_generation_id();
-            let collection_id = reader_value.get_collection_id();
-            let collection_id = if collection_id.is_empty() {
+            let collection_name = reader_value.get_collection_name();
+            let collection_name = if collection_name.is_empty() {
                 None
             } else {
-                Some(collection_id.to_string())
+                Some(collection_name.to_string())
             };
 
             items.push(ReaderRecord {
-                reader_id: reader_id.to_string(),
+                reader_name: reader_name.to_string(),
                 generation_id: generation_id.to_opt_owned_if_empty(),
-                collection_id,
+                collection_name,
             });
         }
 

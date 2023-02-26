@@ -24,7 +24,7 @@ use tokio::sync::{oneshot, RwLock};
 
 pub struct CollectionOpenOptions<'a> {
     pub config: Arc<DatabaseConfig>,
-    pub id: String,
+    pub name: String,
     pub data_path: &'a PathBuf,
     pub is_manual: bool,
     pub database_inner: Arc<DatabaseInner>,
@@ -59,9 +59,9 @@ impl Collection {
     pub async fn open(
         options: CollectionOpenOptions<'_>,
     ) -> Result<Arc<Self>, CollectionOpenError> {
-        let collection_id = options.id;
+        let collection_name = options.name;
 
-        let path = Collection::get_path(options.data_path, &collection_id);
+        let path = Collection::get_path(options.data_path, &collection_name);
         let path = path.to_str().ok_or(CollectionOpenError::PathJoin)?;
 
         let raw_db = RawDb::open_raw_db(RawDbOptions {
@@ -224,7 +224,7 @@ impl Collection {
 
         let collection = Collection {
             config: options.config,
-            id: collection_id,
+            name: collection_name,
             raw_db: Arc::new(raw_db),
             is_manual,
             is_deleted: Arc::new(RwLock::new(false)),
@@ -255,7 +255,7 @@ impl Collection {
         Ok(collection)
     }
 
-    pub fn get_path(data_path: &PathBuf, collection_id: &str) -> PathBuf {
-        data_path.join(collection_id)
+    pub fn get_path(data_path: &PathBuf, collection_name: &str) -> PathBuf {
+        data_path.join(collection_name)
     }
 }

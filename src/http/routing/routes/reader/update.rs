@@ -22,7 +22,7 @@ use crate::util::str_serialization::StrSerializationType;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RequestJsonData {
-    reader_id: String,
+    reader_name: String,
     generation_id: Option<EncodedGenerationIdJsonData>,
 }
 
@@ -30,7 +30,7 @@ struct RequestJsonData {
 async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult {
     let context = options.context;
     let request = options.request;
-    let collection_id = options.groups.0;
+    let collection_name = options.groups.0;
 
     request.allow_only_methods(&["POST"])?;
     request.allow_only_utf8_json_by_default()?;
@@ -39,16 +39,16 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     let data: RequestJsonData = read_json(body)?;
 
     let RequestJsonData {
-        reader_id,
+        reader_name,
         generation_id,
     } = data;
 
     let generation_id = EncodedGenerationIdJsonData::decode_opt(generation_id)?;
 
-    let collection = get_collection(&context, &collection_id).await?;
+    let collection = get_collection(&context, &collection_name).await?;
 
     let options = UpdateReaderOptions {
-        reader_id,
+        reader_name: reader_name,
         generation_id,
     };
 

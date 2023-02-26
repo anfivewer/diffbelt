@@ -10,7 +10,7 @@ use std::path::PathBuf;
 impl Collection {
     pub fn delete_collection(&self) -> impl Future<Output = Result<(), CollectionMethodError>> {
         let is_deleted = self.is_deleted.clone();
-        let collection_id = self.id.clone();
+        let collection_name = self.name.clone();
         let database_inner = self.database_inner.clone();
         let raw_db = self.raw_db.clone();
         let newgen = self.newgen.clone();
@@ -39,7 +39,7 @@ impl Collection {
 
             // Preparation to delete
             database_inner
-                .start_delete_collection(&collection_id)
+                .start_delete_collection(&collection_name)
                 .await?;
 
             // Destroy raw_db, remove files
@@ -83,7 +83,7 @@ impl Collection {
             })?;
 
             // Finalization of deletion
-            database_inner.finish_delete_collection_sync(&collection_id)?;
+            database_inner.finish_delete_collection_sync(&collection_name)?;
 
             drop(deletion_lock);
 

@@ -26,7 +26,7 @@ struct RequestJsonData {
 async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult {
     let context = options.context;
     let request = options.request;
-    let collection_id = options.groups.0;
+    let collection_name = options.groups.0;
 
     request.allow_only_methods(&["POST"])?;
     request.allow_only_utf8_json_by_default()?;
@@ -36,7 +36,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
 
     let cursor_id = data.cursor_id;
 
-    let collection = context.database.get_collection(&collection_id).await;
+    let collection = context.database.get_collection(&collection_name).await;
     let Some(collection) = collection else { return Err(HttpError::Generic400("no such collection")); };
 
     let options = ReadQueryCursorOptions { cursor_id };

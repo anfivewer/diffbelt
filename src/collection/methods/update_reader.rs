@@ -6,7 +6,7 @@ use crate::raw_db::update_reader::RawDbUpdateReaderOptions;
 use crate::util::tokio::spawn_blocking_async;
 
 pub struct UpdateReaderOptions {
-    pub reader_id: String,
+    pub reader_name: String,
     pub generation_id: Option<OwnedGenerationId>,
 }
 
@@ -15,7 +15,7 @@ impl Collection {
         &self,
         options: UpdateReaderOptions,
     ) -> Result<(), CollectionMethodError> {
-        let reader_id = options.reader_id;
+        let reader_name = options.reader_name;
         let generation_id = options.generation_id;
         let raw_db = self.raw_db.clone();
 
@@ -26,7 +26,7 @@ impl Collection {
 
         let result = spawn_blocking_async(async move {
             raw_db.update_reader_sync(RawDbUpdateReaderOptions {
-                reader_id: reader_id.as_str(),
+                reader_name: reader_name.as_str(),
                 generation_id: generation_id.as_ref().map(|id| id.as_ref()),
             })
         })

@@ -34,13 +34,13 @@ impl DatabaseInner {
 
     pub fn get_reader_generation_id_sync(
         &self,
-        collection_id: &str,
-        reader_id: &str,
+        collection_name: &str,
+        reader_name: &str,
     ) -> Result<Option<OwnedGenerationId>, GetReaderGenerationIdFnError> {
         let collections_lock = self.collections.blocking_read();
 
         let collection = collections_lock
-            .get(collection_id)
+            .get(collection_name)
             .ok_or(GetReaderGenerationIdFnError::NoSuchCollection)?;
 
         let collection = collection.clone();
@@ -48,7 +48,7 @@ impl DatabaseInner {
         drop(collections_lock);
 
         collection
-            .get_reader_generation_id(reader_id)
+            .get_reader_generation_id(reader_name)
             .map_err(|err| match err {
                 GetReaderGenerationIdError::NoSuchReader => {
                     GetReaderGenerationIdFnError::NoSuchReader
@@ -57,10 +57,10 @@ impl DatabaseInner {
             })
     }
 
-    fn mark_collection_for_deletion_sync(&self, collection_id: &str) -> Result<(), RawDbError> {
-        let mut key = String::with_capacity("deleteCollection:".len() + collection_id.len());
+    fn mark_collection_for_deletion_sync(&self, collection_name: &str) -> Result<(), RawDbError> {
+        let mut key = String::with_capacity("deleteCollection:".len() + collection_name.len());
         key.push_str("deleteCollection:");
-        key.push_str(collection_id);
+        key.push_str(collection_name);
 
         self.database_raw_db
             .put_cf_sync(DATABASE_RAW_DB_CF, key.as_bytes(), b"")?;
@@ -68,10 +68,10 @@ impl DatabaseInner {
         Ok(())
     }
 
-    fn unmark_collection_for_deletion_sync(&self, collection_id: &str) -> Result<(), RawDbError> {
-        let mut key = String::with_capacity("deleteCollection:".len() + collection_id.len());
+    fn unmark_collection_for_deletion_sync(&self, collection_name: &str) -> Result<(), RawDbError> {
+        let mut key = String::with_capacity("deleteCollection:".len() + collection_name.len());
         key.push_str("deleteCollection:");
-        key.push_str(collection_id);
+        key.push_str(collection_name);
 
         self.database_raw_db
             .delete_cf_sync(DATABASE_RAW_DB_CF, key.as_bytes())?;
@@ -79,10 +79,10 @@ impl DatabaseInner {
         Ok(())
     }
 
-    async fn unmark_collection_for_deletion(&self, collection_id: &str) -> Result<(), RawDbError> {
-        let mut key = String::with_capacity("deleteCollection:".len() + collection_id.len());
+    async fn unmark_collection_for_deletion(&self, collection_name: &str) -> Result<(), RawDbError> {
+        let mut key = String::with_capacity("deleteCollection:".len() + collection_name.len());
         key.push_str("deleteCollection:");
-        key.push_str(collection_id);
+        key.push_str(collection_name);
 
         self.database_raw_db
             .delete_cf(DATABASE_RAW_DB_CF, key.into_bytes().into_boxed_slice())
@@ -91,10 +91,10 @@ impl DatabaseInner {
         Ok(())
     }
 
-    pub fn is_marked_for_deletion_sync(&self, collection_id: &str) -> Result<bool, RawDbError> {
-        let mut key = String::with_capacity("deleteCollection:".len() + collection_id.len());
+    pub fn is_marked_for_deletion_sync(&self, collection_name: &str) -> Result<bool, RawDbError> {
+        let mut key = String::with_capacity("deleteCollection:".len() + collection_name.len());
         key.push_str("deleteCollection:");
-        key.push_str(collection_id);
+        key.push_str(collection_name);
 
         let is_marked = self
             .database_raw_db
@@ -104,7 +104,7 @@ impl DatabaseInner {
         Ok(is_marked)
     }
 
-    pub async fn start_delete_collection(&self, collection_id: &str) -> Result<(), RawDbError> {
+    pub async fn start_delete_collection(&self, collection_name: &str) -> Result<(), RawDbError> {
         // Now we need remove this collection from `Database.collections` and remove its raw_db,
         // cleanup collection data from meta_raw_db of `Database`
         // Order here matters, we need expect that process can crash in any moment,
@@ -114,23 +114,23 @@ impl DatabaseInner {
         //   - marked as deleted (and then deleted on `Database::open`)
 
         // Mark for deletion, this will delete this collection on database open
-        self.mark_collection_for_deletion_sync(collection_id)?;
+        self.mark_collection_for_deletion_sync(collection_name)?;
 
         // Block creation of this collection
         let mut collections_for_deletion = self.collections_for_deletion.write().await;
-        collections_for_deletion.insert(collection_id.to_string());
+        collections_for_deletion.insert(collection_name.to_string());
         drop(collections_for_deletion);
 
         // Remove from collections to not hold Arc<Collection>
         let mut collections_lock = self.collections.write().await;
-        collections_lock.remove(collection_id);
+        collections_lock.remove(collection_name);
         drop(collections_lock);
 
         Ok(())
     }
 
-    pub fn finish_delete_collection_sync(&self, collection_id: &str) -> Result<(), RawDbError> {
-        self.unmark_collection_for_deletion_sync(collection_id)?;
+    pub fn finish_delete_collection_sync(&self, collection_name: &str) -> Result<(), RawDbError> {
+        self.unmark_collection_for_deletion_sync(collection_name)?;
 
         Ok(())
     }

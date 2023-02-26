@@ -22,7 +22,7 @@ use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RequestJsonData {
-    collection_id: String,
+    collection_name: String,
 
     key: EncodedKeyJsonData,
 
@@ -59,9 +59,9 @@ async fn handler(options: StaticRouteOptions) -> HttpHandlerResult {
     let body = read_limited_body(request, GET_KEYS_AROUND_REQUEST_MAX_BYTES).await?;
     let data: RequestJsonData = read_json(body)?;
 
-    let collection_id = data.collection_id;
+    let collection_name = data.collection_name;
 
-    let collection = context.database.get_collection(&collection_id).await;
+    let collection = context.database.get_collection(&collection_name).await;
     let Some(collection) = collection else { return Err(HttpError::Generic400("no such collection")); };
 
     let require_key_existance = data.require_key_existance;

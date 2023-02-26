@@ -8,7 +8,7 @@ Immutable key-value database with main focus on taking diffs belween versions of
 ## Entities
 
 * **Collection** — lexicographically ordered set of key-value pairs
-  * **CollectionId** — `1` to `255` bytes that are represent UTF-8 string
+  * **CollectionName** — `1` to `255` bytes that are represent UTF-8 string
   * **CurrentGenerationId** — zero to `255` bytes
   * **NextGenerationId** — `NULL` or `1` to `255` bytes, must be bigger than **CurrentGenerationId**. Can be `NULL` in manual collections where no next generation is planned yet.
   * **Manual collection** — collection allows puts only with specified `generationId` that previosly was initiated with `generation/start`
@@ -19,8 +19,8 @@ Immutable key-value database with main focus on taking diffs belween versions of
   * **GenerationId** — zero to `255` bytes. Any query always uses some `generationId` (latest for the collection or provided by user), if record's `generationId` is bigger than `generationId` for the query's, this record is invisible. Only one **record** with the maximally close `generationId` to the query's `generationId` is visible
   * **PhantomId** — `1` to `255` bytes. Records with `phantomId` are visible only for queries with the same `phantomId`
 * **Reader** — item of **collection**, consists of:
-  * **ReaderId** — non-empty UTF-8 string (TODO: add limit, issue [#10](https://github.com/anfivewer/diffbelt/issues/10))
-  * **CollectionName** — optional **CollectionId**, if not specified — it means current collection
+  * **ReaderName** — non-empty UTF-8 string (TODO: add limit, issue [#10](https://github.com/anfivewer/diffbelt/issues/10))
+  * **CollectionName** — optional **CollectionName**, if not specified — it means current collection
   * **GenerationId** — **CurrentGenerationId**, marker to some generation in foreign collection (specified by **CollectionName**). It prevents garbage collection of generations of target collection and may be used for `diff` calls as `fromGenerationId` source
 
 ## Transform flow examples
@@ -80,7 +80,7 @@ Returns list of all collections.
 
 ```
 type Request = {
-    collectionId: string;
+    collectionName: string;
     encoding?: Encoding;
 } &
 (
@@ -100,7 +100,7 @@ type Response = {
 
 Creates collection. For manual collections you can specify `initialGenerationId: ""` (empty string).
 
-## `GET /collections/:collectionId`
+## `GET /collections/:collectionName`
 
 ```
 type QueryParams = {
@@ -127,13 +127,13 @@ GET /collections/log-lines?fields=generationId,nextGenerationId
 }
 ```
 
-## `DELETE /collections/:collectionId`
+## `DELETE /collections/:collectionName`
 
 Deletes the collection. Warning: this will delete it with all files immediately. In the future I plan to just move it and delete in a week or something like that to be able to recover it if it was unattended action.
 
 Deletion of associated readers is not implemented yet. Issue [#2](https://github.com/anfivewer/diffbelt/issues/2).
 
-## `GET /collections/:collectionId/generationId/stream`
+## `GET /collections/:collectionName/generationId/stream`
 
 ```
 type QueryParams = {
@@ -154,7 +154,7 @@ This long-polling is useful to wait for commits of non-manual collection, or wai
 
 ```
 type Request = {
-    collectionId: string;
+    collectionName: string;
     key: EncodedString;
     generationId?: EncodedString;
     phantomId?: EncodedString;
@@ -170,7 +170,7 @@ type Response = {
 
 ```
 type Request = {
-    collectionId: string;
+    collectionName: string;
     key: EncodedString;
     requireKeyExistance: boolean;
     generationId?: EncodedString;
@@ -199,7 +199,7 @@ Not implemented yet.
 
 ```
 type Request = {
-    collectionId: string;
+    collectionName: string;
     item: KeyValueUpdate;
     generationId?: EncodedString;
     phantomId?: EncodedString;
@@ -217,7 +217,7 @@ If `ifNotPresent: true`, then if `key` already exists, its value will not be ove
 
 Warning: without `ifNotPresent` key-value record will be updated even if it has the same value. For example if you have `{"key":"a", "value":"42", "generationId":"001"}` stored in the database and next `generationId` is `002`, if you'll `/put` `{"key":"a", "value":"42"}`, new record `{"key":"a", "value":"42", "generationId":"002"}` will be created. Vote for issue [#1](https://github.com/anfivewer/diffbelt/issues/1).
 
-## `POST /collections/:collectionId/putMany`
+## `POST /collections/:collectionName/putMany`
 
 ```
 type Request = {
@@ -231,25 +231,25 @@ type Response = {
 };
 ```
 
-## `POST /collections/:collectionId/reader/list`
+## `POST /collections/:collectionName/reader/list`
 
 ```
 type Request = {};
 
 type Response = {
     items: {
-        readerId: string;
+        readerName: string;
         collectionName?: string;
         generationId: EncodedString;
     }[];
 };
 ```
 
-## `POST /collections/:collectionId/reader/create`
+## `POST /collections/:collectionName/reader/create`
 
 ```
 type Request = {
-    readerId: string;
+    readerName: string;
     collectionName?: string;
     generationId?: EncodedString | null;
 };
@@ -257,28 +257,28 @@ type Request = {
 type Response = {};
 ```
 
-## `POST /collections/:collectionId/reader/delete`
+## `POST /collections/:collectionName/reader/delete`
 
 ```
 type Request = {
-    readerId: string;
+    readerName: string;
 };
 
 type Response = {};
 ```
 
-## `POST /collections/:collectionId/reader/update`
+## `POST /collections/:collectionName/reader/update`
 
 ```
 type Request = {
-    readerId: string;
+    readerName: string;
     generationId?: EncodedString | null;
 };
 
 type Response = {};
 ```
 
-## `POST /collections/:collectionId/diff/start`
+## `POST /collections/:collectionName/diff/start`
 
 Request parameters are broken, see issue [#5](https://github.com/anfivewer/diffbelt/issues/5).
 
@@ -291,7 +291,7 @@ type Request = {
     }
   | {
         fromReader: {
-            readerId: string;
+            readerName: string;
             collectionName?: string;
         };
     }    
@@ -317,13 +317,13 @@ type Response = DiffResponse
 There is two ways to specify `fromGenerationId`:
 
 * Manually by providing `fromGenerationId`
-* By providing `fromReader`. If specified, diff will read `readerId` from collection `collectionName`, take its `generationId`
+* By providing `fromReader`. If specified, diff will read `readerName` from collection `collectionName`, take its `generationId`
 
 Response can have `generationId` that is less or equal to `toGenerationId` (if it is specified, or to current `generationId`). You should repeat diff requests until it will respond with `fromGenerationId == generationId`.
 
 `intermediateValues` currently always is an empty array. Later there will be `omitIntermediateValues: false` option that will provide those values. See issue [#6](https://github.com/anfivewer/diffbelt/issues/6).
 
-## `POST /collections/:collectionId/diff/next`
+## `POST /collections/:collectionName/diff/next`
 
 ```
 type Request = {
@@ -335,11 +335,11 @@ type Response = DiffResponse;
 
 If `diff/start` responded with `cursorId` you should call this method to get the rest of output.
 
-## `POST /collections/:collectionId/diff/abort`
+## `POST /collections/:collectionName/diff/abort`
 
 Not implemented yet. Issue [#7](https://github.com/anfivewer/diffbelt/issues/7).
 
-## `POST /collections/:collectionId/query/start`
+## `POST /collections/:collectionName/query/start`
 
 ```
 type Request = {
@@ -358,7 +358,7 @@ type Response = QueryResponse
 
 Reads all key-value records from collection. If `generationId` is specified, items that was added/updated/deleted after this generation will be omitted from the result.
 
-## `POST /collections/:collectionId/query/next`
+## `POST /collections/:collectionName/query/next`
 
 ```
 type Request = {
@@ -370,11 +370,11 @@ type Response = DiffResponse;
 
 If `query/start` responded with `cursorId` you should call this method to get the rest of output.
 
-## `POST /collections/:collectionId/query/abort`
+## `POST /collections/:collectionName/query/abort`
 
 Not implemented yet. Issue [#7](https://github.com/anfivewer/diffbelt/issues/7).
 
-## `POST /collections/:collectionId/phantom/start`
+## `POST /collections/:collectionName/phantom/start`
 
 ```
 type Request = {};
@@ -388,7 +388,7 @@ Gets `phantomId` that can be used for puts. They are useful to create "fake modi
 
 Phantoms are relatively short-living entity. Currently, their TTL is not specified, but in next revisions I maybe will remove this method and will bind phantoms to generations (when you start generation you can create phantoms in some collections, then after commit phantoms are gone).
 
-## `POST /collections/:collectionId/generation/start`
+## `POST /collections/:collectionName/generation/start`
 
 ```
 type Request = {
@@ -403,7 +403,7 @@ Works only on manual collections.
 
 If `abortOutdated` specified and there is generation that is already started and its `generationId` is less than provided, all records that was added in this generation will be deleted.
 
-## `POST /collections/:collectionId/generation/abort`
+## `POST /collections/:collectionName/generation/abort`
 
 ```
 type Request = {
@@ -415,13 +415,13 @@ type Response = {};
 
 Aborts generation, deletes all records that was put in this generation.
 
-## `POST /collections/:collectionId/generation/commit`
+## `POST /collections/:collectionName/generation/commit`
 
 ```
 type Request = {
     generationId: EncodedString;
     updateReaders?: {
-        readerId: string;
+        readerName: string;
         generationId: EncodedString;
     }[];
 };
@@ -434,22 +434,22 @@ Commits generation (makes new records visible), atomically with readers updates.
 <a name="transformExample"></a>For example, you need to transform collections `A` and `B` to collection `C`. Initialization:
 
 * Create manual collection `C` with `generationId: {value: "AAAAAAAAAAA=", "encoding": "base64"}` (64 zero bits)
-* Create reader in collection `C`: `{"readerId": "from_a", "collectionName": "A", "generationId": {value:""}}`
-* Create reader in collection `C`: `{"readerId": "from_b", "collectionName": "B", "generationId": {value:""}}`
+* Create reader in collection `C`: `{"readerName": "from_a", "collectionName": "A", "generationId": {value:""}}`
+* Create reader in collection `C`: `{"readerName": "from_b", "collectionName": "B", "generationId": {value:""}}`
 
 Transform iteration:
 
 * Get current&next `C` generation ids
 * Get next generationId if it is present, if not — take current
 * Increment it (from `AAAAAAAAAAA=` it will become `AAAAAAAAAAE=`, then `AAAAAAAAAAI=` and so on), start generation with incremented `generationId` and `abortOutdated: true`, we'll call this generation id as `commitGenerationId`
-* Execute diff on collection `A` with `readerId: 'from_a', readerCollectionName: 'C'`, remember `generationId` of diff result as `aGenerationId`
-* Execute diff on collection `B` with `readerId: 'from_b', readerCollectionName: 'C'`, remember `generationId` of diff result as `bGenerationId`
+* Execute diff on collection `A` with `readerName: 'from_a', readerCollectionName: 'C'`, remember `generationId` of diff result as `aGenerationId`
+* Execute diff on collection `B` with `readerName: 'from_b', readerCollectionName: 'C'`, remember `generationId` of diff result as `bGenerationId`
 * Process diff, make puts to collection `C` (`generationId` should be `commitGenerationId`); you can also make gets with `commitGenerationId` to see what you are already stored to some key to update it, if you got new data from `A` or `B`
 * Commit generation `commitGenerationId`, pass:
   ```
   updateReaders: [
-      { readerId: 'from_a', generationId: aGenerationId },
-      { readerId: 'from_b', generationId: bGenerationId },
+      { readerName: 'from_a', generationId: aGenerationId },
+      { readerName: 'from_b', generationId: bGenerationId },
   ]
   ```
 

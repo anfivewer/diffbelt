@@ -39,7 +39,7 @@ struct PutManyResponseJsonData {
 async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult {
     let context = options.context;
     let request = options.request;
-    let collection_id = options.groups.0;
+    let collection_name = options.groups.0;
 
     request.allow_only_methods(&["POST"])?;
     request.allow_only_utf8_json_by_default()?;
@@ -47,7 +47,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     let body = read_limited_body(request, PUT_MANY_REQUEST_MAX_BYTES).await?;
     let data: PutManyRequestJsonData = read_json(body)?;
 
-    let collection = get_collection(&context, &collection_id).await?;
+    let collection = get_collection(&context, &collection_name).await?;
 
     let decoder = StringDecoder::new(StrSerializationType::Utf8);
 

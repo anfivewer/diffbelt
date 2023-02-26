@@ -91,7 +91,7 @@ impl Database {
 
             let collection = Collection::open(CollectionOpenOptions {
                 config: options.config.clone(),
-                id: id.clone(),
+                name: id.clone(),
                 data_path,
                 is_manual: record.is_manual,
                 database_inner: database_inner.clone(),

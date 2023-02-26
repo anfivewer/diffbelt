@@ -7,8 +7,8 @@ use crate::raw_db::update_reader::{RawDbCreateReaderOptions, RawDbCreateReaderRe
 use crate::util::tokio::spawn_blocking_async;
 
 pub struct CreateReaderOptions {
-    pub reader_id: String,
-    pub collection_id: Option<String>,
+    pub reader_name: String,
+    pub collection_name: Option<String>,
     pub generation_id: Option<OwnedGenerationId>,
 }
 
@@ -17,8 +17,8 @@ impl Collection {
         &self,
         options: CreateReaderOptions,
     ) -> Result<(), CollectionMethodError> {
-        let reader_id = options.reader_id;
-        let collection_id = options.collection_id;
+        let reader_name = options.reader_name;
+        let collection_name = options.collection_name;
         let generation_id = options.generation_id;
         let raw_db = self.raw_db.clone();
 
@@ -29,8 +29,8 @@ impl Collection {
 
         let result = spawn_blocking_async(async move {
             raw_db.create_reader_sync(RawDbCreateReaderOptions {
-                reader_id: reader_id.as_str(),
-                collection_id: collection_id.as_ref().map(|id| id.as_str()),
+                reader_name: reader_name.as_str(),
+                collection_name: collection_name.as_ref().map(|id| id.as_str()),
                 generation_id: GenerationId::from_opt_owned(&generation_id),
             })
         })

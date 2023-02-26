@@ -36,7 +36,7 @@ struct RequestJsonData {
 async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult {
     let context = options.context;
     let request = options.request;
-    let collection_id = options.groups.0;
+    let collection_name = options.groups.0;
 
     request.allow_only_methods(&["POST"])?;
     request.allow_only_utf8_json_by_default()?;
@@ -49,7 +49,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
 
     let from_generation_id =
         into_from_generation_id_source(from_generation_id, data.from_reader)?;
-    let collection = get_collection(&context, &collection_id).await?;
+    let collection = get_collection(&context, &collection_name).await?;
 
     let options = DiffOptions {
         from_generation_id,
@@ -84,8 +84,8 @@ fn into_from_generation_id_source(
     };
 
     Ok(GenerationIdSource::Reader(ReaderDef {
-        collection_id: reader.collection_name,
-        reader_id: reader.reader_id,
+        collection_name: reader.collection_name,
+        reader_name: reader.reader_name,
     }))
 }
 

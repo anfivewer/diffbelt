@@ -1,4 +1,4 @@
-use crate::common::constants::MAX_COLLECTION_ID_LENGTH;
+use crate::common::constants::MAX_COLLECTION_NAME_LENGTH;
 use crate::common::OwnedGenerationId;
 use crate::context::Context;
 use crate::database::create_collection::{CreateCollectionError, CreateCollectionOptions};
@@ -20,7 +20,7 @@ use serde_with::skip_serializing_none;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateCollectionRequestJsonData {
-    collection_id: String,
+    collection_name: String,
     is_manual: bool,
     // Only for manual collections
     initial_generation_id: Option<EncodedGenerationIdJsonData>,
@@ -43,11 +43,11 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
         let body = read_limited_body(request, CREATE_COLLECTION_REQUEST_MAX_BYTES).await?;
         let data: CreateCollectionRequestJsonData = read_json(body)?;
 
-        let collection_id = data.collection_id;
+        let collection_name = data.collection_name;
         let is_manual = data.is_manual;
 
-        if collection_id.len() > MAX_COLLECTION_ID_LENGTH {
-            return Err(HttpError::Generic400("collectionId cannot be > 512"));
+        if collection_name.len() > MAX_COLLECTION_NAME_LENGTH {
+            return Err(HttpError::Generic400("collectionName cannot be > 512"));
         }
 
         let initial_generation_id = EncodedGenerationIdJsonData::decode_opt(data.initial_generation_id)?;
@@ -60,7 +60,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
 
         let result = context
             .database
-            .create_collection(&collection_id, CreateCollectionOptions { is_manual })
+            .create_collection(&collection_name, CreateCollectionOptions { is_manual })
             .await;
 
         let collection = match result {

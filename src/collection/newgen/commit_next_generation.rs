@@ -88,10 +88,10 @@ pub async fn commit_next_generation_sync(
                     .iter()
                     .map(
                         |CommitGenerationUpdateReader {
-                             reader_id,
+                             reader_name,
                              generation_id,
                          }| RawDbUpdateReader {
-                            reader_id: reader_id.as_str(),
+                            reader_name: reader_name.as_str(),
                             generation_id: generation_id.as_ref(),
                         },
                     )

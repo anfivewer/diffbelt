@@ -119,7 +119,7 @@ impl Database {
 
         let collection = Collection::open(CollectionOpenOptions {
             config: self.config.clone(),
-            id: id.to_string(),
+            name: id.to_string(),
             is_manual: options.is_manual,
             data_path: &self.data_path,
             database_inner: self.inner.clone(),

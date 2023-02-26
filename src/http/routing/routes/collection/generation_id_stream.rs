@@ -32,11 +32,11 @@ fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
     Box::pin(async move {
         let context = options.context;
         let request = options.request;
-        let collection_id = options.groups.0;
+        let collection_name = options.groups.0;
 
         request.allow_only_methods(&["GET"])?;
 
-        let result = context.database.get_collection(&collection_id).await;
+        let result = context.database.get_collection(&collection_name).await;
 
         let Some(collection) = result else {
             return Err(no_such_collection_error());
