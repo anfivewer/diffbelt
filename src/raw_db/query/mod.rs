@@ -483,8 +483,8 @@ fn is_need_to_push_last_record(
 fn create_iterator<'a, D: QueryDirection>(
     db: &'a DB,
     start_key: Option<CollectionKey<'_>>,
-    generation_id: GenerationId<'_>,
-    phantom_id: Option<PhantomId<'_>>,
+    _generation_id: GenerationId<'_>,
+    _phantom_id: Option<PhantomId<'_>>,
     next_iterator_key: Option<OwnedRecordKey>,
 ) -> Result<DBIteratorWithThreadMode<'a, DB>, RawDbError> {
     match next_iterator_key {

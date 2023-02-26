@@ -10,8 +10,8 @@ use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
 
-use crate::http::util::get_collection::get_collection;
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
+use crate::http::util::get_collection::get_collection;
 
 use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};

@@ -4,7 +4,7 @@ use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::{KeyValueDiff, OwnedGenerationId};
 
-use crate::collection::cursor::util::{BaseCursor, save_next_cursor};
+use crate::collection::cursor::util::{save_next_cursor, BaseCursor};
 use crate::common::generation_id::GenerationIdSource;
 use std::sync::Arc;
 
@@ -40,11 +40,13 @@ impl Collection {
 
         let to_generation_id_loose = self.generation_id_or_current(to_generation_id_loose).await;
 
-        let cursor = Arc::new(std::sync::RwLock::new(DiffCursor::new(DiffCursorNewOptions {
-            from_generation_id,
-            to_generation_id_loose,
-            omit_intermediate_values: true,
-        })));
+        let cursor = Arc::new(std::sync::RwLock::new(DiffCursor::new(
+            DiffCursorNewOptions {
+                from_generation_id,
+                to_generation_id_loose,
+                omit_intermediate_values: true,
+            },
+        )));
 
         let deletion_lock = self.is_deleted.read().await;
         if deletion_lock.to_owned() {

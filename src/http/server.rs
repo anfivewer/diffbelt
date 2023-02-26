@@ -143,7 +143,9 @@ pub async fn start_http_server(context: Arc<Context>) {
                                 )
                                 .into(),
                             ),
-                            HttpError::CustomJson400(json) => (StatusCode::BAD_REQUEST, json.into()),
+                            HttpError::CustomJson400(json) => {
+                                (StatusCode::BAD_REQUEST, json.into())
+                            }
                             HttpError::GenericString400(reason) => {
                                 is_json = false;
                                 (

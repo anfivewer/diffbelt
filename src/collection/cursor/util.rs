@@ -1,6 +1,6 @@
 use crate::util::base62::rand_b62;
 use std::collections::HashMap;
-use std::sync::{Arc};
+use std::sync::Arc;
 
 pub trait BaseCursor {
     fn prev_cursor_id(&self) -> Option<&str>;
@@ -54,6 +54,6 @@ pub fn save_next_cursor<C: BaseCursor>(
                 }
                 None => None,
             }
-        },
+        }
     }
 }

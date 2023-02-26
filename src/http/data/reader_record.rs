@@ -65,7 +65,7 @@ impl ReaderRecordJsonData {
 impl UpdateReaderJsonData {
     pub fn decode_vec(
         items: Vec<UpdateReaderJsonData>,
-        decoder: &StringDecoder,
+        _decoder: &StringDecoder,
     ) -> Result<Vec<CommitGenerationUpdateReader>, HttpError> {
         let mut result = Vec::with_capacity(items.len());
 

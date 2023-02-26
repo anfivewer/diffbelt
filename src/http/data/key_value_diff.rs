@@ -1,10 +1,9 @@
-use crate::common::{IsByteArray, KeyValueDiff, OwnedCollectionValue};
+use crate::common::{KeyValueDiff, OwnedCollectionValue};
 use crate::http::data::encoded_value::EncodedValueJsonData;
 
-use crate::util::str_serialization::StrSerializationType;
+use crate::http::data::encoded_key::EncodedKeyJsonData;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
-use crate::http::data::encoded_key::EncodedKeyJsonData;
 
 #[skip_serializing_none]
 #[derive(Serialize)]

@@ -1,7 +1,7 @@
-use crate::common::{IsByteArray, OwnedCollectionValue};
+use crate::common::OwnedCollectionValue;
 
 use crate::http::errors::HttpError;
-use crate::http::util::encoding::StringDecoder;
+
 use crate::util::str_serialization::StrSerializationType;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;

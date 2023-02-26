@@ -1,11 +1,8 @@
-use crate::collection::methods::diff::ReadDiffCursorOptions;
 use diffbelt_macro::fn_box_pin_async;
 use regex::Regex;
 use serde::Deserialize;
 
 use crate::context::Context;
-use crate::http::constants::QUERY_START_REQUEST_MAX_BYTES;
-use crate::http::data::diff_response::DiffResponseJsonData;
 
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
@@ -13,14 +10,8 @@ use crate::http::routing::routes::diff::abort::abort_cursor;
 use crate::http::routing::routes::diff::next::read_cursor;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
 
-use crate::http::util::common_groups::{
-    id_only_group, id_with_name_group, IdOnlyGroup, IdWithNameGroup,
-};
+use crate::http::util::common_groups::{id_with_name_group, IdWithNameGroup};
 use crate::http::util::get_collection::get_collection;
-use crate::http::util::read_body::read_limited_body;
-use crate::http::util::read_json::read_json;
-use crate::http::util::response::create_ok_json_response;
-use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]

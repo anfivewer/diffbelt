@@ -1,5 +1,5 @@
 use crate::collection::methods::get::CollectionGetOptions;
-use crate::common::{IsByteArray, OwnedCollectionKey, OwnedGenerationId, OwnedPhantomId};
+
 use crate::context::Context;
 use crate::http::constants::GET_REQUEST_MAX_BYTES;
 use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
@@ -7,12 +7,10 @@ use crate::http::data::encoded_key::EncodedKeyJsonData;
 use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 use crate::http::data::key_value::KeyValueJsonData;
 use crate::http::errors::HttpError;
-use crate::http::routing::response::{BaseResponse, BytesVecResponse, Response};
-use crate::http::routing::{
-    HttpHandlerResult, PatternRouteOptions, StaticRouteFnFutureResult, StaticRouteOptions,
-};
-use crate::http::util::encoding::StringDecoder;
+
+use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
+use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
 use crate::http::util::response::create_ok_json_response;

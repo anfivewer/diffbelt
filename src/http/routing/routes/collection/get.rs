@@ -1,5 +1,5 @@
 use crate::collection::Collection;
-use crate::common::IsByteArray;
+
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
 use crate::http::routing::response::Response;

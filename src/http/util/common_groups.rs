@@ -30,8 +30,5 @@ pub fn id_with_name_group(captures: Captures<'_>) -> IdWithNameGroup {
         Err(_) => id.to_string(),
     };
 
-    IdWithNameGroup {
-        id,
-        name,
-    }
+    IdWithNameGroup { id, name }
 }

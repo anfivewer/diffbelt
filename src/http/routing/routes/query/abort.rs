@@ -1,12 +1,12 @@
 use crate::collection::methods::query::AbortQueryCursorOptions;
 use crate::collection::Collection;
-use crate::context::Context;
+
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
 use crate::http::routing::response::Response;
-use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
+
 use crate::http::util::response::create_ok_no_error_json_response;
-use crate::http::validation::{ContentTypeValidation, MethodsValidation};
+
 use std::sync::Arc;
 
 pub async fn abort_cursor(

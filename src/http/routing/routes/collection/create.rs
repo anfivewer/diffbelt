@@ -1,18 +1,18 @@
 use crate::common::constants::MAX_COLLECTION_NAME_LENGTH;
-use crate::common::OwnedGenerationId;
+
 use crate::context::Context;
 use crate::database::create_collection::{CreateCollectionError, CreateCollectionOptions};
 use crate::http::constants::CREATE_COLLECTION_REQUEST_MAX_BYTES;
 use crate::http::errors::HttpError;
 
 use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
-use crate::http::util::encoding::StringDecoder;
+
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
-use crate::http::util::response::{create_ok_json_response, create_ok_no_error_json_response};
+use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::ContentTypeValidation;
 
-use crate::http::data::encoded_generation_id::{EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
 use crate::util::str_serialization::StrSerializationType;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -50,7 +50,8 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
             return Err(HttpError::Generic400("collectionName cannot be > 512"));
         }
 
-        let initial_generation_id = EncodedGenerationIdJsonData::decode_opt(data.initial_generation_id)?;
+        let initial_generation_id =
+            EncodedGenerationIdJsonData::decode_opt(data.initial_generation_id)?;
 
         if initial_generation_id.is_some() != is_manual {
             return Err(HttpError::Generic400(

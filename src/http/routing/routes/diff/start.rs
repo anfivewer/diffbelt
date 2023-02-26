@@ -9,19 +9,18 @@ use crate::common::OwnedGenerationId;
 use crate::context::Context;
 use crate::http::constants::QUERY_START_REQUEST_MAX_BYTES;
 use crate::http::data::diff_response::DiffResponseJsonData;
-use crate::http::data::encoded_generation_id::{EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
 use crate::http::data::reader_record::ReaderDiffFromDefJsonData;
 
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
-use crate::http::util::encoding::StringDecoder;
-use crate::http::util::get_collection::get_collection;
+
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
+use crate::http::util::get_collection::get_collection;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
 use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
-use crate::util::str_serialization::StrSerializationType;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,8 +46,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     let from_generation_id = EncodedGenerationIdJsonData::decode_opt(data.from_generation_id)?;
     let to_generation_id = EncodedGenerationIdJsonData::decode_opt(data.to_generation_id)?;
 
-    let from_generation_id =
-        into_from_generation_id_source(from_generation_id, data.from_reader)?;
+    let from_generation_id = into_from_generation_id_source(from_generation_id, data.from_reader)?;
     let collection = get_collection(&context, &collection_name).await?;
 
     let options = DiffOptions {

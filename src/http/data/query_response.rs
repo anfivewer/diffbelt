@@ -1,5 +1,5 @@
 use crate::collection::methods::query::QueryOk;
-use crate::http::data::encoded_generation_id::{EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
 use crate::http::data::key_value::KeyValueJsonData;
 use crate::util::str_serialization::StrSerializationType;
 use serde::Serialize;

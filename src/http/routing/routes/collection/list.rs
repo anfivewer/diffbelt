@@ -1,4 +1,3 @@
-use crate::common::IsByteArray;
 use crate::context::Context;
 
 use futures::stream::FuturesOrdered;
@@ -12,7 +11,6 @@ use crate::http::validation::MethodsValidation;
 
 use crate::collection::Collection;
 
-use crate::util::str_serialization::StrSerializationType;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 

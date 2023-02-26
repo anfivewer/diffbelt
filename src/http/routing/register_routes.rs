@@ -15,8 +15,8 @@ use crate::http::routing::routes::put::register_put_route;
 use crate::http::routing::routes::put_many::register_put_many_route;
 use crate::http::routing::routes::query::by_id::register_next_query_route;
 use crate::http::routing::routes::query::start::register_start_query_route;
-use crate::http::routing::routes::reader::by_root::register_readers_root_route;
 use crate::http::routing::routes::reader::by_name::register_reader_by_name_route;
+use crate::http::routing::routes::reader::by_root::register_readers_root_route;
 use crate::http::routing::routes::root::register_root_route;
 
 pub fn register_routes(context: &mut Context) {

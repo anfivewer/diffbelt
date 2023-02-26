@@ -44,7 +44,10 @@ impl EncodedPhantomIdJsonData {
         )
     }
 
-    pub fn decode_opt(value: Option<Self>, decoder: &StringDecoder) -> Result<Option<OwnedPhantomId>, HttpError> {
+    pub fn decode_opt(
+        value: Option<Self>,
+        decoder: &StringDecoder,
+    ) -> Result<Option<OwnedPhantomId>, HttpError> {
         let Some(value) = value else {
             return Ok(None);
         };
@@ -53,4 +56,3 @@ impl EncodedPhantomIdJsonData {
         Ok(Some(phantom_id))
     }
 }
-

@@ -101,13 +101,11 @@ async fn get_keys_around_phantom_inner() {
 
     collection
         .put_many(CollectionPutManyOptions {
-            items: vec![
-                KeyValueUpdate {
-                    key: OwnedCollectionKey::from_boxed_slice((b"6" as &[u8]).into()).unwrap(),
-                    value: Some(OwnedCollectionValue::new(b"")),
-                    if_not_present: false,
-                },
-            ],
+            items: vec![KeyValueUpdate {
+                key: OwnedCollectionKey::from_boxed_slice((b"6" as &[u8]).into()).unwrap(),
+                value: Some(OwnedCollectionValue::new(b"")),
+                if_not_present: false,
+            }],
             generation_id: Some(first_generation_id.clone()),
             phantom_id: Some(phantom_id_second),
         })
@@ -145,9 +143,7 @@ async fn get_keys_around_phantom_inner() {
     assert_eq!(&generation_id, &first_generation_id);
     assert_eq!(
         left,
-        vec![
-            OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),
-        ]
+        vec![OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),]
     );
     assert_eq!(
         right,
@@ -182,8 +178,10 @@ async fn get_keys_around_phantom_inner() {
     assert_eq!(&generation_id, &first_generation_id);
     assert_eq!(
         left,
-        vec![OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
-             OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),]
+        vec![
+            OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
+            OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),
+        ]
     );
     assert_eq!(
         right,

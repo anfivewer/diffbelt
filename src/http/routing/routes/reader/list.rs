@@ -5,9 +5,9 @@ use crate::http::errors::HttpError;
 use crate::http::request::Request;
 use crate::http::routing::response::Response;
 use crate::http::util::response::create_ok_json_response;
-use std::sync::Arc;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
+use std::sync::Arc;
 
 #[skip_serializing_none]
 #[derive(Serialize)]

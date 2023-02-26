@@ -79,7 +79,10 @@ impl DatabaseInner {
         Ok(())
     }
 
-    async fn unmark_collection_for_deletion(&self, collection_name: &str) -> Result<(), RawDbError> {
+    async fn unmark_collection_for_deletion(
+        &self,
+        collection_name: &str,
+    ) -> Result<(), RawDbError> {
         let mut key = String::with_capacity("deleteCollection:".len() + collection_name.len());
         key.push_str("deleteCollection:");
         key.push_str(collection_name);

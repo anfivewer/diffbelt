@@ -1,4 +1,3 @@
-use lazy_static::lazy_static;
 use crate::http::errors::HttpError;
 
 pub fn no_such_collection_error() -> HttpError {

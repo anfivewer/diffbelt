@@ -130,10 +130,7 @@ async fn get_keys_around_phantom_start_inner() {
 
     // Non-phantom get_keys_around should not see phantom records, but only own phantoms
     assert_eq!(&generation_id, &first_generation_id);
-    assert_eq!(
-        left,
-        vec![]
-    );
+    assert_eq!(left, vec![]);
     assert_eq!(
         right,
         vec![
@@ -172,10 +169,7 @@ async fn get_keys_around_phantom_start_inner() {
             OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
         ]
     );
-    assert_eq!(
-        right,
-        vec![]
-    );
+    assert_eq!(right, vec![]);
     assert!(!has_more_on_the_left);
     assert!(!has_more_on_the_right);
 }

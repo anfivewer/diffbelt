@@ -3,9 +3,9 @@ use crate::common::constants::{
     MAX_COLLECTION_KEY_LENGTH, MAX_GENERATION_ID_LENGTH, MAX_PHANTOM_ID_LENGTH,
 };
 use crate::util::bytes::increment;
+use crate::util::bytes_constants::BYTES_255_FF;
 use regex::internal::Input;
 use std::cmp::Ordering;
-use crate::util::bytes_constants::BYTES_255_FF;
 
 pub mod constants;
 pub mod generation_id;
