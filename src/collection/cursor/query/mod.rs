@@ -7,6 +7,7 @@ pub mod get_pack;
 
 pub struct QueryCursor {
     prev_cursor_id: Option<String>,
+    next_cursor_id: Option<String>,
     generation_id: OwnedGenerationId,
     phantom_id: Option<OwnedPhantomId>,
     last_and_next_record_key: Option<LastAndNextRecordKey>,
@@ -26,6 +27,7 @@ impl QueryCursor {
     pub fn new(options: QueryCursorNewOptions) -> Self {
         QueryCursor {
             prev_cursor_id: None,
+            next_cursor_id: None,
             generation_id: options.generation_id,
             phantom_id: options.phantom_id,
             last_and_next_record_key: None,
@@ -38,7 +40,15 @@ impl QueryCursor {
 }
 
 impl BaseCursor for QueryCursor {
-    fn get_prev_cursor_id(&self) -> Option<&str> {
+    fn prev_cursor_id(&self) -> Option<&str> {
         self.prev_cursor_id.as_ref().map(|x| x.as_str())
+    }
+
+    fn next_cursor_id(&self) -> Option<&str> {
+        self.next_cursor_id.as_ref().map(|x| x.as_str())
+    }
+
+    fn set_next_cursor_id(&mut self, id: String) {
+        self.next_cursor_id.replace(id);
     }
 }

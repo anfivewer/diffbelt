@@ -35,8 +35,8 @@ pub struct Collection {
     // Not defined for manual collections
     newgen: Arc<RwLock<Option<NewGenerationCommiter>>>,
     on_put_sender: Option<watch::Sender<NeverEq>>,
-    query_cursors: std::sync::RwLock<HashMap<String, Arc<QueryCursor>>>,
-    diff_cursors: std::sync::RwLock<HashMap<String, Arc<DiffCursor>>>,
+    query_cursors: std::sync::RwLock<HashMap<String, Arc<std::sync::RwLock<QueryCursor>>>>,
+    diff_cursors: std::sync::RwLock<HashMap<String, Arc<std::sync::RwLock<DiffCursor>>>>,
     prev_phantom_id: RwLock<OwnedPhantomId>,
 }
 

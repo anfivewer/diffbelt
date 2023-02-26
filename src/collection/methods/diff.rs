@@ -4,7 +4,7 @@ use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::{KeyValueDiff, OwnedGenerationId};
 
-use crate::collection::cursor::util::save_next_cursor;
+use crate::collection::cursor::util::{BaseCursor, save_next_cursor};
 use crate::common::generation_id::GenerationIdSource;
 use std::sync::Arc;
 
@@ -17,6 +17,10 @@ pub struct DiffOptions {
 }
 
 pub struct ReadDiffCursorOptions {
+    pub cursor_id: CursorId,
+}
+
+pub struct AbortDiffCursorOptions {
     pub cursor_id: CursorId,
 }
 
@@ -36,11 +40,11 @@ impl Collection {
 
         let to_generation_id_loose = self.generation_id_or_current(to_generation_id_loose).await;
 
-        let cursor = Arc::new(DiffCursor::new(DiffCursorNewOptions {
+        let cursor = Arc::new(std::sync::RwLock::new(DiffCursor::new(DiffCursorNewOptions {
             from_generation_id,
             to_generation_id_loose,
             omit_intermediate_values: true,
-        }));
+        })));
 
         let deletion_lock = self.is_deleted.read().await;
         if deletion_lock.to_owned() {
@@ -53,6 +57,7 @@ impl Collection {
             let db_inner = self.database_inner.clone();
             let config = self.config.clone();
             tokio::task::spawn_blocking(move || {
+                let cursor = cursor.read().unwrap();
                 cursor.get_pack_sync(GetPackOptions {
                     this_cursor_id: None,
                     db,
@@ -71,7 +76,7 @@ impl Collection {
             next_cursor,
         } = result;
 
-        let next_cursor_id = save_next_cursor(&self.diff_cursors, &cursor, next_cursor);
+        let next_cursor_id = save_next_cursor(&self.diff_cursors, cursor, next_cursor);
 
         drop(deletion_lock);
 
@@ -108,6 +113,7 @@ impl Collection {
             let db_inner = self.database_inner.clone();
             let config = self.config.clone();
             tokio::task::spawn_blocking(move || {
+                let cursor = cursor.read().unwrap();
                 cursor.get_pack_sync(GetPackOptions {
                     this_cursor_id: Some(cursor_id),
                     db,
@@ -126,7 +132,7 @@ impl Collection {
             next_cursor,
         } = result;
 
-        let next_cursor_id = save_next_cursor(&self.diff_cursors, cursor.as_ref(), next_cursor);
+        let next_cursor_id = save_next_cursor(&self.diff_cursors, cursor, next_cursor);
 
         drop(deletion_lock);
 
@@ -136,5 +142,42 @@ impl Collection {
             items,
             cursor_id: next_cursor_id,
         })
+    }
+
+    pub async fn abort_diff_cursor(
+        &self,
+        options: AbortDiffCursorOptions,
+    ) -> Result<(), CollectionMethodError> {
+        let AbortDiffCursorOptions { cursor_id } = options;
+
+        let deletion_lock = self.is_deleted.read().await;
+        if deletion_lock.to_owned() {
+            return Err(CollectionMethodError::NoSuchCollection);
+        }
+
+        {
+            let mut diff_cursors = self.diff_cursors.write().unwrap();
+
+            let cursor = diff_cursors.remove(&cursor_id);
+            let Some(cursor) = cursor else {
+                return Ok(());
+            };
+
+            let cursor = cursor.read().unwrap();
+
+            let prev_id = cursor.prev_cursor_id();
+            let next_id = cursor.next_cursor_id();
+
+            if let Some(id) = prev_id {
+                diff_cursors.remove(id);
+            }
+            if let Some(id) = next_id {
+                diff_cursors.remove(id);
+            }
+        }
+
+        drop(deletion_lock);
+
+        Ok(())
     }
 }

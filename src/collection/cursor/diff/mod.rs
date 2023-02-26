@@ -9,6 +9,7 @@ pub mod get_pack;
 
 pub struct DiffCursor {
     prev_cursor_id: Option<String>,
+    next_cursor_id: Option<String>,
     from_generation_id: GenerationIdSource,
     to_generation_id: OwnedGenerationId,
     omit_intermediate_values: bool,
@@ -39,6 +40,7 @@ impl DiffCursor {
 
         Self {
             prev_cursor_id: None,
+            next_cursor_id: None,
             from_generation_id,
             to_generation_id: to_generation_id_loose,
             omit_intermediate_values,
@@ -52,7 +54,15 @@ impl DiffCursor {
 }
 
 impl BaseCursor for DiffCursor {
-    fn get_prev_cursor_id(&self) -> Option<&str> {
+    fn prev_cursor_id(&self) -> Option<&str> {
         self.prev_cursor_id.as_ref().map(|x| x.as_str())
+    }
+
+    fn next_cursor_id(&self) -> Option<&str> {
+        self.next_cursor_id.as_ref().map(|x| x.as_str())
+    }
+
+    fn set_next_cursor_id(&mut self, id: String) -> () {
+        self.next_cursor_id.replace(id);
     }
 }

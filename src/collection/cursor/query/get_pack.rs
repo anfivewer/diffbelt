@@ -53,6 +53,7 @@ impl QueryCursor {
             None => None,
             last_and_next_record_key => Some(QueryCursor {
                 prev_cursor_id: this_cursor_id,
+                next_cursor_id: None,
                 generation_id: self.generation_id.clone(),
                 phantom_id: self.phantom_id.clone(),
                 last_and_next_record_key,

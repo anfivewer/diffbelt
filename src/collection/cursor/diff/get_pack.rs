@@ -79,6 +79,7 @@ impl DiffCursor {
 
         let next_cursor = next_diff_state.map(|state| DiffCursor {
             prev_cursor_id: this_cursor_id,
+            next_cursor_id: None,
             from_generation_id: GenerationIdSource::Value(from_generation_id.clone()),
             to_generation_id: to_generation_id.clone(),
             omit_intermediate_values: self.omit_intermediate_values,
