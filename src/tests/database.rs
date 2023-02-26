@@ -41,12 +41,12 @@ async fn database_test_inner() {
     .expect("Cannot open database");
 
     let collection = database
-        .get_or_create_collection("test", CreateCollectionOptions { is_manual: false })
+        .create_collection("test", CreateCollectionOptions { is_manual: false })
         .await
         .expect("Collection create");
 
     let manual_collection = database
-        .get_or_create_collection("manual", CreateCollectionOptions { is_manual: true })
+        .create_collection("manual", CreateCollectionOptions { is_manual: true })
         .await
         .expect("Collection create");
 
@@ -221,8 +221,7 @@ async fn assert_get(
     match result.item {
         Some(actual_value) => {
             let expected_value = expected_value.unwrap();
-            let actual_value = actual_value.value.as_ref();
-            let actual_bytes = actual_value.get_value();
+            let actual_bytes = actual_value.value.get_value();
             let actual_str = from_utf8(actual_bytes).unwrap();
 
             assert_eq!(actual_str, expected_value);

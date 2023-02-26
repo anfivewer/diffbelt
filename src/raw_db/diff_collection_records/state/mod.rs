@@ -1,3 +1,4 @@
+use crate::collection::constants::{COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE};
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
 use crate::collection::util::record_key::RecordKey;
 use crate::common::{
@@ -53,8 +54,12 @@ impl<'a> DiffState<'a> {
         records_to_view_limit: usize,
         total_count_in_generations_limit: usize,
     ) -> Result<DiffStateNewResult<'a>, RawDbError> {
-        let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
-        let generations_size_cf = db.cf_handle("gens_size").ok_or(RawDbError::CfHandle)?;
+        let generations_cf = db
+            .cf_handle(COLLECTION_CF_GENERATIONS)
+            .ok_or(RawDbError::CfHandle)?;
+        let generations_size_cf = db
+            .cf_handle(COLLECTION_CF_GENERATIONS_SIZE)
+            .ok_or(RawDbError::CfHandle)?;
 
         let mut upper_generation_key = to_generation_id_loose.to_owned();
         let upper_generation_key_bytes = upper_generation_key.get_byte_array_mut();
@@ -171,7 +176,9 @@ impl<'a> DiffState<'a> {
         pack_limit: usize,
         records_to_view_limit: usize,
     ) -> Result<DiffStateNewResult<'a>, RawDbError> {
-        let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
+        let generations_cf = db
+            .cf_handle(COLLECTION_CF_GENERATIONS)
+            .ok_or(RawDbError::CfHandle)?;
 
         let DiffCursorState {
             changed_key,

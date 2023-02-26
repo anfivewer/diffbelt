@@ -11,10 +11,6 @@ pub struct HyperRequestWrapped {
     inner: HyperRequest<Body>,
 }
 
-pub struct HyperBody {
-    inner: Body,
-}
-
 pub struct FullBody {
     bufs: VecDeque<Bytes>,
     offset: usize,

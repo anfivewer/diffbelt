@@ -31,7 +31,9 @@ impl RawDb {
     pub fn get_reader_sync(&self, reader_name: &str) -> Result<ReaderState, RawDbError> {
         let db = self.db.get_db();
 
-        let meta_cf = db.cf_handle("meta").ok_or(RawDbError::CfHandle)?;
+        let meta_cf = db
+            .cf_handle(COLLECTION_CF_META)
+            .ok_or(RawDbError::CfHandle)?;
 
         let mut key = String::with_capacity("reader:".len() + reader_name.len());
         key.push_str("reader:");

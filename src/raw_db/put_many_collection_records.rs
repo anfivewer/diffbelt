@@ -3,6 +3,7 @@ use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{IsByteArray, OwnedCollectionValue};
 use crate::raw_db::{RawDb, RawDbError};
 
+use crate::collection::constants::{COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE};
 use crate::raw_db::put_collection_record::unwrap_option_ref_or;
 use crate::util::bytes::ONE_U32_BE;
 use rocksdb::WriteBatchWithTransaction;
@@ -27,8 +28,12 @@ impl RawDb {
         tokio::task::spawn_blocking(move || {
             let db = db.get_db();
 
-            let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
-            let generations_size_cf = db.cf_handle("gens_size").ok_or(RawDbError::CfHandle)?;
+            let generations_cf = db
+                .cf_handle(COLLECTION_CF_GENERATIONS)
+                .ok_or(RawDbError::CfHandle)?;
+            let generations_size_cf = db
+                .cf_handle(COLLECTION_CF_GENERATIONS_SIZE)
+                .ok_or(RawDbError::CfHandle)?;
 
             let mut batch = WriteBatchWithTransaction::<false>::default();
 

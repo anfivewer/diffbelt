@@ -6,7 +6,6 @@ use crate::http::routing::response::Response;
 use crate::http::util::response::create_ok_json_response;
 use crate::util::str_serialization::StrSerializationType;
 
-use futures::StreamExt;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 

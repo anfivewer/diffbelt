@@ -1,10 +1,7 @@
 use diffbelt_macro::fn_box_pin_async;
 use regex::Regex;
-use serde::Deserialize;
 
 use crate::context::Context;
-
-use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
 
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
@@ -14,13 +11,6 @@ use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
 use crate::http::util::common_groups::{id_with_name_group, IdWithNameGroup};
 
 use crate::http::util::get_collection::get_collection;
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RequestJsonData {
-    reader_name: String,
-    generation_id: Option<EncodedGenerationIdJsonData>,
-}
 
 #[fn_box_pin_async]
 async fn handler(options: PatternRouteOptions<IdWithNameGroup>) -> HttpHandlerResult {

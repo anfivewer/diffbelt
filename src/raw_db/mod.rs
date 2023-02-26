@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 pub mod commit_generation;
 pub mod contains_existing_collection_record;
-mod cursor_util;
 pub mod delete;
 pub mod destroy;
 pub mod diff_collection_records;

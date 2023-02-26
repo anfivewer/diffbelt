@@ -4,7 +4,6 @@ use crate::common::constants::{
 };
 use crate::util::bytes::increment;
 use crate::util::bytes_constants::BYTES_255_FF;
-use regex::internal::Input;
 use std::cmp::Ordering;
 
 pub mod constants;
@@ -215,12 +214,6 @@ impl OwnedCollectionValue {
         vec.extend_from_slice(bytes);
         Self(vec.into_boxed_slice())
     }
-    pub fn new_flags(bytes: &[u8], flags: ExistingValueFlags) -> Self {
-        let mut vec = Vec::with_capacity(bytes.len() + 1);
-        vec.push(flags.get_byte());
-        vec.extend_from_slice(bytes);
-        Self(vec.into_boxed_slice())
-    }
     pub fn from_boxed_slice(bytes: Box<[u8]>) -> Self {
         Self(bytes)
     }
@@ -236,10 +229,6 @@ impl OwnedCollectionValue {
         &self.0[1..]
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
     pub fn as_ref(&self) -> CollectionValue<'_> {
         CollectionValue(&self.0)
     }
@@ -247,9 +236,6 @@ impl OwnedCollectionValue {
 impl<'a> CollectionValue<'a> {
     pub fn from_slice(bytes: &'a [u8]) -> Self {
         Self(bytes)
-    }
-    pub fn get_value(&self) -> &[u8] {
-        &self.0[1..]
     }
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -286,9 +272,6 @@ impl OwnedPhantomId {
     pub fn from_boxed_slice_unchecked(bytes: Box<[u8]>) -> Self {
         Self(bytes)
     }
-    pub fn empty() -> Self {
-        Self(vec![].into_boxed_slice())
-    }
     pub fn zero_64bits() -> Self {
         Self(vec![0; 8].into_boxed_slice())
     }
@@ -308,13 +291,6 @@ impl OwnedPhantomId {
 impl<'a> PhantomId<'a> {
     pub fn new_unchecked(bytes: &'a [u8]) -> Self {
         Self(bytes)
-    }
-    pub fn validate(bytes: &'a [u8]) -> Result<Self, ()> {
-        if bytes.len() > MAX_PHANTOM_ID_LENGTH {
-            return Err(());
-        }
-
-        Ok(Self(bytes))
     }
     pub fn empty() -> Self {
         Self(b"")

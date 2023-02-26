@@ -12,15 +12,6 @@ impl StringDecoder {
         }
     }
 
-    pub fn from_default_encoding_string(
-        default_encoding_field_name: &str,
-        encoding: Option<String>,
-    ) -> Result<Self, HttpError> {
-        let t = opt_string_into_encoding(default_encoding_field_name, encoding)?;
-
-        Ok(Self { default_type: t })
-    }
-
     pub fn decode_field_with_map<R, F: FnOnce(Box<[u8]>) -> Result<R, HttpError>>(
         &self,
         field_name: &str,
@@ -39,88 +30,6 @@ impl StringDecoder {
 
         map(value)
     }
-
-    pub fn decode_field_with_map_and_type<R, F: FnOnce(Box<[u8]>) -> Result<R, HttpError>>(
-        &self,
-        field_name: &str,
-        value: String,
-        field_encoding_name: &str,
-        field_encoding: Option<String>,
-        map: F,
-    ) -> Result<(R, StrSerializationType), HttpError> {
-        let t = opt_string_into_encoding_with_default(
-            field_encoding_name,
-            field_encoding,
-            self.default_type,
-        )?;
-
-        let value = into_decoded_value(field_name, value, t)?;
-
-        Ok((map(value)?, t))
-    }
-
-    pub fn decode_opt_field_with_map<R, F: FnOnce(Box<[u8]>) -> Result<R, HttpError>>(
-        &self,
-        field_name: &str,
-        value: Option<String>,
-        field_encoding_name: &str,
-        field_encoding: Option<String>,
-        map: F,
-    ) -> Result<Option<R>, HttpError> {
-        let Some(value) = value else { return Ok(None); };
-
-        let result =
-            self.decode_field_with_map(field_name, value, field_encoding_name, field_encoding, map);
-
-        match result {
-            Ok(result) => Ok(Some(result)),
-            Err(err) => Err(err),
-        }
-    }
-
-    pub fn decode_opt_field_with_map_and_type<R, F: FnOnce(Box<[u8]>) -> Result<R, HttpError>>(
-        &self,
-        field_name: &str,
-        value: Option<String>,
-        field_encoding_name: &str,
-        field_encoding: Option<String>,
-        map: F,
-    ) -> Result<(Option<R>, StrSerializationType), HttpError> {
-        let value = match value {
-            Some(value) => value,
-            None => {
-                let t = opt_string_into_encoding_with_default(
-                    field_encoding_name,
-                    field_encoding,
-                    self.default_type,
-                )?;
-
-                return Ok((None, t));
-            }
-        };
-
-        let result = self.decode_field_with_map_and_type(
-            field_name,
-            value,
-            field_encoding_name,
-            field_encoding,
-            map,
-        );
-
-        match result {
-            Ok((result, t)) => Ok((Some(result), t)),
-            Err(err) => Err(err),
-        }
-    }
-}
-
-fn opt_string_into_encoding(
-    field_name: &str,
-    encoding: Option<String>,
-) -> Result<StrSerializationType, HttpError> {
-    let result = StrSerializationType::from_option_string(encoding);
-
-    result.map_err(|_| HttpError::GenericString400(format_encoding_type_parsing_err(field_name)))
 }
 
 fn opt_string_into_encoding_with_default(

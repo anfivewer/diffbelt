@@ -46,17 +46,6 @@ impl OwnedParsedRecordKey {
         }
     }
 
-    fn from_record_key(record_key: RecordKey<'_>) -> Self {
-        let (collection_key, generation_id, phantom_id) = record_key.parse_to_ranges();
-
-        Self {
-            bytes: record_key.value.into(),
-            collection_key,
-            generation_id,
-            phantom_id,
-        }
-    }
-
     pub fn empty() -> Self {
         Self {
             bytes: Box::new([]),
@@ -213,28 +202,11 @@ impl<'a> RecordKey<'a> {
 
         (collection_key, generation_id, phantom_id)
     }
-    pub fn parse(&self) -> ParsedRecordKey<'a> {
-        let (collection_key, generation_id, phantom_id) = self.parse_to_ranges();
-
-        let collection_key = CollectionKey::new_unchecked(&self.value[collection_key]);
-        let generation_id = GenerationId::new_unchecked(&self.value[generation_id]);
-        let phantom_id = phantom_id.map(|range| PhantomId::new_unchecked(&self.value[range]));
-
-        ParsedRecordKey {
-            collection_key,
-            generation_id,
-            phantom_id,
-        }
-    }
 
     pub fn to_owned(&self) -> OwnedRecordKey {
         OwnedRecordKey {
             value: self.value.into(),
         }
-    }
-
-    pub fn to_owned_parsed(&self) -> OwnedParsedRecordKey {
-        OwnedParsedRecordKey::from_record_key(self.clone())
     }
 }
 
@@ -298,23 +270,10 @@ impl OwnedRecordKey {
         Ok(OwnedRecordKey { value })
     }
 
-    pub fn from_boxed_slice(bytes: Box<[u8]>) -> Result<Self, ()> {
-        if !RecordKey::is_valid(&bytes) {
-            return Err(());
-        }
-
-        Ok(Self { value: bytes })
-    }
-
     pub fn from_owned_parsed_record_key(parsed: OwnedParsedRecordKey) -> Self {
         Self {
             value: parsed.bytes,
         }
-    }
-
-    pub fn get_collection_key(&self) -> CollectionKey<'_> {
-        let size = read_u24(&self.value, 1) as usize;
-        CollectionKey::new_unchecked(&self.value[4..(4 + size)])
     }
 
     pub fn get_collection_key_bytes_mut(&mut self) -> &mut [u8] {

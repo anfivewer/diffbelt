@@ -22,7 +22,7 @@ async fn readers_test_inner() {
     let database = temp_database.get_database();
 
     let collection = database
-        .get_or_create_collection("test", CreateCollectionOptions { is_manual: true })
+        .create_collection("test", CreateCollectionOptions { is_manual: true })
         .await
         .expect("Collection create");
 

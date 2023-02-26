@@ -1,4 +1,4 @@
-use crate::common::{GenerationId, KeyValueDiff, OwnedGenerationId};
+use crate::common::{KeyValueDiff, OwnedGenerationId};
 
 use crate::collection::cursor::util::BaseCursor;
 
@@ -46,10 +46,6 @@ impl DiffCursor {
             omit_intermediate_values,
             raw_db_cursor_state: None,
         }
-    }
-
-    pub fn get_to_generation_id(&self) -> GenerationId<'_> {
-        self.to_generation_id.as_ref()
     }
 }
 

@@ -5,9 +5,6 @@ impl ExistingValueFlags {
     pub fn new() -> Self {
         ExistingValueFlags(0)
     }
-    pub fn from_byte(value: u8) -> Self {
-        ExistingValueFlags(value)
-    }
 
     pub fn get_byte(&self) -> u8 {
         self.0

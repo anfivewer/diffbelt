@@ -8,12 +8,6 @@ pub enum StrSerializationType {
 }
 
 impl StrSerializationType {
-    pub fn from_option_string(t: Option<String>) -> Result<StrSerializationType, ()> {
-        let Some(t) = t else { return Ok(StrSerializationType::Utf8); };
-
-        Self::from_str(&t)
-    }
-
     pub fn from_opt_str<T: AsRef<str>>(str_like: Option<T>) -> Result<Self, ()> {
         let Some(t) = str_like else { return Ok(StrSerializationType::Utf8); };
 

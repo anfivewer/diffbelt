@@ -5,8 +5,8 @@ use crate::tests::temp_dir::TempDir;
 use std::sync::Arc;
 
 pub struct TempDatabase {
-    temp_dir: TempDir,
-    database: Database,
+    temp_dir: Option<TempDir>,
+    database: Option<Database>,
 }
 
 impl TempDatabase {
@@ -26,10 +26,22 @@ impl TempDatabase {
         .await
         .expect("Cannot open database");
 
-        Self { temp_dir, database }
+        Self {
+            temp_dir: Some(temp_dir),
+            database: Some(database),
+        }
     }
 
     pub fn get_database(&self) -> &Database {
-        &self.database
+        self.database.as_ref().unwrap()
+    }
+}
+
+impl Drop for TempDatabase {
+    fn drop(&mut self) {
+        // Drop database first to close files
+        self.database.take();
+        // Delete temp directory
+        self.temp_dir.take();
     }
 }

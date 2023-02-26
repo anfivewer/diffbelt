@@ -1,5 +1,5 @@
 use crate::collection::util::record_key::{OwnedRecordKey, RecordKey};
-use crate::common::{CollectionKey, GenerationId, KeyValue, OwnedCollectionValue, PhantomId};
+use crate::common::{GenerationId, KeyValue, OwnedCollectionValue, PhantomId};
 
 use crate::raw_db::query::{
     ContinuationState, QueryDirectionForward, QueryKeyValue, QueryOptions, QueryState,
@@ -91,27 +91,4 @@ impl RawDb {
             }),
         })
     }
-}
-
-fn push_to_result(
-    result: &mut Vec<KeyValue>,
-    key: CollectionKey<'_>,
-    value: OwnedCollectionValue,
-    count: &mut usize,
-) {
-    if value.is_empty() {
-        return;
-    }
-
-    result.push(KeyValue {
-        key: key.to_owned(),
-        value,
-    });
-
-    *count += 1;
-}
-
-#[inline]
-fn is_generation_id_less_or_equal(a: GenerationId<'_>, b: GenerationId<'_>) -> bool {
-    a <= b
 }

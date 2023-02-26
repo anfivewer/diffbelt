@@ -9,19 +9,4 @@ impl RawDb {
 
         Ok(())
     }
-
-    pub async fn delete_cf(&self, cf_name: &str, key: Box<[u8]>) -> Result<(), RawDbError> {
-        let db = self.db.clone();
-        let cf_name = cf_name.to_string();
-
-        tokio::task::spawn_blocking(move || {
-            let db = db.get_db();
-
-            let cf = db.cf_handle(&cf_name).ok_or(RawDbError::CfHandle)?;
-            db.delete_cf(&cf, key)?;
-
-            Ok(())
-        })
-        .await?
-    }
 }

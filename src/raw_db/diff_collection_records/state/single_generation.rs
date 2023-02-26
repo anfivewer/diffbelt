@@ -1,6 +1,7 @@
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
 use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut, OwnedCollectionKey};
 
+use crate::collection::constants::COLLECTION_CF_GENERATIONS;
 use crate::raw_db::RawDbError;
 use crate::util::bytes::increment;
 use rocksdb::{Direction, IteratorMode, ReadOptions};
@@ -15,7 +16,9 @@ impl<'a> SingleGenerationChangedKeysIter<'a> {
         generation_id: GenerationId<'_>,
         from_collection_key: Option<CollectionKey<'_>>,
     ) -> Result<Self, RawDbError> {
-        let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
+        let generations_cf = db
+            .cf_handle(COLLECTION_CF_GENERATIONS)
+            .ok_or(RawDbError::CfHandle)?;
 
         let iterator = {
             let from_generation_key = OwnedGenerationKey::new(

@@ -79,21 +79,6 @@ impl DatabaseInner {
         Ok(())
     }
 
-    async fn unmark_collection_for_deletion(
-        &self,
-        collection_name: &str,
-    ) -> Result<(), RawDbError> {
-        let mut key = String::with_capacity("deleteCollection:".len() + collection_name.len());
-        key.push_str("deleteCollection:");
-        key.push_str(collection_name);
-
-        self.database_raw_db
-            .delete_cf(DATABASE_RAW_DB_CF, key.into_bytes().into_boxed_slice())
-            .await?;
-
-        Ok(())
-    }
-
     pub fn is_marked_for_deletion_sync(&self, collection_name: &str) -> Result<bool, RawDbError> {
         let mut key = String::with_capacity("deleteCollection:".len() + collection_name.len());
         key.push_str("deleteCollection:");

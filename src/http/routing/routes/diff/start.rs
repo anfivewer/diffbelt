@@ -7,7 +7,7 @@ use crate::common::generation_id::GenerationIdSource;
 use crate::common::reader::ReaderDef;
 use crate::common::OwnedGenerationId;
 use crate::context::Context;
-use crate::http::constants::QUERY_START_REQUEST_MAX_BYTES;
+use crate::http::constants::DIFF_START_REQUEST_MAX_BYTES;
 use crate::http::data::diff_response::DiffResponseJsonData;
 use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
 use crate::http::data::reader_record::ReaderDiffFromDefJsonData;
@@ -40,7 +40,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     request.allow_only_methods(&["POST"])?;
     request.allow_only_utf8_json_by_default()?;
 
-    let body = read_limited_body(request, QUERY_START_REQUEST_MAX_BYTES).await?;
+    let body = read_limited_body(request, DIFF_START_REQUEST_MAX_BYTES).await?;
     let data: RequestJsonData = read_json(body)?;
 
     let from_generation_id = EncodedGenerationIdJsonData::decode_opt(data.from_generation_id)?;

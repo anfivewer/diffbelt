@@ -37,16 +37,6 @@ impl EncodedValueJsonData {
         }
     }
 
-    pub fn encode_vec(items: Vec<OwnedCollectionValue>) -> Vec<Self> {
-        let mut result = Vec::with_capacity(items.len());
-
-        for item in items {
-            result.push(Self::encode(item));
-        }
-
-        result
-    }
-
     pub fn encode_opt_vec(items: Vec<Option<OwnedCollectionValue>>) -> Vec<Option<Self>> {
         let mut result = Vec::with_capacity(items.len());
 

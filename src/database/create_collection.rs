@@ -17,7 +17,6 @@ pub enum CreateCollectionError {
     AlreadyExist,
     Protobuf(protobuf::Error),
     CollectionOpen(CollectionOpenError),
-    ManualModeMissmatch,
 }
 
 const PREFIX: &[u8] = b"collection:";
@@ -28,45 +27,6 @@ impl Database {
         let collection = collections_lock.get(id);
 
         collection.map(|collection| collection.clone())
-    }
-
-    pub async fn get_or_create_collection(
-        &self,
-        id: &str,
-        options: CreateCollectionOptions,
-    ) -> Result<Arc<Collection>, CreateCollectionError> {
-        loop {
-            let result = self.create_collection_inner(id, &options).await;
-
-            match result {
-                Err(err) => match err {
-                    CreateCollectionError::AlreadyExist => {
-                        let collections = self.collections.read().await;
-                        let collection = collections.get(id);
-
-                        match collection {
-                            Some(collection) => {
-                                if collection.is_manual() != options.is_manual {
-                                    return Err(CreateCollectionError::ManualModeMissmatch);
-                                }
-
-                                return Ok(collection.clone());
-                            }
-                            None => {
-                                // was removed in progress of our checks
-                                continue;
-                            }
-                        }
-                    }
-                    _ => {
-                        return Err(err);
-                    }
-                },
-                ok => {
-                    return ok;
-                }
-            }
-        }
     }
 
     #[inline]

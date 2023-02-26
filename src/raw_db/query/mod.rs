@@ -5,7 +5,6 @@ use crate::common::{
 };
 use crate::raw_db::RawDbError;
 use rocksdb::{DBIteratorWithThreadMode, Direction, IteratorMode, DB};
-use std::io::Write;
 
 use std::mem;
 
@@ -187,7 +186,10 @@ pub struct IterationKvRecord<T> {
 
 pub struct QueryState<'a, K: QueryKind, D: QueryDirection> {
     is_empty: bool,
+    // Those fields are zero-sized, used only for proper typings and not to forget about them
+    #[allow(dead_code)]
     kind: K,
+    #[allow(dead_code)]
     direction: D,
     generation_id: OwnedGenerationId,
     phantom_id: Option<OwnedPhantomId>,
@@ -257,10 +259,6 @@ impl<'a, K: QueryKind, D: QueryDirection> QueryState<'a, K, D> {
 
     pub fn is_end(&self) -> bool {
         self.is_empty
-    }
-
-    pub fn is_records_limit_achieved(&self) -> bool {
-        self.records_seen >= self.records_to_view_limit
     }
 
     pub fn into_continuation(self) -> Option<ContinuationState> {

@@ -23,7 +23,6 @@ pub enum DatabaseOpenError {
     RawDb(RawDbError),
     CollectionsReading,
     CollectionRawDbDeletion(std::io::Error),
-    JoinError,
 }
 
 impl Database {
@@ -106,7 +105,6 @@ impl Database {
             config: options.config,
             data_path: data_path.clone(),
             database_raw_db,
-            collections_for_deletion,
             collections_alter_lock: Mutex::new(()),
             collections: collections_arc.clone(),
             inner: database_inner,

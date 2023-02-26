@@ -1,7 +1,7 @@
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 
-use crate::raw_db::{RawDb, RawDbError};
+use crate::raw_db::RawDb;
 use crate::util::tokio::spawn_blocking_async;
 use std::future::Future;
 use std::ops::DerefMut;
@@ -91,9 +91,5 @@ impl Collection {
         });
 
         async move { join.await.map_err(|_| CollectionMethodError::TaskJoin)? }
-    }
-
-    fn destroy(&self) -> Result<(), RawDbError> {
-        Ok(())
     }
 }

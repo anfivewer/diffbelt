@@ -176,23 +176,8 @@ pub async fn start_http_server(context: Arc<Context>) {
                                     format!("500, {}", str).into(),
                                 )
                             }
-                            HttpError::PublicInternalString500(str) => {
-                                is_json = false;
-                                (
-                                    StatusCode::INTERNAL_SERVER_ERROR,
-                                    format!("500, {}", str).into(),
-                                )
-                            }
                             HttpError::MethodNotAllowed => {
                                 (StatusCode::METHOD_NOT_ALLOWED, "{\"error\":\"405\"}".into())
-                            }
-                            err => {
-                                eprintln!("Unhandled HttpError: {:?}", err);
-
-                                (
-                                    StatusCode::INTERNAL_SERVER_ERROR,
-                                    "{\"error\":\"500\"}".into(),
-                                )
                             }
                         };
 

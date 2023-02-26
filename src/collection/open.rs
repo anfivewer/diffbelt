@@ -6,7 +6,10 @@ use crate::collection::util::record_key_compare::record_key_compare_fn;
 use crate::collection::Collection;
 use crate::common::{IsByteArray, IsByteArrayMut, NeverEq, OwnedGenerationId, OwnedPhantomId};
 
-use crate::collection::constants::COLLECTION_CF_META;
+use crate::collection::constants::{
+    COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE, COLLECTION_CF_META,
+    COLLECTION_CF_PHANTOMS,
+};
 use crate::collection::util::generation_size_merge::{
     generation_size_full_merge, generation_size_partial_merge,
 };
@@ -36,8 +39,6 @@ pub enum CollectionOpenError {
     RawDbOpen(RawDbOpenError),
     RawDb(RawDbError),
     ManualModeMissmatch,
-    KeyCreation,
-    DbContainsInvalidKeys,
     InvalidGenerationId,
     InvalidPhantomId,
 }
@@ -72,7 +73,7 @@ impl Collection {
             }),
             column_families: vec![
                 RawDbColumnFamily {
-                    name: "gens".to_string(),
+                    name: COLLECTION_CF_GENERATIONS.to_string(),
                     comparator: Some(RawDbComparator {
                         name: "v1".to_string(),
                         compare_fn: generation_key_compare_fn,
@@ -80,7 +81,7 @@ impl Collection {
                     merge: None,
                 },
                 RawDbColumnFamily {
-                    name: "gens_size".to_string(),
+                    name: COLLECTION_CF_GENERATIONS_SIZE.to_string(),
                     comparator: None,
                     merge: Some(RawDbMerge {
                         name: "v1".to_string(),
@@ -89,7 +90,7 @@ impl Collection {
                     }),
                 },
                 RawDbColumnFamily {
-                    name: "phantoms".to_string(),
+                    name: COLLECTION_CF_PHANTOMS.to_string(),
                     comparator: Some(RawDbComparator {
                         name: "v1".to_string(),
                         compare_fn: phantom_key_compare_fn,
@@ -97,7 +98,7 @@ impl Collection {
                     merge: None,
                 },
                 RawDbColumnFamily {
-                    name: "meta".to_string(),
+                    name: COLLECTION_CF_META.to_string(),
                     comparator: None,
                     merge: Some(RawDbMerge {
                         name: "v1".to_string(),

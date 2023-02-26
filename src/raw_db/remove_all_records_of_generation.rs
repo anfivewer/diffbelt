@@ -1,3 +1,4 @@
+use crate::collection::constants::{COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE};
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut, PhantomId};
@@ -20,8 +21,12 @@ impl RawDb {
 
         let db = self.db.get_db();
 
-        let generations_cf = db.cf_handle("gens").ok_or(RawDbError::CfHandle)?;
-        let generations_size_cf = db.cf_handle("gens_size").ok_or(RawDbError::CfHandle)?;
+        let generations_cf = db
+            .cf_handle(COLLECTION_CF_GENERATIONS)
+            .ok_or(RawDbError::CfHandle)?;
+        let generations_size_cf = db
+            .cf_handle(COLLECTION_CF_GENERATIONS_SIZE)
+            .ok_or(RawDbError::CfHandle)?;
 
         let generation_key = OwnedGenerationKey::new(generation_id, CollectionKey::empty())
             .or(Err(RawDbError::InvalidGenerationKey))?;
