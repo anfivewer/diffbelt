@@ -6,7 +6,7 @@ use crate::http::errors::HttpError;
 use crate::http::request::Request;
 
 use crate::http::routing::{PatternRouteFnResult, PatternRouteOptions};
-use crate::http::util::id_group::{id_only_group, IdOnlyGroup};
+use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 
 use crate::common::{IsByteArray, OwnedGenerationId};
 use crate::http::custom_errors::no_such_collection_error;

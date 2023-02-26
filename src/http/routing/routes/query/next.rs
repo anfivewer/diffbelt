@@ -9,7 +9,7 @@ use crate::http::constants::QUERY_START_REQUEST_MAX_BYTES;
 use crate::http::data::query_response::QueryResponseJsonData;
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
-use crate::http::util::id_group::{id_only_group, IdOnlyGroup};
+use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;

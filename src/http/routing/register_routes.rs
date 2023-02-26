@@ -17,10 +17,8 @@ use crate::http::routing::routes::put_many::register_put_many_route;
 use crate::http::routing::routes::query::abort::register_abort_query_route;
 use crate::http::routing::routes::query::next::register_next_query_route;
 use crate::http::routing::routes::query::start::register_start_query_route;
-use crate::http::routing::routes::reader::create::register_create_reader_route;
-use crate::http::routing::routes::reader::delete::register_delete_reader_route;
-use crate::http::routing::routes::reader::list::register_list_readers_route;
-use crate::http::routing::routes::reader::update::register_update_reader_route;
+use crate::http::routing::routes::reader::by_root::register_readers_root_route;
+use crate::http::routing::routes::reader::by_name::register_reader_by_name_route;
 use crate::http::routing::routes::root::register_root_route;
 
 pub fn register_routes(context: &mut Context) {
@@ -33,10 +31,8 @@ pub fn register_routes(context: &mut Context) {
     register_collection_generation_id_stream_route(context);
     register_list_collections_route(context);
     register_create_collection_route(context);
-    register_create_reader_route(context);
-    register_list_readers_route(context);
-    register_update_reader_route(context);
-    register_delete_reader_route(context);
+    register_readers_root_route(context);
+    register_reader_by_name_route(context);
     register_start_generation_route(context);
     register_abort_generation_route(context);
     register_commit_generation_route(context);

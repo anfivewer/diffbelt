@@ -224,11 +224,9 @@ type Response = {
 };
 ```
 
-## `POST /collections/:collectionName/reader/list`
+## `GET /collections/:collectionName/readers/`
 
 ```
-type Request = {};
-
 type Response = {
     items: {
         readerName: string;
@@ -238,7 +236,7 @@ type Response = {
 };
 ```
 
-## `POST /collections/:collectionName/reader/create`
+## `POST /collections/:collectionName/readers/`
 
 ```
 type Request = {
@@ -250,21 +248,16 @@ type Request = {
 type Response = {};
 ```
 
-## `POST /collections/:collectionName/reader/delete`
+## `DELETE /collections/:collectionName/readers/:readerName`
 
 ```
-type Request = {
-    readerName: string;
-};
-
 type Response = {};
 ```
 
-## `POST /collections/:collectionName/reader/update`
+## `PUT /collections/:collectionName/readers/:readerName`
 
 ```
 type Request = {
-    readerName: string;
     generationId?: EncodedString | null;
 };
 

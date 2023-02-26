@@ -19,7 +19,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
-use crate::http::util::id_group::{id_only_group, IdOnlyGroup};
+use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
