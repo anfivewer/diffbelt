@@ -1,12 +1,11 @@
-use std::collections::hash_map::DefaultHasher;
+use hashbrown::Equivalent;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-use hashbrown::{Equivalent, HashMap};
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Clone)]
 pub struct ArcStringPair(pub Arc<str>, pub Arc<str>);
 
-pub struct ArcStringPairRef<'a>(&'a str, &'a str);
+pub struct ArcStringPairRef<'a>(pub &'a str, pub &'a str);
 
 impl Hash for ArcStringPair {
     fn hash<H: Hasher>(&self, state: &mut H) {

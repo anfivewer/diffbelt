@@ -14,6 +14,7 @@ mod config;
 mod context;
 mod database;
 mod http;
+pub mod messages;
 mod protos;
 mod raw_db;
 #[cfg(test)]

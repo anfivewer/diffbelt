@@ -1,3 +1,4 @@
+use crate::util::atomic_cleanup::AtomicCleanup;
 use crate::util::tokio::spawn_async_thread;
 use std::future::Future;
 use tokio::sync::{mpsc, oneshot};
@@ -5,8 +6,8 @@ use tokio::task::JoinHandle;
 
 pub struct AsyncTaskThread<T> {
     task_sender: mpsc::Sender<T>,
-    stop_sender: Option<oneshot::Sender<()>>,
-    join_handle: Option<JoinHandle<()>>,
+    stop_sender: AtomicCleanup<oneshot::Sender<()>>,
+    join_handle: AtomicCleanup<JoinHandle<()>>,
 }
 
 pub struct TaskPoller<T> {
@@ -56,8 +57,8 @@ impl<Task> AsyncTaskThread<Task> {
 
         Self {
             task_sender,
-            stop_sender: Some(stop_sender),
-            join_handle: Some(join_handle),
+            stop_sender: AtomicCleanup::some(stop_sender),
+            join_handle: AtomicCleanup::some(join_handle),
         }
     }
 
@@ -66,26 +67,23 @@ impl<Task> AsyncTaskThread<Task> {
     }
 
     #[allow(dead_code)]
-    pub async fn stop(&mut self) {
-        if let Some(sender) = self.stop_sender.take() {
-            sender.send(()).unwrap_or(());
-        }
+    pub async fn stop(&self) {
+        self.send_stop();
 
         if let Some(join_handle) = self.join_handle.take() {
             join_handle.await.unwrap_or(())
         };
     }
+
+    pub fn send_stop(&self) {
+        if let Some(sender) = self.stop_sender.take() {
+            sender.send(()).unwrap_or(());
+        }
+    }
 }
 
 impl<T> Drop for AsyncTaskThread<T> {
     fn drop(&mut self) {
-        let stop_sender = self.stop_sender.take();
-
-        match stop_sender {
-            Some(stop_sender) => {
-                stop_sender.send(()).unwrap_or(());
-            }
-            None => {}
-        }
+        self.send_stop();
     }
 }

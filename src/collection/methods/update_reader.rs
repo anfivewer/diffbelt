@@ -1,9 +1,10 @@
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::OwnedGenerationId;
+use crate::messages::readers::{DatabaseCollecitonReadersTask, UpdateReaderTask};
 use crate::raw_db::update_reader::RawDbUpdateReaderOptions;
-
-use crate::util::tokio::spawn_blocking_async;
+use std::sync::Arc;
+use tokio::task::spawn_blocking;
 
 pub struct UpdateReaderOptions {
     pub reader_name: String,
@@ -15,8 +16,8 @@ impl Collection {
         &self,
         options: UpdateReaderOptions,
     ) -> Result<(), CollectionMethodError> {
-        let reader_name = options.reader_name;
-        let generation_id = options.generation_id;
+        let reader_name = Arc::from(options.reader_name);
+        let generation_id = Arc::new(options.generation_id.unwrap_or(OwnedGenerationId::empty()));
         let raw_db = self.raw_db.clone();
 
         let deletion_lock = self.is_deleted.read().await;
@@ -24,17 +25,31 @@ impl Collection {
             return Err(CollectionMethodError::NoSuchCollection);
         }
 
-        let result = spawn_blocking_async(async move {
+        let reader_name_for_blocking = Arc::clone(&reader_name);
+        let generation_id_for_blocking = Arc::clone(&generation_id);
+
+        let _: () = spawn_blocking(move || {
             raw_db.update_reader_sync(RawDbUpdateReaderOptions {
-                reader_name: reader_name.as_str(),
-                generation_id: generation_id.as_ref().map(|id| id.as_ref()),
+                reader_name: &reader_name_for_blocking,
+                generation_id: OwnedGenerationId::as_ref(&generation_id_for_blocking),
             })
         })
         .await
         .or(Err(CollectionMethodError::TaskJoin))??;
 
+        self.database_inner
+            .add_readers_task(DatabaseCollecitonReadersTask::UpdateReader(
+                UpdateReaderTask {
+                    owner_collection_name: self.name.clone(),
+                    to_collection_name: None,
+                    reader_name,
+                    generation_id,
+                },
+            ))
+            .await;
+
         drop(deletion_lock);
 
-        Ok(result)
+        Ok(())
     }
 }

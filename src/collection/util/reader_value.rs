@@ -6,15 +6,9 @@ pub struct OwnedReaderValue(Box<[u8]>);
 pub struct ReaderValue<'a>(&'a [u8]);
 
 impl OwnedReaderValue {
-    pub fn new(
-        collection_name: Option<&str>,
-        generation_id: Option<GenerationId<'_>>,
-    ) -> Result<Self, ()> {
+    pub fn new(collection_name: Option<&str>, generation_id: GenerationId<'_>) -> Result<Self, ()> {
         let collection_name: &[u8] = collection_name.map(|name| name.as_bytes()).unwrap_or(b"");
-        let generation_id: &[u8] = generation_id
-            .as_ref()
-            .map(|gen| gen.get_byte_array())
-            .unwrap_or(b"");
+        let generation_id: &[u8] = generation_id.get_byte_array();
 
         if collection_name.len() > 255 || generation_id.len() > 255 {
             return Err(());

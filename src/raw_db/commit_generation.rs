@@ -53,7 +53,7 @@ impl RawDb {
                     meta_cf.clone(),
                     RawDbUpdateReaderOptions {
                         reader_name,
-                        generation_id: Some(generation_id),
+                        generation_id,
                     },
                 )?;
             }

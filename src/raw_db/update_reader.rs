@@ -10,12 +10,12 @@ use crate::raw_db::{RawDb, RawDbError};
 pub struct RawDbCreateReaderOptions<'a> {
     pub reader_name: &'a str,
     pub collection_name: Option<&'a str>,
-    pub generation_id: Option<GenerationId<'a>>,
+    pub generation_id: GenerationId<'a>,
 }
 
 pub struct RawDbUpdateReaderOptions<'a> {
     pub reader_name: &'a str,
-    pub generation_id: Option<GenerationId<'a>>,
+    pub generation_id: GenerationId<'a>,
 }
 
 pub struct RawDbDeleteReaderOptions<'a> {

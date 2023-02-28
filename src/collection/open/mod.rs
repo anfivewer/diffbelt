@@ -1,3 +1,5 @@
+mod init_readers;
+
 use crate::collection::newgen::{NewGenerationCommiter, NewGenerationCommiterOptions};
 use crate::collection::util::generation_key_compare::generation_key_compare_fn;
 use crate::collection::util::meta_merge::{meta_full_merge, meta_partial_merge};
@@ -10,6 +12,7 @@ use crate::collection::constants::{
     COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE, COLLECTION_CF_META,
     COLLECTION_CF_PHANTOMS,
 };
+use crate::collection::open::init_readers::init_readers;
 use crate::collection::util::generation_size_merge::{
     generation_size_full_merge, generation_size_partial_merge,
 };
@@ -41,6 +44,9 @@ pub enum CollectionOpenError {
     ManualModeMissmatch,
     InvalidGenerationId,
     InvalidPhantomId,
+    JoinError,
+    InvalidUtf8,
+    InvalidReaderValue,
 }
 
 impl From<RawDbOpenError> for CollectionOpenError {
@@ -210,10 +216,13 @@ impl Collection {
             let (collection_sender, collection_receiver) = oneshot::channel();
 
             (
-                Some(NewGenerationCommiter::new(NewGenerationCommiterOptions {
-                    collection_receiver,
-                    on_put_receiver,
-                })),
+                Some(
+                    NewGenerationCommiter::new(NewGenerationCommiterOptions {
+                        collection_receiver,
+                        on_put_receiver,
+                    })
+                    .await,
+                ),
                 Some(collection_sender),
                 Some(on_put_sender),
             )
@@ -225,7 +234,7 @@ impl Collection {
 
         let collection = Collection {
             config: options.config,
-            name: collection_name,
+            name: Arc::from(collection_name),
             raw_db: Arc::new(raw_db),
             is_manual,
             is_deleted: Arc::new(RwLock::new(false)),
@@ -241,7 +250,10 @@ impl Collection {
             diff_cursors: std::sync::RwLock::new(HashMap::new()),
             prev_phantom_id: RwLock::new(prev_phantom_id),
         };
+
         let collection = Arc::new(collection);
+
+        init_readers(collection.clone()).await?;
 
         match collection_sender {
             Some(collection_sender) => {

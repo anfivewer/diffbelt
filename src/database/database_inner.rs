@@ -3,14 +3,18 @@ use crate::common::OwnedGenerationId;
 use crate::raw_db::{RawDb, RawDbError};
 use std::collections::{HashMap, HashSet};
 
+use crate::collection::methods::errors::CollectionMethodError;
 use crate::database::constants::DATABASE_RAW_DB_CF;
+use crate::messages::readers::{DatabaseCollecitonReadersTask, GetReadersPointingToCollectionTask};
+use crate::util::async_task_thread::AsyncTaskThread;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{oneshot, RwLock};
 
 pub struct DatabaseInner {
     collections_for_deletion: Arc<RwLock<HashSet<String>>>,
     database_raw_db: Arc<RawDb>,
     collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
+    readers: AsyncTaskThread<DatabaseCollecitonReadersTask>,
 }
 
 pub enum GetReaderGenerationIdFnError {
@@ -24,11 +28,13 @@ impl DatabaseInner {
         collections_for_deletion: Arc<RwLock<HashSet<String>>>,
         database_raw_db: Arc<RawDb>,
         collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
+        readers: AsyncTaskThread<DatabaseCollecitonReadersTask>,
     ) -> Self {
         Self {
             collections_for_deletion,
             database_raw_db,
             collections,
+            readers,
         }
     }
 
@@ -121,5 +127,63 @@ impl DatabaseInner {
         self.unmark_collection_for_deletion_sync(collection_name)?;
 
         Ok(())
+    }
+
+    pub async fn remove_readers_pointing_to_collection(
+        &self,
+        collection_name: Arc<str>,
+    ) -> Result<(), CollectionMethodError> {
+        let (sender, receiver) = oneshot::channel();
+
+        self.add_readers_task(
+            DatabaseCollecitonReadersTask::GetReadersPointingToCollectionExceptThisOne(
+                GetReadersPointingToCollectionTask {
+                    collection_name,
+                    sender,
+                },
+            ),
+        )
+        .await;
+
+        let readers = receiver.await.map_err(CollectionMethodError::OneshotRecv)?;
+
+        let mut by_collection = HashMap::new();
+
+        for reader in readers {
+            let (_, reader_names) = by_collection
+                .entry(reader.owner_collection_name)
+                .or_insert_with(|| (Option::<Arc<Collection>>::None, Vec::new()));
+
+            reader_names.push(reader.reader_name);
+        }
+
+        {
+            let collections = self.collections.read().await;
+
+            for (collection_name, collection_and_reader_names) in by_collection.iter_mut() {
+                collection_and_reader_names.0 =
+                    collections.get(collection_name.as_ref()).map(|x| x.clone());
+            }
+        }
+
+        for (_, (collection, reader_names)) in by_collection {
+            let Some(collection) = collection else {
+                continue;
+            };
+
+            for reader_name in reader_names {
+                collection.inner_remove_reader(reader_name).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn add_readers_task(&self, task: DatabaseCollecitonReadersTask) {
+        self.readers.add_task(task).await
+    }
+
+    pub fn on_database_drop(&self) {
+        self.readers.send_stop();
     }
 }

@@ -1,10 +1,11 @@
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::{GenerationId, OwnedGenerationId};
+use crate::messages::readers::{DatabaseCollecitonReadersTask, UpdateReaderTask};
+use std::sync::Arc;
+use tokio::task::spawn_blocking;
 
 use crate::raw_db::update_reader::{RawDbCreateReaderOptions, RawDbCreateReaderResult};
-
-use crate::util::tokio::spawn_blocking_async;
 
 pub struct CreateReaderOptions {
     pub reader_name: String,
@@ -17,9 +18,9 @@ impl Collection {
         &self,
         options: CreateReaderOptions,
     ) -> Result<(), CollectionMethodError> {
-        let reader_name = options.reader_name;
-        let collection_name = options.collection_name;
-        let generation_id = options.generation_id;
+        let reader_name = Arc::from(options.reader_name);
+        let to_collection_name = options.collection_name.map(Arc::from);
+        let generation_id = options.generation_id.map(Arc::from);
         let raw_db = self.raw_db.clone();
 
         let deletion_lock = self.is_deleted.read().await;
@@ -27,15 +28,37 @@ impl Collection {
             return Err(CollectionMethodError::NoSuchCollection);
         }
 
-        let result = spawn_blocking_async(async move {
+        let reader_name_for_blocking = Arc::clone(&reader_name);
+        let to_collection_name_for_blocking = to_collection_name.as_ref().map(|x| Arc::clone(x));
+        let generation_id_for_blocking = generation_id.as_ref().map(|x| Arc::clone(x));
+
+        let result = spawn_blocking(move || {
             raw_db.create_reader_sync(RawDbCreateReaderOptions {
-                reader_name: reader_name.as_str(),
-                collection_name: collection_name.as_ref().map(|id| id.as_str()),
-                generation_id: GenerationId::from_opt_owned(&generation_id),
+                reader_name: Arc::as_ref(&reader_name_for_blocking),
+                collection_name: to_collection_name_for_blocking
+                    .as_ref()
+                    .map(|id| Arc::as_ref(id)),
+                generation_id: generation_id_for_blocking
+                    .as_ref()
+                    .map(|x| OwnedGenerationId::as_ref(&x))
+                    .unwrap_or(GenerationId::empty()),
             })
         })
         .await
         .or(Err(CollectionMethodError::TaskJoin))??;
+
+        self.database_inner
+            .add_readers_task(DatabaseCollecitonReadersTask::UpdateReader(
+                UpdateReaderTask {
+                    owner_collection_name: self.name.clone(),
+                    to_collection_name: Some(
+                        to_collection_name.unwrap_or_else(|| self.name.clone()),
+                    ),
+                    reader_name,
+                    generation_id: generation_id.unwrap_or(Arc::new(OwnedGenerationId::empty())),
+                },
+            ))
+            .await;
 
         drop(deletion_lock);
 

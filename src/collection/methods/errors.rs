@@ -1,4 +1,5 @@
 use crate::collection::util::reader_value::OwnedReaderValue;
+use tokio::sync::oneshot;
 
 use crate::raw_db::RawDbError;
 
@@ -21,6 +22,7 @@ pub enum CollectionMethodError {
     Channels,
     TaskJoin,
     CannotDeleteRawDbPath(std::io::Error),
+    OneshotRecv(oneshot::error::RecvError),
 }
 
 impl From<RawDbError> for CollectionMethodError {

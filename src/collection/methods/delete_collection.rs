@@ -42,6 +42,10 @@ impl Collection {
                 .start_delete_collection(&collection_name)
                 .await?;
 
+            database_inner
+                .remove_readers_pointing_to_collection(collection_name.clone())
+                .await?;
+
             // Destroy raw_db, remove files
             let path = raw_db.get_path().to_string();
             let mut is_alive_receiver = raw_db.get_is_alive_receiver();

@@ -17,11 +17,12 @@ mod if_not_present;
 pub mod methods;
 mod newgen;
 pub mod open;
+pub mod readers;
 pub mod util;
 
 pub struct Collection {
     config: Arc<DatabaseConfig>,
-    name: String,
+    name: Arc<str>,
     raw_db: Arc<RawDb>,
     is_manual: bool,
     // you need to lock it for reading before any operations with raw_db

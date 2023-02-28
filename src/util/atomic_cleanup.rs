@@ -43,6 +43,7 @@ impl<T> Drop for AtomicCleanup<T> {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use crate::util::atomic_cleanup::AtomicCleanup;
 
