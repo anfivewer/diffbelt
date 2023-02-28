@@ -8,11 +8,13 @@ use crate::util::tokio::spawn_async_thread;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::watch;
+use tokio::task::JoinHandle;
 
 pub mod commit_next_generation;
 
 pub struct NewGenerationCommiter {
     stop_sender: Option<oneshot::Sender<()>>,
+    join_handle: Option<JoinHandle<()>>,
 }
 
 pub struct NewGenerationCommiterOptions {
@@ -21,12 +23,12 @@ pub struct NewGenerationCommiterOptions {
 }
 
 impl NewGenerationCommiter {
-    pub fn new(options: NewGenerationCommiterOptions) -> Self {
+    pub async fn new(options: NewGenerationCommiterOptions) -> Self {
         let collection_receiver = options.collection_receiver;
         let on_put_receiver = options.on_put_receiver;
         let (stop_sender, stop_receiver) = oneshot::channel();
 
-        let async_task = move || async {
+        let async_task = async move {
             let mut stop_receiver = stop_receiver;
             let mut on_put_receiver = on_put_receiver;
 
@@ -85,18 +87,22 @@ impl NewGenerationCommiter {
             }
         };
 
-        // TODO: join on stop
-        spawn_async_thread(async_task());
+        let join_handle = spawn_async_thread(async_task).await;
 
         NewGenerationCommiter {
             stop_sender: Some(stop_sender),
+            join_handle: Some(join_handle),
         }
     }
 
-    pub fn stop(&mut self) {
-        let Some(sender) = self.stop_sender.take() else { return; };
+    pub async fn stop(&mut self) {
+        if let Some(sender) = self.stop_sender.take() {
+            sender.send(()).unwrap_or(());
+        }
 
-        sender.send(()).unwrap_or(());
+        if let Some(join_handle) = self.join_handle.take() {
+            join_handle.await.unwrap_or(())
+        };
     }
 }
 

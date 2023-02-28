@@ -31,7 +31,7 @@ impl Collection {
                 let newgen = newgen_lock.take();
                 match newgen {
                     Some(mut newgen) => {
-                        newgen.stop();
+                        newgen.stop().await;
                     }
                     None => {}
                 }

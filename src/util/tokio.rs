@@ -19,12 +19,22 @@ pub async fn spawn_blocking_async<T: Send + 'static>(
     .await
 }
 
-pub fn spawn_async_thread<T: Send + 'static>(
+pub async fn spawn_async_thread<T: Send + 'static>(
     f: impl Future<Output = T> + Send + 'static,
-) -> std::thread::JoinHandle<T> {
-    std::thread::spawn(move || {
-        let runtime = get_global_tokio_runtime_or_panic();
+) -> tokio::task::JoinHandle<T> {
+    tokio::spawn(async move {
+        let result = tokio::task::spawn_blocking(move || {
+            let runtime = get_global_tokio_runtime_or_panic();
 
-        runtime.block_on(f)
+            runtime.block_on(f)
+        })
+        .await;
+
+        match result {
+            Ok(result) => result,
+            Err(err) => {
+                panic!("spawn_async_thread JoinError: {:?}", err);
+            }
+        }
     })
 }
