@@ -20,6 +20,7 @@ lazy_static = "1.4.0"
 base64 = "0.20.0"
 querystring = "1.1.0"
 urlencoding = "2.1.2"
+hashbrown = "0.13.2"
 
 [dependencies.diffbelt_macro]
 path = "crates/diffbelt_macro"
