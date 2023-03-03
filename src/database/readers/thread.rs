@@ -1,11 +1,10 @@
 use crate::common::OwnedGenerationId;
 use crate::messages::readers::{
-    CollectionNameReaderName, DatabaseCollecitonReadersTask, DeleteReaderTask,
+    CollectionNameReaderName, DatabaseCollectionReadersTask, DeleteReaderTask,
     GetReadersPointingToCollectionTask, UpdateReaderTask,
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::hashmap::{ArcStringPair, ArcStringPairRef};
-use std::borrow::Borrow;
 
 use hashbrown::HashMap;
 use std::sync::Arc;
@@ -27,13 +26,13 @@ struct ReadersState {
     pointing_to_collection: HashMap<CollectionName, HashMap<ArcStringPair, Arc<Reader>>>,
 }
 
-pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollecitonReadersTask>) {
+pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollectionReadersTask>) {
     let task = poller.poll().await;
     let Some(task) = task else {
         return;
     };
 
-    let DatabaseCollecitonReadersTask::Init(_database) = task else {
+    let DatabaseCollectionReadersTask::Init(_database) = task else {
         panic!("database/readers/thread first task is not init");
     };
 
@@ -48,28 +47,20 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollecitonReadersTask>) {
         };
 
         match task {
-            DatabaseCollecitonReadersTask::UpdateReader(task) => {
+            DatabaseCollectionReadersTask::UpdateReader(task) => {
                 state.update_reader(task);
             }
-            DatabaseCollecitonReadersTask::DeleteReader(task) => {
+            DatabaseCollectionReadersTask::DeleteReader(task) => {
                 state.delete_reader(task);
             }
-            DatabaseCollecitonReadersTask::GetReadersPointingToCollectionExceptThisOne(task) => {
+            DatabaseCollectionReadersTask::GetReadersPointingToCollectionExceptThisOne(task) => {
                 state.get_readers_pointing_to_collection_except_this_one(task);
             }
-            DatabaseCollecitonReadersTask::Finish => {
+            DatabaseCollectionReadersTask::Finish => {
                 return;
             }
             _ => {}
         }
-    }
-}
-
-struct MyArcString(Arc<String>);
-
-impl Borrow<str> for MyArcString {
-    fn borrow(&self) -> &str {
-        self.0.as_str()
     }
 }
 

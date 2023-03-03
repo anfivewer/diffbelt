@@ -35,7 +35,7 @@ pub fn wrap_with_pin_box_future<I: Iterator<Item = TokenTree>>(
                 TokenTree::Punct(Punct::new('>', Spacing::Alone)),
                 TokenTree::Punct(Punct::new('+', Spacing::Alone)),
             ]
-                .into_iter(),
+            .into_iter(),
         )
         .chain(send_stream.into_iter())
         .chain(
@@ -50,9 +50,7 @@ pub fn wrap_with_pin_box_future<I: Iterator<Item = TokenTree>>(
         )
 }
 
-pub fn wrap_with_box_pin_async(
-    body: TokenTree,
-) -> impl Iterator<Item = TokenTree> {
+pub fn wrap_with_box_pin_async(body: TokenTree) -> impl Iterator<Item = TokenTree> {
     let box_pin_tokens: TokenStream = "::std::boxed::Box::pin".parse().unwrap();
     let async_move_tokens: TokenStream = "async move".parse().unwrap();
 

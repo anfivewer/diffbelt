@@ -3,7 +3,7 @@ use crate::collection::constants::COLLECTION_CF_META;
 use crate::collection::open::CollectionOpenError;
 use crate::collection::util::reader_value::ReaderValue;
 use crate::collection::Collection;
-use crate::messages::readers::{DatabaseCollecitonReadersTask, UpdateReaderTask};
+use crate::messages::readers::{DatabaseCollectionReadersTask, UpdateReaderTask};
 use crate::util::tokio::spawn_blocking_async;
 use std::str::from_utf8;
 use std::sync::Arc;
@@ -32,7 +32,7 @@ pub async fn init_readers(collection: Arc<Collection>) -> Result<(), CollectionO
             };
 
             database_inner
-                .add_readers_task(DatabaseCollecitonReadersTask::UpdateReader(
+                .add_readers_task(DatabaseCollectionReadersTask::UpdateReader(
                     UpdateReaderTask {
                         owner_collection_name: collection.name.clone(),
                         to_collection_name: Some(to_collection_name),

@@ -1,7 +1,7 @@
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::{GenerationId, OwnedGenerationId};
-use crate::messages::readers::{DatabaseCollecitonReadersTask, UpdateReaderTask};
+use crate::messages::readers::{DatabaseCollectionReadersTask, UpdateReaderTask};
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
 
@@ -48,7 +48,7 @@ impl Collection {
         .or(Err(CollectionMethodError::TaskJoin))??;
 
         self.database_inner
-            .add_readers_task(DatabaseCollecitonReadersTask::UpdateReader(
+            .add_readers_task(DatabaseCollectionReadersTask::UpdateReader(
                 UpdateReaderTask {
                     owner_collection_name: self.name.clone(),
                     to_collection_name: Some(

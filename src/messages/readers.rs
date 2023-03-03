@@ -26,7 +26,7 @@ pub struct GetReadersPointingToCollectionTask {
     pub sender: oneshot::Sender<Vec<CollectionNameReaderName>>,
 }
 
-pub enum DatabaseCollecitonReadersTask {
+pub enum DatabaseCollectionReadersTask {
     Init(Arc<DatabaseInner>),
     UpdateReader(UpdateReaderTask),
     DeleteReader(DeleteReaderTask),

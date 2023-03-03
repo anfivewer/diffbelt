@@ -4,9 +4,10 @@ use crate::collection::Collection;
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::database::config::DatabaseConfig;
 use crate::database::constants::DATABASE_RAW_DB_CF;
+use crate::database::cursors::start_cursors_task_thread;
 use crate::database::readers::start_readers_task_thread;
 use crate::database::{Database, DatabaseInner};
-use crate::messages::readers::DatabaseCollecitonReadersTask;
+use crate::messages::readers::DatabaseCollectionReadersTask;
 use crate::protos::database_meta::CollectionRecord;
 use crate::raw_db::{RawDb, RawDbError, RawDbOptions};
 use crate::util::atomic_cleanup::AtomicCleanup;
@@ -57,16 +58,18 @@ impl Database {
         let collections_for_deletion = Arc::new(RwLock::new(HashSet::new()));
 
         let readers = start_readers_task_thread().await;
+        let cursors = start_cursors_task_thread().await;
 
         let database_inner = Arc::new(DatabaseInner::new(
             collections_for_deletion.clone(),
             database_raw_db.clone(),
             collections_arc.clone(),
             readers,
+            cursors,
         ));
 
         database_inner
-            .add_readers_task(DatabaseCollecitonReadersTask::Init(database_inner.clone()))
+            .add_readers_task(DatabaseCollectionReadersTask::Init(database_inner.clone()))
             .await;
 
         let mut deleted_collections = Vec::new();
@@ -126,7 +129,7 @@ impl Database {
         }
 
         database_inner
-            .add_readers_task(DatabaseCollecitonReadersTask::InitFinish)
+            .add_readers_task(DatabaseCollectionReadersTask::InitFinish)
             .await;
 
         let (stop_sender, stop_receiver) = watch::channel(false);

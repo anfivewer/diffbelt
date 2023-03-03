@@ -5,7 +5,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::database::constants::DATABASE_RAW_DB_CF;
-use crate::messages::readers::{DatabaseCollecitonReadersTask, GetReadersPointingToCollectionTask};
+use crate::messages::cursors::DatabaseCollectionCursorsTask;
+use crate::messages::readers::{DatabaseCollectionReadersTask, GetReadersPointingToCollectionTask};
 use crate::util::async_task_thread::AsyncTaskThread;
 use std::sync::Arc;
 use tokio::sync::{oneshot, RwLock};
@@ -14,7 +15,8 @@ pub struct DatabaseInner {
     collections_for_deletion: Arc<RwLock<HashSet<String>>>,
     database_raw_db: Arc<RawDb>,
     collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
-    readers: AsyncTaskThread<DatabaseCollecitonReadersTask>,
+    readers: AsyncTaskThread<DatabaseCollectionReadersTask>,
+    cursors: AsyncTaskThread<DatabaseCollectionCursorsTask>,
 }
 
 pub enum GetReaderGenerationIdFnError {
@@ -28,13 +30,15 @@ impl DatabaseInner {
         collections_for_deletion: Arc<RwLock<HashSet<String>>>,
         database_raw_db: Arc<RawDb>,
         collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
-        readers: AsyncTaskThread<DatabaseCollecitonReadersTask>,
+        readers: AsyncTaskThread<DatabaseCollectionReadersTask>,
+        cursors: AsyncTaskThread<DatabaseCollectionCursorsTask>,
     ) -> Self {
         Self {
             collections_for_deletion,
             database_raw_db,
             collections,
             readers,
+            cursors,
         }
     }
 
@@ -136,7 +140,7 @@ impl DatabaseInner {
         let (sender, receiver) = oneshot::channel();
 
         self.add_readers_task(
-            DatabaseCollecitonReadersTask::GetReadersPointingToCollectionExceptThisOne(
+            DatabaseCollectionReadersTask::GetReadersPointingToCollectionExceptThisOne(
                 GetReadersPointingToCollectionTask {
                     collection_name,
                     sender,
@@ -179,11 +183,12 @@ impl DatabaseInner {
         Ok(())
     }
 
-    pub async fn add_readers_task(&self, task: DatabaseCollecitonReadersTask) {
+    pub async fn add_readers_task(&self, task: DatabaseCollectionReadersTask) {
         self.readers.add_task(task).await
     }
 
     pub fn on_database_drop(&self) {
         self.readers.send_stop();
+        self.cursors.send_stop();
     }
 }
