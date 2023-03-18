@@ -10,31 +10,36 @@ pub struct NewCollectionTask {
 }
 
 pub struct DropCollectionTask {
-    pub inner_id: InnerCursorsCollectionId,
+    pub collection_id: InnerCursorsCollectionId,
 }
 
 pub struct AddQueryCursorTask {
+    pub collection_id: InnerCursorsCollectionId,
     pub data: AddQueryCursorData,
-    pub sender: oneshot::Sender<QueryCursorPublicId>,
+    pub sender: oneshot::Sender<Result<QueryCursorPublicId, QueryCursorError>>,
 }
 
 pub struct GetQueryCursorByPublicIdTask {
+    pub collection_id: InnerCursorsCollectionId,
     pub public_id: QueryCursorPublicId,
     pub sender: oneshot::Sender<Option<(InnerQueryCursorId, QueryCursorRef)>>,
 }
 
 pub struct AddQueryCursorContinuationTask {
+    pub collection_id: InnerCursorsCollectionId,
     pub inner_id: InnerQueryCursorId,
     pub data: AddQueryCursorContinuationData,
     pub sender: oneshot::Sender<Result<QueryCursorPublicId, QueryCursorError>>,
 }
 
 pub struct FinishQueryCursorTask {
+    pub collection_id: InnerCursorsCollectionId,
     pub inner_id: InnerQueryCursorId,
     pub sender: oneshot::Sender<Result<QueryCursorPublicId, QueryCursorError>>,
 }
 
 pub struct FullyFinishQueryCursorTask {
+    pub collection_id: InnerCursorsCollectionId,
     pub inner_id: InnerQueryCursorId,
     pub sender: oneshot::Sender<Result<(), QueryCursorError>>,
 }

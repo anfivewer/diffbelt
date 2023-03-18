@@ -278,7 +278,7 @@ impl Collection {
                 database_inner
                     .add_cursors_task(DatabaseCollectionCursorsTask::DropCollection(
                         DropCollectionTask {
-                            inner_id: cursors_id,
+                            collection_id: cursors_id,
                         },
                     ))
                     .await;

@@ -65,6 +65,7 @@ pub struct InnerQueryCursors {
 }
 
 pub enum QueryCursorError {
+    NoSuchCollection,
     NoSuchCursor,
     AlreadyFinished,
     NotYetFinished,
