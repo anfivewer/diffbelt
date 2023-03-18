@@ -267,6 +267,11 @@ impl InnerQueryCursors {
 
         QueryCursorPublicId(public_id)
     }
+
+    #[cfg(test)]
+    pub fn query_cursors_count(&self) -> usize {
+        self.public_ids.len()
+    }
 }
 
 impl IndexedContainerItem for InnerQueryCursor {

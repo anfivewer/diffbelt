@@ -14,6 +14,7 @@ use tokio::sync::{oneshot, watch, RwLock};
 
 pub mod constants;
 mod cursor;
+pub mod cursors;
 mod drop;
 mod if_not_present;
 pub mod methods;

@@ -4,7 +4,7 @@ use crate::database::cursors::query::{AddQueryCursorData, QueryCursorError};
 use crate::messages::cursors::{
     AddQueryCursorContinuationTask, AddQueryCursorTask, DatabaseCollectionCursorsTask,
     DropCollectionTask, FinishQueryCursorTask, FullyFinishQueryCursorTask,
-    GetQueryCursorByPublicIdTask, NewCollectionTask,
+    GetCollectionQueryCursorsCountTask, GetQueryCursorByPublicIdTask, NewCollectionTask,
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::indexed_container::IndexedContainer;
@@ -34,6 +34,10 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollectionCursorsTask>) {
             }
             DatabaseCollectionCursorsTask::FullyFinishQueryCursorTask(task) => {
                 state.fully_finish_query_cursor(task)
+            }
+            #[cfg(test)]
+            DatabaseCollectionCursorsTask::GetCollectionQueryCursorsCount(task) => {
+                state.collection_query_cursors_count(task)
             }
         }
     }
@@ -145,5 +149,22 @@ impl CursorsThreadState {
         let result = collection.query_cursors.fully_finish_cursor(&inner_id);
 
         sender.send(result).unwrap_or(());
+    }
+
+    #[cfg(test)]
+    fn collection_query_cursors_count(&mut self, task: GetCollectionQueryCursorsCountTask) {
+        let GetCollectionQueryCursorsCountTask {
+            collection_id,
+            sender,
+        } = task;
+
+        let Some(collection) = self.collections.get_mut(&collection_id) else {
+            sender.send(Err(QueryCursorError::NoSuchCollection)).unwrap_or(());
+            return;
+        };
+
+        let count = collection.query_cursors.query_cursors_count();
+
+        sender.send(Ok(count)).unwrap_or(());
     }
 }

@@ -44,6 +44,12 @@ pub struct FullyFinishQueryCursorTask {
     pub sender: oneshot::Sender<Result<(), QueryCursorError>>,
 }
 
+#[cfg(test)]
+pub struct GetCollectionQueryCursorsCountTask {
+    pub collection_id: InnerCursorsCollectionId,
+    pub sender: oneshot::Sender<Result<usize, QueryCursorError>>,
+}
+
 pub enum DatabaseCollectionCursorsTask {
     NewCollection(NewCollectionTask),
     DropCollection(DropCollectionTask),
@@ -52,4 +58,7 @@ pub enum DatabaseCollectionCursorsTask {
     AddQueryCursorContinuation(AddQueryCursorContinuationTask),
     FinishQueryCursor(FinishQueryCursorTask),
     FullyFinishQueryCursorTask(FullyFinishQueryCursorTask),
+
+    #[cfg(test)]
+    GetCollectionQueryCursorsCount(GetCollectionQueryCursorsCountTask),
 }

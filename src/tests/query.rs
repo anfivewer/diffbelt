@@ -171,6 +171,10 @@ async fn query_test_inner() {
         &second_generation_expected_items,
     )
     .await;
+
+    let query_cursors_count = collection.query_cursors_count().await;
+
+    println!("count {}", query_cursors_count);
 }
 
 fn key_value_update_items_to_key_value(items: Vec<KeyValueUpdate>) -> Vec<KeyValue> {
