@@ -7,5 +7,11 @@ pub mod query;
 mod thread;
 
 pub async fn start_cursors_task_thread() -> AsyncTaskThread<DatabaseCollectionCursorsTask> {
-    AsyncTaskThread::new(run, ()).await
+    AsyncTaskThread::new(
+        run,
+        (),
+        #[cfg(feature = "debug_prints")]
+        "cursors",
+    )
+    .await
 }

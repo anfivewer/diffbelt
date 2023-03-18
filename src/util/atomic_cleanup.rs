@@ -16,7 +16,7 @@ impl<T> AtomicCleanup<T> {
 
     pub fn take(&self) -> Option<Box<T>> {
         loop {
-            let ptr = self.atomic.load(Ordering::Relaxed);
+            let ptr = self.atomic.load(Ordering::Acquire);
 
             if ptr.is_null() {
                 return None;
@@ -25,8 +25,8 @@ impl<T> AtomicCleanup<T> {
             let result = self.atomic.compare_exchange(
                 ptr,
                 std::ptr::null_mut(),
-                Ordering::Relaxed,
-                Ordering::Relaxed,
+                Ordering::AcqRel,
+                Ordering::Acquire,
             );
 
             if result.is_ok() {

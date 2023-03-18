@@ -11,7 +11,7 @@ use crate::database::open::DatabaseOpenOptions;
 use crate::database::Database;
 
 use crate::tests::temp_dir::TempDir;
-use crate::util::global_tokio_runtime::create_global_tokio_runtime;
+use crate::util::tokio_runtime::create_main_tokio_runtime;
 
 use std::ops::Deref;
 
@@ -24,7 +24,7 @@ use tokio::time::timeout;
 
 #[test]
 fn database_test() {
-    let runtime = create_global_tokio_runtime().unwrap();
+    let runtime = create_main_tokio_runtime().unwrap();
     runtime.block_on(database_test_inner());
 }
 

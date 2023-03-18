@@ -6,7 +6,7 @@ use crate::database::open::DatabaseOpenOptions;
 use crate::database::Database;
 use crate::http::routing;
 use crate::http::server::start_http_server;
-use crate::util::global_tokio_runtime::create_global_tokio_runtime;
+use crate::util::tokio_runtime::create_main_tokio_runtime;
 
 mod collection;
 mod common;
@@ -60,7 +60,7 @@ async fn run() {
 }
 
 fn main() {
-    let runtime = create_global_tokio_runtime().unwrap();
+    let runtime = create_main_tokio_runtime().unwrap();
 
     runtime.block_on(run());
 }

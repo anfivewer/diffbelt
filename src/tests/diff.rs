@@ -12,14 +12,14 @@ use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
 use crate::tests::util::manual_generation::wrap_generation;
 use crate::util::bytes::{from_u32_be, increment};
-use crate::util::global_tokio_runtime::create_global_tokio_runtime;
+use crate::util::tokio_runtime::create_main_tokio_runtime;
 use std::collections::{HashMap, HashSet};
 
 const PACK_LIMIT: usize = 20;
 
 #[test]
 fn diff_test() {
-    let runtime = create_global_tokio_runtime().unwrap();
+    let runtime = create_main_tokio_runtime().unwrap();
     runtime.block_on(diff_test_inner());
 }
 

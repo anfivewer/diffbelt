@@ -18,13 +18,20 @@ use crate::collection::util::generation_size_merge::{
 };
 use crate::database::config::DatabaseConfig;
 use crate::database::DatabaseInner;
+use crate::messages::cursors::{
+    DatabaseCollectionCursorsTask, DropCollectionTask, NewCollectionTask,
+};
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbMerge, RawDbOpenError, RawDbOptions,
 };
+use crate::util::async_spawns::{run_when_watch_is_true_or_end, watch_is_true_or_end};
+use crate::util::async_sync_call::async_sync_call;
 use crate::util::bytes::increment;
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::pin;
 use tokio::sync::watch;
 use tokio::sync::{oneshot, RwLock};
 
@@ -47,6 +54,7 @@ pub enum CollectionOpenError {
     JoinError,
     InvalidUtf8,
     InvalidReaderValue,
+    OneshotRecv(oneshot::error::RecvError),
 }
 
 impl From<RawDbOpenError> for CollectionOpenError {
@@ -232,6 +240,53 @@ impl Collection {
 
         let (generation_id_sender, generation_id_receiver) = watch::channel(generation_id.clone());
 
+        let database_inner = options.database_inner;
+
+        let cursors_id = async_sync_call(|sender| {
+            database_inner.add_cursors_task(DatabaseCollectionCursorsTask::NewCollection(
+                NewCollectionTask { sender },
+            ))
+        })
+        .await
+        .map_err(CollectionOpenError::OneshotRecv)?;
+
+        let newgen = Arc::new(RwLock::new(newgen));
+
+        let drop_sender = {
+            let database_inner = database_inner.clone();
+            let (sender, mut receiver) = oneshot::channel();
+
+            let mut db_stop_receiver = database_inner.stop_receiver();
+
+            let newgen = newgen.clone();
+            run_when_watch_is_true_or_end(db_stop_receiver.clone(), async move {
+                let mut newgen = newgen.write().await;
+                if let Some(mut newgen) = newgen.take() {
+                    newgen.stop().await;
+                }
+            });
+
+            tokio::spawn(async move {
+                let on_db_stop = watch_is_true_or_end(&mut db_stop_receiver);
+                pin!(on_db_stop);
+
+                tokio::select! {
+                    _ = &mut receiver => {},
+                    _ = &mut on_db_stop => {},
+                }
+
+                database_inner
+                    .add_cursors_task(DatabaseCollectionCursorsTask::DropCollection(
+                        DropCollectionTask {
+                            inner_id: cursors_id,
+                        },
+                    ))
+                    .await;
+            });
+
+            sender
+        };
+
         let collection = Collection {
             config: options.config,
             name: Arc::from(collection_name),
@@ -243,12 +298,14 @@ impl Collection {
             generation_id: Arc::new(RwLock::new(generation_id)),
             next_generation_id: Arc::new(RwLock::new(next_generation_id)),
             if_not_present_writes: Arc::new(RwLock::new(HashMap::new())),
-            database_inner: options.database_inner,
-            newgen: Arc::new(RwLock::new(newgen)),
+            database_inner,
+            newgen,
             on_put_sender,
             query_cursors: std::sync::RwLock::new(HashMap::new()),
             diff_cursors: std::sync::RwLock::new(HashMap::new()),
             prev_phantom_id: RwLock::new(prev_phantom_id),
+            cursors_id,
+            drop_sender: Some(drop_sender),
         };
 
         let collection = Arc::new(collection);
@@ -257,10 +314,7 @@ impl Collection {
 
         match collection_sender {
             Some(collection_sender) => {
-                collection_sender
-                    .send(collection.clone())
-                    .or(Err(()))
-                    .unwrap();
+                collection_sender.send(collection.clone()).unwrap_or(());
             }
             None => {}
         }

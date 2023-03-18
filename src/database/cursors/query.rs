@@ -5,7 +5,7 @@ use crate::util::indexed_container::{
 };
 use rand::RngCore;
 use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
 
@@ -71,6 +71,13 @@ pub enum QueryCursorError {
 }
 
 impl InnerQueryCursors {
+    pub fn new() -> Self {
+        Self {
+            cursors: IndexedContainer::new(),
+            public_ids: HashMap::new(),
+        }
+    }
+
     pub fn add_cursor(&mut self, data: AddQueryCursorData) -> QueryCursorPublicId {
         let AddQueryCursorData {
             generation_id,

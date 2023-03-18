@@ -9,14 +9,14 @@ use crate::common::{
 };
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
-use crate::util::global_tokio_runtime::create_global_tokio_runtime;
+use crate::util::tokio_runtime::create_main_tokio_runtime;
 use std::collections::BTreeMap;
 
 use futures::future::BoxFuture;
 
 #[test]
 fn query_test() {
-    let runtime = create_global_tokio_runtime().unwrap();
+    let runtime = create_main_tokio_runtime().unwrap();
     runtime.block_on(query_test_inner());
 }
 

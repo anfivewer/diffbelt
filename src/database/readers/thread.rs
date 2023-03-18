@@ -41,11 +41,7 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollectionReadersTask>) {
         pointing_to_collection: HashMap::new(),
     };
 
-    loop {
-        let Some(task) = poller.poll().await else {
-            return;
-        };
-
+    while let Some(task) = poller.poll().await {
         match task {
             DatabaseCollectionReadersTask::UpdateReader(task) => {
                 state.update_reader(task);

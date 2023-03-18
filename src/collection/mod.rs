@@ -4,15 +4,17 @@ use crate::collection::newgen::NewGenerationCommiter;
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{NeverEq, OwnedGenerationId, OwnedPhantomId};
 use crate::database::config::DatabaseConfig;
+use crate::database::cursors::collection::InnerCursorsCollectionId;
 use crate::database::DatabaseInner;
 use crate::raw_db::{RawDb, RawDbError};
 use if_not_present::ConcurrentPutStatus;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{watch, RwLock};
+use tokio::sync::{oneshot, watch, RwLock};
 
 pub mod constants;
 mod cursor;
+mod drop;
 mod if_not_present;
 pub mod methods;
 mod newgen;
@@ -39,6 +41,8 @@ pub struct Collection {
     query_cursors: std::sync::RwLock<HashMap<String, Arc<std::sync::RwLock<QueryCursor>>>>,
     diff_cursors: std::sync::RwLock<HashMap<String, Arc<std::sync::RwLock<DiffCursor>>>>,
     prev_phantom_id: RwLock<OwnedPhantomId>,
+    cursors_id: InnerCursorsCollectionId,
+    drop_sender: Option<oneshot::Sender<()>>,
 }
 
 pub enum GetReaderGenerationIdError {

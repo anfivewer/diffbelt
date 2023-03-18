@@ -10,6 +10,7 @@ use crate::database::{Database, DatabaseInner};
 use crate::messages::readers::DatabaseCollectionReadersTask;
 use crate::protos::database_meta::CollectionRecord;
 use crate::raw_db::{RawDb, RawDbError, RawDbOptions};
+use crate::util::async_spawns::run_when_watch_is_true_or_end;
 use crate::util::atomic_cleanup::AtomicCleanup;
 use protobuf::Message;
 use std::collections::{HashMap, HashSet};
@@ -60,12 +61,15 @@ impl Database {
         let readers = start_readers_task_thread().await;
         let cursors = start_cursors_task_thread().await;
 
+        let (stop_sender, stop_receiver) = watch::channel(false);
+
         let database_inner = Arc::new(DatabaseInner::new(
             collections_for_deletion.clone(),
             database_raw_db.clone(),
             collections_arc.clone(),
             readers,
             cursors,
+            stop_receiver.clone(),
         ));
 
         database_inner
@@ -132,21 +136,13 @@ impl Database {
             .add_readers_task(DatabaseCollectionReadersTask::InitFinish)
             .await;
 
-        let (stop_sender, stop_receiver) = watch::channel(false);
-
-        let collections_for_spawn = collections_arc.clone();
-        let mut stop_receiver_for_spawn = stop_receiver;
-        tokio::spawn(async move {
-            while stop_receiver_for_spawn.changed().await.is_ok() {
-                let is_stopped = *stop_receiver_for_spawn.borrow();
-                if is_stopped {
-                    break;
-                }
-            }
-
-            let mut collections = collections_for_spawn.write().await;
-            collections.clear();
-        });
+        {
+            let collections_arc = collections_arc.clone();
+            run_when_watch_is_true_or_end(stop_receiver, async move {
+                let mut collections = collections_arc.write().await;
+                collections.clear();
+            });
+        }
 
         Ok(Database {
             config: options.config,

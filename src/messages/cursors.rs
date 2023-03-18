@@ -1,6 +1,9 @@
-use tokio::sync::oneshot;
 use crate::database::cursors::collection::InnerCursorsCollectionId;
-use crate::database::cursors::query::{AddQueryCursorContinuationData, AddQueryCursorData, InnerQueryCursorId, QueryCursorError, QueryCursorPublicId, QueryCursorRef};
+use crate::database::cursors::query::{
+    AddQueryCursorContinuationData, AddQueryCursorData, InnerQueryCursorId, QueryCursorError,
+    QueryCursorPublicId, QueryCursorRef,
+};
+use tokio::sync::oneshot;
 
 pub struct NewCollectionTask {
     pub sender: oneshot::Sender<InnerCursorsCollectionId>,

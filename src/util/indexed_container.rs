@@ -79,7 +79,7 @@ impl<T: IndexedContainerItem> IndexedContainer<T> {
         Some(item)
     }
 
-    pub fn delete(&mut self, id: T::Id) {
+    pub fn delete(&mut self, id: &T::Id) {
         let Some(entry) = self.array.get_mut(id.index()) else {
             return;
         };

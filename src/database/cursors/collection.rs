@@ -1,7 +1,5 @@
-use crate::database::cursors::query::{InnerQueryCursor, InnerQueryCursors};
-use crate::util::indexed_container::{
-    IndexedContainer, IndexedContainerItem, IndexedContainerPointer,
-};
+use crate::database::cursors::query::InnerQueryCursors;
+use crate::util::indexed_container::{IndexedContainerItem, IndexedContainerPointer};
 
 #[derive(Copy, Clone)]
 pub struct InnerCursorsCollectionId {
@@ -12,6 +10,15 @@ pub struct InnerCursorsCollectionId {
 pub struct InnerCursorsCollection {
     pub inner_id: InnerCursorsCollectionId,
     pub query_cursors: InnerQueryCursors,
+}
+
+impl InnerCursorsCollection {
+    pub fn new(inner_id: InnerCursorsCollectionId) -> Self {
+        Self {
+            inner_id,
+            query_cursors: InnerQueryCursors::new(),
+        }
+    }
 }
 
 impl IndexedContainerItem for InnerCursorsCollection {
