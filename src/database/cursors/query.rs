@@ -1,5 +1,6 @@
 use crate::common::{OwnedGenerationId, OwnedPhantomId};
 use crate::raw_db::query_collection_records::LastAndNextRecordKey;
+use crate::util::base62;
 use crate::util::indexed_container::{
     IndexedContainer, IndexedContainerItem, IndexedContainerPointer,
 };
@@ -32,13 +33,17 @@ pub struct QueryCursor {
 }
 
 pub struct QueryCursorRefCursor {
-    cursor: Arc<QueryCursor>,
-    is_current: bool,
+    pub cursor: Arc<QueryCursor>,
+    pub is_current: bool,
+}
+
+pub struct QueryCursorRefEmpty {
+    pub generation_id: OwnedGenerationId,
 }
 
 pub enum QueryCursorRef {
     Cursor(QueryCursorRefCursor),
-    Empty,
+    Empty(QueryCursorRefEmpty),
 }
 
 pub struct AddQueryCursorData {
@@ -53,17 +58,21 @@ pub struct AddQueryCursorContinuationData {
 
 pub struct InnerQueryCursor {
     pub inner_id: InnerQueryCursorId,
+    pub generation_id: OwnedGenerationId,
 
     pub final_public_id: Option<QueryCursorPublicId>,
     pub current_cursor: Option<Arc<QueryCursor>>,
     pub next_cursor: Option<Arc<QueryCursor>>,
 }
 
+type PublicIdsMap = HashMap<QueryCursorPublicId, InnerQueryCursorId>;
+
 pub struct InnerQueryCursors {
     pub cursors: IndexedContainer<InnerQueryCursor>,
-    pub public_ids: HashMap<QueryCursorPublicId, InnerQueryCursorId>,
+    pub public_ids: PublicIdsMap,
 }
 
+#[derive(Debug)]
 pub enum QueryCursorError {
     NoSuchCollection,
     NoSuchCursor,
@@ -90,6 +99,7 @@ impl InnerQueryCursors {
 
         let inner_id = self.cursors.insert(|inner_id| InnerQueryCursor {
             inner_id,
+            generation_id: generation_id.clone(),
             final_public_id: None,
             current_cursor: None,
             next_cursor: Some(Arc::new(QueryCursor {
@@ -143,7 +153,12 @@ impl InnerQueryCursors {
 
         if let Some(id) = &cursor.final_public_id {
             if id == &public_id {
-                return Some((inner_id.clone(), QueryCursorRef::Empty));
+                return Some((
+                    inner_id.clone(),
+                    QueryCursorRef::Empty(QueryCursorRefEmpty {
+                        generation_id: cursor.generation_id.clone(),
+                    }),
+                ));
             }
         }
 
@@ -154,6 +169,7 @@ impl InnerQueryCursors {
         &mut self,
         inner_id: &InnerQueryCursorId,
         data: AddQueryCursorContinuationData,
+        is_current: bool,
     ) -> Result<QueryCursorPublicId, QueryCursorError> {
         let AddQueryCursorContinuationData {
             last_and_next_record_key,
@@ -168,6 +184,26 @@ impl InnerQueryCursors {
         let Some(next_cursor) = &cursor.next_cursor else {
             return Err(QueryCursorError::AlreadyFinished);
         };
+
+        if is_current {
+            let QueryCursor {
+                public_id,
+                generation_id,
+                phantom_id,
+                last_and_next_record_key: _,
+            } = next_cursor.as_ref();
+
+            let public_id = public_id.clone();
+
+            cursor.next_cursor.replace(Arc::new(QueryCursor {
+                public_id,
+                generation_id: generation_id.clone(),
+                phantom_id: phantom_id.clone(),
+                last_and_next_record_key,
+            }));
+
+            return Ok(public_id);
+        }
 
         let generation_id = next_cursor.generation_id.clone();
         let phantom_id = next_cursor.phantom_id.clone();
@@ -200,20 +236,29 @@ impl InnerQueryCursors {
     pub fn finish_cursor(
         &mut self,
         inner_id: &InnerQueryCursorId,
+        is_current: bool,
     ) -> Result<QueryCursorPublicId, QueryCursorError> {
-        let public_id = self.generate_public_id();
-
         let Some(cursor) = self.cursors.get_mut(inner_id) else {
             return Err(QueryCursorError::NoSuchCursor);
         };
+
+        if let Some(public_id) = &cursor.final_public_id {
+            return Ok(public_id.clone());
+        }
 
         let Some(_) = &cursor.next_cursor else {
             return Err(QueryCursorError::AlreadyFinished);
         };
 
+        let mut old_next_cursor = cursor.next_cursor.take();
+
+        let public_id = Self::generate_public_id_impl(&self.public_ids);
         self.public_ids.insert(public_id, inner_id.clone());
 
-        let mut old_next_cursor = cursor.next_cursor.take();
+        if is_current {
+            cursor.final_public_id.replace(public_id);
+            return Ok(public_id);
+        }
 
         mem::swap(&mut cursor.current_cursor, &mut old_next_cursor);
 
@@ -244,21 +289,50 @@ impl InnerQueryCursors {
         let None = &cursor.next_cursor else {
             return Err(QueryCursorError::NotYetFinished);
         };
-        let Some(_) = &cursor.current_cursor else {
-            return Ok(());
-        };
 
-        cursor.current_cursor.take();
+        let cursor = cursor.current_cursor.take();
+
+        if let Some(cursor) = cursor {
+            self.public_ids.remove(&cursor.public_id.0);
+        }
 
         Ok(())
     }
 
-    fn generate_public_id(&self) -> QueryCursorPublicId {
+    pub fn abort_cursor(&mut self, inner_id: &InnerQueryCursorId) -> Result<(), QueryCursorError> {
+        let Some(cursor) = self.cursors.delete(inner_id) else {
+            return Err(QueryCursorError::NoSuchCursor);
+        };
+
+        let InnerQueryCursor {
+            inner_id: _,
+            generation_id: _,
+            final_public_id,
+            current_cursor,
+            next_cursor,
+        } = cursor;
+
+        if let Some(public_id) = final_public_id {
+            self.public_ids.remove(&public_id.0);
+        };
+
+        if let Some(cursor) = current_cursor {
+            self.public_ids.remove(&cursor.public_id.0);
+        };
+
+        if let Some(cursor) = next_cursor {
+            self.public_ids.remove(&cursor.public_id.0);
+        };
+
+        Ok(())
+    }
+
+    fn generate_public_id_impl(public_ids: &PublicIdsMap) -> QueryCursorPublicId {
         let mut rng = rand::thread_rng();
 
         let public_id = loop {
             let id = rng.next_u64();
-            if self.public_ids.contains_key(&id) {
+            if public_ids.contains_key(&id) {
                 continue;
             }
 
@@ -266,6 +340,10 @@ impl InnerQueryCursors {
         };
 
         QueryCursorPublicId(public_id)
+    }
+
+    fn generate_public_id(&self) -> QueryCursorPublicId {
+        Self::generate_public_id_impl(&self.public_ids)
     }
 
     #[cfg(test)]
@@ -300,5 +378,14 @@ impl IndexedContainerPointer for InnerQueryCursor {
 
     fn counter(&self) -> u64 {
         self.inner_id.counter
+    }
+}
+
+impl QueryCursorPublicId {
+    pub fn from_b62(s: &str) -> Result<Self, ()> {
+        base62::to_u64(s).map(|x| Self(x))
+    }
+    pub fn to_b62(&self) -> Box<str> {
+        base62::from_u64(self.0)
     }
 }

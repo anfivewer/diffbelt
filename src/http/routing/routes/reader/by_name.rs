@@ -22,8 +22,8 @@ async fn handler(options: PatternRouteOptions<IdWithNameGroup>) -> HttpHandlerRe
     let collection = get_collection(&context, &collection_name).await?;
 
     match request.method() {
-        "PUT" => update_reader(request, collection, reader_name).await,
-        "DELETE" => delete_reader(request, collection, reader_name).await,
+        "PUT" => update_reader(request, collection, reader_name.to_string()).await,
+        "DELETE" => delete_reader(request, collection, reader_name.to_string()).await,
         _ => Err(HttpError::MethodNotAllowed),
     }
 }

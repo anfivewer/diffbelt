@@ -9,7 +9,6 @@ use crate::raw_db::RawDb;
 use std::sync::Arc;
 
 pub struct GetPackOptions {
-    pub this_cursor_id: Option<String>,
     pub db: Arc<RawDb>,
     pub config: Arc<DatabaseConfig>,
 }
@@ -19,11 +18,7 @@ impl QueryCursor {
         &self,
         options: GetPackOptions,
     ) -> Result<QueryCursorPack, CollectionMethodError> {
-        let GetPackOptions {
-            this_cursor_id,
-            db,
-            config,
-        } = options;
+        let GetPackOptions { db, config } = options;
 
         let phantom_id = self.phantom_id.as_ref().map(|id| id.as_ref());
 
@@ -49,17 +44,9 @@ impl QueryCursor {
             last_and_next_record_key,
         } = result;
 
-        let next_cursor = match last_and_next_record_key {
-            None => None,
-            last_and_next_record_key => Some(QueryCursor {
-                prev_cursor_id: this_cursor_id,
-                next_cursor_id: None,
-                generation_id: self.generation_id.clone(),
-                phantom_id: self.phantom_id.clone(),
-                last_and_next_record_key,
-            }),
-        };
-
-        Ok(QueryCursorPack { items, next_cursor })
+        Ok(QueryCursorPack {
+            items,
+            last_and_next_record_key,
+        })
     }
 }

@@ -28,7 +28,6 @@ use crate::util::async_spawns::{run_when_watch_is_true_or_end, watch_is_true_or_
 use crate::util::async_sync_call::async_sync_call;
 use crate::util::bytes::increment;
 use std::collections::HashMap;
-use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::pin;
@@ -301,7 +300,6 @@ impl Collection {
             database_inner,
             newgen,
             on_put_sender,
-            query_cursors: std::sync::RwLock::new(HashMap::new()),
             diff_cursors: std::sync::RwLock::new(HashMap::new()),
             prev_phantom_id: RwLock::new(prev_phantom_id),
             cursors_id,

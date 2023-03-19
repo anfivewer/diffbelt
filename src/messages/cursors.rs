@@ -28,6 +28,7 @@ pub struct GetQueryCursorByPublicIdTask {
 pub struct AddQueryCursorContinuationTask {
     pub collection_id: InnerCursorsCollectionId,
     pub inner_id: InnerQueryCursorId,
+    pub is_current: bool,
     pub data: AddQueryCursorContinuationData,
     pub sender: oneshot::Sender<Result<QueryCursorPublicId, QueryCursorError>>,
 }
@@ -35,12 +36,19 @@ pub struct AddQueryCursorContinuationTask {
 pub struct FinishQueryCursorTask {
     pub collection_id: InnerCursorsCollectionId,
     pub inner_id: InnerQueryCursorId,
+    pub is_current: bool,
     pub sender: oneshot::Sender<Result<QueryCursorPublicId, QueryCursorError>>,
 }
 
 pub struct FullyFinishQueryCursorTask {
     pub collection_id: InnerCursorsCollectionId,
     pub inner_id: InnerQueryCursorId,
+    pub sender: oneshot::Sender<Result<(), QueryCursorError>>,
+}
+
+pub struct AbortQueryCursorTask {
+    pub collection_id: InnerCursorsCollectionId,
+    pub public_id: QueryCursorPublicId,
     pub sender: oneshot::Sender<Result<(), QueryCursorError>>,
 }
 
@@ -57,7 +65,8 @@ pub enum DatabaseCollectionCursorsTask {
     GetQueryCursorByPublicId(GetQueryCursorByPublicIdTask),
     AddQueryCursorContinuation(AddQueryCursorContinuationTask),
     FinishQueryCursor(FinishQueryCursorTask),
-    FullyFinishQueryCursorTask(FullyFinishQueryCursorTask),
+    FullyFinishQueryCursor(FullyFinishQueryCursorTask),
+    AbortQueryCursor(AbortQueryCursorTask),
 
     #[cfg(test)]
     GetCollectionQueryCursorsCount(GetCollectionQueryCursorsCountTask),

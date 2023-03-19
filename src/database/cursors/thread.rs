@@ -1,10 +1,12 @@
 use crate::database::cursors::collection::InnerCursorsCollection;
-use crate::database::cursors::query::{AddQueryCursorData, QueryCursorError};
+use crate::database::cursors::query::QueryCursorError;
 
+#[cfg(test)]
+use crate::messages::cursors::GetCollectionQueryCursorsCountTask;
 use crate::messages::cursors::{
-    AddQueryCursorContinuationTask, AddQueryCursorTask, DatabaseCollectionCursorsTask,
-    DropCollectionTask, FinishQueryCursorTask, FullyFinishQueryCursorTask,
-    GetCollectionQueryCursorsCountTask, GetQueryCursorByPublicIdTask, NewCollectionTask,
+    AbortQueryCursorTask, AddQueryCursorContinuationTask, AddQueryCursorTask,
+    DatabaseCollectionCursorsTask, DropCollectionTask, FinishQueryCursorTask,
+    FullyFinishQueryCursorTask, GetQueryCursorByPublicIdTask, NewCollectionTask,
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::indexed_container::IndexedContainer;
@@ -32,9 +34,10 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollectionCursorsTask>) {
             DatabaseCollectionCursorsTask::FinishQueryCursor(task) => {
                 state.finish_query_cursor(task)
             }
-            DatabaseCollectionCursorsTask::FullyFinishQueryCursorTask(task) => {
+            DatabaseCollectionCursorsTask::FullyFinishQueryCursor(task) => {
                 state.fully_finish_query_cursor(task)
             }
+            DatabaseCollectionCursorsTask::AbortQueryCursor(task) => state.abort_query_cursor(task),
             #[cfg(test)]
             DatabaseCollectionCursorsTask::GetCollectionQueryCursorsCount(task) => {
                 state.collection_query_cursors_count(task)
@@ -101,6 +104,7 @@ impl CursorsThreadState {
         let AddQueryCursorContinuationTask {
             collection_id,
             inner_id,
+            is_current,
             data,
             sender,
         } = task;
@@ -112,7 +116,7 @@ impl CursorsThreadState {
 
         let result = collection
             .query_cursors
-            .add_cursor_continuation(&inner_id, data);
+            .add_cursor_continuation(&inner_id, data, is_current);
 
         sender.send(result).unwrap_or(());
     }
@@ -121,6 +125,7 @@ impl CursorsThreadState {
         let FinishQueryCursorTask {
             collection_id,
             inner_id,
+            is_current,
             sender,
         } = task;
 
@@ -129,7 +134,9 @@ impl CursorsThreadState {
             return;
         };
 
-        let result = collection.query_cursors.finish_cursor(&inner_id);
+        let result = collection
+            .query_cursors
+            .finish_cursor(&inner_id, is_current);
 
         sender.send(result).unwrap_or(());
     }
@@ -147,6 +154,28 @@ impl CursorsThreadState {
         };
 
         let result = collection.query_cursors.fully_finish_cursor(&inner_id);
+
+        sender.send(result).unwrap_or(());
+    }
+
+    fn abort_query_cursor(&mut self, task: AbortQueryCursorTask) {
+        let AbortQueryCursorTask {
+            collection_id,
+            public_id,
+            sender,
+        } = task;
+
+        let Some(collection) = self.collections.get_mut(&collection_id) else {
+            sender.send(Err(QueryCursorError::NoSuchCollection)).unwrap_or(());
+            return;
+        };
+
+        let Some((inner_id, _)) = collection.query_cursors.cursor_by_public_id(public_id) else {
+            sender.send(Err(QueryCursorError::NoSuchCursor)).unwrap_or(());
+            return;
+        };
+
+        let result = collection.query_cursors.abort_cursor(&inner_id);
 
         sender.send(result).unwrap_or(());
     }

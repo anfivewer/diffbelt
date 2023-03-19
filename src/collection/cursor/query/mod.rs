@@ -1,17 +1,9 @@
 use crate::common::{GenerationId, KeyValue, OwnedGenerationId, OwnedPhantomId};
 
-use crate::collection::cursor::util::BaseCursor;
+use crate::database::cursors::query::{QueryCursor, QueryCursorPublicId};
 use crate::raw_db::query_collection_records::LastAndNextRecordKey;
 
 pub mod get_pack;
-
-pub struct QueryCursor {
-    prev_cursor_id: Option<String>,
-    next_cursor_id: Option<String>,
-    generation_id: OwnedGenerationId,
-    phantom_id: Option<OwnedPhantomId>,
-    last_and_next_record_key: Option<LastAndNextRecordKey>,
-}
 
 pub struct QueryCursorNewOptions {
     pub generation_id: OwnedGenerationId,
@@ -20,14 +12,13 @@ pub struct QueryCursorNewOptions {
 
 pub struct QueryCursorPack {
     pub items: Vec<KeyValue>,
-    pub next_cursor: Option<QueryCursor>,
+    pub last_and_next_record_key: Option<LastAndNextRecordKey>,
 }
 
 impl QueryCursor {
     pub fn new(options: QueryCursorNewOptions) -> Self {
         QueryCursor {
-            prev_cursor_id: None,
-            next_cursor_id: None,
+            public_id: QueryCursorPublicId(0),
             generation_id: options.generation_id,
             phantom_id: options.phantom_id,
             last_and_next_record_key: None,
@@ -36,19 +27,5 @@ impl QueryCursor {
 
     pub fn get_generation_id(&self) -> GenerationId<'_> {
         self.generation_id.as_ref()
-    }
-}
-
-impl BaseCursor for QueryCursor {
-    fn prev_cursor_id(&self) -> Option<&str> {
-        self.prev_cursor_id.as_ref().map(|x| x.as_str())
-    }
-
-    fn next_cursor_id(&self) -> Option<&str> {
-        self.next_cursor_id.as_ref().map(|x| x.as_str())
-    }
-
-    fn set_next_cursor_id(&mut self, id: String) {
-        self.next_cursor_id.replace(id);
     }
 }
