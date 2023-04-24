@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 pub struct DatabaseConfig {
     pub query_pack_limit: usize,
     pub query_pack_records_limit: usize,
@@ -25,7 +27,7 @@ pub struct DatabaseConfig {
      * Last cursor always contains empty items list and stays present infinite long
      * until this limit will not be reached
      */
-    pub max_cursors_per_collection: usize,
+    pub max_cursors_per_collection: NonZeroUsize,
 }
 
 impl Default for DatabaseConfig {
@@ -36,7 +38,7 @@ impl Default for DatabaseConfig {
             diff_changes_limit: 20000,
             diff_pack_limit: 200,
             diff_pack_records_limit: 5000,
-            max_cursors_per_collection: 100,
+            max_cursors_per_collection: NonZeroUsize::new(100).unwrap(),
         }
     }
 }

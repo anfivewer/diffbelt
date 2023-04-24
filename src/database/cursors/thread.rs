@@ -1,5 +1,7 @@
+use crate::database::config::DatabaseConfig;
 use crate::database::cursors::collection::InnerCursorsCollection;
 use crate::database::cursors::query::QueryCursorError;
+use std::sync::Arc;
 
 #[cfg(test)]
 use crate::messages::cursors::GetCollectionQueryCursorsCountTask;
@@ -12,11 +14,16 @@ use crate::util::async_task_thread::TaskPoller;
 use crate::util::indexed_container::IndexedContainer;
 
 struct CursorsThreadState {
+    config: Arc<DatabaseConfig>,
     collections: IndexedContainer<InnerCursorsCollection>,
 }
 
-pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollectionCursorsTask>) {
+pub async fn run(
+    config: Arc<DatabaseConfig>,
+    mut poller: TaskPoller<DatabaseCollectionCursorsTask>,
+) {
     let mut state = CursorsThreadState {
+        config,
         collections: IndexedContainer::new(),
     };
 
@@ -50,7 +57,9 @@ impl CursorsThreadState {
     fn new_collection(&mut self, task: NewCollectionTask) {
         let NewCollectionTask { sender } = task;
 
-        let id = self.collections.insert(InnerCursorsCollection::new);
+        let id = self
+            .collections
+            .insert(|id| InnerCursorsCollection::new(&self.config, id));
 
         if let Err(_) = sender.send(id) {
             self.collections.delete(&id);

@@ -1,3 +1,4 @@
+use crate::database::config::DatabaseConfig;
 use crate::database::cursors::query::InnerQueryCursors;
 use crate::util::indexed_container::{IndexedContainerItem, IndexedContainerPointer};
 
@@ -13,10 +14,10 @@ pub struct InnerCursorsCollection {
 }
 
 impl InnerCursorsCollection {
-    pub fn new(inner_id: InnerCursorsCollectionId) -> Self {
+    pub fn new(config: &DatabaseConfig, inner_id: InnerCursorsCollectionId) -> Self {
         Self {
             inner_id,
-            query_cursors: InnerQueryCursors::new(),
+            query_cursors: InnerQueryCursors::new(config),
         }
     }
 }

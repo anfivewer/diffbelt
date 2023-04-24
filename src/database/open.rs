@@ -59,7 +59,7 @@ impl Database {
         let collections_for_deletion = Arc::new(RwLock::new(HashSet::new()));
 
         let readers = start_readers_task_thread().await;
-        let cursors = start_cursors_task_thread().await;
+        let cursors = start_cursors_task_thread(options.config.clone()).await;
 
         let (stop_sender, stop_receiver) = watch::channel(false);
 

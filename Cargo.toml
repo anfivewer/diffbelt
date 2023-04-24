@@ -24,6 +24,7 @@ base64 = "0.20.0"
 querystring = "1.1.0"
 urlencoding = "2.1.2"
 hashbrown = "0.13.2"
+lru = "0.10.0"
 
 [dependencies.diffbelt_macro]
 path = "crates/diffbelt_macro"

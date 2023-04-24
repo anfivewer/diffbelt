@@ -174,8 +174,7 @@ async fn query_test_inner() {
     .await;
 
     let query_cursors_count = collection.query_cursors_count().await;
-
-    println!("count {}", query_cursors_count);
+    assert_eq!(query_cursors_count, 1);
 }
 
 fn key_value_update_items_to_key_value(items: Vec<KeyValueUpdate>) -> Vec<KeyValue> {
