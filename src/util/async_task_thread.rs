@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 pub struct AsyncTaskThread<T> {
     task_sender: mpsc::Sender<T>,
     stop_sender: AtomicCleanup<oneshot::Sender<()>>,
-    join_handle: AtomicCleanup<JoinHandle<()>>,
+    join_handle: AtomicCleanup<JoinHandle<Option<()>>>,
 }
 
 pub struct TaskPoller<T> {
@@ -41,6 +41,7 @@ impl<Task> AsyncTaskThread<Task> {
     >(
         run: F,
         data: Data,
+        #[cfg(feature = "debug_prints")] name: &str,
     ) -> Self {
         let (task_sender, task_receiver) = mpsc::channel(1000);
         let (stop_sender, stop_receiver) = oneshot::channel();
@@ -53,7 +54,12 @@ impl<Task> AsyncTaskThread<Task> {
             },
         );
 
-        let join_handle = spawn_async_thread(async_task).await;
+        let join_handle = spawn_async_thread(
+            async_task,
+            #[cfg(feature = "debug_prints")]
+            name,
+        )
+        .await;
 
         Self {
             task_sender,
@@ -71,8 +77,8 @@ impl<Task> AsyncTaskThread<Task> {
         self.send_stop();
 
         if let Some(join_handle) = self.join_handle.take() {
-            join_handle.await.unwrap_or(())
-        };
+            join_handle.await.unwrap_or(None);
+        }
     }
 
     pub fn send_stop(&self) {

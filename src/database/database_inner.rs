@@ -9,7 +9,7 @@ use crate::messages::cursors::DatabaseCollectionCursorsTask;
 use crate::messages::readers::{DatabaseCollectionReadersTask, GetReadersPointingToCollectionTask};
 use crate::util::async_task_thread::AsyncTaskThread;
 use std::sync::Arc;
-use tokio::sync::{oneshot, RwLock};
+use tokio::sync::{oneshot, watch, RwLock};
 
 pub struct DatabaseInner {
     collections_for_deletion: Arc<RwLock<HashSet<String>>>,
@@ -17,6 +17,7 @@ pub struct DatabaseInner {
     collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
     readers: AsyncTaskThread<DatabaseCollectionReadersTask>,
     cursors: AsyncTaskThread<DatabaseCollectionCursorsTask>,
+    stop_receiver: watch::Receiver<bool>,
 }
 
 pub enum GetReaderGenerationIdFnError {
@@ -32,6 +33,7 @@ impl DatabaseInner {
         collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
         readers: AsyncTaskThread<DatabaseCollectionReadersTask>,
         cursors: AsyncTaskThread<DatabaseCollectionCursorsTask>,
+        stop_receiver: watch::Receiver<bool>,
     ) -> Self {
         Self {
             collections_for_deletion,
@@ -39,6 +41,7 @@ impl DatabaseInner {
             collections,
             readers,
             cursors,
+            stop_receiver,
         }
     }
 
@@ -187,8 +190,16 @@ impl DatabaseInner {
         self.readers.add_task(task).await
     }
 
+    pub async fn add_cursors_task(&self, task: DatabaseCollectionCursorsTask) {
+        self.cursors.add_task(task).await
+    }
+
     pub fn on_database_drop(&self) {
         self.readers.send_stop();
         self.cursors.send_stop();
+    }
+
+    pub fn stop_receiver(&self) -> watch::Receiver<bool> {
+        self.stop_receiver.clone()
     }
 }

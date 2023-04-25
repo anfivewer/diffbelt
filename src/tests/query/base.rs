@@ -9,14 +9,14 @@ use crate::common::{
 };
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
-use crate::util::global_tokio_runtime::create_global_tokio_runtime;
+use crate::util::tokio_runtime::create_main_tokio_runtime;
 use std::collections::BTreeMap;
 
 use futures::future::BoxFuture;
 
 #[test]
 fn query_test() {
-    let runtime = create_global_tokio_runtime().unwrap();
+    let runtime = create_main_tokio_runtime().unwrap();
     runtime.block_on(query_test_inner());
 }
 
@@ -75,6 +75,7 @@ async fn query_test_inner() {
 
     let first_generation_expected_items =
         key_value_update_items_to_key_value(first_generation_updates.clone());
+
     assert_query(
         collection.as_ref(),
         None,
@@ -171,6 +172,9 @@ async fn query_test_inner() {
         &second_generation_expected_items,
     )
     .await;
+
+    let query_cursors_count = collection.query_cursors_count().await;
+    assert_eq!(query_cursors_count, 1);
 }
 
 fn key_value_update_items_to_key_value(items: Vec<KeyValueUpdate>) -> Vec<KeyValue> {
@@ -231,12 +235,14 @@ fn assert_query_inner<'a>(
     quering_generation_id: Option<OwnedGenerationId>,
     expected_generation_id: GenerationId<'a>,
     expected_items: &'a [KeyValue],
-    cursor_id: Option<String>,
+    cursor_id: Option<Box<str>>,
 ) -> BoxFuture<'a, ()> {
     let fut = async move {
-        let result = match cursor_id {
+        let result = match &cursor_id {
             Some(cursor_id) => collection
-                .read_query_cursor(ReadQueryCursorOptions { cursor_id })
+                .read_query_cursor(ReadQueryCursorOptions {
+                    cursor_id: cursor_id.clone(),
+                })
                 .await
                 .unwrap(),
             None => collection
@@ -251,7 +257,7 @@ fn assert_query_inner<'a>(
         let QueryOk {
             generation_id: actual_generation_id,
             items: actual_items,
-            cursor_id,
+            cursor_id: next_cursor_id,
         } = result;
 
         assert_eq!(actual_generation_id.as_ref(), expected_generation_id);
@@ -264,9 +270,33 @@ fn assert_query_inner<'a>(
 
         assert_eq!(&actual_items, this_pack_expected_items);
 
-        assert_eq!(cursor_id.is_none(), next_pack_expected_items.is_empty());
+        if cursor_id.is_some() {
+            assert!(next_cursor_id.is_some());
+        } else {
+            assert_eq!(
+                next_cursor_id.is_none(),
+                next_pack_expected_items.is_empty()
+            );
+        }
 
         if next_pack_expected_items.is_empty() {
+            if cursor_id.is_some() {
+                let QueryOk {
+                    generation_id: actual_generation_id,
+                    items,
+                    cursor_id,
+                } = collection
+                    .read_query_cursor(ReadQueryCursorOptions {
+                        cursor_id: next_cursor_id.unwrap(),
+                    })
+                    .await
+                    .unwrap();
+
+                assert_eq!(actual_generation_id.as_ref(), expected_generation_id);
+                assert!(items.is_empty());
+                assert!(cursor_id.is_none());
+            }
+
             return ();
         }
 
@@ -275,7 +305,7 @@ fn assert_query_inner<'a>(
             quering_generation_id,
             expected_generation_id,
             next_pack_expected_items,
-            cursor_id,
+            next_cursor_id,
         )
         .await
     };

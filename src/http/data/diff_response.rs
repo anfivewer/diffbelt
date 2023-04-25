@@ -14,7 +14,7 @@ pub struct DiffResponseJsonData {
     from_generation_id: EncodedGenerationIdJsonData,
     to_generation_id: EncodedGenerationIdJsonData,
     items: Vec<KeyValueDiffJsonData>,
-    cursor_id: Option<String>,
+    cursor_id: Option<Box<str>>,
 }
 
 impl From<DiffOk> for DiffResponseJsonData {

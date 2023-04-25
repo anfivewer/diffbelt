@@ -12,7 +12,7 @@ use tokio::sync::{watch, Mutex, RwLock};
 pub mod config;
 pub mod constants;
 pub mod create_collection;
-mod cursors;
+pub mod cursors;
 mod database_inner;
 mod drop;
 pub mod list_collections;

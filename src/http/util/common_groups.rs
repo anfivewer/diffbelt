@@ -14,7 +14,7 @@ pub fn id_only_group(captures: Captures<'_>) -> IdOnlyGroup {
 
 pub struct IdWithNameGroup {
     pub id: String,
-    pub name: String,
+    pub name: Box<str>,
 }
 
 pub fn id_with_name_group(captures: Captures<'_>) -> IdWithNameGroup {
@@ -26,8 +26,8 @@ pub fn id_with_name_group(captures: Captures<'_>) -> IdWithNameGroup {
 
     let name = captures.name("name").unwrap().as_str();
     let name = match urlencoding::decode(name) {
-        Ok(name) => name.to_string(),
-        Err(_) => id.to_string(),
+        Ok(name) => Box::from(name),
+        Err(_) => Box::from(name),
     };
 
     IdWithNameGroup { id, name }

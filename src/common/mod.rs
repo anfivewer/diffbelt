@@ -348,6 +348,7 @@ pub trait IsByteArrayMut<'a> {
     fn get_byte_array_mut(&'a mut self) -> &'a mut [u8];
 }
 
+#[derive(Debug)]
 pub struct NeverEq;
 
 unsafe impl Send for NeverEq {}

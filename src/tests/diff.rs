@@ -12,14 +12,14 @@ use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
 use crate::tests::util::manual_generation::wrap_generation;
 use crate::util::bytes::{from_u32_be, increment};
-use crate::util::global_tokio_runtime::create_global_tokio_runtime;
+use crate::util::tokio_runtime::create_main_tokio_runtime;
 use std::collections::{HashMap, HashSet};
 
 const PACK_LIMIT: usize = 20;
 
 #[test]
 fn diff_test() {
-    let runtime = create_global_tokio_runtime().unwrap();
+    let runtime = create_main_tokio_runtime().unwrap();
     runtime.block_on(diff_test_inner());
 }
 
@@ -218,7 +218,7 @@ struct AssertDiffStart<'a> {
 
 enum AssertDiffMode<'a> {
     Start(AssertDiffStart<'a>),
-    ByCursor(String),
+    ByCursor(Box<str>),
 }
 
 async fn assert_diff(
@@ -271,6 +271,11 @@ async fn assert_diff(
             items_count,
             PACK_LIMIT
         );
+
+        if items_count == 0 && expected_items_count == 0 {
+            assert!(cursor_id.is_none());
+            return;
+        }
 
         if let Some(expected) = expected_pack_size_distribution {
             assert_eq!(items_count, expected[0]);

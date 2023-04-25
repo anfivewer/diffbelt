@@ -7,11 +7,11 @@ use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::common::{KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId};
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
-use crate::util::global_tokio_runtime::create_global_tokio_runtime;
+use crate::util::tokio_runtime::create_main_tokio_runtime;
 
 #[test]
 fn get_keys_around_phantom_start_test() {
-    let runtime = create_global_tokio_runtime().unwrap();
+    let runtime = create_main_tokio_runtime().unwrap();
     runtime.block_on(get_keys_around_phantom_start_inner());
 }
 

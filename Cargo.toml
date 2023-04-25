@@ -5,6 +5,9 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+debug_prints = []
+
 [dependencies]
 tokio = { version = "1.22.0", features = ["full"] }
 hyper = { version = "0.14.23", features = ["full"] }
@@ -21,6 +24,7 @@ base64 = "0.20.0"
 querystring = "1.1.0"
 urlencoding = "2.1.2"
 hashbrown = "0.13.2"
+lru = "0.10.0"
 
 [dependencies.diffbelt_macro]
 path = "crates/diffbelt_macro"

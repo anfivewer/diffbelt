@@ -14,7 +14,7 @@ pub mod commit_next_generation;
 
 pub struct NewGenerationCommiter {
     stop_sender: Option<oneshot::Sender<()>>,
-    join_handle: Option<JoinHandle<()>>,
+    join_handle: Option<JoinHandle<Option<()>>>,
 }
 
 pub struct NewGenerationCommiterOptions {
@@ -87,7 +87,12 @@ impl NewGenerationCommiter {
             }
         };
 
-        let join_handle = spawn_async_thread(async_task).await;
+        let join_handle = spawn_async_thread(
+            async_task,
+            #[cfg(feature = "debug_prints")]
+            "newgen",
+        )
+        .await;
 
         NewGenerationCommiter {
             stop_sender: Some(stop_sender),
@@ -101,7 +106,7 @@ impl NewGenerationCommiter {
         }
 
         if let Some(join_handle) = self.join_handle.take() {
-            join_handle.await.unwrap_or(())
+            join_handle.await.unwrap_or(None);
         };
     }
 }

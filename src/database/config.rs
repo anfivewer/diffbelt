@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 pub struct DatabaseConfig {
     pub query_pack_limit: usize,
     pub query_pack_records_limit: usize,
@@ -16,6 +18,16 @@ pub struct DatabaseConfig {
     pub diff_changes_limit: usize,
     pub diff_pack_limit: usize,
     pub diff_pack_records_limit: usize,
+
+    /**
+     * Note that when you are starting cursor there is 1 public cursor id (A)
+     * then when you are fetching this cursor, there is 2 public cursors id (A and B)
+     * cursor A will be dropped after requesting B, but there will be always 2 cursors
+     * (current and next) until last cursor will be fetched.
+     * Last cursor always contains empty items list and stays present infinite long
+     * until this limit will not be reached
+     */
+    pub max_cursors_per_collection: NonZeroUsize,
 }
 
 impl Default for DatabaseConfig {
@@ -26,6 +38,7 @@ impl Default for DatabaseConfig {
             diff_changes_limit: 20000,
             diff_pack_limit: 200,
             diff_pack_records_limit: 5000,
+            max_cursors_per_collection: NonZeroUsize::new(100).unwrap(),
         }
     }
 }
