@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 pub mod collection;
 pub mod query;
+pub mod storage;
 mod thread;
 
 pub async fn start_cursors_task_thread(

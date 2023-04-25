@@ -1,8 +1,9 @@
 use crate::database::cursors::collection::InnerCursorsCollectionId;
-use crate::database::cursors::query::{
-    AddQueryCursorContinuationData, AddQueryCursorData, InnerQueryCursorId, QueryCursorError,
-    QueryCursorPublicId, QueryCursorRef,
+use crate::database::cursors::query::QueryCursorType;
+use crate::database::cursors::storage::{
+    CursorError, CursorPublicId, CursorRef, CursorType, InnerCursorId,
 };
+use std::marker::PhantomData;
 use tokio::sync::oneshot;
 
 pub struct NewCollectionTask {
@@ -13,61 +14,67 @@ pub struct DropCollectionTask {
     pub collection_id: InnerCursorsCollectionId,
 }
 
-pub struct AddQueryCursorTask {
+pub struct AddCursorTask<T: CursorType> {
     pub collection_id: InnerCursorsCollectionId,
-    pub data: AddQueryCursorData,
-    pub sender: oneshot::Sender<Result<QueryCursorPublicId, QueryCursorError>>,
+    pub data: T::AddData,
+    pub sender: oneshot::Sender<Result<CursorPublicId, CursorError>>,
 }
 
-pub struct GetQueryCursorByPublicIdTask {
+pub struct GetCursorByPublicIdTask<T: CursorType> {
     pub collection_id: InnerCursorsCollectionId,
-    pub public_id: QueryCursorPublicId,
-    pub sender: oneshot::Sender<Option<(InnerQueryCursorId, QueryCursorRef)>>,
+    pub public_id: CursorPublicId,
+    pub sender: oneshot::Sender<Option<(InnerCursorId<T>, CursorRef<T>)>>,
 }
 
-pub struct AddQueryCursorContinuationTask {
+pub struct AddCursorContinuationTask<T: CursorType> {
     pub collection_id: InnerCursorsCollectionId,
-    pub inner_id: InnerQueryCursorId,
+    pub inner_id: InnerCursorId<T>,
     pub is_current: bool,
-    pub data: AddQueryCursorContinuationData,
-    pub sender: oneshot::Sender<Result<QueryCursorPublicId, QueryCursorError>>,
+    pub data: T::AddContinuationData,
+    pub sender: oneshot::Sender<Result<CursorPublicId, CursorError>>,
 }
 
-pub struct FinishQueryCursorTask {
+pub struct FinishCursorTask<T: CursorType> {
     pub collection_id: InnerCursorsCollectionId,
-    pub inner_id: InnerQueryCursorId,
+    pub inner_id: InnerCursorId<T>,
     pub is_current: bool,
-    pub sender: oneshot::Sender<Result<QueryCursorPublicId, QueryCursorError>>,
+    pub sender: oneshot::Sender<Result<CursorPublicId, CursorError>>,
 }
 
-pub struct FullyFinishQueryCursorTask {
+pub struct FullyFinishCursorTask<T: CursorType> {
     pub collection_id: InnerCursorsCollectionId,
-    pub inner_id: InnerQueryCursorId,
-    pub sender: oneshot::Sender<Result<(), QueryCursorError>>,
+    pub inner_id: InnerCursorId<T>,
+    pub sender: oneshot::Sender<Result<(), CursorError>>,
 }
 
-pub struct AbortQueryCursorTask {
+pub struct AbortCursorTask<T: CursorType> {
+    pub cursor_type: PhantomData<T>,
     pub collection_id: InnerCursorsCollectionId,
-    pub public_id: QueryCursorPublicId,
-    pub sender: oneshot::Sender<Result<(), QueryCursorError>>,
+    pub public_id: CursorPublicId,
+    pub sender: oneshot::Sender<Result<(), CursorError>>,
 }
 
 #[cfg(test)]
-pub struct GetCollectionQueryCursorsCountTask {
+pub struct GetCollectionCursorsCountTask<T: CursorType> {
+    pub cursor_type: PhantomData<T>,
     pub collection_id: InnerCursorsCollectionId,
-    pub sender: oneshot::Sender<Result<usize, QueryCursorError>>,
+    pub sender: oneshot::Sender<Result<usize, CursorError>>,
+}
+
+pub enum DatabaseCollectionSpecificCursorsTask<T: CursorType> {
+    AddQueryCursor(AddCursorTask<T>),
+    GetQueryCursorByPublicId(GetCursorByPublicIdTask<T>),
+    AddQueryCursorContinuation(AddCursorContinuationTask<T>),
+    FinishQueryCursor(FinishCursorTask<T>),
+    FullyFinishQueryCursor(FullyFinishCursorTask<T>),
+    AbortQueryCursor(AbortCursorTask<T>),
+
+    #[cfg(test)]
+    GetCollectionQueryCursorsCount(GetCollectionCursorsCountTask<T>),
 }
 
 pub enum DatabaseCollectionCursorsTask {
     NewCollection(NewCollectionTask),
     DropCollection(DropCollectionTask),
-    AddQueryCursor(AddQueryCursorTask),
-    GetQueryCursorByPublicId(GetQueryCursorByPublicIdTask),
-    AddQueryCursorContinuation(AddQueryCursorContinuationTask),
-    FinishQueryCursor(FinishQueryCursorTask),
-    FullyFinishQueryCursor(FullyFinishQueryCursorTask),
-    AbortQueryCursor(AbortQueryCursorTask),
-
-    #[cfg(test)]
-    GetCollectionQueryCursorsCount(GetCollectionQueryCursorsCountTask),
+    Query(DatabaseCollectionSpecificCursorsTask<QueryCursorType>),
 }

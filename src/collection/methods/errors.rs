@@ -1,5 +1,5 @@
 use crate::collection::util::reader_value::OwnedReaderValue;
-use crate::database::cursors::query::QueryCursorError;
+use crate::database::cursors::storage::CursorError;
 use tokio::sync::oneshot;
 
 use crate::raw_db::RawDbError;
@@ -24,7 +24,7 @@ pub enum CollectionMethodError {
     TaskJoin,
     CannotDeleteRawDbPath(std::io::Error),
     OneshotRecv(oneshot::error::RecvError),
-    QueryCursor(QueryCursorError),
+    QueryCursor(CursorError),
 }
 
 impl From<RawDbError> for CollectionMethodError {

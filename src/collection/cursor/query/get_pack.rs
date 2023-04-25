@@ -1,7 +1,8 @@
-use crate::collection::cursor::query::{QueryCursor, QueryCursorPack};
+use crate::collection::cursor::query::QueryCursorPack;
 
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::database::config::DatabaseConfig;
+use crate::database::cursors::query::QueryCursor;
 use crate::raw_db::query_collection_records::{
     QueryCollectionRecordsOptions, QueryCollectionRecordsResult,
 };
