@@ -26,9 +26,9 @@ pub trait CursorType: Copy {
     type AddContinuationData;
 
     fn public_id_from_data(data: &Self::Data) -> CursorPublicId;
-    fn generation_id_from_data(data: &Self::Data) -> GenerationId<'_>;
     fn phantom_id_from_data(data: &Self::Data) -> Option<PhantomId<'_>>;
-    fn generation_id_from_add_data(data: &Self::AddData) -> GenerationId<'_>;
+    fn from_generation_id_from_add_data(data: &Self::AddData) -> Option<GenerationId<'_>>;
+    fn to_generation_id_from_add_data(data: &Self::AddData) -> GenerationId<'_>;
     fn data_from_add_data(data: Self::AddData, public_id: CursorPublicId) -> Self::Data;
     fn replace_data_from_continuation(
         continuation_data: Self::AddContinuationData,
@@ -54,7 +54,8 @@ pub struct CursorRefCursor<T: CursorType> {
 }
 
 pub struct CursorRefEmpty {
-    pub generation_id: OwnedGenerationId,
+    pub from_generation_id: Option<OwnedGenerationId>,
+    pub to_generation_id: OwnedGenerationId,
 }
 
 pub enum CursorRef<T: CursorType> {
@@ -64,7 +65,8 @@ pub enum CursorRef<T: CursorType> {
 
 pub struct InnerCursor<T: CursorType> {
     pub inner_id: InnerCursorId<T>,
-    pub generation_id: OwnedGenerationId,
+    pub from_generation_id: Option<OwnedGenerationId>,
+    pub to_generation_id: OwnedGenerationId,
 
     pub final_public_id: Option<CursorPublicId>,
     pub current_cursor: Option<Arc<T::Data>>,
@@ -140,7 +142,8 @@ impl<T: CursorType> InnerCursors<T> {
 
         let inner_id = self.cursors.insert(|inner_id| InnerCursor {
             inner_id,
-            generation_id: T::generation_id_from_add_data(&data).to_owned(),
+            from_generation_id: None,
+            to_generation_id: T::to_generation_id_from_add_data(&data).to_owned(),
             final_public_id: None,
             current_cursor: None,
             next_cursor: Some(Arc::new(T::data_from_add_data(data, public_id.id))),
@@ -192,7 +195,8 @@ impl<T: CursorType> InnerCursors<T> {
                 return Some((
                     inner_id.clone(),
                     CursorRef::Empty(CursorRefEmpty {
-                        generation_id: cursor.generation_id.clone(),
+                        from_generation_id: cursor.from_generation_id.clone(),
+                        to_generation_id: cursor.to_generation_id.clone(),
                     }),
                 ));
             }
@@ -334,7 +338,8 @@ impl<T: CursorType> InnerCursors<T> {
 
         let InnerCursor {
             inner_id: _,
-            generation_id: _,
+            from_generation_id: _,
+            to_generation_id: _,
             final_public_id,
             current_cursor,
             next_cursor,

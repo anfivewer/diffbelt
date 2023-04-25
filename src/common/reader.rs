@@ -7,6 +7,7 @@ pub struct ReaderRecord {
     pub generation_id: Option<OwnedGenerationId>,
 }
 
+#[derive(Clone)]
 pub struct ReaderDef {
     pub collection_name: Option<String>,
     pub reader_name: String,

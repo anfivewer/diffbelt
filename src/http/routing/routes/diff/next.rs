@@ -15,7 +15,7 @@ use crate::http::util::response::create_ok_json_response;
 pub async fn read_cursor(
     _request: impl Request,
     collection: Arc<Collection>,
-    cursor_id: String,
+    cursor_id: Box<str>,
 ) -> Result<Response, HttpError> {
     let options = ReadDiffCursorOptions { cursor_id };
 

@@ -218,7 +218,7 @@ struct AssertDiffStart<'a> {
 
 enum AssertDiffMode<'a> {
     Start(AssertDiffStart<'a>),
-    ByCursor(String),
+    ByCursor(Box<str>),
 }
 
 async fn assert_diff(
@@ -271,6 +271,11 @@ async fn assert_diff(
             items_count,
             PACK_LIMIT
         );
+
+        if items_count == 0 && expected_items_count == 0 {
+            assert!(cursor_id.is_none());
+            return;
+        }
 
         if let Some(expected) = expected_pack_size_distribution {
             assert_eq!(items_count, expected[0]);

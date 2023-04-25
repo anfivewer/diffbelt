@@ -1,26 +1,9 @@
-use rand::distributions::Uniform;
-use rand::Rng;
-
 const CHARS: [char; 62] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
     'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b',
     'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
     'v', 'w', 'x', 'y', 'z',
 ];
-
-pub fn rand_b62(len: usize) -> String {
-    let mut result = String::with_capacity(len);
-
-    let mut rng = rand::thread_rng();
-    let between = Uniform::from(0..62usize);
-
-    for _ in 0..len {
-        let i = rng.sample(&between);
-        result.push(CHARS[i]);
-    }
-
-    result
-}
 
 pub fn from_u64(mut value: u64) -> Box<str> {
     let mut boxed: Box<[u8]> = Box::from([0u8; 11]);

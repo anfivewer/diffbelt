@@ -1,4 +1,5 @@
 use crate::database::cursors::collection::InnerCursorsCollectionId;
+use crate::database::cursors::diff::DiffCursorType;
 use crate::database::cursors::query::QueryCursorType;
 use crate::database::cursors::storage::{
     CursorError, CursorPublicId, CursorRef, CursorType, InnerCursorId,
@@ -77,4 +78,5 @@ pub enum DatabaseCollectionCursorsTask {
     NewCollection(NewCollectionTask),
     DropCollection(DropCollectionTask),
     Query(DatabaseCollectionSpecificCursorsTask<QueryCursorType>),
+    Diff(DatabaseCollectionSpecificCursorsTask<DiffCursorType>),
 }

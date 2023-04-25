@@ -300,7 +300,6 @@ impl Collection {
             database_inner,
             newgen,
             on_put_sender,
-            diff_cursors: std::sync::RwLock::new(HashMap::new()),
             prev_phantom_id: RwLock::new(prev_phantom_id),
             cursors_id,
             drop_sender: Some(drop_sender),

@@ -34,6 +34,9 @@ pub async fn run(
             DatabaseCollectionCursorsTask::Query(task) => {
                 state.handle_specific(|collection| &mut collection.query_cursors, task)
             }
+            DatabaseCollectionCursorsTask::Diff(task) => {
+                state.handle_specific(|collection| &mut collection.diff_cursors, task)
+            }
         }
     }
 }

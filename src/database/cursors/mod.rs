@@ -5,6 +5,7 @@ use crate::util::async_task_thread::AsyncTaskThread;
 use std::sync::Arc;
 
 pub mod collection;
+pub mod diff;
 pub mod query;
 pub mod storage;
 mod thread;

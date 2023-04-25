@@ -138,7 +138,10 @@ impl Collection {
 
         let cursor = match cursor {
             CursorRef::Cursor(cursor) => cursor,
-            CursorRef::Empty(CursorRefEmpty { generation_id }) => {
+            CursorRef::Empty(CursorRefEmpty {
+                from_generation_id: _,
+                to_generation_id: generation_id,
+            }) => {
                 let _ = async_sync_call(|sender| {
                     self.database_inner
                         .add_cursors_task(DatabaseCollectionCursorsTask::Query(

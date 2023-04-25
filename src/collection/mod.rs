@@ -1,4 +1,3 @@
-use crate::collection::cursor::diff::DiffCursor;
 use crate::collection::newgen::NewGenerationCommiter;
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{NeverEq, OwnedGenerationId, OwnedPhantomId};
@@ -38,7 +37,6 @@ pub struct Collection {
     // Not defined for manual collections
     newgen: Arc<RwLock<Option<NewGenerationCommiter>>>,
     on_put_sender: Option<watch::Sender<NeverEq>>,
-    diff_cursors: std::sync::RwLock<HashMap<String, Arc<std::sync::RwLock<DiffCursor>>>>,
     prev_phantom_id: RwLock<OwnedPhantomId>,
     cursors_id: InnerCursorsCollectionId,
     drop_sender: Option<oneshot::Sender<()>>,

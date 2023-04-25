@@ -31,15 +31,15 @@ impl CursorType for QueryCursorType {
         data.public_id
     }
 
-    fn generation_id_from_data(data: &Self::Data) -> GenerationId<'_> {
-        data.generation_id.as_ref()
-    }
-
     fn phantom_id_from_data(data: &Self::Data) -> Option<PhantomId<'_>> {
         data.phantom_id.as_ref().map(|x| x.as_ref())
     }
 
-    fn generation_id_from_add_data(data: &Self::AddData) -> GenerationId<'_> {
+    fn from_generation_id_from_add_data(data: &Self::AddData) -> Option<GenerationId<'_>> {
+        Some(data.generation_id.as_ref())
+    }
+
+    fn to_generation_id_from_add_data(data: &Self::AddData) -> GenerationId<'_> {
         data.generation_id.as_ref()
     }
 

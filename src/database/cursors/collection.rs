@@ -1,4 +1,5 @@
 use crate::database::config::DatabaseConfig;
+use crate::database::cursors::diff::DiffCursorType;
 use crate::database::cursors::query::QueryCursorType;
 use crate::database::cursors::storage::InnerCursors;
 use crate::util::indexed_container::{IndexedContainerItem, IndexedContainerPointer};
@@ -12,6 +13,7 @@ pub struct InnerCursorsCollectionId {
 pub struct InnerCursorsCollection {
     pub inner_id: InnerCursorsCollectionId,
     pub query_cursors: InnerCursors<QueryCursorType>,
+    pub diff_cursors: InnerCursors<DiffCursorType>,
 }
 
 impl InnerCursorsCollection {
@@ -19,6 +21,7 @@ impl InnerCursorsCollection {
         Self {
             inner_id,
             query_cursors: InnerCursors::new(config),
+            diff_cursors: InnerCursors::new(config),
         }
     }
 }

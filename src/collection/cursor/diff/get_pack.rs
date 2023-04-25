@@ -1,7 +1,8 @@
-use crate::collection::cursor::diff::{DiffCursor, DiffCursorPack, GenerationIdSource};
+use crate::collection::cursor::diff::{DiffCursorPack, GenerationIdSource};
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::common::reader::ReaderDef;
 use crate::database::config::DatabaseConfig;
+use crate::database::cursors::diff::DiffCursor;
 use crate::database::{DatabaseInner, GetReaderGenerationIdFnError};
 use crate::raw_db::diff_collection_records::{
     DiffCollectionRecordsOk, DiffCollectionRecordsOptions,
@@ -10,7 +11,6 @@ use crate::raw_db::RawDb;
 use std::sync::Arc;
 
 pub struct GetPackOptions {
-    pub this_cursor_id: Option<String>,
     pub db: Arc<RawDb>,
     pub db_inner: Arc<DatabaseInner>,
     pub config: Arc<DatabaseConfig>,
@@ -27,7 +27,6 @@ impl DiffCursor {
         }
 
         let GetPackOptions {
-            this_cursor_id,
             db,
             db_inner,
             config,
@@ -77,20 +76,11 @@ impl DiffCursor {
             next_diff_state,
         } = result;
 
-        let next_cursor = next_diff_state.map(|state| DiffCursor {
-            prev_cursor_id: this_cursor_id,
-            next_cursor_id: None,
-            from_generation_id: GenerationIdSource::Value(from_generation_id.clone()),
-            to_generation_id: to_generation_id.clone(),
-            omit_intermediate_values: self.omit_intermediate_values,
-            raw_db_cursor_state: Some(state),
-        });
-
         Ok(DiffCursorPack {
             from_generation_id,
             to_generation_id,
             items,
-            next_cursor,
+            next_diff_state,
         })
     }
 }
