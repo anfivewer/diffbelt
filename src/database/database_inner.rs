@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::database::constants::DATABASE_RAW_DB_CF;
 use crate::messages::cursors::DatabaseCollectionCursorsTask;
+use crate::messages::generations::DatabaseCollectionGenerationsTask;
 use crate::messages::readers::{DatabaseCollectionReadersTask, GetReadersPointingToCollectionTask};
 use crate::util::async_task_thread::AsyncTaskThread;
 use std::sync::Arc;
@@ -17,6 +18,7 @@ pub struct DatabaseInner {
     collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
     readers: AsyncTaskThread<DatabaseCollectionReadersTask>,
     cursors: AsyncTaskThread<DatabaseCollectionCursorsTask>,
+    generations: AsyncTaskThread<DatabaseCollectionGenerationsTask>,
     stop_receiver: watch::Receiver<bool>,
 }
 
@@ -33,6 +35,7 @@ impl DatabaseInner {
         collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
         readers: AsyncTaskThread<DatabaseCollectionReadersTask>,
         cursors: AsyncTaskThread<DatabaseCollectionCursorsTask>,
+        generations: AsyncTaskThread<DatabaseCollectionGenerationsTask>,
         stop_receiver: watch::Receiver<bool>,
     ) -> Self {
         Self {
@@ -41,6 +44,7 @@ impl DatabaseInner {
             collections,
             readers,
             cursors,
+            generations,
             stop_receiver,
         }
     }
@@ -194,9 +198,14 @@ impl DatabaseInner {
         self.cursors.add_task(task).await
     }
 
+    pub async fn add_generations_task(&self, task: DatabaseCollectionGenerationsTask) {
+        self.generations.add_task(task).await
+    }
+
     pub fn on_database_drop(&self) {
         self.readers.send_stop();
         self.cursors.send_stop();
+        self.generations.send_stop();
     }
 
     pub fn stop_receiver(&self) -> watch::Receiver<bool> {
