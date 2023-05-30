@@ -19,7 +19,10 @@ use crate::collection::util::generation_size_merge::{
 use crate::database::config::DatabaseConfig;
 use crate::database::DatabaseInner;
 use crate::messages::cursors::{
-    DatabaseCollectionCursorsTask, DropCollectionTask, NewCollectionTask,
+    DatabaseCollectionCursorsTask, DropCollectionCursorsTask, NewCollectionCursorsTask,
+};
+use crate::messages::generations::{
+    DatabaseCollectionGenerationsTask, DropCollectionGenerationsTask, NewCollectionGenerationsTask,
 };
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbMerge, RawDbOpenError, RawDbOptions,
@@ -243,7 +246,15 @@ impl Collection {
 
         let cursors_id = async_sync_call(|sender| {
             database_inner.add_cursors_task(DatabaseCollectionCursorsTask::NewCollection(
-                NewCollectionTask { sender },
+                NewCollectionCursorsTask { sender },
+            ))
+        })
+        .await
+        .map_err(CollectionOpenError::OneshotRecv)?;
+
+        let generations_id = async_sync_call(|sender| {
+            database_inner.add_generations_task(DatabaseCollectionGenerationsTask::NewCollection(
+                NewCollectionGenerationsTask { sender },
             ))
         })
         .await
@@ -276,8 +287,16 @@ impl Collection {
 
                 database_inner
                     .add_cursors_task(DatabaseCollectionCursorsTask::DropCollection(
-                        DropCollectionTask {
+                        DropCollectionCursorsTask {
                             collection_id: cursors_id,
+                        },
+                    ))
+                    .await;
+
+                database_inner
+                    .add_generations_task(DatabaseCollectionGenerationsTask::DropCollection(
+                        DropCollectionGenerationsTask {
+                            collection_id: generations_id,
                         },
                     ))
                     .await;
@@ -302,6 +321,7 @@ impl Collection {
             on_put_sender,
             prev_phantom_id: RwLock::new(prev_phantom_id),
             cursors_id,
+            generations_id,
             drop_sender: Some(drop_sender),
         };
 

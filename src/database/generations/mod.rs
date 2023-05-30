@@ -1,3 +1,4 @@
+pub mod collection;
 mod thread;
 
 use crate::database::generations::thread::run;

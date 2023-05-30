@@ -3,6 +3,7 @@ use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{NeverEq, OwnedGenerationId, OwnedPhantomId};
 use crate::database::config::DatabaseConfig;
 use crate::database::cursors::collection::InnerCursorsCollectionId;
+use crate::database::generations::collection::InnerGenerationsCollectionId;
 use crate::database::DatabaseInner;
 use crate::raw_db::{RawDb, RawDbError};
 use if_not_present::ConcurrentPutStatus;
@@ -39,6 +40,7 @@ pub struct Collection {
     on_put_sender: Option<watch::Sender<NeverEq>>,
     prev_phantom_id: RwLock<OwnedPhantomId>,
     cursors_id: InnerCursorsCollectionId,
+    generations_id: InnerGenerationsCollectionId,
     drop_sender: Option<oneshot::Sender<()>>,
 }
 
