@@ -80,7 +80,9 @@ impl<T: IndexedContainerItem> IndexedContainer<T> {
     }
 
     pub fn delete(&mut self, id: &T::Id) -> Option<T::Item> {
-        let Some(entry) = self.array.get_mut(id.index()) else {
+        let index = id.index();
+
+        let Some(entry) = self.array.get_mut(index) else {
             return None;
         };
 
@@ -91,6 +93,8 @@ impl<T: IndexedContainerItem> IndexedContainer<T> {
         if item.counter() != id.counter() {
             return None;
         }
+
+        self.free_slots.push_back(index);
 
         entry.take()
     }
