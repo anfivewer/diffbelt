@@ -1,4 +1,6 @@
+use crate::common::OwnedGenerationId;
 use crate::util::indexed_container::{IndexedContainerItem, IndexedContainerPointer};
+use tokio::sync::watch;
 
 #[derive(Copy, Clone)]
 pub struct InnerGenerationsCollectionId {
@@ -8,11 +10,27 @@ pub struct InnerGenerationsCollectionId {
 
 pub struct InnerGenerationsCollection {
     pub inner_id: InnerGenerationsCollectionId,
+    pub generation_id: OwnedGenerationId,
+    pub next_generation_id: Option<OwnedGenerationId>,
+    pub generation_id_sender: watch::Sender<OwnedGenerationId>,
+    pub generation_id_receiver: watch::Receiver<OwnedGenerationId>,
 }
 
 impl InnerGenerationsCollection {
-    pub fn new(inner_id: InnerGenerationsCollectionId) -> Self {
-        Self { inner_id }
+    pub fn new(
+        inner_id: InnerGenerationsCollectionId,
+        generation_id: OwnedGenerationId,
+        next_generation_id: Option<OwnedGenerationId>,
+    ) -> Self {
+        let (generation_id_sender, generation_id_receiver) = watch::channel(generation_id.clone());
+
+        Self {
+            inner_id,
+            generation_id,
+            next_generation_id,
+            generation_id_sender,
+            generation_id_receiver,
+        }
     }
 }
 

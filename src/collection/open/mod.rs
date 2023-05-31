@@ -23,6 +23,7 @@ use crate::messages::cursors::{
 };
 use crate::messages::generations::{
     DatabaseCollectionGenerationsTask, DropCollectionGenerationsTask, NewCollectionGenerationsTask,
+    NewCollectionGenerationsTaskResponse,
 };
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbMerge, RawDbOpenError, RawDbOptions,
@@ -252,9 +253,16 @@ impl Collection {
         .await
         .map_err(CollectionOpenError::OneshotRecv)?;
 
-        let generations_id = async_sync_call(|sender| {
+        let NewCollectionGenerationsTaskResponse {
+            collection_id: generations_id,
+            generation_id_receiver: _,
+        } = async_sync_call(|sender| {
             database_inner.add_generations_task(DatabaseCollectionGenerationsTask::NewCollection(
-                NewCollectionGenerationsTask { sender },
+                NewCollectionGenerationsTask {
+                    generation_id: generation_id.clone(),
+                    next_generation_id: next_generation_id.clone(),
+                    sender,
+                },
             ))
         })
         .await
