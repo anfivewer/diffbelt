@@ -1,4 +1,5 @@
 pub mod collection;
+pub mod next_generation_lock;
 mod thread;
 
 use crate::database::generations::thread::run;

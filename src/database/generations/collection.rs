@@ -1,5 +1,8 @@
 use crate::common::OwnedGenerationId;
-use crate::util::indexed_container::{IndexedContainerItem, IndexedContainerPointer};
+use crate::database::generations::next_generation_lock::NextGenerationIdLock;
+use crate::util::indexed_container::{
+    IndexedContainer, IndexedContainerItem, IndexedContainerPointer,
+};
 use tokio::sync::watch;
 
 #[derive(Copy, Clone)]
@@ -14,6 +17,7 @@ pub struct InnerGenerationsCollection {
     pub next_generation_id: Option<OwnedGenerationId>,
     pub generation_id_sender: watch::Sender<OwnedGenerationId>,
     pub generation_id_receiver: watch::Receiver<OwnedGenerationId>,
+    pub next_generation_locks: IndexedContainer<NextGenerationIdLock>,
 }
 
 impl InnerGenerationsCollection {
@@ -30,7 +34,17 @@ impl InnerGenerationsCollection {
             next_generation_id,
             generation_id_sender,
             generation_id_receiver,
+            // TODO: add size limit
+            next_generation_locks: IndexedContainer::new(),
         }
+    }
+
+    pub fn lock_next_generation(&mut self) -> NextGenerationIdLock {
+        return self.next_generation_locks.insert(|id| id);
+    }
+
+    pub fn unlock_next_generation(&mut self, id: NextGenerationIdLock) {
+        self.next_generation_locks.delete(&id);
     }
 }
 

@@ -1,5 +1,8 @@
 use crate::common::OwnedGenerationId;
 use crate::database::generations::collection::InnerGenerationsCollectionId;
+use crate::database::generations::next_generation_lock::{
+    NextGenerationIdLock, NextGenerationIdLockWithSender,
+};
 use crate::database::DatabaseInner;
 use std::sync::Arc;
 use tokio::sync::{oneshot, watch};
@@ -20,7 +23,9 @@ pub struct DropCollectionGenerationsTask {
 }
 
 pub struct LockNextGenerationIdTaskResponse {
-    //
+    pub generation_id: OwnedGenerationId,
+    pub next_generation_id: Option<OwnedGenerationId>,
+    pub lock: NextGenerationIdLockWithSender,
 }
 
 pub struct LockNextGenerationIdTask {
