@@ -26,8 +26,27 @@ impl IndexedContainerItem for NextGenerationIdLock {
     }
 }
 
+pub struct NextGenerationIdUnlockMsg {
+    pub need_schedule_next_generation: bool,
+}
+
 pub struct NextGenerationIdLockWithSender {
-    pub sender: Option<oneshot::Sender<()>>,
+    need_schedule_next_generation: bool,
+    pub sender: Option<oneshot::Sender<NextGenerationIdUnlockMsg>>,
+}
+
+impl NextGenerationIdLockWithSender {
+    pub fn new() -> (Self, oneshot::Receiver<NextGenerationIdUnlockMsg>) {
+        let (sender, receiver) = oneshot::channel();
+
+        (
+            Self {
+                need_schedule_next_generation: false,
+                sender: Some(sender),
+            },
+            receiver,
+        )
+    }
 }
 
 impl Drop for NextGenerationIdLockWithSender {

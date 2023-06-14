@@ -13,16 +13,24 @@ pub struct InnerGenerationsCollectionId {
 
 pub struct InnerGenerationsCollection {
     pub inner_id: InnerGenerationsCollectionId,
+    pub is_manual: bool,
     pub generation_id: OwnedGenerationId,
     pub next_generation_id: Option<OwnedGenerationId>,
     pub generation_id_sender: watch::Sender<OwnedGenerationId>,
     pub generation_id_receiver: watch::Receiver<OwnedGenerationId>,
     pub next_generation_locks: IndexedContainer<NextGenerationIdLock>,
+    pub is_next_generation_scheduled: bool,
+}
+
+pub enum NextGenerationScheduleAction {
+    NeedSchedule,
+    NoNeedSchedule,
 }
 
 impl InnerGenerationsCollection {
     pub fn new(
         inner_id: InnerGenerationsCollectionId,
+        is_manual: bool,
         generation_id: OwnedGenerationId,
         next_generation_id: Option<OwnedGenerationId>,
     ) -> Self {
@@ -30,12 +38,15 @@ impl InnerGenerationsCollection {
 
         Self {
             inner_id,
+            is_manual,
             generation_id,
             next_generation_id,
             generation_id_sender,
             generation_id_receiver,
             // TODO: add size limit
             next_generation_locks: IndexedContainer::new(),
+            // TODO: check after restart
+            is_next_generation_scheduled: false,
         }
     }
 
@@ -45,6 +56,16 @@ impl InnerGenerationsCollection {
 
     pub fn unlock_next_generation(&mut self, id: NextGenerationIdLock) {
         self.next_generation_locks.delete(&id);
+    }
+
+    pub fn schedule_next_generation(&mut self) -> NextGenerationScheduleAction {
+        if self.is_manual || self.is_next_generation_scheduled {
+            return NextGenerationScheduleAction::NoNeedSchedule;
+        }
+
+        self.is_next_generation_scheduled = true;
+
+        NextGenerationScheduleAction::NeedSchedule
     }
 }
 
