@@ -253,15 +253,19 @@ impl Collection {
         .await
         .map_err(CollectionOpenError::OneshotRecv)?;
 
+        let raw_db = Arc::new(raw_db);
+
         let NewCollectionGenerationsTaskResponse {
             collection_id: generations_id,
             generation_id_receiver: _,
         } = async_sync_call(|sender| {
             database_inner.add_generations_task(DatabaseCollectionGenerationsTask::NewCollection(
                 NewCollectionGenerationsTask {
+                    is_manual,
                     generation_id: generation_id.clone(),
                     next_generation_id: next_generation_id.clone(),
                     sender,
+                    db: raw_db.clone(),
                 },
             ))
         })
@@ -316,7 +320,7 @@ impl Collection {
         let collection = Collection {
             config: options.config,
             name: Arc::from(collection_name),
-            raw_db: Arc::new(raw_db),
+            raw_db,
             is_manual,
             is_deleted: Arc::new(RwLock::new(false)),
             generation_id_sender: Arc::new(generation_id_sender),

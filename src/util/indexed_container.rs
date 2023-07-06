@@ -27,6 +27,14 @@ impl<T: IndexedContainerItem> IndexedContainer<T> {
         }
     }
 
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            array: Vec::with_capacity(capacity),
+            free_slots: VecDeque::with_capacity(capacity),
+            counter: 0,
+        }
+    }
+
     pub fn insert<F: FnOnce(T::Id) -> T::Item>(&mut self, create: F) -> T::Id {
         self.counter += 1;
         let counter = self.counter;

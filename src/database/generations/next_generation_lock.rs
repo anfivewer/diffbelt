@@ -47,6 +47,10 @@ impl NextGenerationIdLockWithSender {
             receiver,
         )
     }
+
+    pub fn set_need_schedule_next_generation(&mut self) {
+        self.need_schedule_next_generation = true;
+    }
 }
 
 impl Drop for NextGenerationIdLockWithSender {
@@ -55,6 +59,10 @@ impl Drop for NextGenerationIdLockWithSender {
             return;
         };
 
-        sender.send(()).unwrap_or(());
+        sender
+            .send(NextGenerationIdUnlockMsg {
+                need_schedule_next_generation: self.need_schedule_next_generation,
+            })
+            .unwrap_or(());
     }
 }

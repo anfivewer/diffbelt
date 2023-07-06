@@ -1,3 +1,4 @@
+pub mod async_lock;
 pub mod async_spawns;
 pub mod async_sync_call;
 pub mod async_task_thread;
