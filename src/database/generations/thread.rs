@@ -12,7 +12,7 @@ use crate::messages::generations::{
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::indexed_container::IndexedContainer;
 use std::time::Duration;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc};
 use tokio::time::sleep;
 
 struct GenerationsThreadState {
@@ -97,7 +97,7 @@ impl GenerationsThreadState {
             is_manual,
             generation_id,
             next_generation_id,
-            db,
+            db: _,
             sender,
         } = task;
 
@@ -203,7 +203,7 @@ impl GenerationsThreadState {
         &mut self,
         collection_id: InnerGenerationsCollectionId,
     ) {
-        let Some(item) = self.collections.get_mut(&collection_id) else {
+        let Some(_item) = self.collections.get_mut(&collection_id) else {
             return;
         };
 

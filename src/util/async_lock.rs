@@ -1,9 +1,9 @@
 use crate::util::indexed_container::{
     IndexedContainer, IndexedContainerItem, IndexedContainerPointer,
 };
-use futures::future::BoxFuture;
+
 use std::collections::VecDeque;
-use std::sync::atomic::AtomicUsize;
+
 use tokio::sync::{mpsc, oneshot};
 
 #[derive(Copy, Clone)]
