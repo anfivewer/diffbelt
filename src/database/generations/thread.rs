@@ -12,7 +12,7 @@ use crate::messages::generations::{
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::indexed_container::IndexedContainer;
 use std::time::Duration;
-use tokio::sync::{mpsc};
+use tokio::sync::mpsc;
 use tokio::time::sleep;
 
 struct GenerationsThreadState {

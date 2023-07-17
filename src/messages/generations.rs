@@ -1,9 +1,7 @@
 use crate::collection::CommitGenerationUpdateReader;
 use crate::common::OwnedGenerationId;
 use crate::database::generations::collection::InnerGenerationsCollectionId;
-use crate::database::generations::next_generation_lock::{
-    NextGenerationIdLockWithSender,
-};
+use crate::database::generations::next_generation_lock::NextGenerationIdLockWithSender;
 use crate::database::DatabaseInner;
 use crate::raw_db::{RawDb, RawDbError};
 use std::sync::Arc;

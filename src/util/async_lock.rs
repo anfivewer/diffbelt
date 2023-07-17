@@ -217,9 +217,17 @@ impl<T: Send + 'static> AsyncLockInternal<T> {
         self.is_locked_exclusively = false;
         self.count -= 1;
 
-        if let Some((sender, data, drop_sender)) = self.waiters_for_exclusive_lock.pop_front() {
+        if !self.waiters_for_lock.is_empty() {
+            if self.count == 0 {
+                let (sender, data, drop_sender) =
+                    self.waiters_for_exclusive_lock.pop_front().unwrap();
+                self.is_locked_exclusively = true;
+                self.do_lock(sender, data, drop_sender);
+                return;
+            }
+
+            // force to queue all locks
             self.is_locked_exclusively = true;
-            self.do_lock(sender, data, drop_sender);
             return;
         }
 
