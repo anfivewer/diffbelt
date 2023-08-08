@@ -3,6 +3,8 @@ use crate::util::indexed_container::{
 };
 
 use std::collections::VecDeque;
+use std::marker::PhantomData;
+use std::sync::Arc;
 
 use tokio::sync::{mpsc, oneshot};
 
@@ -12,12 +14,23 @@ pub struct AsyncLockInstanceId {
     counter: u64,
 }
 
-pub struct AsyncLockInstance<T> {
+pub struct AsyncLockInstance<D, T> {
     id: AsyncLockInstanceId,
     data_and_drop_sender: Option<(T, oneshot::Sender<AsyncLockInstanceId>, oneshot::Sender<T>)>,
+    is_exclusive: bool,
+    // Maybe we can use something like SyncUnsafeCell, but I'm not sure about this
+    val: Arc<std::sync::RwLock<D>>,
 }
 
-impl<T> AsyncLockInstance<T> {
+impl<D, T> AsyncLockInstance<D, T> {
+    pub fn value(&self) -> std::sync::RwLockReadGuard<'_, D> {
+        self.val.read().unwrap()
+    }
+
+    pub fn value_mut(&self) -> std::sync::RwLockWriteGuard<'_, D> {
+        self.val.write().unwrap()
+    }
+
     pub fn data(&self) -> &T {
         let (data, _, _) = self.data_and_drop_sender.as_ref().unwrap();
 
@@ -31,7 +44,7 @@ impl<T> AsyncLockInstance<T> {
     }
 }
 
-impl<T> Drop for AsyncLockInstance<T> {
+impl<D, T> Drop for AsyncLockInstance<D, T> {
     fn drop(&mut self) {
         if let Some((data, id_sender, data_sender)) = self.data_and_drop_sender.take() {
             id_sender.send(self.id).unwrap_or(());
@@ -50,7 +63,7 @@ impl IndexedContainerPointer for AsyncLockInstanceId {
     }
 }
 
-impl<T> IndexedContainerPointer for AsyncLockInstance<T> {
+impl<D, T> IndexedContainerPointer for AsyncLockInstance<D, T> {
     fn index(&self) -> usize {
         self.id.index
     }
@@ -69,14 +82,14 @@ impl IndexedContainerItem for AsyncLockInstanceId {
     }
 }
 
-enum AsyncLockTask<T> {
+enum AsyncLockTask<D, T> {
     Lock {
-        sender: oneshot::Sender<AsyncLockInstance<T>>,
+        sender: oneshot::Sender<AsyncLockInstance<D, T>>,
         data: T,
         drop_sender: oneshot::Sender<T>,
     },
     ExclusiveLock {
-        sender: oneshot::Sender<AsyncLockInstance<T>>,
+        sender: oneshot::Sender<AsyncLockInstance<D, T>>,
         data: T,
         drop_sender: oneshot::Sender<T>,
     },
@@ -86,19 +99,27 @@ enum AsyncLockTask<T> {
     Drop,
 }
 
-struct AsyncLockInternal<T> {
+struct AsyncLockInternal<D, T> {
+    value: Arc<std::sync::RwLock<D>>,
     is_locked_exclusively: bool,
     count: usize,
     limit: usize,
     locks: IndexedContainer<AsyncLockInstanceId>,
-    waiters_for_lock: VecDeque<(oneshot::Sender<AsyncLockInstance<T>>, T, oneshot::Sender<T>)>,
-    waiters_for_exclusive_lock:
-        VecDeque<(oneshot::Sender<AsyncLockInstance<T>>, T, oneshot::Sender<T>)>,
-    task_sender: mpsc::Sender<AsyncLockTask<T>>,
-    task_receiver: mpsc::Receiver<AsyncLockTask<T>>,
+    waiters_for_lock: VecDeque<(
+        oneshot::Sender<AsyncLockInstance<D, T>>,
+        T,
+        oneshot::Sender<T>,
+    )>,
+    waiters_for_exclusive_lock: VecDeque<(
+        oneshot::Sender<AsyncLockInstance<D, T>>,
+        T,
+        oneshot::Sender<T>,
+    )>,
+    task_sender: mpsc::Sender<AsyncLockTask<D, T>>,
+    task_receiver: mpsc::Receiver<AsyncLockTask<D, T>>,
 }
 
-impl<T: Send + 'static> AsyncLockInternal<T> {
+impl<D: Send + Sync + 'static, T: Send + 'static> AsyncLockInternal<D, T> {
     async fn run(mut self) {
         loop {
             let Some(task) = self.task_receiver.recv().await else {
@@ -134,7 +155,7 @@ impl<T: Send + 'static> AsyncLockInternal<T> {
 
     fn lock(
         &mut self,
-        sender: oneshot::Sender<AsyncLockInstance<T>>,
+        sender: oneshot::Sender<AsyncLockInstance<D, T>>,
         data: T,
         drop_sender: oneshot::Sender<T>,
     ) -> Option<oneshot::Receiver<AsyncLockInstanceId>> {
@@ -143,12 +164,12 @@ impl<T: Send + 'static> AsyncLockInternal<T> {
             return None;
         }
 
-        self.do_lock(sender, data, drop_sender)
+        self.do_lock(sender, data, drop_sender, false)
     }
 
     fn exclusive_lock(
         &mut self,
-        sender: oneshot::Sender<AsyncLockInstance<T>>,
+        sender: oneshot::Sender<AsyncLockInstance<D, T>>,
         data: T,
         drop_sender: oneshot::Sender<T>,
     ) -> Option<oneshot::Receiver<AsyncLockInstanceId>> {
@@ -160,14 +181,15 @@ impl<T: Send + 'static> AsyncLockInternal<T> {
 
         self.is_locked_exclusively = true;
 
-        self.do_lock(sender, data, drop_sender)
+        self.do_lock(sender, data, drop_sender, true)
     }
 
     fn do_lock(
         &mut self,
-        sender: oneshot::Sender<AsyncLockInstance<T>>,
+        sender: oneshot::Sender<AsyncLockInstance<D, T>>,
         data: T,
         drop_sender: oneshot::Sender<T>,
+        is_exclusive: bool,
     ) -> Option<oneshot::Receiver<AsyncLockInstanceId>> {
         self.count += 1;
 
@@ -178,6 +200,8 @@ impl<T: Send + 'static> AsyncLockInternal<T> {
         let instance = AsyncLockInstance {
             id: id.clone(),
             data_and_drop_sender: Some((data, id_sender, drop_sender)),
+            is_exclusive,
+            val: self.value.clone(),
         };
 
         match sender.send(instance) {
@@ -222,7 +246,7 @@ impl<T: Send + 'static> AsyncLockInternal<T> {
                 let (sender, data, drop_sender) =
                     self.waiters_for_exclusive_lock.pop_front().unwrap();
                 self.is_locked_exclusively = true;
-                self.do_lock(sender, data, drop_sender);
+                self.do_lock(sender, data, drop_sender, true);
                 return;
             }
 
@@ -232,21 +256,23 @@ impl<T: Send + 'static> AsyncLockInternal<T> {
         }
 
         if let Some((sender, data, drop_sender)) = self.waiters_for_lock.pop_front() {
-            self.do_lock(sender, data, drop_sender);
+            self.do_lock(sender, data, drop_sender, false);
         }
     }
 }
 
-pub struct AsyncLock<T> {
-    lock_tasks_sender: mpsc::Sender<AsyncLockTask<T>>,
+pub struct AsyncLock<D, T> {
+    value: PhantomData<D>,
+    lock_tasks_sender: mpsc::Sender<AsyncLockTask<D, T>>,
     drop_sender: Option<oneshot::Sender<()>>,
 }
 
-impl<T: Send + 'static> AsyncLock<T> {
-    pub fn with_limit(limit: usize) -> Self {
+impl<D: Send + Sync + 'static, T: Send + 'static> AsyncLock<D, T> {
+    pub fn with_limit(value: D, limit: usize) -> Self {
         let (lock_tasks_sender, task_receiver) = mpsc::channel(16);
 
         let inner = AsyncLockInternal {
+            value: Arc::new(std::sync::RwLock::new(value)),
             is_locked_exclusively: false,
             count: 0,
             limit,
@@ -280,6 +306,7 @@ impl<T: Send + 'static> AsyncLock<T> {
         }
 
         Self {
+            value: PhantomData::default(),
             lock_tasks_sender,
             drop_sender: Some(drop_sender),
         }
@@ -289,7 +316,7 @@ impl<T: Send + 'static> AsyncLock<T> {
         &self,
         data: T,
         drop_sender: oneshot::Sender<T>,
-    ) -> Option<AsyncLockInstance<T>> {
+    ) -> Option<AsyncLockInstance<D, T>> {
         let (sender, receiver) = oneshot::channel();
 
         self.lock_tasks_sender
@@ -308,7 +335,7 @@ impl<T: Send + 'static> AsyncLock<T> {
         &self,
         data: T,
         drop_sender: oneshot::Sender<T>,
-    ) -> Option<AsyncLockInstance<T>> {
+    ) -> Option<AsyncLockInstance<D, T>> {
         let (sender, receiver) = oneshot::channel();
 
         self.lock_tasks_sender
@@ -322,9 +349,17 @@ impl<T: Send + 'static> AsyncLock<T> {
 
         receiver.await.ok()
     }
+
+    pub fn mirror(&self) -> Self {
+        Self {
+            value: PhantomData::default(),
+            lock_tasks_sender: self.lock_tasks_sender.clone(),
+            drop_sender: None,
+        }
+    }
 }
 
-impl<T> Drop for AsyncLock<T> {
+impl<D, T> Drop for AsyncLock<D, T> {
     fn drop(&mut self) {
         if let Some(sender) = self.drop_sender.take() {
             sender.send(()).unwrap_or(());
@@ -350,7 +385,7 @@ mod tests {
     }
 
     async fn should_wait_if_exceeds_limit_inner() {
-        let lock = Arc::new(AsyncLock::with_limit(2));
+        let lock = Arc::new(AsyncLock::with_limit((), 2));
 
         let (sender1, receiver1) = oneshot::channel();
         let (sender2, receiver2) = oneshot::channel();

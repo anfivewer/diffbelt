@@ -1,7 +1,7 @@
 use crate::collection::CommitGenerationUpdateReader;
 use crate::common::OwnedGenerationId;
 use crate::database::generations::collection::InnerGenerationsCollectionId;
-use crate::database::generations::next_generation_lock::NextGenerationIdLockWithSender;
+use crate::database::generations::next_generation_lock::NextGenerationIdLock;
 use crate::database::DatabaseInner;
 use crate::raw_db::{RawDb, RawDbError};
 use std::sync::Arc;
@@ -27,7 +27,7 @@ pub struct DropCollectionGenerationsTask {
 pub struct LockNextGenerationIdTaskResponse {
     pub generation_id: OwnedGenerationId,
     pub next_generation_id: Option<OwnedGenerationId>,
-    pub lock: NextGenerationIdLockWithSender,
+    pub lock: NextGenerationIdLock,
 }
 
 pub struct LockNextGenerationIdTask {

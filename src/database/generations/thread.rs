@@ -1,9 +1,9 @@
+use crate::common::OwnedGenerationId;
 use crate::database::generations::collection::{
-    InnerGenerationsCollection, InnerGenerationsCollectionId, NextGenerationScheduleAction,
+    InnerGenerationsCollection, InnerGenerationsCollectionId, NextGenerationLocked,
+    NextGenerationScheduleAction,
 };
-use crate::database::generations::next_generation_lock::{
-    NextGenerationIdLock, NextGenerationIdLockWithSender, NextGenerationIdUnlockMsg,
-};
+
 use crate::messages::generations::{
     DatabaseCollectionGenerationsTask, DropCollectionGenerationsTask, LockNextGenerationIdTask,
     LockNextGenerationIdTaskResponse, NewCollectionGenerationsTask,
@@ -22,10 +22,9 @@ struct GenerationsThreadState {
 
 enum ThreadTask {
     External(DatabaseCollectionGenerationsTask),
-    UnlockNextGeneration {
+    ScheduleNextGeneration {
         collection_id: InnerGenerationsCollectionId,
-        lock: NextGenerationIdLock,
-        need_schedule_next_generation: bool,
+        expected_generation_id: OwnedGenerationId,
     },
     CommitNonManualCollectionGeneration {
         collection_id: InnerGenerationsCollectionId,
@@ -63,12 +62,11 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollectionGenerationsTask
                 }
                 _ => {}
             },
-            ThreadTask::UnlockNextGeneration {
+            ThreadTask::ScheduleNextGeneration {
                 collection_id,
-                lock,
-                need_schedule_next_generation,
+                expected_generation_id: expected_next_generation_id,
             } => {
-                state.unlock_next_generation(collection_id, lock, need_schedule_next_generation);
+                state.schedule_next_generation(collection_id, expected_next_generation_id);
             }
             ThreadTask::CommitNonManualCollectionGeneration { collection_id } => {
                 state.commit_non_manual_collection_generation(collection_id);
@@ -131,61 +129,67 @@ impl GenerationsThreadState {
             return;
         };
 
-        let lock = item.lock_next_generation();
+        let is_manual = item.is_manual;
 
-        let (lock_with_sender, receiver) = NextGenerationIdLockWithSender::new();
+        let locked = item.lock_next_generation();
 
         let thread_task_sender = self.sender.clone();
 
         tokio::spawn(async move {
-            let Ok(NextGenerationIdUnlockMsg { need_schedule_next_generation }) = receiver.await else {
+            let Some(locked) = locked.await else {
                 return;
             };
 
-            thread_task_sender
-                .send(ThreadTask::UnlockNextGeneration {
-                    collection_id,
+            let NextGenerationLocked {
+                generation_id,
+                next_generation_id,
+                lock,
+                unlock_receiver,
+            } = locked;
+
+            sender
+                .send(LockNextGenerationIdTaskResponse {
+                    generation_id: generation_id.clone(),
+                    next_generation_id,
                     lock,
-                    need_schedule_next_generation,
+                })
+                .unwrap_or(());
+
+            if is_manual {
+                return;
+            }
+
+            let Ok(lock_data) = unlock_receiver.await else {
+                return;
+            };
+
+            if !lock_data.need_schedule_next_generation {
+                return;
+            }
+
+            thread_task_sender
+                .send(ThreadTask::ScheduleNextGeneration {
+                    collection_id,
+                    expected_generation_id: generation_id,
                 })
                 .await
                 .unwrap_or(());
         });
-
-        sender
-            .send(LockNextGenerationIdTaskResponse {
-                generation_id: item.generation_id.clone(),
-                next_generation_id: item.next_generation_id.clone(),
-                lock: lock_with_sender,
-            })
-            .unwrap_or(());
     }
 
-    fn unlock_next_generation(
+    fn schedule_next_generation(
         &mut self,
         collection_id: InnerGenerationsCollectionId,
-        lock: NextGenerationIdLock,
-        need_schedule_next_generation: bool,
+        expected_generation_id: OwnedGenerationId,
     ) {
         let Some(item) = self.collections.get_mut(&collection_id) else {
             return;
         };
 
-        item.unlock_next_generation(lock);
+        let NextGenerationScheduleAction::NeedSchedule = item.schedule_next_generation(expected_generation_id.as_ref()) else {
+            return;
+        };
 
-        if need_schedule_next_generation {
-            let action = item.schedule_next_generation();
-
-            match action {
-                NextGenerationScheduleAction::NeedSchedule => {
-                    self.schedule_next_generation(collection_id);
-                }
-                NextGenerationScheduleAction::NoNeedSchedule => {}
-            }
-        }
-    }
-
-    fn schedule_next_generation(&mut self, collection_id: InnerGenerationsCollectionId) {
         let thread_task_sender = self.sender.clone();
 
         tokio::spawn(async move {
@@ -207,6 +211,6 @@ impl GenerationsThreadState {
             return;
         };
 
-        //
+        todo!();
     }
 }

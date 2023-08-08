@@ -1,14 +1,24 @@
-use crate::common::OwnedGenerationId;
-use crate::database::generations::next_generation_lock::NextGenerationIdLock;
-use crate::util::indexed_container::{
-    IndexedContainer, IndexedContainerItem, IndexedContainerPointer,
+use crate::common::{GenerationId, OwnedGenerationId};
+use crate::database::generations::next_generation_lock::{
+    NextGenerationIdLock, NextGenerationIdLockData,
 };
-use tokio::sync::watch;
+use crate::util::async_lock::AsyncLock;
+use crate::util::indexed_container::{IndexedContainerItem, IndexedContainerPointer};
+
+use std::future::Future;
+
+use tokio::sync::{oneshot, watch};
 
 #[derive(Copy, Clone)]
 pub struct InnerGenerationsCollectionId {
     pub index: usize,
     pub counter: u64,
+}
+
+#[derive(Clone)]
+pub struct GenerationIdNextGenerationIdPair {
+    generation_id: OwnedGenerationId,
+    next_generation_id: Option<OwnedGenerationId>,
 }
 
 pub struct InnerGenerationsCollection {
@@ -18,13 +28,21 @@ pub struct InnerGenerationsCollection {
     pub next_generation_id: Option<OwnedGenerationId>,
     pub generation_id_sender: watch::Sender<OwnedGenerationId>,
     pub generation_id_receiver: watch::Receiver<OwnedGenerationId>,
-    pub next_generation_locks: IndexedContainer<NextGenerationIdLock>,
+    pub next_generation_locks:
+        AsyncLock<GenerationIdNextGenerationIdPair, NextGenerationIdLockData>,
     pub is_next_generation_scheduled: bool,
 }
 
 pub enum NextGenerationScheduleAction {
     NeedSchedule,
     NoNeedSchedule,
+}
+
+pub struct NextGenerationLocked {
+    pub generation_id: OwnedGenerationId,
+    pub next_generation_id: Option<OwnedGenerationId>,
+    pub lock: NextGenerationIdLock,
+    pub unlock_receiver: oneshot::Receiver<NextGenerationIdLockData>,
 }
 
 impl InnerGenerationsCollection {
@@ -39,27 +57,58 @@ impl InnerGenerationsCollection {
         Self {
             inner_id,
             is_manual,
-            generation_id,
-            next_generation_id,
+            generation_id: generation_id.clone(),
+            next_generation_id: next_generation_id.clone(),
             generation_id_sender,
             generation_id_receiver,
-            // TODO: add size limit
-            next_generation_locks: IndexedContainer::new(),
+            // TODO: move to config
+            next_generation_locks: AsyncLock::with_limit(
+                GenerationIdNextGenerationIdPair {
+                    generation_id,
+                    next_generation_id,
+                },
+                64,
+            ),
             // TODO: check after restart
             is_next_generation_scheduled: false,
         }
     }
 
-    pub fn lock_next_generation(&mut self) -> NextGenerationIdLock {
-        return self.next_generation_locks.insert(|id| id);
+    pub fn lock_next_generation(&mut self) -> impl Future<Output = Option<NextGenerationLocked>> {
+        let (sender, receiver) = oneshot::channel();
+
+        let next_generation_locks = self.next_generation_locks.mirror();
+
+        async move {
+            let async_lock_instance = next_generation_locks
+                .lock(NextGenerationIdLockData::new(), sender)
+                .await?;
+
+            let GenerationIdNextGenerationIdPair {
+                generation_id,
+                next_generation_id,
+            } = { async_lock_instance.value().clone() };
+
+            Some(NextGenerationLocked {
+                generation_id,
+                next_generation_id,
+                lock: NextGenerationIdLock {
+                    async_lock_instance,
+                },
+                unlock_receiver: receiver,
+            })
+        }
     }
 
-    pub fn unlock_next_generation(&mut self, id: NextGenerationIdLock) {
-        self.next_generation_locks.delete(&id);
-    }
-
-    pub fn schedule_next_generation(&mut self) -> NextGenerationScheduleAction {
+    pub fn schedule_next_generation(
+        &mut self,
+        expected_generation_id: GenerationId<'_>,
+    ) -> NextGenerationScheduleAction {
         if self.is_manual || self.is_next_generation_scheduled {
+            return NextGenerationScheduleAction::NoNeedSchedule;
+        }
+
+        if self.generation_id.as_ref() != expected_generation_id {
             return NextGenerationScheduleAction::NoNeedSchedule;
         }
 
