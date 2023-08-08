@@ -6,6 +6,7 @@ pub mod atomic_cleanup;
 pub mod base62;
 pub mod bytes;
 pub mod bytes_constants;
+pub mod debug_print;
 pub mod hashmap;
 pub mod indexed_container;
 pub mod json;

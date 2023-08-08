@@ -217,7 +217,7 @@ impl<T: Send + 'static> AsyncLockInternal<T> {
         self.is_locked_exclusively = false;
         self.count -= 1;
 
-        if !self.waiters_for_lock.is_empty() {
+        if !self.waiters_for_exclusive_lock.is_empty() {
             if self.count == 0 {
                 let (sender, data, drop_sender) =
                     self.waiters_for_exclusive_lock.pop_front().unwrap();
@@ -239,6 +239,7 @@ impl<T: Send + 'static> AsyncLockInternal<T> {
 
 pub struct AsyncLock<T> {
     lock_tasks_sender: mpsc::Sender<AsyncLockTask<T>>,
+    drop_sender: Option<oneshot::Sender<()>>,
 }
 
 impl<T: Send + 'static> AsyncLock<T> {
@@ -264,7 +265,24 @@ impl<T: Send + 'static> AsyncLock<T> {
             inner.run().await;
         });
 
-        Self { lock_tasks_sender }
+        let (drop_sender, drop_receiver) = oneshot::channel();
+
+        {
+            let lock_tasks_sender = lock_tasks_sender.clone();
+            tokio::spawn(async move {
+                drop_receiver.await.unwrap_or(());
+
+                lock_tasks_sender
+                    .send(AsyncLockTask::Drop)
+                    .await
+                    .unwrap_or(());
+            });
+        }
+
+        Self {
+            lock_tasks_sender,
+            drop_sender: Some(drop_sender),
+        }
     }
 
     pub async fn lock(
@@ -308,8 +326,72 @@ impl<T: Send + 'static> AsyncLock<T> {
 
 impl<T> Drop for AsyncLock<T> {
     fn drop(&mut self) {
-        self.lock_tasks_sender
-            .blocking_send(AsyncLockTask::Drop)
-            .unwrap_or(());
+        if let Some(sender) = self.drop_sender.take() {
+            sender.send(()).unwrap_or(());
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::util::async_lock::AsyncLock;
+    use crate::util::tokio_runtime::create_main_tokio_runtime;
+    use futures::StreamExt;
+    use std::io::Write;
+    use std::sync::{Arc, RwLock};
+    use std::time::Duration;
+    use tokio::sync::oneshot;
+    use tokio::time::sleep;
+
+    #[test]
+    pub fn should_wait_if_exceeds_limit() {
+        let runtime = create_main_tokio_runtime().unwrap();
+        runtime.block_on(should_wait_if_exceeds_limit_inner());
+    }
+
+    async fn should_wait_if_exceeds_limit_inner() {
+        let lock = Arc::new(AsyncLock::with_limit(2));
+
+        let (sender1, receiver1) = oneshot::channel();
+        let (sender2, receiver2) = oneshot::channel();
+        let (sender3, receiver3) = oneshot::channel();
+
+        let instance1 = lock.lock(1, sender1).await.unwrap();
+        let instance2 = lock.lock(2, sender2).await.unwrap();
+
+        let instance3_rw = Arc::new(RwLock::new(None));
+
+        let spawn_handle = {
+            let lock = lock.clone();
+            let instance3_rw = instance3_rw.clone();
+            tokio::spawn(async move {
+                let instance3 = lock.lock(3, sender3).await.unwrap();
+
+                let mut instance3_rw = instance3_rw.write().unwrap();
+                instance3_rw.replace(instance3);
+            })
+        };
+
+        sleep(Duration::from_millis(500)).await;
+
+        assert!({ instance3_rw.read().unwrap().is_none() });
+
+        drop(instance1);
+
+        spawn_handle.await.unwrap();
+
+        let instance3 = instance3_rw.write().unwrap().take().unwrap();
+
+        let instance1_value = receiver1.await.unwrap();
+        assert_eq!(instance1_value, 1);
+
+        drop(instance2);
+        drop(instance3);
+
+        let instance2_value = receiver2.await.unwrap();
+        assert_eq!(instance2_value, 2);
+
+        let instance3_value = receiver3.await.unwrap();
+        assert_eq!(instance3_value, 3);
     }
 }
