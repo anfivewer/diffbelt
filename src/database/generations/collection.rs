@@ -74,7 +74,7 @@ impl InnerGenerationsCollection {
         }
     }
 
-    pub fn lock_next_generation(&mut self) -> impl Future<Output = Option<NextGenerationLocked>> {
+    pub fn lock_next_generation(&mut self) -> impl Future<Output = NextGenerationLocked> {
         let (sender, receiver) = oneshot::channel();
 
         let next_generation_locks = self.next_generation_locks.mirror();
@@ -82,21 +82,21 @@ impl InnerGenerationsCollection {
         async move {
             let async_lock_instance = next_generation_locks
                 .lock(NextGenerationIdLockData::new(), sender)
-                .await?;
+                .await;
 
             let GenerationIdNextGenerationIdPair {
                 generation_id,
                 next_generation_id,
             } = { async_lock_instance.value().clone() };
 
-            Some(NextGenerationLocked {
+            NextGenerationLocked {
                 generation_id,
                 next_generation_id,
                 lock: NextGenerationIdLock {
                     async_lock_instance,
                 },
                 unlock_receiver: receiver,
-            })
+            }
         }
     }
 

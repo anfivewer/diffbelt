@@ -136,9 +136,7 @@ impl GenerationsThreadState {
         let thread_task_sender = self.sender.clone();
 
         tokio::spawn(async move {
-            let Some(locked) = locked.await else {
-                return;
-            };
+            let locked = locked.await;
 
             let NextGenerationLocked {
                 generation_id,
