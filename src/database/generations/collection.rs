@@ -1,4 +1,4 @@
-use crate::common::{GenerationId, OwnedGenerationId};
+use crate::common::OwnedGenerationId;
 use crate::database::generations::next_generation_lock::{
     NextGenerationIdLock, NextGenerationIdLockData,
 };
@@ -14,7 +14,7 @@ use crate::messages::generations::{
 };
 use crate::raw_db::commit_generation::{RawDbCommitGenerationOptions, RawDbUpdateReader};
 use crate::raw_db::{RawDb, RawDbError};
-use crate::util::bytes::increment;
+
 use tokio::sync::{oneshot, watch};
 use tokio::task::spawn_blocking;
 
@@ -266,7 +266,7 @@ impl InnerGenerationsCollection {
         next_generation_id: OwnedGenerationId,
     ) -> impl Future<Output = Result<(), CommitManualGenerationError>> {
         let next_generation_locks = self.next_generation_locks.mirror();
-        let generation_id_sender = self.generation_id_sender.clone();
+        let _generation_id_sender = self.generation_id_sender.clone();
         let raw_db = self.db.clone();
 
         async move {

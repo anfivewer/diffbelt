@@ -6,10 +6,9 @@ use crate::database::generations::collection::{
 
 use crate::messages::generations::{
     AbortManualGenerationTask, CommitManualGenerationTask, DatabaseCollectionGenerationsTask,
-    DropCollectionGenerationsTask, LockManualGenerationIdError, LockManualGenerationIdTask,
-    LockNextGenerationIdTask, LockNextGenerationIdTaskResponse, NewCollectionGenerationsTask,
-    NewCollectionGenerationsTaskResponse, StartManualGenerationIdError,
-    StartManualGenerationIdTask,
+    DropCollectionGenerationsTask, LockManualGenerationIdTask, LockNextGenerationIdTask,
+    LockNextGenerationIdTaskResponse, NewCollectionGenerationsTask,
+    NewCollectionGenerationsTaskResponse, StartManualGenerationIdTask,
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::indexed_container::IndexedContainer;

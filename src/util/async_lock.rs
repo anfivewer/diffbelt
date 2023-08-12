@@ -1,16 +1,8 @@
-use crate::util::indexed_container::{
-    IndexedContainer, IndexedContainerItem, IndexedContainerPointer,
-};
-
-use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-use tokio::sync::{
-    mpsc, oneshot, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard,
-    RwLockWriteGuard,
-};
+use tokio::sync::{oneshot, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 
 pub struct AsyncLockInstance<D, T> {
     lock: OwnedRwLockReadGuard<D>,
