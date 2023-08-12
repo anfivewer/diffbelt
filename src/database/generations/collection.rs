@@ -20,6 +20,7 @@ use crate::collection::methods::abort_generation::{
     abort_generation_sync, AbortGenerationSyncOptions,
 };
 use crate::collection::util::collection_raw_db::CollectionRawDb;
+use crate::raw_db::has_generation_changes::HasGenerationChangesOptions;
 use tokio::sync::{oneshot, watch, RwLock};
 use tokio::task::spawn_blocking;
 
@@ -99,6 +100,30 @@ impl InnerGenerationsCollection {
             // TODO: check after restart
             is_next_generation_scheduled: false,
             is_deleted,
+        }
+    }
+
+    pub fn is_need_to_schedule_generation(
+        &self,
+        next_generation_id: OwnedGenerationId,
+    ) -> impl Future<Output = Result<NextGenerationScheduleAction, RawDbError>> {
+        let raw_db = self.db.clone();
+
+        async move {
+            spawn_blocking(move || {
+                let has_changes =
+                    raw_db.has_generation_changes_sync(HasGenerationChangesOptions {
+                        generation_id: next_generation_id.as_ref(),
+                    })?;
+
+                if has_changes {
+                    Ok(NextGenerationScheduleAction::NeedSchedule)
+                } else {
+                    Ok(NextGenerationScheduleAction::NoNeedSchedule)
+                }
+            })
+            .await
+            .map_err(RawDbError::Join)?
         }
     }
 

@@ -261,7 +261,7 @@ impl Collection {
             ))
         })
         .await
-        .map_err(CollectionOpenError::OneshotRecv)?;
+        .map_err(CollectionOpenError::OneshotRecv)??;
 
         let drop_sender = {
             let database_inner = database_inner.clone();
@@ -291,7 +291,7 @@ impl Collection {
                     .add_generations_task(DatabaseCollectionGenerationsTask::DropCollection(
                         DropCollectionGenerationsTask {
                             collection_id: generations_id,
-                            sender,
+                            sender: Some(sender),
                         },
                     ))
                     .await;

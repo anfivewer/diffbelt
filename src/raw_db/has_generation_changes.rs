@@ -9,7 +9,7 @@ pub struct HasGenerationChangesOptions<'a> {
 }
 
 impl RawDb {
-    pub fn has_generation_changes_local(
+    pub fn has_generation_changes_sync(
         &self,
         options: HasGenerationChangesOptions<'_>,
     ) -> Result<bool, RawDbError> {

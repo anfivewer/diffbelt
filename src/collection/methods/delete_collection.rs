@@ -44,7 +44,7 @@ impl Collection {
                     DatabaseCollectionGenerationsTask::DropCollection(
                         DropCollectionGenerationsTask {
                             collection_id: collection_generations_id,
-                            sender,
+                            sender: Some(sender),
                         },
                     ),
                 )

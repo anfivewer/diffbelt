@@ -111,12 +111,12 @@ impl GenerationsThreadState {
             sender,
         } = task;
 
-        let id = self.collections.insert(move |inner_id| {
+        let id = self.collections.insert(|inner_id| {
             InnerGenerationsCollection::new(
                 inner_id,
                 is_manual,
                 db,
-                generation_id,
+                generation_id.clone(),
                 next_generation_id,
                 is_deleted,
             )
@@ -124,12 +124,84 @@ impl GenerationsThreadState {
 
         let item = self.collections.get(&id).unwrap();
 
-        if let Err(_) = sender.send(NewCollectionGenerationsTaskResponse {
-            collection_id: id,
-            generation_pair_receiver: item.generation_pair_receiver.clone(),
-        }) {
-            self.collections.delete(&id);
+        if is_manual {
+            if let Err(_) = sender.send(Ok(NewCollectionGenerationsTaskResponse {
+                collection_id: id,
+                generation_pair_receiver: item.generation_pair_receiver.clone(),
+            })) {
+                self.collections.delete(&id);
+            }
+
+            return;
         }
+
+        let generation_pair_receiver = item.generation_pair_receiver.clone();
+
+        let thread_task_sender = self.sender.clone();
+        let is_need_to_schedule_generation =
+            item.is_need_to_schedule_generation(generation_id.incremented());
+
+        tokio::spawn(async move {
+            let need_to_schedule = match is_need_to_schedule_generation.await {
+                Ok(need_to_schedule) => need_to_schedule,
+                Err(err) => {
+                    sender.send(Err(err)).unwrap_or(());
+                    thread_task_sender
+                        .send(ThreadTask::External(
+                            DatabaseCollectionGenerationsTask::DropCollection(
+                                DropCollectionGenerationsTask {
+                                    collection_id: id,
+                                    sender: None,
+                                },
+                            ),
+                        ))
+                        .await
+                        .unwrap_or(());
+                    return;
+                }
+            };
+
+            let response = Ok(NewCollectionGenerationsTaskResponse {
+                collection_id: id,
+                generation_pair_receiver,
+            });
+            let mut need_delete = false;
+
+            match need_to_schedule {
+                NextGenerationScheduleAction::NeedSchedule => {
+                    thread_task_sender
+                        .send(ThreadTask::ScheduleNextGeneration {
+                            collection_id: id,
+                            expected_generation_id: generation_id,
+                        })
+                        .await
+                        .unwrap_or(());
+
+                    if let Err(_) = sender.send(response) {
+                        need_delete = true;
+                    }
+                }
+                NextGenerationScheduleAction::NoNeedSchedule => {
+                    if let Err(_) = sender.send(response) {
+                        need_delete = true;
+                    }
+                }
+            }
+
+            if need_delete {
+                thread_task_sender
+                    .send(ThreadTask::External(
+                        DatabaseCollectionGenerationsTask::DropCollection(
+                            DropCollectionGenerationsTask {
+                                collection_id: id,
+                                sender: None,
+                            },
+                        ),
+                    ))
+                    .await
+                    .unwrap_or(());
+            }
+        });
     }
 
     fn drop_collection(&mut self, task: DropCollectionGenerationsTask) {
@@ -140,7 +212,7 @@ impl GenerationsThreadState {
 
         self.collections.delete(&collection_id);
 
-        sender.send(()).unwrap_or(());
+        sender.map(|sender| sender.send(()).unwrap_or(()));
     }
 
     fn start_manual_generation(&mut self, task: StartManualGenerationIdTask) {

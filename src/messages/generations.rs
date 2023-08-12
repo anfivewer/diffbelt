@@ -21,12 +21,12 @@ pub struct NewCollectionGenerationsTask {
     pub next_generation_id: Option<OwnedGenerationId>,
     pub db: CollectionRawDb,
     pub is_deleted: Arc<RwLock<bool>>,
-    pub sender: oneshot::Sender<NewCollectionGenerationsTaskResponse>,
+    pub sender: oneshot::Sender<Result<NewCollectionGenerationsTaskResponse, RawDbError>>,
 }
 
 pub struct DropCollectionGenerationsTask {
     pub collection_id: InnerGenerationsCollectionId,
-    pub sender: oneshot::Sender<()>,
+    pub sender: Option<oneshot::Sender<()>>,
 }
 
 pub struct LockNextGenerationIdTaskResponse {
