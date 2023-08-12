@@ -40,6 +40,9 @@ impl Collection {
             CommitManualGenerationError::OutdatedGeneration => {
                 CollectionMethodError::OutdatedGeneration
             }
+            CommitManualGenerationError::NoSuchCollection => {
+                CollectionMethodError::NoSuchCollection
+            }
         })?;
 
         Ok(())

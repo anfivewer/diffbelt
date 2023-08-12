@@ -5,10 +5,11 @@ use crate::database::generations::collection::{
 };
 
 use crate::messages::generations::{
-    AbortManualGenerationTask, CommitManualGenerationTask, DatabaseCollectionGenerationsTask,
-    DropCollectionGenerationsTask, LockGenerationIdTask, LockNextGenerationIdTask,
-    LockNextGenerationIdTaskResponse, NewCollectionGenerationsTask,
-    NewCollectionGenerationsTaskResponse, StartManualGenerationIdTask,
+    AbortManualGenerationTask, CommitManualGenerationError, CommitManualGenerationTask,
+    DatabaseCollectionGenerationsTask, DropCollectionGenerationsTask, LockManualGenerationIdError,
+    LockNextGenerationIdTask, LockNextGenerationIdTaskResponse, NewCollectionGenerationsTask,
+    NewCollectionGenerationsTaskResponse, StartManualGenerationIdError,
+    StartManualGenerationIdTask,
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::indexed_container::IndexedContainer;
@@ -58,9 +59,6 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollectionGenerationsTask
                 DatabaseCollectionGenerationsTask::DropCollection(task) => {
                     state.drop_collection(task);
                 }
-                DatabaseCollectionGenerationsTask::LockGenerationId(task) => {
-                    state.lock_generation(task);
-                }
                 DatabaseCollectionGenerationsTask::LockNextGenerationId(task) => {
                     state.lock_next_generation(task);
                 }
@@ -109,6 +107,7 @@ impl GenerationsThreadState {
             generation_id,
             next_generation_id,
             db,
+            is_deleted,
             sender,
         } = task;
 
@@ -119,6 +118,7 @@ impl GenerationsThreadState {
                 db,
                 generation_id,
                 next_generation_id,
+                is_deleted,
             )
         });
 
@@ -133,9 +133,14 @@ impl GenerationsThreadState {
     }
 
     fn drop_collection(&mut self, task: DropCollectionGenerationsTask) {
-        let DropCollectionGenerationsTask { collection_id } = task;
+        let DropCollectionGenerationsTask {
+            collection_id,
+            sender,
+        } = task;
 
         self.collections.delete(&collection_id);
+
+        sender.send(()).unwrap_or(());
     }
 
     fn start_manual_generation(&mut self, task: StartManualGenerationIdTask) {
@@ -147,6 +152,7 @@ impl GenerationsThreadState {
         } = task;
 
         let Some(item) = self.collections.get_mut(&collection_id) else {
+            sender.send(Err(StartManualGenerationIdError::NoSuchCollection)).unwrap_or(());
             return;
         };
 
@@ -166,25 +172,6 @@ impl GenerationsThreadState {
         });
     }
 
-    fn lock_generation(&mut self, task: LockGenerationIdTask) {
-        let LockGenerationIdTask {
-            collection_id,
-            sender,
-        } = task;
-
-        let Some(item) = self.collections.get_mut(&collection_id) else {
-            return;
-        };
-
-        let locking = item.lock_generation();
-
-        tokio::spawn(async move {
-            let lock = locking.await;
-
-            sender.send(lock).unwrap_or(());
-        });
-    }
-
     fn lock_next_generation(&mut self, task: LockNextGenerationIdTask) {
         let LockNextGenerationIdTask {
             collection_id,
@@ -194,6 +181,7 @@ impl GenerationsThreadState {
         } = task;
 
         let Some(item) = self.collections.get_mut(&collection_id) else {
+            sender.send(Err(LockManualGenerationIdError::NoSuchCollection)).unwrap_or(());
             return;
         };
 
@@ -293,6 +281,7 @@ impl GenerationsThreadState {
         } = task;
 
         let Some(item) = self.collections.get_mut(&collection_id) else {
+            sender.send(Err(CommitManualGenerationError::NoSuchCollection)).unwrap_or(());
             return;
         };
 
@@ -314,6 +303,7 @@ impl GenerationsThreadState {
         } = task;
 
         let Some(item) = self.collections.get_mut(&collection_id) else {
+            sender.send(Err(CommitManualGenerationError::NoSuchCollection)).unwrap_or(());
             return;
         };
 

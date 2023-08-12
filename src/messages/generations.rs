@@ -7,7 +7,7 @@ use crate::database::generations::next_generation_lock::GenerationIdLock;
 use crate::database::DatabaseInner;
 use crate::raw_db::{RawDb, RawDbError};
 use std::sync::Arc;
-use tokio::sync::{oneshot, watch};
+use tokio::sync::{oneshot, watch, RwLock};
 
 pub struct NewCollectionGenerationsTaskResponse {
     pub collection_id: InnerGenerationsCollectionId,
@@ -19,11 +19,13 @@ pub struct NewCollectionGenerationsTask {
     pub generation_id: OwnedGenerationId,
     pub next_generation_id: Option<OwnedGenerationId>,
     pub db: Arc<RawDb>,
+    pub is_deleted: Arc<RwLock<bool>>,
     pub sender: oneshot::Sender<NewCollectionGenerationsTaskResponse>,
 }
 
 pub struct DropCollectionGenerationsTask {
     pub collection_id: InnerGenerationsCollectionId,
+    pub sender: oneshot::Sender<()>,
 }
 
 pub struct LockNextGenerationIdTaskResponse {
@@ -34,6 +36,7 @@ pub struct LockNextGenerationIdTaskResponse {
 pub enum LockManualGenerationIdError {
     GenerationIdMismatch,
     PutPhantomWithoutGenerationId,
+    NoSuchCollection,
 }
 
 pub struct LockNextGenerationIdTask {
@@ -45,14 +48,10 @@ pub struct LockNextGenerationIdTask {
     pub is_phantom: bool,
 }
 
-pub struct LockGenerationIdTask {
-    pub collection_id: InnerGenerationsCollectionId,
-    pub sender: oneshot::Sender<GenerationIdLock>,
-}
-
 pub enum StartManualGenerationIdError {
     OutdatedGeneration,
     RawDb(RawDbError),
+    NoSuchCollection,
 }
 
 pub struct StartManualGenerationIdTask {
@@ -62,9 +61,11 @@ pub struct StartManualGenerationIdTask {
     pub abort_outdated: bool,
 }
 
+#[derive(Debug)]
 pub enum CommitManualGenerationError {
     OutdatedGeneration,
     RawDb(RawDbError),
+    NoSuchCollection,
 }
 
 pub struct CommitManualGenerationTask {
@@ -86,7 +87,6 @@ pub enum DatabaseCollectionGenerationsTask {
     NewCollection(NewCollectionGenerationsTask),
     DropCollection(DropCollectionGenerationsTask),
 
-    LockGenerationId(LockGenerationIdTask),
     LockNextGenerationId(LockNextGenerationIdTask),
     StartManualGenerationId(StartManualGenerationIdTask),
     AbortManualGeneration(AbortManualGenerationTask),

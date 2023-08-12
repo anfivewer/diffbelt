@@ -1,7 +1,11 @@
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 
+use crate::messages::generations::{
+    DatabaseCollectionGenerationsTask, DropCollectionGenerationsTask,
+};
 use crate::raw_db::RawDb;
+use crate::util::async_sync_call::async_sync_call;
 use crate::util::tokio::spawn_blocking_async;
 use std::future::Future;
 use std::ops::DerefMut;
@@ -11,6 +15,7 @@ impl Collection {
     pub fn delete_collection(&self) -> impl Future<Output = Result<(), CollectionMethodError>> {
         let is_deleted = self.is_deleted.clone();
         let collection_name = self.name.clone();
+        let collection_generations_id = self.generations_id.clone();
         let database_inner = self.database_inner.clone();
         let raw_db = self.raw_db.clone();
 
@@ -29,6 +34,18 @@ impl Collection {
             database_inner
                 .start_delete_collection(&collection_name)
                 .await?;
+
+            let _: () = async_sync_call(|sender| {
+                database_inner.add_generations_task(
+                    DatabaseCollectionGenerationsTask::DropCollection(
+                        DropCollectionGenerationsTask {
+                            collection_id: collection_generations_id,
+                            sender,
+                        },
+                    ),
+                )
+            })
+            .await?;
 
             database_inner
                 .remove_readers_pointing_to_collection(collection_name.clone())

@@ -51,6 +51,9 @@ impl From<LockManualGenerationIdError> for CollectionMethodError {
             LockManualGenerationIdError::PutPhantomWithoutGenerationId => {
                 CollectionMethodError::PutPhantomWithoutGenerationId
             }
+            LockManualGenerationIdError::NoSuchCollection => {
+                CollectionMethodError::NoSuchCollection
+            }
         }
     }
 }
@@ -62,6 +65,9 @@ impl From<StartManualGenerationIdError> for CollectionMethodError {
                 CollectionMethodError::OutdatedGeneration
             }
             StartManualGenerationIdError::RawDb(err) => CollectionMethodError::RawDb(err),
+            StartManualGenerationIdError::NoSuchCollection => {
+                CollectionMethodError::NoSuchCollection
+            }
         }
     }
 }
@@ -73,6 +79,9 @@ impl From<CommitManualGenerationError> for CollectionMethodError {
                 CollectionMethodError::OutdatedGeneration
             }
             CommitManualGenerationError::RawDb(err) => CollectionMethodError::RawDb(err),
+            CommitManualGenerationError::NoSuchCollection => {
+                CollectionMethodError::NoSuchCollection
+            }
         }
     }
 }

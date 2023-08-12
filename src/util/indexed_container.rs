@@ -27,6 +27,7 @@ impl<T: IndexedContainerItem> IndexedContainer<T> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             array: Vec::with_capacity(capacity),

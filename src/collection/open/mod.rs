@@ -232,6 +232,7 @@ impl Collection {
         .map_err(CollectionOpenError::OneshotRecv)?;
 
         let raw_db = Arc::new(raw_db);
+        let is_deleted = Arc::new(RwLock::new(false));
 
         let NewCollectionGenerationsTaskResponse {
             collection_id: generations_id,
@@ -244,6 +245,7 @@ impl Collection {
                     next_generation_id: next_generation_id.clone(),
                     sender,
                     db: raw_db.clone(),
+                    is_deleted: is_deleted.clone(),
                 },
             ))
         })
@@ -273,10 +275,12 @@ impl Collection {
                     ))
                     .await;
 
+                let (sender, _) = oneshot::channel();
                 database_inner
                     .add_generations_task(DatabaseCollectionGenerationsTask::DropCollection(
                         DropCollectionGenerationsTask {
                             collection_id: generations_id,
+                            sender,
                         },
                     ))
                     .await;
@@ -290,7 +294,7 @@ impl Collection {
             name: Arc::from(collection_name),
             raw_db,
             is_manual,
-            is_deleted: Arc::new(RwLock::new(false)),
+            is_deleted,
             generation_pair_receiver,
             if_not_present_writes: Arc::new(RwLock::new(HashMap::new())),
             database_inner,

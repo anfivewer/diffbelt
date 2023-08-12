@@ -19,7 +19,7 @@ use crate::collection::constants::COLLECTION_CF_META;
 use crate::collection::methods::abort_generation::{
     abort_generation_sync, AbortGenerationSyncOptions,
 };
-use tokio::sync::{oneshot, watch};
+use tokio::sync::{oneshot, watch, RwLock};
 use tokio::task::spawn_blocking;
 
 #[derive(Copy, Clone)]
@@ -44,6 +44,7 @@ pub struct InnerGenerationsCollection {
     pub next_generation_locks:
         AsyncLock<GenerationIdNextGenerationIdPair, NextGenerationIdLockData>,
     pub is_next_generation_scheduled: bool,
+    pub is_deleted: Arc<RwLock<bool>>,
 }
 
 pub enum NextGenerationScheduleAction {
@@ -64,6 +65,7 @@ impl InnerGenerationsCollection {
         db: Arc<RawDb>,
         generation_id: OwnedGenerationId,
         next_generation_id: Option<OwnedGenerationId>,
+        is_deleted: Arc<RwLock<bool>>,
     ) -> Self {
         let (generation_id, next_generation_id) = {
             if is_manual {
@@ -95,6 +97,7 @@ impl InnerGenerationsCollection {
             next_generation_locks: AsyncLock::with_limit(generation_pair, 64),
             // TODO: check after restart
             is_next_generation_scheduled: false,
+            is_deleted,
         }
     }
 
@@ -105,6 +108,7 @@ impl InnerGenerationsCollection {
     ) -> impl Future<Output = Result<(), StartManualGenerationIdError>> {
         let next_generation_locks = self.next_generation_locks.mirror();
         let raw_db = self.db.clone();
+        let is_deleted = self.is_deleted.clone();
 
         return async move {
             let mut lock = next_generation_locks.lock_exclusive_without_data().await;
@@ -136,12 +140,15 @@ impl InnerGenerationsCollection {
                 } else {
                     return Err(StartManualGenerationIdError::OutdatedGeneration);
                 };
-
-                return Err(StartManualGenerationIdError::OutdatedGeneration);
             }
 
             let new_next_generation_id_for_db = new_next_generation_id.clone();
             let _: () = spawn_blocking(move || {
+                let is_deleted = is_deleted.blocking_read();
+                if *is_deleted {
+                    return Err(StartManualGenerationIdError::NoSuchCollection);
+                }
+
                 if let Some(need_abort_generation_id) = need_abort_generation_id {
                     let err = abort_generation_sync(AbortGenerationSyncOptions {
                         raw_db: raw_db.as_ref(),
@@ -171,22 +178,6 @@ impl InnerGenerationsCollection {
 
             Ok(())
         };
-    }
-
-    pub fn lock_generation(&mut self) -> impl Future<Output = GenerationIdLock> {
-        let next_generation_locks = self.next_generation_locks.mirror();
-
-        async move {
-            let (sender, _receiver) = oneshot::channel();
-
-            let lock = next_generation_locks
-                .lock(NextGenerationIdLockData::new(), sender)
-                .await;
-
-            GenerationIdLock {
-                async_lock_instance: lock,
-            }
-        }
     }
 
     pub fn lock_next_generation(
@@ -271,6 +262,7 @@ impl InnerGenerationsCollection {
         let next_generation_locks = self.next_generation_locks.mirror();
         let generation_pair_sender = self.generation_pair_sender.clone();
         let raw_db = self.db.clone();
+        let is_deleted = self.is_deleted.clone();
 
         tokio::spawn(async move {
             let mut lock = next_generation_locks.lock_exclusive_without_data().await;
@@ -298,11 +290,18 @@ impl InnerGenerationsCollection {
             // TODO: break only this collection, not whole server. Or at least shutdown gracefully
             let generation_id_for_db = generation_id.clone();
             let _: () = spawn_blocking(move || {
-                raw_db.commit_generation_sync(RawDbCommitGenerationOptions {
-                    generation_id: generation_id_for_db.as_ref(),
-                    next_generation_id: OwnedGenerationId::empty().as_ref(),
-                    update_readers: None,
-                })
+                let is_deleted = is_deleted.blocking_read();
+                if *is_deleted {
+                    return Err(CommitManualGenerationError::NoSuchCollection);
+                }
+
+                raw_db
+                    .commit_generation_sync(RawDbCommitGenerationOptions {
+                        generation_id: generation_id_for_db.as_ref(),
+                        next_generation_id: OwnedGenerationId::empty().as_ref(),
+                        update_readers: None,
+                    })
+                    .map_err(CommitManualGenerationError::RawDb)
             })
             .await
             .expect("commit_next_generation:join_error")
@@ -321,6 +320,7 @@ impl InnerGenerationsCollection {
         let next_generation_locks = self.next_generation_locks.mirror();
         let generation_pair_sender = self.generation_pair_sender.clone();
         let raw_db = self.db.clone();
+        let is_deleted = self.is_deleted.clone();
 
         async move {
             let mut lock = next_generation_locks.lock_exclusive_without_data().await;
@@ -339,6 +339,11 @@ impl InnerGenerationsCollection {
 
             let generation_id_for_db = pair.generation_id.clone();
             let _: () = spawn_blocking(move || {
+                let is_deleted = is_deleted.blocking_read();
+                if *is_deleted {
+                    return Err(CommitManualGenerationError::NoSuchCollection);
+                }
+
                 let err = abort_generation_sync(AbortGenerationSyncOptions {
                     raw_db: raw_db.as_ref(),
                     generation_id: next_generation_id.as_ref(),
@@ -375,6 +380,7 @@ impl InnerGenerationsCollection {
         let next_generation_locks = self.next_generation_locks.mirror();
         let generation_pair_sender = self.generation_pair_sender.clone();
         let raw_db = self.db.clone();
+        let is_deleted = self.is_deleted.clone();
 
         async move {
             let mut lock = next_generation_locks.lock_exclusive_without_data().await;
@@ -393,28 +399,34 @@ impl InnerGenerationsCollection {
 
             let generation_id_for_db = next_generation_id.clone();
             let _: () = spawn_blocking(move || {
-                raw_db.commit_generation_sync(RawDbCommitGenerationOptions {
-                    generation_id: generation_id_for_db.as_ref(),
-                    next_generation_id: OwnedGenerationId::empty().as_ref(),
-                    update_readers: update_readers.as_ref().map(|update_readers| {
-                        update_readers
-                            .iter()
-                            .map(
-                                |CommitGenerationUpdateReader {
-                                     reader_name,
-                                     generation_id,
-                                 }| RawDbUpdateReader {
-                                    reader_name: reader_name.as_str(),
-                                    generation_id: generation_id.as_ref(),
-                                },
-                            )
-                            .collect()
-                    }),
-                })
+                let is_deleted = is_deleted.blocking_read();
+                if *is_deleted {
+                    return Err(CommitManualGenerationError::NoSuchCollection);
+                }
+
+                raw_db
+                    .commit_generation_sync(RawDbCommitGenerationOptions {
+                        generation_id: generation_id_for_db.as_ref(),
+                        next_generation_id: OwnedGenerationId::empty().as_ref(),
+                        update_readers: update_readers.as_ref().map(|update_readers| {
+                            update_readers
+                                .iter()
+                                .map(
+                                    |CommitGenerationUpdateReader {
+                                         reader_name,
+                                         generation_id,
+                                     }| RawDbUpdateReader {
+                                        reader_name: reader_name.as_str(),
+                                        generation_id: generation_id.as_ref(),
+                                    },
+                                )
+                                .collect()
+                        }),
+                    })
+                    .map_err(CommitManualGenerationError::RawDb)
             })
             .await
-            .map_err(|error| CommitManualGenerationError::RawDb(RawDbError::Join(error)))?
-            .map_err(CommitManualGenerationError::RawDb)?;
+            .map_err(|error| CommitManualGenerationError::RawDb(RawDbError::Join(error)))??;
 
             pair.generation_id = next_generation_id.clone();
             pair.next_generation_id.take();

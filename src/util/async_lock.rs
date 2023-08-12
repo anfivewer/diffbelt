@@ -41,6 +41,7 @@ pub struct AsyncLockExclusiveInstance<D, T> {
 }
 
 impl<D, T> AsyncLockExclusiveInstance<D, T> {
+    #[allow(dead_code)]
     pub fn value(&self) -> &D {
         self.lock.deref()
     }
@@ -49,12 +50,14 @@ impl<D, T> AsyncLockExclusiveInstance<D, T> {
         self.lock.deref_mut()
     }
 
+    #[allow(dead_code)]
     pub fn data(&self) -> &T {
         let (data, _) = self.data_and_drop_sender.as_ref().unwrap();
 
         data
     }
 
+    #[allow(dead_code)]
     pub fn data_mut(&mut self) -> &mut T {
         let (data, _) = self.data_and_drop_sender.as_mut().unwrap();
 
@@ -101,6 +104,7 @@ impl<D: Send + Sync + 'static, T: Send + 'static> AsyncLock<D, T> {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn lock_exclusive(
         &self,
         data: T,
