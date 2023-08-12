@@ -48,7 +48,7 @@ impl Collection {
         .or(Err(CollectionMethodError::TaskJoin))?
         .map_err(|err| match err {
             CommitNextGenerationError::RawDb(err) => CollectionMethodError::RawDb(err),
-            CommitNextGenerationError::GenerationIdMissmatch => {
+            CommitNextGenerationError::GenerationIdMismatch => {
                 CollectionMethodError::OutdatedGeneration
             }
         })?;

@@ -7,7 +7,8 @@ use crate::database::generations::collection::{
 use crate::messages::generations::{
     DatabaseCollectionGenerationsTask, DropCollectionGenerationsTask, LockNextGenerationIdTask,
     LockNextGenerationIdTaskResponse, NewCollectionGenerationsTask,
-    NewCollectionGenerationsTaskResponse,
+    NewCollectionGenerationsTaskResponse, StartManualGenerationIdError,
+    StartManualGenerationIdTask,
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::indexed_container::IndexedContainer;
@@ -60,7 +61,12 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollectionGenerationsTask
                 DatabaseCollectionGenerationsTask::LockNextGenerationId(task) => {
                     state.lock_next_generation(task);
                 }
-                _ => {}
+                DatabaseCollectionGenerationsTask::StartManualGenerationId(task) => {
+                    state.start_manual_generation(task);
+                }
+                DatabaseCollectionGenerationsTask::LockManualGenerationId(_) => {}
+                DatabaseCollectionGenerationsTask::CommitManualGeneration(_) => {}
+                DatabaseCollectionGenerationsTask::Init(_) => {}
             },
             ThreadTask::ScheduleNextGeneration {
                 collection_id,
@@ -95,12 +101,18 @@ impl GenerationsThreadState {
             is_manual,
             generation_id,
             next_generation_id,
-            db: _,
+            db,
             sender,
         } = task;
 
         let id = self.collections.insert(move |inner_id| {
-            InnerGenerationsCollection::new(inner_id, is_manual, generation_id, next_generation_id)
+            InnerGenerationsCollection::new(
+                inner_id,
+                is_manual,
+                db,
+                generation_id,
+                next_generation_id,
+            )
         });
 
         let item = self.collections.get(&id).unwrap();
@@ -117,6 +129,33 @@ impl GenerationsThreadState {
         let DropCollectionGenerationsTask { collection_id } = task;
 
         self.collections.delete(&collection_id);
+    }
+
+    fn start_manual_generation(&mut self, task: StartManualGenerationIdTask) {
+        let StartManualGenerationIdTask {
+            collection_id,
+            sender,
+            next_generation_id,
+        } = task;
+
+        let Some(item) = self.collections.get_mut(&collection_id) else {
+            return;
+        };
+
+        let fut = item.start_manual_generation(next_generation_id);
+
+        tokio::spawn(async move {
+            let result = fut.await;
+
+            match result {
+                Ok(()) => {
+                    sender.send(Ok(())).unwrap_or(());
+                }
+                Err(error) => {
+                    sender.send(Err(error)).unwrap_or(());
+                }
+            }
+        });
     }
 
     fn lock_next_generation(&mut self, task: LockNextGenerationIdTask) {
@@ -184,7 +223,7 @@ impl GenerationsThreadState {
             return;
         };
 
-        let NextGenerationScheduleAction::NeedSchedule = item.schedule_next_generation(expected_generation_id.as_ref()) else {
+        let NextGenerationScheduleAction::NeedSchedule = item.schedule_next_generation(expected_generation_id) else {
             return;
         };
 

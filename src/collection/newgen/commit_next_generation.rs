@@ -20,7 +20,7 @@ pub struct CommitNextGenerationSyncOptions {
 }
 
 pub enum CommitNextGenerationError {
-    GenerationIdMissmatch,
+    GenerationIdMismatch,
     RawDb(RawDbError),
 }
 
@@ -36,14 +36,14 @@ pub async fn commit_next_generation_sync(
             match next_generation_id_lock.as_ref() {
                 Some(next_generation_id) => {
                     if &expected_generation_id != next_generation_id {
-                        return Err(CommitNextGenerationError::GenerationIdMissmatch);
+                        return Err(CommitNextGenerationError::GenerationIdMismatch);
                     }
 
                     let next_generation_id = next_generation_id.clone();
                     (next_generation_id, Some(next_generation_id_lock))
                 }
                 None => {
-                    return Err(CommitNextGenerationError::GenerationIdMissmatch);
+                    return Err(CommitNextGenerationError::GenerationIdMismatch);
                 }
             }
         }

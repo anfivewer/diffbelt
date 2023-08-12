@@ -35,8 +35,31 @@ pub struct LockNextGenerationIdTask {
     pub sender: oneshot::Sender<LockNextGenerationIdTaskResponse>,
 }
 
+pub enum StartManualGenerationIdError {
+    GenerationIdMismatch,
+    RawDb(RawDbError),
+}
+
+pub struct StartManualGenerationIdTask {
+    pub collection_id: InnerGenerationsCollectionId,
+    pub sender: oneshot::Sender<Result<(), StartManualGenerationIdError>>,
+    pub next_generation_id: OwnedGenerationId,
+}
+
+pub enum LockManualGenerationIdError {
+    AlreadyStarted,
+    GenerationIdMismatch,
+}
+
+pub struct LockManualGenerationIdTask {
+    pub collection_id: InnerGenerationsCollectionId,
+    pub sender:
+        oneshot::Sender<Result<LockNextGenerationIdTaskResponse, LockManualGenerationIdError>>,
+    pub next_generation_id: OwnedGenerationId,
+}
+
 pub enum CommitManualGenerationError {
-    GenerationIdMissmatch,
+    GenerationIdMismatch,
     RawDb(RawDbError),
 }
 
@@ -54,5 +77,7 @@ pub enum DatabaseCollectionGenerationsTask {
     DropCollection(DropCollectionGenerationsTask),
 
     LockNextGenerationId(LockNextGenerationIdTask),
+    StartManualGenerationId(StartManualGenerationIdTask),
+    LockManualGenerationId(LockManualGenerationIdTask),
     CommitManualGeneration(CommitManualGenerationTask),
 }

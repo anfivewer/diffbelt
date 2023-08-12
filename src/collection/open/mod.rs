@@ -51,7 +51,7 @@ pub enum CollectionOpenError {
     PathJoin,
     RawDbOpen(RawDbOpenError),
     RawDb(RawDbError),
-    ManualModeMissmatch,
+    ManualModeMismatch,
     InvalidGenerationId,
     InvalidPhantomId,
     JoinError,
@@ -130,7 +130,7 @@ impl Collection {
         let is_manual = match is_manual_stored {
             Some(is_manual_vec) => {
                 if is_manual_vec.len() != 1 {
-                    return Err(CollectionOpenError::ManualModeMissmatch);
+                    return Err(CollectionOpenError::ManualModeMismatch);
                 }
 
                 is_manual_vec[0] == 1
@@ -149,7 +149,7 @@ impl Collection {
         };
 
         if is_manual != options.is_manual {
-            return Err(CollectionOpenError::ManualModeMissmatch);
+            return Err(CollectionOpenError::ManualModeMismatch);
         }
 
         let generation_id_stored = raw_db.get_cf(COLLECTION_CF_META, b"generation_id").await?;

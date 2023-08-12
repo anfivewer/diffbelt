@@ -92,6 +92,15 @@ impl<D: Send + Sync + 'static, T: Send + 'static> AsyncLock<D, T> {
         }
     }
 
+    pub async fn lock_without_data(&self) -> AsyncLockInstance<D, T> {
+        let lock = self.value.clone().read_owned().await;
+
+        AsyncLockInstance {
+            lock,
+            data_and_drop_sender: None,
+        }
+    }
+
     pub async fn lock_exclusive(
         &self,
         data: T,
