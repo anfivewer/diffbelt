@@ -3,7 +3,9 @@ use crate::database::generations::collection::{
     InnerGenerationsCollection, InnerGenerationsCollectionId, NextGenerationLocked,
     NextGenerationScheduleAction,
 };
+use std::sync::Arc;
 
+use crate::database::DatabaseInner;
 use crate::messages::generations::{
     AbortManualGenerationTask, CommitManualGenerationError, CommitManualGenerationTask,
     DatabaseCollectionGenerationsTask, DropCollectionGenerationsTask, LockManualGenerationIdError,
@@ -18,6 +20,7 @@ use tokio::sync::mpsc;
 use tokio::time::sleep;
 
 struct GenerationsThreadState {
+    database: Arc<DatabaseInner>,
     sender: mpsc::Sender<ThreadTask>,
     collections: IndexedContainer<InnerGenerationsCollection>,
 }
@@ -39,13 +42,14 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollectionGenerationsTask
         return;
     };
 
-    let DatabaseCollectionGenerationsTask::Init(_database) = task else {
+    let DatabaseCollectionGenerationsTask::Init(database) = task else {
         panic!("database/generations/thread first task is not init");
     };
 
     let (sender, mut receiver) = mpsc::channel::<ThreadTask>(8);
 
     let mut state = GenerationsThreadState {
+        database,
         sender,
         collections: IndexedContainer::new(),
     };
@@ -103,6 +107,7 @@ async fn poll_task(
 impl GenerationsThreadState {
     fn new_collection(&mut self, task: NewCollectionGenerationsTask) {
         let NewCollectionGenerationsTask {
+            name,
             is_manual,
             generation_id,
             next_generation_id,
@@ -114,6 +119,7 @@ impl GenerationsThreadState {
         let id = self.collections.insert(|inner_id| {
             InnerGenerationsCollection::new(
                 inner_id,
+                name,
                 is_manual,
                 db,
                 generation_id.clone(),
@@ -379,7 +385,8 @@ impl GenerationsThreadState {
             return;
         };
 
-        let committing = item.commit_manual_generation(generation_id, update_readers);
+        let committing =
+            item.commit_manual_generation(self.database.clone(), generation_id, update_readers);
 
         tokio::spawn(async move {
             let result = committing.await;

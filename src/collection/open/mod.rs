@@ -84,6 +84,8 @@ impl Collection {
         let path = Collection::get_path(options.data_path, &collection_name);
         let path = path.to_str().ok_or(CollectionOpenError::PathJoin)?;
 
+        let collection_name = Arc::from(collection_name);
+
         let raw_db = RawDb::open_raw_db(RawDbOptions {
             path,
             comparator: Some(RawDbComparator {
@@ -237,7 +239,7 @@ impl Collection {
         let raw_db = wrap_collection_raw_db(
             Arc::new(raw_db),
             #[cfg(feature = "debug_prints")]
-            collection_name.clone(),
+            collection_name.to_string(),
         );
         let is_deleted = Arc::new(RwLock::new(false));
 
@@ -251,6 +253,7 @@ impl Collection {
 
             database_inner.add_generations_task(DatabaseCollectionGenerationsTask::NewCollection(
                 NewCollectionGenerationsTask {
+                    name: Arc::<str>::clone(&collection_name),
                     is_manual,
                     generation_id: generation_id.clone(),
                     next_generation_id: next_generation_id.clone(),
@@ -302,7 +305,7 @@ impl Collection {
 
         let collection = Collection {
             config: options.config,
-            name: Arc::from(collection_name),
+            name: collection_name,
             raw_db,
             is_manual,
             is_deleted,

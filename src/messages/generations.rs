@@ -16,6 +16,7 @@ pub struct NewCollectionGenerationsTaskResponse {
 }
 
 pub struct NewCollectionGenerationsTask {
+    pub name: Arc<str>,
     pub is_manual: bool,
     pub generation_id: OwnedGenerationId,
     pub next_generation_id: Option<OwnedGenerationId>,

@@ -11,6 +11,10 @@ pub struct UpdateReaderTask {
     pub generation_id: Arc<OwnedGenerationId>,
 }
 
+pub struct UpdateReadersTask {
+    pub updates: Vec<UpdateReaderTask>,
+}
+
 pub struct DeleteReaderTask {
     pub owner_collection_name: Arc<str>,
     pub reader_name: Arc<str>,
@@ -29,6 +33,7 @@ pub struct GetReadersPointingToCollectionTask {
 pub enum DatabaseCollectionReadersTask {
     Init(Arc<DatabaseInner>),
     UpdateReader(UpdateReaderTask),
+    UpdateReaders(UpdateReadersTask),
     DeleteReader(DeleteReaderTask),
     GetReadersPointingToCollectionExceptThisOne(GetReadersPointingToCollectionTask),
     InitFinish,

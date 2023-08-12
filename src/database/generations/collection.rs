@@ -20,6 +20,10 @@ use crate::collection::methods::abort_generation::{
     abort_generation_sync, AbortGenerationSyncOptions,
 };
 use crate::collection::util::collection_raw_db::CollectionRawDb;
+use crate::database::DatabaseInner;
+use crate::messages::readers::{
+    DatabaseCollectionReadersTask, UpdateReaderTask, UpdateReadersTask,
+};
 use crate::raw_db::has_generation_changes::HasGenerationChangesOptions;
 use tokio::sync::{oneshot, watch, RwLock};
 use tokio::task::spawn_blocking;
@@ -38,6 +42,7 @@ pub struct GenerationIdNextGenerationIdPair {
 
 pub struct InnerGenerationsCollection {
     pub inner_id: InnerGenerationsCollectionId,
+    name: Arc<str>,
     pub is_manual: bool,
     db: CollectionRawDb,
     scheduled_for_generation_id: Option<OwnedGenerationId>,
@@ -63,6 +68,7 @@ pub struct NextGenerationLocked {
 impl InnerGenerationsCollection {
     pub fn new(
         inner_id: InnerGenerationsCollectionId,
+        name: Arc<str>,
         is_manual: bool,
         db: CollectionRawDb,
         generation_id: OwnedGenerationId,
@@ -88,6 +94,7 @@ impl InnerGenerationsCollection {
 
         Self {
             inner_id,
+            name,
             is_manual,
             db,
             // generation_id: generation_id.clone(),
@@ -400,6 +407,7 @@ impl InnerGenerationsCollection {
 
     pub fn commit_manual_generation(
         &mut self,
+        database: Arc<DatabaseInner>,
         next_generation_id: OwnedGenerationId,
         update_readers: Option<Vec<CommitGenerationUpdateReader>>,
     ) -> impl Future<Output = Result<(), CommitManualGenerationError>> {
@@ -407,6 +415,7 @@ impl InnerGenerationsCollection {
         let generation_pair_sender = self.generation_pair_sender.clone();
         let raw_db = self.db.clone();
         let is_deleted = self.is_deleted.clone();
+        let name = self.name.clone();
 
         async move {
             let mut lock = next_generation_locks.lock_exclusive_without_data().await;
@@ -422,6 +431,23 @@ impl InnerGenerationsCollection {
             if !is_equal {
                 return Err(CommitManualGenerationError::OutdatedGeneration);
             }
+
+            let update_readers_for_readers_thread = update_readers.as_ref().map(|update_readers| {
+                update_readers
+                    .iter()
+                    .map(
+                        |CommitGenerationUpdateReader {
+                             reader_name,
+                             generation_id,
+                         }| UpdateReaderTask {
+                            owner_collection_name: name.clone(),
+                            to_collection_name: None,
+                            reader_name: Arc::from(reader_name.as_str()),
+                            generation_id: Arc::from(generation_id.clone()),
+                        },
+                    )
+                    .collect()
+            });
 
             let generation_id_for_db = next_generation_id.clone();
             let _: () = spawn_blocking(move || {
@@ -453,6 +479,16 @@ impl InnerGenerationsCollection {
             })
             .await
             .map_err(|error| CommitManualGenerationError::RawDb(RawDbError::Join(error)))??;
+
+            if let Some(update_readers_for_readers_thread) = update_readers_for_readers_thread {
+                database
+                    .add_readers_task(DatabaseCollectionReadersTask::UpdateReaders(
+                        UpdateReadersTask {
+                            updates: update_readers_for_readers_thread,
+                        },
+                    ))
+                    .await;
+            }
 
             pair.generation_id = next_generation_id.clone();
             pair.next_generation_id.take();
