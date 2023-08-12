@@ -63,7 +63,7 @@ fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
 
         let Some(generation_id) = generation_id else {
             // If no `generationId` passed, response with current generationId
-            let id = collection.get_generation_id().await;
+            let id = collection.generation_pair().generation_id;
             return make_response(id)
         };
 
@@ -79,19 +79,19 @@ fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
 
         let mut time_left = Duration::from_millis(60 * 1000);
 
-        let mut generation_id_receiver = collection.get_generation_id_receiver().clone();
+        let mut generation_pair_receiver = collection.generation_pair_receiver.clone();
 
         let new_generation_id = loop {
             {
-                let new_generation_id = generation_id_receiver.borrow_and_update();
-                let new_generation_id = new_generation_id.deref();
+                let new_generation_pair = generation_pair_receiver.borrow_and_update();
+                let new_generation_id = &new_generation_pair.deref().generation_id;
 
                 if new_generation_id != &generation_id {
                     break Some(new_generation_id.clone());
                 }
             };
 
-            let changed_fut = generation_id_receiver.changed();
+            let changed_fut = generation_pair_receiver.changed();
             let timeout_fut = sleep(time_left);
 
             // Measure elapsed time

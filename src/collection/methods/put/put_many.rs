@@ -6,11 +6,15 @@ use crate::collection::methods::put::inner::{
 
 use crate::collection::Collection;
 
-use crate::common::{GenerationId, KeyValueUpdate, OwnedGenerationId, OwnedPhantomId, PhantomId};
+use crate::common::{KeyValueUpdate, OwnedGenerationId, OwnedPhantomId};
+use crate::messages::generations::{
+    DatabaseCollectionGenerationsTask, LockNextGenerationIdTask, LockNextGenerationIdTaskResponse,
+};
 
 use crate::raw_db::put_many_collection_records::{
     PutManyCollectionRecordsItem, PutManyCollectionRecordsOptions,
 };
+use crate::util::async_sync_call::async_sync_call;
 
 pub struct CollectionPutManyOptions {
     pub items: Vec<KeyValueUpdate>,
@@ -27,20 +31,35 @@ pub type CollectionPutManyResult = Result<CollectionPutManyOk, CollectionMethodE
 
 impl Collection {
     pub async fn put_many(&self, options: CollectionPutManyOptions) -> CollectionPutManyResult {
-        let generation_id: Option<GenerationId> =
-            options.generation_id.as_ref().map(|gen| gen.as_ref());
-        let phantom_id: Option<PhantomId> = options.phantom_id.as_ref().map(|id| id.as_ref());
+        let CollectionPutManyOptions {
+            items,
+            generation_id,
+            phantom_id,
+        } = options;
 
-        let next_generation_id_lock = self.next_generation_id.read().await;
-        let next_generation_id = next_generation_id_lock.clone();
-        let next_generation_id = next_generation_id.as_ref().map(|gen| gen.as_ref());
+        let phantom_id = phantom_id.as_ref().map(|id| id.as_ref());
+
+        let LockNextGenerationIdTaskResponse {
+            next_generation_id,
+            lock: mut next_generation_id_lock,
+        } = async_sync_call(|sender| {
+            self.database_inner.add_generations_task(
+                DatabaseCollectionGenerationsTask::LockNextGenerationId(LockNextGenerationIdTask {
+                    collection_id: self.generations_id,
+                    sender,
+                    next_generation_id: generation_id.clone(),
+                    is_phantom: phantom_id.is_some(),
+                }),
+            )
+        })
+        .await??;
 
         //// Validate
         let error = validate_put(ValidatePutOptions {
             is_manual_collection: self.is_manual,
-            generation_id,
+            generation_id: generation_id.as_ref().map(|id| id.as_ref()),
             phantom_id,
-            next_generation_id,
+            next_generation_id: Some(next_generation_id.as_ref()),
         });
 
         match error {
@@ -50,22 +69,21 @@ impl Collection {
             None => {}
         }
 
-        let record_generation_id = generation_id
-            .or(next_generation_id)
-            .expect("Collection::put, no either generation_id or next_generation");
+        let record_generation_id = generation_id.unwrap_or(next_generation_id);
+        let record_generation_id = record_generation_id.as_ref();
 
-        // //// Insert
+        //// Insert
         let deletion_lock = self.is_deleted.read().await;
         if deletion_lock.to_owned() {
             return Err(CollectionMethodError::NoSuchCollection);
         }
 
-        let items_inner = options.items.into_iter().map(|update| async move {
+        let items_inner = items.into_iter().map(|update| async move {
             let result = self
                 .put_inner(CollectionPutInnerOptions {
                     update: &update,
                     record_generation_id,
-                    phantom_id: phantom_id.clone(),
+                    phantom_id,
                 })
                 .await;
 
@@ -126,10 +144,16 @@ impl Collection {
             }
         };
 
+        let is_empty = items.is_empty();
+
         let result = self
             .raw_db
             .put_many_collection_records(PutManyCollectionRecordsOptions { items })
             .await;
+
+        if !is_empty {
+            next_generation_id_lock.set_need_schedule_next_generation();
+        }
 
         drop(next_generation_id_lock);
 
@@ -149,8 +173,6 @@ impl Collection {
         for resolve in resolves {
             resolve(if_not_present_result);
         }
-
-        self.on_put();
 
         drop(deletion_lock);
 

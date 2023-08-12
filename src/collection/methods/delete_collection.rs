@@ -13,7 +13,6 @@ impl Collection {
         let collection_name = self.name.clone();
         let database_inner = self.database_inner.clone();
         let raw_db = self.raw_db.clone();
-        let newgen = self.newgen.clone();
 
         let join = spawn_blocking_async(async move {
             // Make all methods return `NoSuchCollection` after this write
@@ -25,17 +24,6 @@ impl Collection {
 
             let is_deleted = deletion_lock.deref_mut();
             *is_deleted = true;
-
-            {
-                let mut newgen_lock = newgen.write().await;
-                let newgen = newgen_lock.take();
-                match newgen {
-                    Some(mut newgen) => {
-                        newgen.stop().await;
-                    }
-                    None => {}
-                }
-            }
 
             // Preparation to delete
             database_inner

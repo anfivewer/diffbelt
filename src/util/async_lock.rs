@@ -27,6 +27,14 @@ impl<D, T> AsyncLockInstance<D, T> {
     }
 }
 
+impl<D, T> Drop for AsyncLockInstance<D, T> {
+    fn drop(&mut self) {
+        if let Some((data, data_sender)) = self.data_and_drop_sender.take() {
+            data_sender.send(data).unwrap_or(());
+        }
+    }
+}
+
 pub struct AsyncLockExclusiveInstance<D, T> {
     lock: OwnedRwLockWriteGuard<D>,
     data_and_drop_sender: Option<(T, oneshot::Sender<T>)>,

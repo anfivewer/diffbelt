@@ -82,22 +82,25 @@ async fn database_test_inner() {
     let generation_id_after_put = result.generation_id;
     assert!(&generation_id_after_put > &initial_generation_id);
 
-    let mut generation_id_receiver = collection.get_generation_id_receiver();
+    let mut generation_pair_receiver = collection.generation_pair_receiver.clone();
 
     loop {
         let is_got_it = {
-            let generation_id = generation_id_receiver.borrow_and_update();
-            generation_id.deref() >= &generation_id_after_put
+            let pair = generation_pair_receiver.borrow_and_update();
+            pair.deref().generation_id >= generation_id_after_put
         };
 
         if is_got_it {
             break;
         }
 
-        timeout(Duration::from_millis(100), generation_id_receiver.changed())
-            .await
-            .unwrap()
-            .unwrap();
+        timeout(
+            Duration::from_millis(100),
+            generation_pair_receiver.changed(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
     }
 
     assert_get(

@@ -7,7 +7,7 @@ use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::methods::put::{CollectionPutOk, CollectionPutResult};
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::collection::Collection;
-use crate::common::{GenerationId, KeyValueUpdate, NeverEq, PhantomId};
+use crate::common::{GenerationId, KeyValueUpdate, PhantomId};
 use crate::raw_db::contains_existing_collection_record::ContainsExistingCollectionRecordOptions;
 use crate::util::bytes::is_byte_array_equal_both_opt;
 use crate::util::tokio::spawn;
@@ -140,15 +140,6 @@ impl Collection {
                 resolve: resolve_put,
             },
         ))
-    }
-
-    pub fn on_put(&self) {
-        match self.on_put_sender.as_ref() {
-            Some(sender) => {
-                sender.send(NeverEq).unwrap_or(());
-            }
-            None => {}
-        }
     }
 }
 

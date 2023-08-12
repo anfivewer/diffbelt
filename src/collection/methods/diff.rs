@@ -17,6 +17,7 @@ use crate::messages::cursors::{
     DatabaseCollectionSpecificCursorsTask, FinishCursorTask, FullyFinishCursorTask,
     GetCursorByPublicIdTask,
 };
+
 use crate::util::async_sync_call::async_sync_call;
 
 type CursorId = Box<str>;

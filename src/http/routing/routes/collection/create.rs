@@ -79,7 +79,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
             }
         };
 
-        let generation_id = collection.get_generation_id().await;
+        let generation_id = collection.generation_pair().generation_id;
 
         let response = ResponseJsonData {
             generation_id: EncodedGenerationIdJsonData::encode(

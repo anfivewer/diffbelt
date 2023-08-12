@@ -1,8 +1,10 @@
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::{GenerationId, OwnedGenerationId};
+use crate::messages::generations::{AbortManualGenerationTask, DatabaseCollectionGenerationsTask};
 use crate::raw_db::remove_all_records_of_generation::RemoveAllRecordsOfGenerationSyncOptions;
 use crate::raw_db::{RawDb, RawDbError};
+use crate::util::async_sync_call::async_sync_call;
 
 pub struct AbortGenerationOptions {
     pub generation_id: OwnedGenerationId,
@@ -13,28 +15,20 @@ impl Collection {
         &self,
         options: AbortGenerationOptions,
     ) -> Result<(), CollectionMethodError> {
-        let raw_db = self.raw_db.clone();
+        let AbortGenerationOptions { generation_id } = options;
 
-        let deletion_lock = self.is_deleted.read().await;
-        if deletion_lock.to_owned() {
-            return Err(CollectionMethodError::NoSuchCollection);
-        }
-
-        tokio::task::spawn_blocking(move || {
-            let err = abort_generation_sync(AbortGenerationSyncOptions {
-                raw_db: raw_db.as_ref(),
-                generation_id: options.generation_id.as_ref(),
-            });
-
-            match err {
-                Some(err) => Err(err),
-                None => Ok(()),
-            }
+        let _: () = async_sync_call(|sender| {
+            self.database_inner.add_generations_task(
+                DatabaseCollectionGenerationsTask::AbortManualGeneration(
+                    AbortManualGenerationTask {
+                        collection_id: self.generations_id,
+                        sender,
+                        generation_id,
+                    },
+                ),
+            )
         })
-        .await
-        .or(Err(CollectionMethodError::TaskJoin))??;
-
-        drop(deletion_lock);
+        .await??;
 
         Ok(())
     }

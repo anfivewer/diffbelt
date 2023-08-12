@@ -6,7 +6,7 @@ use crate::database::generations::collection::{
 
 use crate::messages::generations::{
     AbortManualGenerationTask, CommitManualGenerationTask, DatabaseCollectionGenerationsTask,
-    DropCollectionGenerationsTask, LockManualGenerationIdTask, LockNextGenerationIdTask,
+    DropCollectionGenerationsTask, LockGenerationIdTask, LockNextGenerationIdTask,
     LockNextGenerationIdTaskResponse, NewCollectionGenerationsTask,
     NewCollectionGenerationsTaskResponse, StartManualGenerationIdTask,
 };
@@ -58,14 +58,14 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollectionGenerationsTask
                 DatabaseCollectionGenerationsTask::DropCollection(task) => {
                     state.drop_collection(task);
                 }
+                DatabaseCollectionGenerationsTask::LockGenerationId(task) => {
+                    state.lock_generation(task);
+                }
                 DatabaseCollectionGenerationsTask::LockNextGenerationId(task) => {
                     state.lock_next_generation(task);
                 }
                 DatabaseCollectionGenerationsTask::StartManualGenerationId(task) => {
                     state.start_manual_generation(task);
-                }
-                DatabaseCollectionGenerationsTask::LockManualGenerationId(task) => {
-                    state.lock_manual_generation(task);
                 }
                 DatabaseCollectionGenerationsTask::AbortManualGeneration(task) => {
                     state.abort_manual_generation(task);
@@ -126,7 +126,7 @@ impl GenerationsThreadState {
 
         if let Err(_) = sender.send(NewCollectionGenerationsTaskResponse {
             collection_id: id,
-            generation_id_receiver: item.generation_id_receiver.clone(),
+            generation_pair_receiver: item.generation_pair_receiver.clone(),
         }) {
             self.collections.delete(&id);
         }
@@ -143,13 +143,14 @@ impl GenerationsThreadState {
             collection_id,
             sender,
             next_generation_id,
+            abort_outdated,
         } = task;
 
         let Some(item) = self.collections.get_mut(&collection_id) else {
             return;
         };
 
-        let fut = item.start_manual_generation(next_generation_id);
+        let fut = item.start_manual_generation(next_generation_id, abort_outdated);
 
         tokio::spawn(async move {
             let result = fut.await;
@@ -165,8 +166,8 @@ impl GenerationsThreadState {
         });
     }
 
-    fn lock_next_generation(&mut self, task: LockNextGenerationIdTask) {
-        let LockNextGenerationIdTask {
+    fn lock_generation(&mut self, task: LockGenerationIdTask) {
+        let LockGenerationIdTask {
             collection_id,
             sender,
         } = task;
@@ -175,27 +176,59 @@ impl GenerationsThreadState {
             return;
         };
 
-        let locked = item.lock_next_generation();
+        let locking = item.lock_generation();
+
+        tokio::spawn(async move {
+            let lock = locking.await;
+
+            sender.send(lock).unwrap_or(());
+        });
+    }
+
+    fn lock_next_generation(&mut self, task: LockNextGenerationIdTask) {
+        let LockNextGenerationIdTask {
+            collection_id,
+            sender,
+            next_generation_id,
+            is_phantom,
+        } = task;
+
+        let Some(item) = self.collections.get_mut(&collection_id) else {
+            return;
+        };
+
+        let is_manual = item.is_manual;
+        let locked = item.lock_next_generation(next_generation_id, is_phantom);
 
         let thread_task_sender = self.sender.clone();
 
         tokio::spawn(async move {
-            let locked = locked.await;
+            let locked = match locked.await {
+                Ok(locked) => locked,
+                Err(err) => {
+                    sender.send(Err(err)).unwrap_or(());
+                    return;
+                }
+            };
 
             let NextGenerationLocked {
-                generation_id,
                 next_generation_id,
                 lock,
                 unlock_receiver,
             } = locked;
 
+            let generation_id = lock.generation_id().to_owned();
+
             sender
-                .send(LockNextGenerationIdTaskResponse {
-                    generation_id: generation_id.clone(),
+                .send(Ok(LockNextGenerationIdTaskResponse {
                     next_generation_id,
                     lock,
-                })
+                }))
                 .unwrap_or(());
+
+            if is_manual || is_phantom {
+                return;
+            }
 
             let Ok(lock_data) = unlock_receiver.await else {
                 return;
@@ -211,45 +244,6 @@ impl GenerationsThreadState {
                     expected_generation_id: generation_id,
                 })
                 .await
-                .unwrap_or(());
-        });
-    }
-
-    fn lock_manual_generation(&mut self, task: LockManualGenerationIdTask) {
-        let LockManualGenerationIdTask {
-            collection_id,
-            sender,
-            next_generation_id,
-        } = task;
-
-        let Some(item) = self.collections.get_mut(&collection_id) else {
-            return;
-        };
-
-        let locked = item.lock_manual_generation(next_generation_id);
-
-        tokio::spawn(async move {
-            let locked = match locked.await {
-                Ok(locked) => locked,
-                Err(error) => {
-                    sender.send(Err(error)).unwrap_or(());
-                    return;
-                }
-            };
-
-            let NextGenerationLocked {
-                generation_id,
-                next_generation_id,
-                lock,
-                unlock_receiver: _,
-            } = locked;
-
-            sender
-                .send(Ok(LockNextGenerationIdTaskResponse {
-                    generation_id: generation_id.clone(),
-                    next_generation_id,
-                    lock,
-                }))
                 .unwrap_or(());
         });
     }

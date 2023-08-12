@@ -1,7 +1,9 @@
 use crate::collection::CommitGenerationUpdateReader;
 use crate::common::OwnedGenerationId;
-use crate::database::generations::collection::InnerGenerationsCollectionId;
-use crate::database::generations::next_generation_lock::NextGenerationIdLock;
+use crate::database::generations::collection::{
+    GenerationIdNextGenerationIdPair, InnerGenerationsCollectionId,
+};
+use crate::database::generations::next_generation_lock::GenerationIdLock;
 use crate::database::DatabaseInner;
 use crate::raw_db::{RawDb, RawDbError};
 use std::sync::Arc;
@@ -9,7 +11,7 @@ use tokio::sync::{oneshot, watch};
 
 pub struct NewCollectionGenerationsTaskResponse {
     pub collection_id: InnerGenerationsCollectionId,
-    pub generation_id_receiver: watch::Receiver<OwnedGenerationId>,
+    pub generation_pair_receiver: watch::Receiver<GenerationIdNextGenerationIdPair>,
 }
 
 pub struct NewCollectionGenerationsTask {
@@ -25,18 +27,31 @@ pub struct DropCollectionGenerationsTask {
 }
 
 pub struct LockNextGenerationIdTaskResponse {
-    pub generation_id: OwnedGenerationId,
     pub next_generation_id: OwnedGenerationId,
-    pub lock: NextGenerationIdLock,
+    pub lock: GenerationIdLock,
+}
+
+pub enum LockManualGenerationIdError {
+    GenerationIdMismatch,
+    PutPhantomWithoutGenerationId,
 }
 
 pub struct LockNextGenerationIdTask {
     pub collection_id: InnerGenerationsCollectionId,
-    pub sender: oneshot::Sender<LockNextGenerationIdTaskResponse>,
+    pub sender:
+        oneshot::Sender<Result<LockNextGenerationIdTaskResponse, LockManualGenerationIdError>>,
+    // Required for manual collections and phantoms
+    pub next_generation_id: Option<OwnedGenerationId>,
+    pub is_phantom: bool,
+}
+
+pub struct LockGenerationIdTask {
+    pub collection_id: InnerGenerationsCollectionId,
+    pub sender: oneshot::Sender<GenerationIdLock>,
 }
 
 pub enum StartManualGenerationIdError {
-    GenerationIdMismatch,
+    OutdatedGeneration,
     RawDb(RawDbError),
 }
 
@@ -44,21 +59,11 @@ pub struct StartManualGenerationIdTask {
     pub collection_id: InnerGenerationsCollectionId,
     pub sender: oneshot::Sender<Result<(), StartManualGenerationIdError>>,
     pub next_generation_id: OwnedGenerationId,
-}
-
-pub enum LockManualGenerationIdError {
-    GenerationIdMismatch,
-}
-
-pub struct LockManualGenerationIdTask {
-    pub collection_id: InnerGenerationsCollectionId,
-    pub sender:
-        oneshot::Sender<Result<LockNextGenerationIdTaskResponse, LockManualGenerationIdError>>,
-    pub next_generation_id: OwnedGenerationId,
+    pub abort_outdated: bool,
 }
 
 pub enum CommitManualGenerationError {
-    GenerationIdMismatch,
+    OutdatedGeneration,
     RawDb(RawDbError),
 }
 
@@ -81,9 +86,9 @@ pub enum DatabaseCollectionGenerationsTask {
     NewCollection(NewCollectionGenerationsTask),
     DropCollection(DropCollectionGenerationsTask),
 
+    LockGenerationId(LockGenerationIdTask),
     LockNextGenerationId(LockNextGenerationIdTask),
     StartManualGenerationId(StartManualGenerationIdTask),
-    LockManualGenerationId(LockManualGenerationIdTask),
     AbortManualGeneration(AbortManualGenerationTask),
     CommitManualGeneration(CommitManualGenerationTask),
 }

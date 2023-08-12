@@ -1,10 +1,10 @@
 use crate::collection::methods::errors::CollectionMethodError;
-use crate::collection::newgen::commit_next_generation::{
-    commit_next_generation_sync, CommitNextGenerationError, CommitNextGenerationSyncOptions,
-};
 use crate::collection::{Collection, CommitGenerationUpdateReader};
 use crate::common::OwnedGenerationId;
-use crate::util::tokio::spawn_blocking_async;
+use crate::messages::generations::{
+    CommitManualGenerationError, CommitManualGenerationTask, DatabaseCollectionGenerationsTask,
+};
+use crate::util::async_sync_call::async_sync_call;
 
 pub struct CommitGenerationOptions {
     pub generation_id: OwnedGenerationId,
@@ -16,44 +16,31 @@ impl Collection {
         &self,
         options: CommitGenerationOptions,
     ) -> Result<(), CollectionMethodError> {
-        let raw_db = self.raw_db.clone();
-        let generation_id_sender = self.generation_id_sender.clone();
-        let generation_id = self.generation_id.clone();
-        let next_generation_id = self.next_generation_id.clone();
-        let is_manual_collection = self.is_manual;
-
         let CommitGenerationOptions {
             generation_id: expected_generation_id,
             update_readers,
         } = options;
 
-        let deletion_lock = self.is_deleted.read().await;
-        if deletion_lock.to_owned() {
-            return Err(CollectionMethodError::NoSuchCollection);
-        }
-
-        spawn_blocking_async(async move {
-            commit_next_generation_sync(CommitNextGenerationSyncOptions {
-                expected_generation_id: Some(expected_generation_id),
-                raw_db,
-                generation_id_sender,
-                generation_id,
-                next_generation_id,
-                is_manual_collection,
-                update_readers,
-            })
-            .await
+        let _: () = async_sync_call(|sender| {
+            self.database_inner.add_generations_task(
+                DatabaseCollectionGenerationsTask::CommitManualGeneration(
+                    CommitManualGenerationTask {
+                        collection_id: self.generations_id,
+                        sender,
+                        generation_id: expected_generation_id,
+                        update_readers,
+                    },
+                ),
+            )
         })
         .await
-        .or(Err(CollectionMethodError::TaskJoin))?
+        .map_err(CollectionMethodError::OneshotRecv)?
         .map_err(|err| match err {
-            CommitNextGenerationError::RawDb(err) => CollectionMethodError::RawDb(err),
-            CommitNextGenerationError::GenerationIdMismatch => {
+            CommitManualGenerationError::RawDb(err) => CollectionMethodError::RawDb(err),
+            CommitManualGenerationError::OutdatedGeneration => {
                 CollectionMethodError::OutdatedGeneration
             }
         })?;
-
-        drop(deletion_lock);
 
         Ok(())
     }

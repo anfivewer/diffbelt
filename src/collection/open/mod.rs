@@ -1,12 +1,11 @@
 mod init_readers;
 
-use crate::collection::newgen::{NewGenerationCommiter, NewGenerationCommiterOptions};
 use crate::collection::util::generation_key_compare::generation_key_compare_fn;
 use crate::collection::util::meta_merge::{meta_full_merge, meta_partial_merge};
 use crate::collection::util::phantom_key_compare::phantom_key_compare_fn;
 use crate::collection::util::record_key_compare::record_key_compare_fn;
 use crate::collection::Collection;
-use crate::common::{IsByteArray, IsByteArrayMut, NeverEq, OwnedGenerationId, OwnedPhantomId};
+use crate::common::{IsByteArray, IsByteArrayMut, OwnedGenerationId, OwnedPhantomId};
 
 use crate::collection::constants::{
     COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE, COLLECTION_CF_META,
@@ -28,14 +27,14 @@ use crate::messages::generations::{
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbMerge, RawDbOpenError, RawDbOptions,
 };
-use crate::util::async_spawns::{run_when_watch_is_true_or_end, watch_is_true_or_end};
+use crate::util::async_spawns::watch_is_true_or_end;
 use crate::util::async_sync_call::async_sync_call;
 use crate::util::bytes::increment;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::pin;
-use tokio::sync::watch;
+
 use tokio::sync::{oneshot, RwLock};
 
 pub struct CollectionOpenOptions<'a> {
@@ -222,27 +221,6 @@ impl Collection {
             None => OwnedPhantomId::zero_64bits(),
         };
 
-        let (newgen, collection_sender, on_put_sender) = if !is_manual {
-            let (on_put_sender, on_put_receiver) = watch::channel(NeverEq);
-            let (collection_sender, collection_receiver) = oneshot::channel();
-
-            (
-                Some(
-                    NewGenerationCommiter::new(NewGenerationCommiterOptions {
-                        collection_receiver,
-                        on_put_receiver,
-                    })
-                    .await,
-                ),
-                Some(collection_sender),
-                Some(on_put_sender),
-            )
-        } else {
-            (None, None, None)
-        };
-
-        let (generation_id_sender, generation_id_receiver) = watch::channel(generation_id.clone());
-
         let database_inner = options.database_inner;
 
         let cursors_id = async_sync_call(|sender| {
@@ -257,7 +235,7 @@ impl Collection {
 
         let NewCollectionGenerationsTaskResponse {
             collection_id: generations_id,
-            generation_id_receiver: _,
+            generation_pair_receiver,
         } = async_sync_call(|sender| {
             database_inner.add_generations_task(DatabaseCollectionGenerationsTask::NewCollection(
                 NewCollectionGenerationsTask {
@@ -272,21 +250,11 @@ impl Collection {
         .await
         .map_err(CollectionOpenError::OneshotRecv)?;
 
-        let newgen = Arc::new(RwLock::new(newgen));
-
         let drop_sender = {
             let database_inner = database_inner.clone();
             let (sender, mut receiver) = oneshot::channel();
 
             let mut db_stop_receiver = database_inner.stop_receiver();
-
-            let newgen = newgen.clone();
-            run_when_watch_is_true_or_end(db_stop_receiver.clone(), async move {
-                let mut newgen = newgen.write().await;
-                if let Some(mut newgen) = newgen.take() {
-                    newgen.stop().await;
-                }
-            });
 
             tokio::spawn(async move {
                 let on_db_stop = watch_is_true_or_end(&mut db_stop_receiver);
@@ -323,14 +291,9 @@ impl Collection {
             raw_db,
             is_manual,
             is_deleted: Arc::new(RwLock::new(false)),
-            generation_id_sender: Arc::new(generation_id_sender),
-            generation_id_receiver,
-            generation_id: Arc::new(RwLock::new(generation_id)),
-            next_generation_id: Arc::new(RwLock::new(next_generation_id)),
+            generation_pair_receiver,
             if_not_present_writes: Arc::new(RwLock::new(HashMap::new())),
             database_inner,
-            newgen,
-            on_put_sender,
             prev_phantom_id: RwLock::new(prev_phantom_id),
             cursors_id,
             generations_id,
@@ -340,13 +303,6 @@ impl Collection {
         let collection = Arc::new(collection);
 
         init_readers(collection.clone()).await?;
-
-        match collection_sender {
-            Some(collection_sender) => {
-                collection_sender.send(collection.clone()).unwrap_or(());
-            }
-            None => {}
-        }
 
         Ok(collection)
     }
