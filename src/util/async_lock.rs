@@ -7,7 +7,10 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-use tokio::sync::{mpsc, oneshot, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use tokio::sync::{
+    mpsc, oneshot, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard,
+    RwLockWriteGuard,
+};
 
 pub struct AsyncLockInstance<D, T> {
     lock: OwnedRwLockReadGuard<D>,
@@ -99,6 +102,15 @@ impl<D: Send + Sync + 'static, T: Send + 'static> AsyncLock<D, T> {
         AsyncLockExclusiveInstance {
             lock,
             data_and_drop_sender: Some((data, drop_sender)),
+        }
+    }
+
+    pub async fn lock_exclusive_without_data(&self) -> AsyncLockExclusiveInstance<D, T> {
+        let lock = self.value.clone().write_owned().await;
+
+        AsyncLockExclusiveInstance {
+            lock,
+            data_and_drop_sender: None,
         }
     }
 

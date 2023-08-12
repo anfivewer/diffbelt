@@ -68,6 +68,12 @@ impl OwnedGenerationId {
     pub fn increment(&mut self) {
         increment(&mut self.0);
     }
+    pub fn incremented(&self) -> Self {
+        let mut id = self.clone();
+        id.increment();
+        id
+    }
+
     pub fn as_ref(&self) -> GenerationId<'_> {
         GenerationId(&self.0)
     }

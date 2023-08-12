@@ -205,10 +205,10 @@ impl GenerationsThreadState {
         &mut self,
         collection_id: InnerGenerationsCollectionId,
     ) {
-        let Some(_item) = self.collections.get_mut(&collection_id) else {
+        let Some(item) = self.collections.get_mut(&collection_id) else {
             return;
         };
 
-        todo!();
+        item.commit_next_generation();
     }
 }

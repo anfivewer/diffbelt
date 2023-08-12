@@ -7,6 +7,7 @@ use crate::util::indexed_container::{IndexedContainerItem, IndexedContainerPoint
 
 use std::future::Future;
 
+use crate::util::bytes::increment;
 use tokio::sync::{oneshot, watch};
 
 #[derive(Copy, Clone)]
@@ -40,7 +41,7 @@ pub enum NextGenerationScheduleAction {
 
 pub struct NextGenerationLocked {
     pub generation_id: OwnedGenerationId,
-    pub next_generation_id: Option<OwnedGenerationId>,
+    pub next_generation_id: OwnedGenerationId,
     pub lock: NextGenerationIdLock,
     pub unlock_receiver: oneshot::Receiver<NextGenerationIdLockData>,
 }
@@ -89,6 +90,9 @@ impl InnerGenerationsCollection {
                 next_generation_id,
             } = { async_lock_instance.value().clone() };
 
+            let next_generation_id =
+                next_generation_id.unwrap_or_else(|| generation_id.incremented());
+
             NextGenerationLocked {
                 generation_id,
                 next_generation_id,
@@ -115,6 +119,33 @@ impl InnerGenerationsCollection {
         self.is_next_generation_scheduled = true;
 
         NextGenerationScheduleAction::NeedSchedule
+    }
+
+    pub fn commit_next_generation(&mut self) {
+        let prev_generation_id = self.generation_id.clone();
+        let next_generation_locks = self.next_generation_locks.mirror();
+
+        self.generation_id = self
+            .next_generation_id
+            .take()
+            .unwrap_or_else(|| prev_generation_id.incremented());
+
+        self.generation_id_sender.send(self.generation_id.clone()).unwrap_or(());
+
+        tokio::spawn(async move {
+            let mut lock = next_generation_locks.lock_exclusive_without_data().await;
+
+            let pair = lock.value_mut();
+
+            if pair.generation_id != prev_generation_id {
+                return;
+            }
+
+            pair.generation_id = pair
+                .next_generation_id
+                .take()
+                .unwrap_or_else(|| prev_generation_id.incremented());
+        });
     }
 }
 

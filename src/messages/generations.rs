@@ -26,7 +26,7 @@ pub struct DropCollectionGenerationsTask {
 
 pub struct LockNextGenerationIdTaskResponse {
     pub generation_id: OwnedGenerationId,
-    pub next_generation_id: Option<OwnedGenerationId>,
+    pub next_generation_id: OwnedGenerationId,
     pub lock: NextGenerationIdLock,
 }
 
