@@ -47,7 +47,6 @@ pub struct StartManualGenerationIdTask {
 }
 
 pub enum LockManualGenerationIdError {
-    AlreadyStarted,
     GenerationIdMismatch,
 }
 
@@ -67,8 +66,14 @@ pub struct CommitManualGenerationTask {
     pub collection_id: InnerGenerationsCollectionId,
     pub sender: oneshot::Sender<Result<(), CommitManualGenerationError>>,
 
-    pub expected_generation_id: Option<OwnedGenerationId>,
+    pub generation_id: OwnedGenerationId,
     pub update_readers: Option<Vec<CommitGenerationUpdateReader>>,
+}
+
+pub struct AbortManualGenerationTask {
+    pub collection_id: InnerGenerationsCollectionId,
+    pub sender: oneshot::Sender<Result<(), CommitManualGenerationError>>,
+    pub generation_id: OwnedGenerationId,
 }
 
 pub enum DatabaseCollectionGenerationsTask {
@@ -79,5 +84,6 @@ pub enum DatabaseCollectionGenerationsTask {
     LockNextGenerationId(LockNextGenerationIdTask),
     StartManualGenerationId(StartManualGenerationIdTask),
     LockManualGenerationId(LockManualGenerationIdTask),
+    AbortManualGeneration(AbortManualGenerationTask),
     CommitManualGeneration(CommitManualGenerationTask),
 }

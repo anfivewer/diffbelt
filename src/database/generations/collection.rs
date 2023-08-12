@@ -8,8 +8,11 @@ use crate::util::indexed_container::{IndexedContainerItem, IndexedContainerPoint
 use std::future::Future;
 use std::sync::Arc;
 
-use crate::messages::generations::StartManualGenerationIdError;
-use crate::raw_db::commit_generation::RawDbCommitGenerationOptions;
+use crate::collection::CommitGenerationUpdateReader;
+use crate::messages::generations::{
+    CommitManualGenerationError, LockManualGenerationIdError, StartManualGenerationIdError,
+};
+use crate::raw_db::commit_generation::{RawDbCommitGenerationOptions, RawDbUpdateReader};
 use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::increment;
 use tokio::sync::{oneshot, watch};
@@ -109,21 +112,22 @@ impl InnerGenerationsCollection {
                 return Err(StartManualGenerationIdError::GenerationIdMismatch);
             }
 
-            pair.next_generation_id = Some(new_next_generation_id.clone());
-
             let generation_id = pair.generation_id.clone();
 
             // TODO: don't override generation_id
+            let new_next_generation_id_for_db = new_next_generation_id.clone();
             let _: () = spawn_blocking(move || {
                 raw_db.commit_generation_sync(RawDbCommitGenerationOptions {
                     generation_id: generation_id.as_ref(),
-                    next_generation_id: new_next_generation_id.as_ref(),
+                    next_generation_id: new_next_generation_id_for_db.as_ref(),
                     update_readers: None,
                 })
             })
             .await
             .map_err(|error| StartManualGenerationIdError::RawDb(RawDbError::Join(error)))?
             .map_err(StartManualGenerationIdError::RawDb)?;
+
+            pair.next_generation_id = Some(new_next_generation_id.clone());
 
             Ok(())
         };
@@ -155,6 +159,44 @@ impl InnerGenerationsCollection {
                 },
                 unlock_receiver: receiver,
             }
+        }
+    }
+
+    pub fn lock_manual_generation(
+        &mut self,
+        expected_next_generation_id: OwnedGenerationId,
+    ) -> impl Future<Output = Result<NextGenerationLocked, LockManualGenerationIdError>> {
+        let next_generation_locks = self.next_generation_locks.mirror();
+
+        async move {
+            let (sender, receiver) = oneshot::channel();
+
+            let lock = next_generation_locks
+                .lock(NextGenerationIdLockData::new(), sender)
+                .await;
+
+            let GenerationIdNextGenerationIdPair {
+                generation_id,
+                next_generation_id,
+            } = { lock.value().clone() };
+
+            let is_equal = next_generation_id
+                .as_ref()
+                .map(|id| id.as_ref() == expected_next_generation_id.as_ref())
+                .unwrap_or(false);
+
+            if !is_equal {
+                return Err(LockManualGenerationIdError::GenerationIdMismatch);
+            }
+
+            Ok(NextGenerationLocked {
+                generation_id,
+                next_generation_id: expected_next_generation_id,
+                lock: NextGenerationIdLock {
+                    async_lock_instance: lock,
+                },
+                unlock_receiver: receiver,
+            })
         }
     }
 
@@ -217,6 +259,105 @@ impl InnerGenerationsCollection {
 
             generation_id_sender.send(generation_id).unwrap_or(());
         });
+    }
+
+    pub fn abort_manual_generation(
+        &mut self,
+        next_generation_id: OwnedGenerationId,
+    ) -> impl Future<Output = Result<(), CommitManualGenerationError>> {
+        let next_generation_locks = self.next_generation_locks.mirror();
+        let generation_id_sender = self.generation_id_sender.clone();
+        let raw_db = self.db.clone();
+
+        async move {
+            let mut lock = next_generation_locks.lock_exclusive_without_data().await;
+
+            let pair = lock.value_mut();
+
+            let is_equal = pair
+                .next_generation_id
+                .as_ref()
+                .map(|id| id.as_ref() == next_generation_id.as_ref())
+                .unwrap_or(false);
+
+            if !is_equal {
+                return Err(CommitManualGenerationError::GenerationIdMismatch);
+            }
+
+            let generation_id_for_db = pair.generation_id.clone();
+            let _: () = spawn_blocking(move || {
+                raw_db.commit_generation_sync(RawDbCommitGenerationOptions {
+                    generation_id: generation_id_for_db.as_ref(),
+                    next_generation_id: OwnedGenerationId::empty().as_ref(),
+                    update_readers: None,
+                })
+            })
+            .await
+            .map_err(|error| CommitManualGenerationError::RawDb(RawDbError::Join(error)))?
+            .map_err(CommitManualGenerationError::RawDb)?;
+
+            pair.next_generation_id.take();
+
+            Ok(())
+        }
+    }
+
+    pub fn commit_manual_generation(
+        &mut self,
+        next_generation_id: OwnedGenerationId,
+        update_readers: Option<Vec<CommitGenerationUpdateReader>>,
+    ) -> impl Future<Output = Result<(), CommitManualGenerationError>> {
+        let next_generation_locks = self.next_generation_locks.mirror();
+        let generation_id_sender = self.generation_id_sender.clone();
+        let raw_db = self.db.clone();
+
+        async move {
+            let mut lock = next_generation_locks.lock_exclusive_without_data().await;
+
+            let pair = lock.value_mut();
+
+            let is_equal = pair
+                .next_generation_id
+                .as_ref()
+                .map(|id| id.as_ref() == next_generation_id.as_ref())
+                .unwrap_or(false);
+
+            if !is_equal {
+                return Err(CommitManualGenerationError::GenerationIdMismatch);
+            }
+
+            let generation_id_for_db = next_generation_id.clone();
+            let _: () = spawn_blocking(move || {
+                raw_db.commit_generation_sync(RawDbCommitGenerationOptions {
+                    generation_id: generation_id_for_db.as_ref(),
+                    next_generation_id: OwnedGenerationId::empty().as_ref(),
+                    update_readers: update_readers.as_ref().map(|update_readers| {
+                        update_readers
+                            .iter()
+                            .map(
+                                |CommitGenerationUpdateReader {
+                                     reader_name,
+                                     generation_id,
+                                 }| RawDbUpdateReader {
+                                    reader_name: reader_name.as_str(),
+                                    generation_id: generation_id.as_ref(),
+                                },
+                            )
+                            .collect()
+                    }),
+                })
+            })
+            .await
+            .map_err(|error| CommitManualGenerationError::RawDb(RawDbError::Join(error)))?
+            .map_err(CommitManualGenerationError::RawDb)?;
+
+            pair.generation_id = next_generation_id.clone();
+            pair.next_generation_id.take();
+
+            generation_id_sender.send(next_generation_id).unwrap_or(());
+
+            Ok(())
+        }
     }
 }
 
