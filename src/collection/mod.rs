@@ -1,3 +1,4 @@
+use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{OwnedGenerationId, OwnedPhantomId};
 use crate::database::config::DatabaseConfig;
@@ -6,7 +7,7 @@ use crate::database::generations::collection::{
     GenerationIdNextGenerationIdPair, InnerGenerationsCollectionId,
 };
 use crate::database::DatabaseInner;
-use crate::raw_db::{RawDb, RawDbError};
+use crate::raw_db::RawDbError;
 use if_not_present::ConcurrentPutStatus;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -25,7 +26,7 @@ pub mod util;
 pub struct Collection {
     config: Arc<DatabaseConfig>,
     name: Arc<str>,
-    raw_db: Arc<RawDb>,
+    raw_db: CollectionRawDb,
     is_manual: bool,
     // you need to lock it for reading before any operations with raw_db
     is_deleted: Arc<RwLock<bool>>,

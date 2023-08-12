@@ -6,6 +6,7 @@ use crate::messages::generations::{
 };
 use crate::raw_db::RawDb;
 use crate::util::async_sync_call::async_sync_call;
+
 use crate::util::tokio::spawn_blocking_async;
 use std::future::Future;
 use std::ops::DerefMut;
@@ -17,6 +18,9 @@ impl Collection {
         let collection_name = self.name.clone();
         let collection_generations_id = self.generations_id.clone();
         let database_inner = self.database_inner.clone();
+
+        #[cfg(feature = "debug_prints")]
+        debug_print("Clone rawdb for delete_collection");
         let raw_db = self.raw_db.clone();
 
         let join = spawn_blocking_async(async move {

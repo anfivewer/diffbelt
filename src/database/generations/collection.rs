@@ -13,12 +13,13 @@ use crate::messages::generations::{
     CommitManualGenerationError, LockManualGenerationIdError, StartManualGenerationIdError,
 };
 use crate::raw_db::commit_generation::{RawDbCommitGenerationOptions, RawDbUpdateReader};
-use crate::raw_db::{RawDb, RawDbError};
+use crate::raw_db::RawDbError;
 
 use crate::collection::constants::COLLECTION_CF_META;
 use crate::collection::methods::abort_generation::{
     abort_generation_sync, AbortGenerationSyncOptions,
 };
+use crate::collection::util::collection_raw_db::CollectionRawDb;
 use tokio::sync::{oneshot, watch, RwLock};
 use tokio::task::spawn_blocking;
 
@@ -37,7 +38,7 @@ pub struct GenerationIdNextGenerationIdPair {
 pub struct InnerGenerationsCollection {
     pub inner_id: InnerGenerationsCollectionId,
     pub is_manual: bool,
-    db: Arc<RawDb>,
+    db: CollectionRawDb,
     scheduled_for_generation_id: Option<OwnedGenerationId>,
     pub generation_pair_sender: Arc<watch::Sender<GenerationIdNextGenerationIdPair>>,
     pub generation_pair_receiver: watch::Receiver<GenerationIdNextGenerationIdPair>,
@@ -62,7 +63,7 @@ impl InnerGenerationsCollection {
     pub fn new(
         inner_id: InnerGenerationsCollectionId,
         is_manual: bool,
-        db: Arc<RawDb>,
+        db: CollectionRawDb,
         generation_id: OwnedGenerationId,
         next_generation_id: Option<OwnedGenerationId>,
         is_deleted: Arc<RwLock<bool>>,

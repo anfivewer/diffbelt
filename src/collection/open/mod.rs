@@ -35,6 +35,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::pin;
 
+use crate::collection::util::collection_raw_db::wrap_collection_raw_db;
+#[cfg(feature = "debug_prints")]
+use crate::util::debug_print::debug_print;
 use tokio::sync::{oneshot, RwLock};
 
 pub struct CollectionOpenOptions<'a> {
@@ -231,20 +234,28 @@ impl Collection {
         .await
         .map_err(CollectionOpenError::OneshotRecv)?;
 
-        let raw_db = Arc::new(raw_db);
+        let raw_db = wrap_collection_raw_db(
+            Arc::new(raw_db),
+            #[cfg(feature = "debug_prints")]
+            collection_name.clone(),
+        );
         let is_deleted = Arc::new(RwLock::new(false));
 
         let NewCollectionGenerationsTaskResponse {
             collection_id: generations_id,
             generation_pair_receiver,
         } = async_sync_call(|sender| {
+            #[cfg(feature = "debug_prints")]
+            debug_print("Clone rawdb for generations thread");
+            let db = raw_db.clone();
+
             database_inner.add_generations_task(DatabaseCollectionGenerationsTask::NewCollection(
                 NewCollectionGenerationsTask {
                     is_manual,
                     generation_id: generation_id.clone(),
                     next_generation_id: next_generation_id.clone(),
                     sender,
-                    db: raw_db.clone(),
+                    db,
                     is_deleted: is_deleted.clone(),
                 },
             ))

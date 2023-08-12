@@ -1,3 +1,4 @@
+pub mod collection_raw_db;
 pub mod existing_value_flags;
 pub mod generation_id_or_current;
 pub mod generation_key;

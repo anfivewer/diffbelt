@@ -1,6 +1,8 @@
 use crate::util::tokio_runtime::create_single_thread_tokio_runtime;
 use std::future::Future;
 
+#[cfg(feature = "debug_prints")]
+use crate::util::debug_print::debug_print;
 use std::thread;
 use tokio::task::JoinError;
 
@@ -27,10 +29,7 @@ pub async fn spawn_async_thread<T: Send + 'static>(
 ) -> tokio::task::JoinHandle<Option<T>> {
     #[cfg(feature = "debug_prints")]
     let name = {
-        std::io::stderr()
-            .write(format!("Run: {}\n", name).as_bytes())
-            .unwrap();
-        std::io::stderr().flush().unwrap();
+        debug_print(format!("Run: {}", name).as_str());
 
         Box::from(name) as Box<str>
     };
@@ -46,10 +45,7 @@ pub async fn spawn_async_thread<T: Send + 'static>(
 
         #[cfg(feature = "debug_prints")]
         {
-            std::io::stderr()
-                .write(format!("Finish: {}\n", name).as_bytes())
-                .unwrap();
-            std::io::stderr().flush().unwrap();
+            debug_print(format!("Finish: {}\n", name).as_str());
         }
 
         match result {
