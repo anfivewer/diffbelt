@@ -2,8 +2,9 @@ use crate::common::collection::CollectionName;
 use crate::database::config::DatabaseConfig;
 use crate::database::garbage_collector::collection::GarbageCollectorCollection;
 use crate::messages::garbage_collector::{
-    CleanupGenerationsLessThanTask, DatabaseGarbageCollectorTask, DropCollectionTask,
-    GarbageCollectorCommonError, NewCollectionTask, NewCollectionTaskResponse,
+    CleanupGenerationsLessThanTask, DatabaseGarbageCollectorTask, GarbageCollectorCommonError,
+    GarbageCollectorDropCollectionTask, GarbageCollectorNewCollectionTask,
+    NewCollectionTaskResponse,
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::auto_sender_on_drop::AutoSenderOnDrop;
@@ -11,12 +12,10 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use tokio::task::spawn_local;
 
 struct GarbageCollectorState {
     config: Arc<DatabaseConfig>,
-    task_sender: mpsc::Sender<DatabaseGarbageCollectorTask>,
     counter: Cell<usize>,
     collections: RefCell<HashMap<CollectionName, Rc<GarbageCollectorCollection>>>,
 }
@@ -37,7 +36,6 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseGarbageCollectorTask>) {
 
     let state = Rc::new(GarbageCollectorState {
         config,
-        task_sender: poller.task_sender.clone(),
         counter: Cell::new(0),
         collections: RefCell::new(HashMap::new()),
     });
@@ -59,8 +57,8 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseGarbageCollectorTask>) {
 }
 
 impl GarbageCollectorState {
-    fn new_collection(self: Rc<Self>, task: NewCollectionTask) {
-        let NewCollectionTask {
+    fn new_collection(self: Rc<Self>, task: GarbageCollectorNewCollectionTask) {
+        let GarbageCollectorNewCollectionTask {
             collection_name,
             raw_db,
             is_deleted,
@@ -112,8 +110,8 @@ impl GarbageCollectorState {
         });
     }
 
-    fn drop_collection(self: Rc<Self>, task: DropCollectionTask) {
-        let DropCollectionTask {
+    fn drop_collection(self: Rc<Self>, task: GarbageCollectorDropCollectionTask) {
+        let GarbageCollectorDropCollectionTask {
             collection_name,
             id,
             sender,

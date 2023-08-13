@@ -36,6 +36,9 @@ use std::sync::Arc;
 use tokio::pin;
 
 use crate::collection::util::collection_raw_db::wrap_collection_raw_db;
+use crate::messages::garbage_collector::{
+    DatabaseGarbageCollectorTask, GarbageCollectorCommonError, GarbageCollectorNewCollectionTask,
+};
 #[cfg(feature = "debug_prints")]
 use crate::util::debug_print::debug_print;
 use tokio::sync::{oneshot, RwLock};
@@ -59,6 +62,7 @@ pub enum CollectionOpenError {
     JoinError,
     InvalidUtf8,
     InvalidReaderValue,
+    GcSuchCollectionAlreadyExists,
     OneshotRecv(oneshot::error::RecvError),
 }
 
@@ -247,8 +251,6 @@ impl Collection {
             collection_id: generations_id,
             generation_pair_receiver,
         } = async_sync_call(|sender| {
-            #[cfg(feature = "debug_prints")]
-            debug_print("Clone rawdb for generations thread");
             let db = raw_db.clone();
 
             database_inner.add_generations_task(DatabaseCollectionGenerationsTask::NewCollection(
@@ -265,6 +267,24 @@ impl Collection {
         })
         .await
         .map_err(CollectionOpenError::OneshotRecv)??;
+
+        let gc_response = async_sync_call(|sender| {
+            database_inner.add_gc_task(DatabaseGarbageCollectorTask::NewCollection(
+                GarbageCollectorNewCollectionTask {
+                    collection_name: Arc::<str>::clone(&collection_name),
+                    raw_db: raw_db.clone(),
+                    is_deleted: is_deleted.clone(),
+                    sender,
+                },
+            ))
+        })
+        .await
+        .map_err(CollectionOpenError::OneshotRecv)?
+        .map_err(|err| match err {
+            GarbageCollectorCommonError::SuchCollectionAlreadyExists => {
+                CollectionOpenError::GcSuchCollectionAlreadyExists
+            }
+        })?;
 
         let drop_sender = {
             let database_inner = database_inner.clone();
@@ -315,6 +335,7 @@ impl Collection {
             prev_phantom_id: RwLock::new(prev_phantom_id),
             cursors_id,
             generations_id,
+            gc: gc_response,
             drop_sender: Some(drop_sender),
         };
 

@@ -11,6 +11,7 @@ use crate::messages::readers::{DatabaseCollectionReadersTask, GetReadersPointing
 use crate::util::async_task_thread::AsyncTaskThread;
 
 use crate::database::config::DatabaseConfig;
+use crate::messages::garbage_collector::DatabaseGarbageCollectorTask;
 use std::sync::Arc;
 use tokio::sync::{oneshot, watch, RwLock};
 
@@ -22,6 +23,7 @@ pub struct DatabaseInner {
     readers: AsyncTaskThread<DatabaseCollectionReadersTask>,
     cursors: AsyncTaskThread<DatabaseCollectionCursorsTask>,
     generations: AsyncTaskThread<DatabaseCollectionGenerationsTask>,
+    garbage_collector: AsyncTaskThread<DatabaseGarbageCollectorTask>,
     stop_receiver: watch::Receiver<bool>,
 }
 
@@ -40,6 +42,7 @@ impl DatabaseInner {
         readers: AsyncTaskThread<DatabaseCollectionReadersTask>,
         cursors: AsyncTaskThread<DatabaseCollectionCursorsTask>,
         generations: AsyncTaskThread<DatabaseCollectionGenerationsTask>,
+        garbage_collector: AsyncTaskThread<DatabaseGarbageCollectorTask>,
         stop_receiver: watch::Receiver<bool>,
     ) -> Self {
         Self {
@@ -50,6 +53,7 @@ impl DatabaseInner {
             readers,
             cursors,
             generations,
+            garbage_collector,
             stop_receiver,
         }
     }
@@ -207,10 +211,15 @@ impl DatabaseInner {
         self.generations.add_task(task).await
     }
 
+    pub async fn add_gc_task(&self, task: DatabaseGarbageCollectorTask) {
+        self.garbage_collector.add_task(task).await
+    }
+
     pub fn on_database_drop(&self) {
         self.readers.send_stop();
         self.cursors.send_stop();
         self.generations.send_stop();
+        self.garbage_collector.send_stop();
     }
 
     pub fn stop_receiver(&self) -> watch::Receiver<bool> {

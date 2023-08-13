@@ -15,14 +15,14 @@ pub struct NewCollectionTaskResponse {
     pub drop_handle: AutoSenderOnDrop<()>,
 }
 
-pub struct NewCollectionTask {
+pub struct GarbageCollectorNewCollectionTask {
     pub collection_name: CollectionName,
     pub raw_db: CollectionRawDb,
     pub is_deleted: Arc<RwLock<bool>>,
     pub sender: oneshot::Sender<Result<NewCollectionTaskResponse, GarbageCollectorCommonError>>,
 }
 
-pub struct DropCollectionTask {
+pub struct GarbageCollectorDropCollectionTask {
     pub collection_name: CollectionName,
     pub id: usize,
     pub sender: Option<oneshot::Sender<()>>,
@@ -35,7 +35,7 @@ pub struct CleanupGenerationsLessThanTask {
 
 pub enum DatabaseGarbageCollectorTask {
     Init(Arc<DatabaseInner>),
-    NewCollection(NewCollectionTask),
-    DropCollection(DropCollectionTask),
+    NewCollection(GarbageCollectorNewCollectionTask),
+    DropCollection(GarbageCollectorDropCollectionTask),
     CleanupGenerationsLessThan(CleanupGenerationsLessThanTask),
 }

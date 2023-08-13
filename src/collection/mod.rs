@@ -7,6 +7,7 @@ use crate::database::generations::collection::{
     GenerationIdNextGenerationIdPair, InnerGenerationsCollectionId,
 };
 use crate::database::DatabaseInner;
+use crate::messages::garbage_collector::NewCollectionTaskResponse;
 use crate::raw_db::RawDbError;
 use if_not_present::ConcurrentPutStatus;
 use std::collections::HashMap;
@@ -36,6 +37,7 @@ pub struct Collection {
     prev_phantom_id: RwLock<OwnedPhantomId>,
     cursors_id: InnerCursorsCollectionId,
     generations_id: InnerGenerationsCollectionId,
+    gc: NewCollectionTaskResponse,
     drop_sender: Option<oneshot::Sender<()>>,
 }
 

@@ -5,9 +5,11 @@ use crate::collection::methods::errors::CollectionMethodError;
 use crate::database::config::DatabaseConfig;
 use crate::database::constants::DATABASE_RAW_DB_CF;
 use crate::database::cursors::start_cursors_task_thread;
+use crate::database::garbage_collector::start_garbage_collector_task_thread;
 use crate::database::generations::start_generations_task_thread;
 use crate::database::readers::start_readers_task_thread;
 use crate::database::{Database, DatabaseInner};
+use crate::messages::garbage_collector::DatabaseGarbageCollectorTask;
 use crate::messages::generations::DatabaseCollectionGenerationsTask;
 use crate::messages::readers::DatabaseCollectionReadersTask;
 use crate::protos::database_meta::CollectionRecord;
@@ -63,6 +65,7 @@ impl Database {
         let readers = start_readers_task_thread().await;
         let cursors = start_cursors_task_thread(options.config.clone()).await;
         let generations = start_generations_task_thread().await;
+        let garbage_collector = start_garbage_collector_task_thread().await;
 
         let (stop_sender, stop_receiver) = watch::channel(false);
 
@@ -74,6 +77,7 @@ impl Database {
             readers,
             cursors,
             generations,
+            garbage_collector,
             stop_receiver.clone(),
         ));
 
@@ -85,6 +89,10 @@ impl Database {
             .add_generations_task(DatabaseCollectionGenerationsTask::Init(
                 database_inner.clone(),
             ))
+            .await;
+
+        database_inner
+            .add_gc_task(DatabaseGarbageCollectorTask::Init(database_inner.clone()))
             .await;
 
         let mut deleted_collections = Vec::new();
