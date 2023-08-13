@@ -1,4 +1,7 @@
 use crate::common::OwnedGenerationId;
+use std::sync::Arc;
+
+pub type ReaderName = Arc<str>;
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct ReaderRecord {

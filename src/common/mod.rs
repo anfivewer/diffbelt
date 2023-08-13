@@ -6,6 +6,7 @@ use crate::util::bytes::increment;
 use crate::util::bytes_constants::BYTES_255_FF;
 use std::cmp::Ordering;
 
+pub mod collection;
 pub mod constants;
 pub mod generation_id;
 pub mod reader;

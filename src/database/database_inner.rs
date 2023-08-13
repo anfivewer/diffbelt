@@ -10,10 +10,12 @@ use crate::messages::generations::DatabaseCollectionGenerationsTask;
 use crate::messages::readers::{DatabaseCollectionReadersTask, GetReadersPointingToCollectionTask};
 use crate::util::async_task_thread::AsyncTaskThread;
 
+use crate::database::config::DatabaseConfig;
 use std::sync::Arc;
 use tokio::sync::{oneshot, watch, RwLock};
 
 pub struct DatabaseInner {
+    pub config: Arc<DatabaseConfig>,
     collections_for_deletion: Arc<RwLock<HashSet<String>>>,
     database_raw_db: Arc<RawDb>,
     collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
@@ -31,6 +33,7 @@ pub enum GetReaderGenerationIdFnError {
 
 impl DatabaseInner {
     pub fn new(
+        config: Arc<DatabaseConfig>,
         collections_for_deletion: Arc<RwLock<HashSet<String>>>,
         database_raw_db: Arc<RawDb>,
         collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
@@ -40,6 +43,7 @@ impl DatabaseInner {
         stop_receiver: watch::Receiver<bool>,
     ) -> Self {
         Self {
+            config,
             collections_for_deletion,
             database_raw_db,
             collections,

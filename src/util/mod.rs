@@ -3,6 +3,7 @@ pub mod async_spawns;
 pub mod async_sync_call;
 pub mod async_task_thread;
 pub mod atomic_cleanup;
+pub mod auto_sender_on_drop;
 pub mod base62;
 pub mod bytes;
 pub mod bytes_constants;

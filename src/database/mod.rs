@@ -15,6 +15,7 @@ pub mod create_collection;
 pub mod cursors;
 mod database_inner;
 mod drop;
+mod garbage_collector;
 pub mod generations;
 pub mod list_collections;
 pub mod open;

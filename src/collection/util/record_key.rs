@@ -179,6 +179,18 @@ impl<'a> RecordKey<'a> {
         PhantomId::new_unchecked(&self.value[offset..(offset + size)])
     }
 
+    pub fn parse(&self) -> ParsedRecordKey<'_> {
+        let (collection_key, generation_id, phantom_id) = self.parse_to_ranges();
+
+        ParsedRecordKey {
+            collection_key: CollectionKey::new_unchecked(by_range(self.value, &collection_key)),
+            generation_id: GenerationId::new_unchecked(by_range(self.value, &generation_id)),
+            phantom_id: phantom_id
+                .as_ref()
+                .map(|range| PhantomId::new_unchecked(by_range(&self.value, range))),
+        }
+    }
+
     fn parse_to_ranges(&self) -> (Range<usize>, Range<usize>, Option<Range<usize>>) {
         let key_size = read_u24(self.value, 1) as usize;
         let collection_key = 4..(4 + key_size);
@@ -283,6 +295,17 @@ impl OwnedRecordKey {
 
     pub fn as_ref(&self) -> RecordKey {
         self.into()
+    }
+}
+
+impl From<ParsedRecordKey<'_>> for OwnedRecordKey {
+    fn from(value: ParsedRecordKey) -> Self {
+        OwnedRecordKey::new(
+            value.collection_key,
+            value.generation_id,
+            value.phantom_id.unwrap_or_else(|| PhantomId::empty()),
+        )
+        .unwrap()
     }
 }
 

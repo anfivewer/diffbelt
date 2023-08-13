@@ -1,13 +1,15 @@
+use crate::common::collection::CollectionName;
+use crate::common::reader::ReaderName;
 use crate::common::OwnedGenerationId;
 use crate::database::DatabaseInner;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 
 pub struct UpdateReaderTask {
-    pub owner_collection_name: Arc<str>,
+    pub owner_collection_name: CollectionName,
     /** None means "not changed" */
-    pub to_collection_name: Option<Arc<str>>,
-    pub reader_name: Arc<str>,
+    pub to_collection_name: Option<CollectionName>,
+    pub reader_name: ReaderName,
     pub generation_id: Arc<OwnedGenerationId>,
 }
 
@@ -16,17 +18,17 @@ pub struct UpdateReadersTask {
 }
 
 pub struct DeleteReaderTask {
-    pub owner_collection_name: Arc<str>,
-    pub reader_name: Arc<str>,
+    pub owner_collection_name: CollectionName,
+    pub reader_name: ReaderName,
 }
 
 pub struct CollectionNameReaderName {
-    pub owner_collection_name: Arc<str>,
-    pub reader_name: Arc<str>,
+    pub owner_collection_name: CollectionName,
+    pub reader_name: ReaderName,
 }
 
 pub struct GetReadersPointingToCollectionTask {
-    pub collection_name: Arc<str>,
+    pub collection_name: CollectionName,
     pub sender: oneshot::Sender<Vec<CollectionNameReaderName>>,
 }
 

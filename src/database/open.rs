@@ -67,6 +67,7 @@ impl Database {
         let (stop_sender, stop_receiver) = watch::channel(false);
 
         let database_inner = Arc::new(DatabaseInner::new(
+            options.config.clone(),
             collections_for_deletion.clone(),
             database_raw_db.clone(),
             collections_arc.clone(),

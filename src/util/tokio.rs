@@ -4,7 +4,7 @@ use std::future::Future;
 #[cfg(feature = "debug_prints")]
 use crate::util::debug_print::debug_print;
 use std::thread;
-use tokio::task::JoinError;
+use tokio::task::{JoinError, LocalSet};
 
 pub fn spawn(f: impl Future<Output = ()> + Send + 'static) {
     tokio::spawn(f);
@@ -38,6 +38,47 @@ pub async fn spawn_async_thread<T: Send + 'static>(
         let runtime = create_single_thread_tokio_runtime().expect("Cannot create tokio runtime");
 
         runtime.block_on(f)
+    });
+
+    tokio::spawn(async move {
+        let result = tokio::task::spawn_blocking(move || join_handle.join()).await;
+
+        #[cfg(feature = "debug_prints")]
+        {
+            debug_print(format!("Finish: {}\n", name).as_str());
+        }
+
+        match result {
+            Ok(Ok(result)) => Some(result),
+            Ok(Err(_)) => None,
+            Err(_) => None,
+        }
+    })
+}
+
+pub async fn spawn_async_thread_local<
+    T: Send + 'static,
+    Fut: Future<Output = T> + 'static,
+    F: (FnOnce() -> Fut) + Send + 'static,
+>(
+    f: F,
+    #[cfg(feature = "debug_prints")] name: &str,
+) -> tokio::task::JoinHandle<Option<T>> {
+    #[cfg(feature = "debug_prints")]
+    let name = {
+        debug_print(format!("Run: {}", name).as_str());
+
+        Box::from(name) as Box<str>
+    };
+
+    let join_handle = thread::spawn(move || {
+        let runtime = create_single_thread_tokio_runtime().expect("Cannot create tokio runtime");
+
+        runtime.block_on(async move {
+            let local = LocalSet::new();
+
+            local.run_until(f()).await
+        })
     });
 
     tokio::spawn(async move {

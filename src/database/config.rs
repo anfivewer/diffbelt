@@ -28,6 +28,9 @@ pub struct DatabaseConfig {
      * until this limit will not be reached
      */
     pub max_cursors_per_collection: NonZeroUsize,
+
+    pub gc_records_limit: NonZeroUsize,
+    pub gc_lookups_limit: NonZeroUsize,
 }
 
 impl Default for DatabaseConfig {
@@ -39,6 +42,8 @@ impl Default for DatabaseConfig {
             diff_pack_limit: 200,
             diff_pack_records_limit: 5000,
             max_cursors_per_collection: NonZeroUsize::new(100).unwrap(),
+            gc_records_limit: NonZeroUsize::new(1000).unwrap(),
+            gc_lookups_limit: NonZeroUsize::new(8000).unwrap(),
         }
     }
 }
