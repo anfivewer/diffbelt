@@ -4,6 +4,7 @@ use crate::collection::util::record_key::{OwnedRecordKey, RecordKey};
 use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::raw_db::{RawDb, RawDbError};
 use rocksdb::{Direction, IteratorMode, ReadOptions, WriteBatchWithTransaction, DB};
+use std::cmp::Ordering;
 use std::num::NonZeroUsize;
 
 pub struct CleanupGenerationsLessThanOptions<'a> {
@@ -146,6 +147,7 @@ fn cleanup_collection_key(
     let mut result = CleanupCollectionKeyResult::Finished;
 
     let mut batch = WriteBatchWithTransaction::<false>::default();
+    let mut prev_key = None;
 
     'records_loop: for item in records_iterator {
         let (key, _) = item?;
@@ -167,11 +169,18 @@ fn cleanup_collection_key(
             continue;
         }
 
-        if record_key_parsed.generation_id >= generation_less_than {
-            break 'records_loop;
+        let ord = record_key_parsed.generation_id.cmp(&generation_less_than);
+
+        if ord == Ordering::Less || ord == Ordering::Equal {
+            if let Some(prev_key) = prev_key.take() {
+                // We should not delete last present record, so always remove previous one
+                batch.delete(&prev_key);
+            }
         }
 
-        batch.delete(record_key.get_byte_array());
+        if ord == Ordering::Greater || ord == Ordering::Equal {
+            break 'records_loop;
+        }
 
         *records_limit -= 1;
         if *records_limit <= 0 {
@@ -184,6 +193,8 @@ fn cleanup_collection_key(
             result = CleanupCollectionKeyResult::LimitReached(record_key.to_owned());
             break 'records_loop;
         }
+
+        prev_key = Some(key);
     }
 
     let _: () = db.write(batch)?;

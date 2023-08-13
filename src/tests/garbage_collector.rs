@@ -130,14 +130,6 @@ async fn garbage_collector_test_inner() {
                     )),
                     if_not_present: false,
                 },
-                KeyValueUpdate {
-                    key: OwnedCollectionKey::from_boxed_slice(b"3".to_vec().into_boxed_slice())
-                        .unwrap(),
-                    value: Some(OwnedCollectionValue::from_boxed_slice(
-                        b"314".to_vec().into_boxed_slice(),
-                    )),
-                    if_not_present: false,
-                },
             ],
             generation_id: Some(second_generation_id.clone()),
             phantom_id: None,
@@ -206,7 +198,7 @@ async fn garbage_collector_test_inner() {
         item,
         Some(KeyValue {
             key: OwnedCollectionKey::from_boxed_slice(b"3".to_vec().into_boxed_slice()).unwrap(),
-            value: OwnedCollectionValue::from_boxed_slice(b"314".to_vec().into_boxed_slice(),),
+            value: OwnedCollectionValue::from_boxed_slice(b"42".to_vec().into_boxed_slice(),),
         })
     );
 
@@ -230,5 +222,11 @@ async fn garbage_collector_test_inner() {
         .await
         .unwrap();
 
-    assert_eq!(item, None);
+    assert_eq!(
+        item,
+        Some(KeyValue {
+            key: OwnedCollectionKey::from_boxed_slice(b"3".to_vec().into_boxed_slice()).unwrap(),
+            value: OwnedCollectionValue::from_boxed_slice(b"42".to_vec().into_boxed_slice(),),
+        })
+    );
 }

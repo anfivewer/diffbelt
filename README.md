@@ -23,6 +23,12 @@ Immutable key-value database with main focus on taking diffs belween versions of
   * **CollectionName** — optional **CollectionName**, if not specified — it means current collection
   * **GenerationId** — **CurrentGenerationId**, marker to some generation in foreign collection (specified by **CollectionName**). It prevents garbage collection of generations of target collection and may be used for `diff` calls as `fromGenerationId` source
 
+## Readers & generations
+
+Old generations in collection **X** are removed only if exists at least one reader that points to collection **X**.
+
+**WARN:** you **MUST NOT** query/diff collection for `generationId < minimumGenerationId` or create/update readers with `generationId < minimumGenerationId`. Currently, this is **undefined behavior**, later there will be special error if you will try. 
+
 ## Transform flow examples
 
 TODO.
