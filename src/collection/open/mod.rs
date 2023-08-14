@@ -5,7 +5,7 @@ use crate::collection::util::meta_merge::{meta_full_merge, meta_partial_merge};
 use crate::collection::util::phantom_key_compare::phantom_key_compare_fn;
 use crate::collection::util::record_key_compare::record_key_compare_fn;
 use crate::collection::Collection;
-use crate::common::{IsByteArray, IsByteArrayMut, OwnedGenerationId, OwnedPhantomId};
+use crate::common::{IsByteArray, OwnedGenerationId, OwnedPhantomId};
 
 use crate::collection::constants::{
     COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE, COLLECTION_CF_META,
@@ -29,7 +29,6 @@ use crate::raw_db::{
 };
 use crate::util::async_spawns::watch_is_true_or_end;
 use crate::util::async_sync_call::async_sync_call;
-use crate::util::bytes::increment;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -201,11 +200,7 @@ impl Collection {
                 if is_manual {
                     None
                 } else {
-                    let mut next_generation_id = generation_id.clone();
-                    let next_generation_id_ref = &mut next_generation_id;
-                    let bytes = next_generation_id_ref.get_byte_array_mut();
-                    increment(bytes);
-
+                    let next_generation_id = generation_id.incremented();
                     let next_generation_id_cloned = next_generation_id.clone();
 
                     raw_db

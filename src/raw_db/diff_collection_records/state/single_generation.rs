@@ -1,9 +1,8 @@
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
-use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut, OwnedCollectionKey};
+use crate::common::{CollectionKey, GenerationId, IsByteArray, OwnedCollectionKey};
 
 use crate::collection::constants::COLLECTION_CF_GENERATIONS;
 use crate::raw_db::RawDbError;
-use crate::util::bytes::increment;
 use rocksdb::{Direction, IteratorMode, ReadOptions};
 
 pub struct SingleGenerationChangedKeysIter<'a> {
@@ -28,10 +27,8 @@ impl<'a> SingleGenerationChangedKeysIter<'a> {
             .or(Err(RawDbError::InvalidGenerationKey))?;
 
             let to_generation_key = {
-                let mut to_generation_id_incremented = generation_id.to_owned();
+                let to_generation_id_incremented = generation_id.incremented();
 
-                let to_generation_id_bytes = to_generation_id_incremented.get_byte_array_mut();
-                increment(to_generation_id_bytes);
                 OwnedGenerationKey::new(
                     to_generation_id_incremented.as_ref(),
                     CollectionKey::empty(),

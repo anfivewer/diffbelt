@@ -2,11 +2,11 @@ use crate::collection::constants::{COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENE
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
 use crate::collection::util::record_key::RecordKey;
 use crate::common::{
-    CollectionKey, GenerationId, IsByteArray, IsByteArrayMut, OwnedCollectionKey, OwnedGenerationId,
+    CollectionKey, GenerationId, IsByteArray, OwnedCollectionKey, OwnedGenerationId,
 };
 use crate::raw_db::diff_collection_records::DiffCursorState;
 use crate::raw_db::RawDbError;
-use crate::util::bytes::{increment, to_u32_be_unchecked};
+use crate::util::bytes::to_u32_be_unchecked;
 use rocksdb::{BoundColumnFamily, Direction, IteratorMode, ReadOptions};
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -61,12 +61,10 @@ impl<'a> DiffState<'a> {
             .cf_handle(COLLECTION_CF_GENERATIONS_SIZE)
             .ok_or(RawDbError::CfHandle)?;
 
-        let mut upper_generation_key = to_generation_id_loose.to_owned();
-        let upper_generation_key_bytes = upper_generation_key.get_byte_array_mut();
-        increment(upper_generation_key_bytes);
+        let upper_generation_key = to_generation_id_loose.incremented();
 
         let mut opts = ReadOptions::default();
-        opts.set_iterate_upper_bound(upper_generation_key_bytes);
+        opts.set_iterate_upper_bound(upper_generation_key.get_byte_array());
 
         let mut iterator = match from_generation_id {
             Some(id) => {
@@ -238,9 +236,8 @@ fn collect_changed_keys(
 
     let iterator = {
         let to_generation_key = {
-            let mut to_generation_id_incremented = to_generation_id.to_owned();
-            let to_generation_id_bytes = to_generation_id_incremented.get_byte_array_mut();
-            increment(to_generation_id_bytes);
+            let to_generation_id_incremented = to_generation_id.incremented();
+
             OwnedGenerationKey::new(
                 to_generation_id_incremented.as_ref(),
                 CollectionKey::empty(),
