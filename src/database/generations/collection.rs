@@ -443,7 +443,7 @@ impl InnerGenerationsCollection {
                             owner_collection_name: name.clone(),
                             to_collection_name: None,
                             reader_name: Arc::from(reader_name.as_str()),
-                            generation_id: Arc::from(generation_id.clone()),
+                            generation_id: generation_id.clone(),
                         },
                     )
                     .collect()

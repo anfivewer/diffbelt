@@ -17,7 +17,7 @@ impl Collection {
         options: UpdateReaderOptions,
     ) -> Result<(), CollectionMethodError> {
         let reader_name = Arc::from(options.reader_name);
-        let generation_id = Arc::new(options.generation_id.unwrap_or(OwnedGenerationId::empty()));
+        let generation_id = options.generation_id.unwrap_or(OwnedGenerationId::empty());
         let raw_db = self.raw_db.clone();
 
         let deletion_lock = self.is_deleted.read().await;
@@ -26,7 +26,7 @@ impl Collection {
         }
 
         let reader_name_for_blocking = Arc::clone(&reader_name);
-        let generation_id_for_blocking = Arc::clone(&generation_id);
+        let generation_id_for_blocking = generation_id.clone();
 
         let _: () = spawn_blocking(move || {
             raw_db.update_reader_sync(RawDbUpdateReaderOptions {

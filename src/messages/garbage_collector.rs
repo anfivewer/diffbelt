@@ -4,7 +4,7 @@ use crate::common::OwnedGenerationId;
 use crate::database::DatabaseInner;
 use crate::util::auto_sender_on_drop::AutoSenderOnDrop;
 use std::sync::Arc;
-use tokio::sync::{oneshot, RwLock};
+use tokio::sync::{oneshot, watch, RwLock};
 
 pub enum GarbageCollectorCommonError {
     SuchCollectionAlreadyExists,
@@ -19,6 +19,7 @@ pub struct GarbageCollectorNewCollectionTask {
     pub collection_name: CollectionName,
     pub raw_db: CollectionRawDb,
     pub is_deleted: Arc<RwLock<bool>>,
+    pub minimum_generation_id: watch::Receiver<OwnedGenerationId>,
     pub sender: oneshot::Sender<Result<NewCollectionTaskResponse, GarbageCollectorCommonError>>,
 }
 
@@ -37,5 +38,4 @@ pub enum DatabaseGarbageCollectorTask {
     Init(Arc<DatabaseInner>),
     NewCollection(GarbageCollectorNewCollectionTask),
     DropCollection(GarbageCollectorDropCollectionTask),
-    CleanupGenerationsLessThan(CleanupGenerationsLessThanTask),
 }

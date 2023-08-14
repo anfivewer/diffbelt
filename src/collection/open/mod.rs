@@ -38,6 +38,9 @@ use crate::collection::util::collection_raw_db::wrap_collection_raw_db;
 use crate::messages::garbage_collector::{
     DatabaseGarbageCollectorTask, GarbageCollectorCommonError, GarbageCollectorNewCollectionTask,
 };
+use crate::messages::readers::{
+    DatabaseCollectionReadersTask, ReaderNewCollectionTask, ReaderNewCollectionTaskResponse,
+};
 #[cfg(feature = "debug_prints")]
 use crate::util::debug_print::debug_print;
 use tokio::sync::{oneshot, RwLock};
@@ -263,12 +266,33 @@ impl Collection {
         .await
         .map_err(CollectionOpenError::OneshotRecv)??;
 
+        let ReaderNewCollectionTaskResponse {
+            minimum_generation_id,
+        } = async_sync_call(|sender| {
+            database_inner.add_readers_task(DatabaseCollectionReadersTask::NewCollection(
+                ReaderNewCollectionTask {
+                    collection_name: collection_name.clone(),
+                    sender,
+                },
+            ))
+        })
+        .await
+        .map_err(CollectionOpenError::OneshotRecv)?;
+
+        init_readers(
+            collection_name.clone(),
+            raw_db.clone(),
+            database_inner.clone(),
+        )
+        .await?;
+
         let gc_response = async_sync_call(|sender| {
             database_inner.add_gc_task(DatabaseGarbageCollectorTask::NewCollection(
                 GarbageCollectorNewCollectionTask {
                     collection_name: Arc::<str>::clone(&collection_name),
                     raw_db: raw_db.clone(),
                     is_deleted: is_deleted.clone(),
+                    minimum_generation_id: minimum_generation_id.clone(),
                     sender,
                 },
             ))
@@ -327,6 +351,7 @@ impl Collection {
             generation_pair_receiver,
             if_not_present_writes: Arc::new(RwLock::new(HashMap::new())),
             database_inner,
+            minimum_generation_id,
             prev_phantom_id: RwLock::new(prev_phantom_id),
             cursors_id,
             generations_id,
@@ -335,8 +360,6 @@ impl Collection {
         };
 
         let collection = Arc::new(collection);
-
-        init_readers(collection.clone()).await?;
 
         Ok(collection)
     }

@@ -20,7 +20,7 @@ impl Collection {
     ) -> Result<(), CollectionMethodError> {
         let reader_name = Arc::from(options.reader_name);
         let to_collection_name = options.collection_name.map(Arc::from);
-        let generation_id = options.generation_id.map(Arc::from);
+        let generation_id = options.generation_id;
         let raw_db = self.raw_db.clone();
 
         let deletion_lock = self.is_deleted.read().await;
@@ -30,7 +30,7 @@ impl Collection {
 
         let reader_name_for_blocking = Arc::clone(&reader_name);
         let to_collection_name_for_blocking = to_collection_name.as_ref().map(|x| Arc::clone(x));
-        let generation_id_for_blocking = generation_id.as_ref().map(|x| Arc::clone(x));
+        let generation_id_for_blocking = generation_id.clone();
 
         let result = spawn_blocking(move || {
             raw_db.create_reader_sync(RawDbCreateReaderOptions {
@@ -55,7 +55,7 @@ impl Collection {
                         to_collection_name.unwrap_or_else(|| self.name.clone()),
                     ),
                     reader_name,
-                    generation_id: generation_id.unwrap_or(Arc::new(OwnedGenerationId::empty())),
+                    generation_id: generation_id.unwrap_or(OwnedGenerationId::empty()),
                 },
             ))
             .await;

@@ -34,6 +34,7 @@ pub struct Collection {
     pub generation_pair_receiver: watch::Receiver<GenerationIdNextGenerationIdPair>,
     if_not_present_writes: Arc<RwLock<HashMap<OwnedRecordKey, ConcurrentPutStatus>>>,
     database_inner: Arc<DatabaseInner>,
+    minimum_generation_id: watch::Receiver<OwnedGenerationId>,
     prev_phantom_id: RwLock<OwnedPhantomId>,
     cursors_id: InnerCursorsCollectionId,
     generations_id: InnerGenerationsCollectionId,

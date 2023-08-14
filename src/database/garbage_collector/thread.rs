@@ -2,9 +2,8 @@ use crate::common::collection::CollectionName;
 use crate::database::config::DatabaseConfig;
 use crate::database::garbage_collector::collection::GarbageCollectorCollection;
 use crate::messages::garbage_collector::{
-    CleanupGenerationsLessThanTask, DatabaseGarbageCollectorTask, GarbageCollectorCommonError,
-    GarbageCollectorDropCollectionTask, GarbageCollectorNewCollectionTask,
-    NewCollectionTaskResponse,
+    DatabaseGarbageCollectorTask, GarbageCollectorCommonError, GarbageCollectorDropCollectionTask,
+    GarbageCollectorNewCollectionTask, NewCollectionTaskResponse,
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::auto_sender_on_drop::AutoSenderOnDrop;
@@ -12,6 +11,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
+use tokio::sync::oneshot;
 use tokio::task::spawn_local;
 
 struct GarbageCollectorState {
@@ -48,9 +48,6 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseGarbageCollectorTask>) {
             DatabaseGarbageCollectorTask::DropCollection(task) => {
                 state.clone().drop_collection(task);
             }
-            DatabaseGarbageCollectorTask::CleanupGenerationsLessThan(task) => {
-                state.clone().cleanup_generations_less_than(task);
-            }
             DatabaseGarbageCollectorTask::Init(_) => {}
         }
     }
@@ -62,6 +59,7 @@ impl GarbageCollectorState {
             collection_name,
             raw_db,
             is_deleted,
+            minimum_generation_id,
             sender,
         } = task;
 
@@ -78,12 +76,12 @@ impl GarbageCollectorState {
 
         let id = self.counter.replace(self.counter.get() + 1);
 
-        let collection = GarbageCollectorCollection::new(id, raw_db, is_deleted);
+        let collection = Rc::new(GarbageCollectorCollection::new(id, raw_db, is_deleted));
 
         {
             self.collections
                 .borrow_mut()
-                .insert(collection_name.clone(), Rc::new(collection));
+                .insert(collection_name.clone(), collection.clone());
         }
 
         let (drop_handle, drop_receiver) = AutoSenderOnDrop::new(());
@@ -92,8 +90,18 @@ impl GarbageCollectorState {
             .send(Ok(NewCollectionTaskResponse { id, drop_handle }))
             .unwrap_or(());
 
+        let (drop_sender, drop_receiver2) = oneshot::channel();
+
+        collection.cleanup_generations_less_than(
+            &self.config,
+            minimum_generation_id,
+            drop_receiver2,
+        );
+
         spawn_local(async move {
             drop_receiver.await;
+
+            drop_sender.send(()).unwrap_or(());
 
             let mut collections = self.collections.borrow_mut();
 
@@ -133,25 +141,5 @@ impl GarbageCollectorState {
         if let Some(sender) = sender {
             sender.send(()).unwrap_or(());
         }
-    }
-
-    fn cleanup_generations_less_than(self: Rc<Self>, task: CleanupGenerationsLessThanTask) {
-        let CleanupGenerationsLessThanTask {
-            collection_name,
-            generation_id_less_than,
-        } = task;
-
-        let collections = self.collections.borrow();
-        let item = collections.get(collection_name.as_ref());
-
-        let Some(item) = item else {
-            return;
-        };
-
-        let item = item.clone();
-
-        drop(collections);
-
-        item.cleanup_generations_less_than(&self.config, generation_id_less_than);
     }
 }
