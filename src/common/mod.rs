@@ -402,11 +402,30 @@ impl Eq for NeverEq {}
 
 #[cfg(test)]
 mod tests {
-    use crate::common::NeverEq;
+    use crate::common::{NeverEq, OwnedGenerationId};
 
     #[test]
     pub fn never_eq_is_never_eq() {
-        assert!(NeverEq != NeverEq);
+        assert_ne!(NeverEq, NeverEq);
         assert_eq!(NeverEq == NeverEq, false);
+    }
+
+    #[test]
+    fn incremented_test() {
+        let generation_id =
+            OwnedGenerationId::from_boxed_slice(vec![1, 2, 3, 4].into_boxed_slice()).unwrap();
+        let incremented_generation_id = generation_id.incremented();
+
+        assert_ne!(generation_id, incremented_generation_id);
+
+        assert_eq!(
+            generation_id.0.as_ref(),
+            vec![1u8, 2, 3, 4].as_slice()
+        );
+
+        assert_eq!(
+            incremented_generation_id.0.as_ref(),
+            vec![1u8, 2, 3, 5].as_slice()
+        );
     }
 }
