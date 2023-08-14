@@ -5,6 +5,7 @@ pub mod generation_key;
 pub mod generation_key_compare;
 pub mod generation_size_merge;
 pub mod meta_merge;
+pub mod minimum_generation_id;
 pub mod phantom_key_compare;
 pub mod reader_value;
 pub mod record_key;

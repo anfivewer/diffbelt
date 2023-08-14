@@ -4,6 +4,7 @@ use crate::common::OwnedGenerationId;
 use crate::messages::generations::{
     CommitManualGenerationError, CommitManualGenerationTask, DatabaseCollectionGenerationsTask,
 };
+use crate::messages::readers::{DatabaseCollectionReadersTask, GetMinimumGenerationIdLocksTask};
 use crate::util::async_sync_call::async_sync_call;
 
 pub struct CommitGenerationOptions {
@@ -20,6 +21,43 @@ impl Collection {
             generation_id: expected_generation_id,
             update_readers,
         } = options;
+
+        let minimum_generation_id_locks = if let Some(update_readers) = &update_readers {
+            let collection_name = self.name.clone();
+            let mut reader_names = Vec::new();
+
+            for update in update_readers {
+                reader_names.push(update.reader_name.clone());
+            }
+
+            let locks = async_sync_call(|sender| {
+                self.database_inner.add_readers_task(
+                    DatabaseCollectionReadersTask::GetMinimumGenerationIdLocks(
+                        GetMinimumGenerationIdLocksTask {
+                            collection_name,
+                            reader_names,
+                            sender,
+                        },
+                    ),
+                )
+            })
+            .await?;
+
+            for update in update_readers {
+                if let Some((minimum_generation_id, _)) = locks
+                    .minimum_generation_ids_with_locks
+                    .get(&update.reader_name)
+                {
+                    if &update.generation_id < minimum_generation_id {
+                        return Err(CollectionMethodError::GenerationIdLessThanMinimum);
+                    }
+                }
+            }
+
+            Some(locks)
+        } else {
+            None
+        };
 
         let _: () = async_sync_call(|sender| {
             self.database_inner.add_generations_task(
@@ -44,6 +82,8 @@ impl Collection {
                 CollectionMethodError::NoSuchCollection
             }
         })?;
+
+        drop(minimum_generation_id_locks);
 
         Ok(())
     }

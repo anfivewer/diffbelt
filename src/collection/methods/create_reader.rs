@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tokio::task::spawn_blocking;
 
 use crate::raw_db::update_reader::{RawDbCreateReaderOptions, RawDbCreateReaderResult};
+use crate::util::async_sync_call::async_sync_call;
 
 pub struct CreateReaderOptions {
     pub reader_name: String,
@@ -32,6 +33,17 @@ impl Collection {
         let to_collection_name_for_blocking = to_collection_name.as_ref().map(|x| Arc::clone(x));
         let generation_id_for_blocking = generation_id.clone();
 
+        let minimum_generation_id_lock = self.minimum_generation_id_lock.read().await;
+
+        if self.generation_is_less_than_minimum(
+            generation_id
+                .as_ref()
+                .map(|id| id.as_ref())
+                .unwrap_or_else(|| GenerationId::empty()),
+        ) {
+            return Err(CollectionMethodError::GenerationIdLessThanMinimum);
+        }
+
         let result = spawn_blocking(move || {
             raw_db.create_reader_sync(RawDbCreateReaderOptions {
                 reader_name: Arc::as_ref(&reader_name_for_blocking),
@@ -47,19 +59,23 @@ impl Collection {
         .await
         .or(Err(CollectionMethodError::TaskJoin))??;
 
-        self.database_inner
-            .add_readers_task(DatabaseCollectionReadersTask::UpdateReader(
-                UpdateReaderTask {
-                    owner_collection_name: self.name.clone(),
-                    to_collection_name: Some(
-                        to_collection_name.unwrap_or_else(|| self.name.clone()),
-                    ),
-                    reader_name,
-                    generation_id: generation_id.unwrap_or(OwnedGenerationId::empty()),
-                },
-            ))
-            .await;
+        let _: () = async_sync_call(|sender| {
+            self.database_inner
+                .add_readers_task(DatabaseCollectionReadersTask::UpdateReader(
+                    UpdateReaderTask {
+                        owner_collection_name: self.name.clone(),
+                        to_collection_name: Some(
+                            to_collection_name.unwrap_or_else(|| self.name.clone()),
+                        ),
+                        reader_name,
+                        generation_id: generation_id.unwrap_or(OwnedGenerationId::empty()),
+                        sender: Some(sender),
+                    },
+                ))
+        })
+        .await?;
 
+        drop(minimum_generation_id_lock);
         drop(deletion_lock);
 
         match result {

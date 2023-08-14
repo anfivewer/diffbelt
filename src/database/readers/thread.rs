@@ -1,15 +1,20 @@
 use crate::common::OwnedGenerationId;
 use crate::messages::readers::{
     CollectionNameReaderName, DatabaseCollectionReadersTask, DeleteReaderTask,
+    GetMinimumGenerationIdLocksTask, GetMinimumGenerationIdLocksTaskResponse,
     GetReadersPointingToCollectionTask, ReaderNewCollectionTask, ReaderNewCollectionTaskResponse,
     UpdateReaderTask, UpdateReadersTask,
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::hashmap::{ArcStringPair, ArcStringPairRef};
+use std::cell::RefCell;
+use std::ops::Deref;
+use std::rc::Rc;
 
 use hashbrown::{HashMap, HashSet};
 use std::sync::Arc;
-use tokio::sync::watch;
+use tokio::sync::{watch, RwLock};
+use tokio::task::spawn_local;
 
 type CollectionName = Arc<str>;
 type ReaderName = Arc<str>;
@@ -24,14 +29,15 @@ struct Reader {
 struct CollectionState {
     minimum_generation_id_sender: watch::Sender<OwnedGenerationId>,
     minimum_generation_id_receiver: watch::Receiver<OwnedGenerationId>,
+    minimum_generation_id_lock: Arc<RwLock<()>>,
     // (owner_collection_name, reader_name)
-    readers_pointing_to_collection: HashMap<ArcStringPair, Arc<Reader>>,
+    readers_pointing_to_collection: RefCell<HashMap<ArcStringPair, Arc<Reader>>>,
 }
 
 struct ReadersState {
     // (owner_collection_name, reader_name)
     all_readers: HashMap<ArcStringPair, Arc<Reader>>,
-    collections: HashMap<CollectionName, CollectionState>,
+    collections: HashMap<CollectionName, Rc<CollectionState>>,
     changed_readers_pointing_to_collections: HashSet<CollectionName>,
 }
 
@@ -62,17 +68,22 @@ pub async fn run(_: (), mut poller: TaskPoller<DatabaseCollectionReadersTask>) {
                 state.update_reader(task);
             }
             DatabaseCollectionReadersTask::UpdateReaders(task) => {
-                let UpdateReadersTask { updates } = task;
+                let UpdateReadersTask { updates, sender } = task;
 
                 for update in updates {
                     state.update_reader(update);
                 }
+
+                sender.send(()).unwrap_or(());
             }
             DatabaseCollectionReadersTask::DeleteReader(task) => {
                 state.delete_reader(task);
             }
             DatabaseCollectionReadersTask::GetReadersPointingToCollectionExceptThisOne(task) => {
                 state.get_readers_pointing_to_collection_except_this_one(task);
+            }
+            DatabaseCollectionReadersTask::GetMinimumGenerationIdLocks(task) => {
+                state.get_minimum_generation_id_locks(task);
             }
             DatabaseCollectionReadersTask::Finish => {
                 return;
@@ -100,27 +111,33 @@ impl ReadersState {
 
         let collection = self.collections.get(&collection_name);
 
-        let minimum_generation_id = match collection {
+        let (minimum_generation_id, minimum_generation_id_lock) = match collection {
             None => {
                 let (sender, receiver) = watch::channel(OwnedGenerationId::empty());
+                let minimum_generation_id_lock = Arc::new(RwLock::new(()));
 
                 self.collections.insert(
                     collection_name,
-                    CollectionState {
+                    Rc::new(CollectionState {
                         minimum_generation_id_sender: sender,
                         minimum_generation_id_receiver: receiver.clone(),
+                        minimum_generation_id_lock: minimum_generation_id_lock.clone(),
                         readers_pointing_to_collection: Default::default(),
-                    },
+                    }),
                 );
 
-                receiver
+                (receiver, minimum_generation_id_lock)
             }
-            Some(collection) => collection.minimum_generation_id_receiver.clone(),
+            Some(collection) => (
+                collection.minimum_generation_id_receiver.clone(),
+                collection.minimum_generation_id_lock.clone(),
+            ),
         };
 
         sender
             .send(ReaderNewCollectionTaskResponse {
                 minimum_generation_id,
+                minimum_generation_id_lock,
             })
             .unwrap_or(());
     }
@@ -131,6 +148,7 @@ impl ReadersState {
             to_collection_name,
             reader_name,
             generation_id,
+            sender,
         } = update;
 
         let collection_name_reader_name_key =
@@ -150,6 +168,9 @@ impl ReadersState {
                 let is_generation_id_changed = generation_id != existing_reader.generation_id;
 
                 if !is_generation_id_changed && !is_to_collection_changed {
+                    if let Some(sender) = sender {
+                        sender.send(()).unwrap_or(());
+                    }
                     return;
                 }
 
@@ -163,6 +184,7 @@ impl ReadersState {
                     if let Some(collection) = collection {
                         collection
                             .readers_pointing_to_collection
+                            .borrow_mut()
                             .remove(&collection_name_reader_name_key);
                     }
                 }
@@ -198,6 +220,7 @@ impl ReadersState {
         if let Some(collection) = collection {
             collection
                 .readers_pointing_to_collection
+                .borrow_mut()
                 .insert(collection_name_reader_name_key, reader);
         } else {
             let generation_id = reader.generation_id.clone();
@@ -209,12 +232,17 @@ impl ReadersState {
 
             self.collections.insert(
                 to_collection_name,
-                CollectionState {
+                Rc::new(CollectionState {
                     minimum_generation_id_sender: sender,
                     minimum_generation_id_receiver: receiver,
-                    readers_pointing_to_collection: readers_map,
-                },
+                    minimum_generation_id_lock: Default::default(),
+                    readers_pointing_to_collection: RefCell::new(readers_map),
+                }),
             );
+        }
+
+        if let Some(sender) = sender {
+            sender.send(()).unwrap_or(());
         }
     }
 
@@ -239,9 +267,12 @@ impl ReadersState {
             return;
         };
 
-        collection
-            .readers_pointing_to_collection
-            .remove(&collection_name_reader_name_key);
+        {
+            collection
+                .readers_pointing_to_collection
+                .borrow_mut()
+                .remove(&collection_name_reader_name_key);
+        }
     }
 
     fn get_readers_pointing_to_collection_except_this_one(
@@ -259,7 +290,7 @@ impl ReadersState {
             return;
         };
 
-        let readers = &collection.readers_pointing_to_collection;
+        let readers = collection.readers_pointing_to_collection.borrow();
 
         let mut result = Vec::with_capacity(readers.len());
 
@@ -274,7 +305,66 @@ impl ReadersState {
             });
         }
 
+        drop(readers);
+
         sender.send(result).unwrap_or(());
+    }
+
+    fn get_minimum_generation_id_locks(&mut self, task: GetMinimumGenerationIdLocksTask) {
+        let GetMinimumGenerationIdLocksTask {
+            collection_name,
+            reader_names,
+            sender,
+        } = task;
+
+        let mut reader_names_with_collections = HashMap::with_capacity(reader_names.len());
+
+        for reader_name in reader_names {
+            let collection_name_reader_name_key =
+                ArcStringPairRef(collection_name.as_ref(), reader_name.as_ref());
+
+            let reader = self.all_readers.get(&collection_name_reader_name_key);
+            let Some(reader) = reader else {
+                continue;
+            };
+
+            if reader_names_with_collections.contains_key(&reader.owner_collection_name) {
+                continue;
+            }
+
+            let collection = self.collections.get(&reader.owner_collection_name);
+            let Some(collection) = collection else {
+                continue;
+            };
+
+            reader_names_with_collections.insert(reader_name.clone(), collection.clone());
+        }
+
+        spawn_local(async move {
+            let mut minimum_generation_ids_with_locks = std::collections::HashMap::new();
+
+            for (reader_name, collection) in reader_names_with_collections {
+                let lock = collection
+                    .minimum_generation_id_lock
+                    .clone()
+                    .read_owned()
+                    .await;
+
+                minimum_generation_ids_with_locks.insert(
+                    reader_name,
+                    (
+                        collection.minimum_generation_id_receiver.borrow().clone(),
+                        lock,
+                    ),
+                );
+            }
+
+            sender
+                .send(GetMinimumGenerationIdLocksTaskResponse {
+                    minimum_generation_ids_with_locks,
+                })
+                .unwrap_or(());
+        });
     }
 
     fn check_for_gc(&mut self) {
@@ -285,29 +375,51 @@ impl ReadersState {
                 continue;
             };
 
-            let mut iter = collection.readers_pointing_to_collection.values();
+            let collection = collection.clone();
 
-            let mut minimum_generation_id = {
-                let Some(first_reader) = iter.next() else {
-                    // Collection has no readers pointing to it?
-                    continue;
+            spawn_local(async move {
+                let lock = collection.minimum_generation_id_lock.write().await;
+
+                let readers = collection.readers_pointing_to_collection.borrow();
+                let mut iter = readers.values();
+
+                let mut minimum_generation_id = {
+                    let Some(first_reader) = iter.next() else {
+                        // Collection has no readers pointing to it?
+                        return;
+                    };
+
+                    &first_reader.generation_id
                 };
 
-                &first_reader.generation_id
-            };
+                for reader in iter {
+                    let generation_id = &reader.generation_id;
 
-            for reader in iter {
-                let generation_id = &reader.generation_id;
-
-                if generation_id < minimum_generation_id {
-                    minimum_generation_id = generation_id;
+                    if generation_id < minimum_generation_id {
+                        minimum_generation_id = generation_id;
+                    }
                 }
-            }
 
-            collection
-                .minimum_generation_id_sender
-                .send(minimum_generation_id.clone())
-                .unwrap_or(());
+                {
+                    let prev_minimum = collection.minimum_generation_id_receiver.borrow();
+                    let prev_minimum = prev_minimum.deref();
+
+                    if minimum_generation_id <= prev_minimum {
+                        return;
+                    }
+                }
+
+                let minimum_generation_id = minimum_generation_id.clone();
+
+                drop(readers);
+
+                collection
+                    .minimum_generation_id_sender
+                    .send(minimum_generation_id)
+                    .unwrap_or(());
+
+                drop(lock);
+            });
         }
     }
 }

@@ -8,6 +8,7 @@ use crate::database::DatabaseInner;
 use crate::messages::readers::{
     DatabaseCollectionReadersTask, UpdateReaderTask, UpdateReadersTask,
 };
+use crate::util::async_sync_call::async_sync_call;
 use crate::util::tokio::spawn_blocking_async;
 use std::str::from_utf8;
 use std::sync::Arc;
@@ -43,14 +44,17 @@ pub async fn init_readers(
                 to_collection_name: Some(to_collection_name),
                 reader_name: Arc::from(reader_name),
                 generation_id: generation_id.to_owned(),
+                sender: None,
             });
         }
 
-        database_inner
-            .add_readers_task(DatabaseCollectionReadersTask::UpdateReaders(
-                UpdateReadersTask { updates },
+        let _: () = async_sync_call(|sender| {
+            database_inner.add_readers_task(DatabaseCollectionReadersTask::UpdateReaders(
+                UpdateReadersTask { updates, sender },
             ))
-            .await;
+        })
+        .await
+        .map_err(CollectionOpenError::OneshotRecv)?;
 
         Ok(())
     })

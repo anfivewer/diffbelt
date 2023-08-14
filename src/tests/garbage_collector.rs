@@ -11,6 +11,7 @@ use crate::common::{
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
 use crate::util::tokio_runtime::create_main_tokio_runtime;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -142,7 +143,7 @@ async fn garbage_collector_test_inner() {
         .commit_generation(CommitGenerationOptions {
             generation_id: second_generation_id.clone(),
             update_readers: Some(vec![CommitGenerationUpdateReader {
-                reader_name: "start".to_string(),
+                reader_name: Arc::from("start"),
                 generation_id: second_generation_id.clone(),
             }]),
         })

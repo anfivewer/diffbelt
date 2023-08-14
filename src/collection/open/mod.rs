@@ -268,6 +268,7 @@ impl Collection {
 
         let ReaderNewCollectionTaskResponse {
             minimum_generation_id,
+            minimum_generation_id_lock,
         } = async_sync_call(|sender| {
             database_inner.add_readers_task(DatabaseCollectionReadersTask::NewCollection(
                 ReaderNewCollectionTask {
@@ -352,6 +353,7 @@ impl Collection {
             if_not_present_writes: Arc::new(RwLock::new(HashMap::new())),
             database_inner,
             minimum_generation_id,
+            minimum_generation_id_lock,
             prev_phantom_id: RwLock::new(prev_phantom_id),
             cursors_id,
             generations_id,

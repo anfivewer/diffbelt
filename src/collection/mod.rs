@@ -1,5 +1,6 @@
 use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::collection::util::record_key::OwnedRecordKey;
+use crate::common::reader::ReaderName;
 use crate::common::{OwnedGenerationId, OwnedPhantomId};
 use crate::database::config::DatabaseConfig;
 use crate::database::cursors::collection::InnerCursorsCollectionId;
@@ -35,6 +36,7 @@ pub struct Collection {
     if_not_present_writes: Arc<RwLock<HashMap<OwnedRecordKey, ConcurrentPutStatus>>>,
     database_inner: Arc<DatabaseInner>,
     minimum_generation_id: watch::Receiver<OwnedGenerationId>,
+    minimum_generation_id_lock: Arc<RwLock<()>>,
     prev_phantom_id: RwLock<OwnedPhantomId>,
     cursors_id: InnerCursorsCollectionId,
     generations_id: InnerGenerationsCollectionId,
@@ -77,6 +79,6 @@ impl Collection {
 }
 
 pub struct CommitGenerationUpdateReader {
-    pub reader_name: String,
+    pub reader_name: ReaderName,
     pub generation_id: OwnedGenerationId,
 }

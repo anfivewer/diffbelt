@@ -418,10 +418,7 @@ mod tests {
 
         assert_ne!(generation_id, incremented_generation_id);
 
-        assert_eq!(
-            generation_id.0.as_ref(),
-            vec![1u8, 2, 3, 4].as_slice()
-        );
+        assert_eq!(generation_id.0.as_ref(), vec![1u8, 2, 3, 4].as_slice());
 
         assert_eq!(
             incremented_generation_id.0.as_ref(),

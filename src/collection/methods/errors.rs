@@ -21,6 +21,7 @@ pub enum CollectionMethodError {
     NotImplementedYet,
     NoSuchReader,
     NoSuchCollection,
+    GenerationIdLessThanMinimum,
 
     RawDb(RawDbError),
     Channels,

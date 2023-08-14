@@ -6,6 +6,7 @@ use crate::util::async_lock::AsyncLock;
 use crate::util::indexed_container::{IndexedContainerItem, IndexedContainerPointer};
 
 use std::future::Future;
+use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::collection::CommitGenerationUpdateReader;
@@ -25,6 +26,7 @@ use crate::messages::readers::{
     DatabaseCollectionReadersTask, UpdateReaderTask, UpdateReadersTask,
 };
 use crate::raw_db::has_generation_changes::HasGenerationChangesOptions;
+use crate::util::async_sync_call::async_sync_call;
 use tokio::sync::{oneshot, watch, RwLock};
 use tokio::task::spawn_blocking;
 
@@ -442,8 +444,9 @@ impl InnerGenerationsCollection {
                          }| UpdateReaderTask {
                             owner_collection_name: name.clone(),
                             to_collection_name: None,
-                            reader_name: Arc::from(reader_name.as_str()),
+                            reader_name: reader_name.clone(),
                             generation_id: generation_id.clone(),
+                            sender: None,
                         },
                     )
                     .collect()
@@ -468,7 +471,7 @@ impl InnerGenerationsCollection {
                                          reader_name,
                                          generation_id,
                                      }| RawDbUpdateReader {
-                                        reader_name: reader_name.as_str(),
+                                        reader_name: reader_name.deref(),
                                         generation_id: generation_id.as_ref(),
                                     },
                                 )
@@ -481,13 +484,16 @@ impl InnerGenerationsCollection {
             .map_err(|error| CommitManualGenerationError::RawDb(RawDbError::Join(error)))??;
 
             if let Some(update_readers_for_readers_thread) = update_readers_for_readers_thread {
-                database
-                    .add_readers_task(DatabaseCollectionReadersTask::UpdateReaders(
+                let _: () = async_sync_call(|sender| {
+                    database.add_readers_task(DatabaseCollectionReadersTask::UpdateReaders(
                         UpdateReadersTask {
                             updates: update_readers_for_readers_thread,
+                            sender,
                         },
                     ))
-                    .await;
+                })
+                .await
+                .unwrap_or(());
             }
 
             pair.generation_id = next_generation_id.clone();
