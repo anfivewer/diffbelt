@@ -23,39 +23,6 @@ pub async fn spawn_blocking_async<T: Send + 'static>(
     result
 }
 
-pub async fn spawn_async_thread<T: Send + 'static>(
-    f: impl Future<Output = T> + Send + 'static,
-    #[cfg(feature = "debug_prints")] name: &str,
-) -> tokio::task::JoinHandle<Option<T>> {
-    #[cfg(feature = "debug_prints")]
-    let name = {
-        debug_print(format!("Run: {}", name).as_str());
-
-        Box::from(name) as Box<str>
-    };
-
-    let join_handle = thread::spawn(move || {
-        let runtime = create_single_thread_tokio_runtime().expect("Cannot create tokio runtime");
-
-        runtime.block_on(f)
-    });
-
-    tokio::spawn(async move {
-        let result = tokio::task::spawn_blocking(move || join_handle.join()).await;
-
-        #[cfg(feature = "debug_prints")]
-        {
-            debug_print(format!("Finish: {}\n", name).as_str());
-        }
-
-        match result {
-            Ok(Ok(result)) => Some(result),
-            Ok(Err(_)) => None,
-            Err(_) => None,
-        }
-    })
-}
-
 pub async fn spawn_async_thread_local<
     T: Send + 'static,
     Fut: Future<Output = T> + 'static,
@@ -100,9 +67,9 @@ pub async fn spawn_async_thread_local<
 #[cfg(test)]
 mod tests {
     use crate::common::NeverEq;
-    use crate::util::tokio::spawn_async_thread;
     use crate::util::tokio_runtime::create_main_tokio_runtime;
 
+    use crate::util::tokio::spawn_async_thread_local;
     use std::time::Duration;
     use tokio::sync::{oneshot, watch};
     use tokio::time::sleep;
@@ -116,8 +83,8 @@ mod tests {
 
             let (sender, receiver) = oneshot::channel::<(usize, oneshot::Sender<usize>)>();
 
-            let a = spawn_async_thread(
-                async move {
+            let a = spawn_async_thread_local(
+                || async move {
                     let (answer, sender) = receiver.await.unwrap();
                     sender.send(answer).unwrap_or(());
                 },
@@ -126,8 +93,8 @@ mod tests {
             )
             .await;
 
-            let b = spawn_async_thread(
-                async move {
+            let b = spawn_async_thread_local(
+                || async move {
                     let (new_sender, receiver) = oneshot::channel();
 
                     sender.send((42, new_sender)).unwrap_or(());
@@ -158,8 +125,8 @@ mod tests {
             let (watcher_sender, mut watcher_receiver) = watch::channel(NeverEq);
             let (sender, receiver) = oneshot::channel::<()>();
 
-            let a = spawn_async_thread(
-                async move {
+            let a = spawn_async_thread_local(
+                || async move {
                     receiver.await.unwrap();
 
                     let mut counter = 0;

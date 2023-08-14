@@ -73,7 +73,7 @@ impl Collection {
         options: CollectionPutInnerOptions<'a, 'b>,
     ) -> Result<CollectionPutInnerResult<'a>, CollectionMethodError> {
         let update = options.update;
-        let key = update.key.as_ref();
+        let key = update.key.as_ref().as_ref();
         let phantom_id = options.phantom_id;
         let record_generation_id = options.record_generation_id;
 
@@ -193,7 +193,7 @@ async fn handle_if_not_present(
                                         }
                                     }
 
-                                    progress = receiver.borrow().clone();
+                                    progress = receiver.borrow_and_update().clone();
                                 }
                                 CuncurrentPutStatusProgress::AlreadyExists(generation_id) => {
                                     return HandleIfNotPresentResult::Return(Ok(CollectionPutOk {
@@ -222,6 +222,7 @@ async fn handle_if_not_present(
                     tokio::sync::watch::channel(CuncurrentPutStatusProgress::Pending);
 
                 keys.insert(key.clone(), ConcurrentPutStatus::InProgress(receiver));
+                drop(keys);
 
                 let rw_hash = rw_hash.clone();
 

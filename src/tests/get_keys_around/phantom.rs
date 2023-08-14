@@ -4,7 +4,10 @@ use crate::collection::methods::get_keys_around::{
 };
 use crate::collection::methods::put::CollectionPutManyOptions;
 use crate::collection::methods::start_generation::StartGenerationOptions;
-use crate::common::{KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId};
+use crate::common::{
+    KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey, OwnedCollectionValue,
+    OwnedGenerationId,
+};
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
 use crate::util::tokio_runtime::create_main_tokio_runtime;
@@ -38,26 +41,26 @@ async fn get_keys_around_phantom_inner() {
     collection
         .put_many(CollectionPutManyOptions {
             items: vec![
-                KeyValueUpdate {
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),
                     value: Some(OwnedCollectionValue::new(b"")),
                     if_not_present: false,
-                },
-                KeyValueUpdate {
+                }),
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
                     value: Some(OwnedCollectionValue::new(b"")),
                     if_not_present: false,
-                },
-                KeyValueUpdate {
+                }),
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
                     value: Some(OwnedCollectionValue::new(b"")),
                     if_not_present: false,
-                },
-                KeyValueUpdate {
+                }),
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice((b"6" as &[u8]).into()).unwrap(),
                     value: Some(OwnedCollectionValue::new(b"")),
                     if_not_present: false,
-                },
+                }),
             ],
             generation_id: Some(first_generation_id.clone()),
             phantom_id: None,
@@ -70,26 +73,26 @@ async fn get_keys_around_phantom_inner() {
     collection
         .put_many(CollectionPutManyOptions {
             items: vec![
-                KeyValueUpdate {
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
                     value: Some(OwnedCollectionValue::new(b"")),
                     if_not_present: false,
-                },
-                KeyValueUpdate {
+                }),
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
                     value: None,
                     if_not_present: false,
-                },
-                KeyValueUpdate {
+                }),
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice((b"4" as &[u8]).into()).unwrap(),
                     value: Some(OwnedCollectionValue::new(b"")),
                     if_not_present: false,
-                },
-                KeyValueUpdate {
+                }),
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice((b"5" as &[u8]).into()).unwrap(),
                     value: Some(OwnedCollectionValue::new(b"")),
                     if_not_present: false,
-                },
+                }),
             ],
             generation_id: Some(first_generation_id.clone()),
             phantom_id: Some(phantom_id.clone()),
@@ -101,11 +104,11 @@ async fn get_keys_around_phantom_inner() {
 
     collection
         .put_many(CollectionPutManyOptions {
-            items: vec![KeyValueUpdate {
+            items: vec![KeyValueUpdate::new(KeyValueUpdateNewOptions {
                 key: OwnedCollectionKey::from_boxed_slice((b"6" as &[u8]).into()).unwrap(),
                 value: Some(OwnedCollectionValue::new(b"")),
                 if_not_present: false,
-            }],
+            })],
             generation_id: Some(first_generation_id.clone()),
             phantom_id: Some(phantom_id_second),
         })

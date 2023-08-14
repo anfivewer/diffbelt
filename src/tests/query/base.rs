@@ -4,8 +4,8 @@ use crate::collection::methods::query::{QueryOk, QueryOptions, ReadQueryCursorOp
 use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::collection::Collection;
 use crate::common::{
-    GenerationId, KeyValue, KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue,
-    OwnedGenerationId,
+    GenerationId, KeyValue, KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey,
+    OwnedCollectionValue, OwnedGenerationId,
 };
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
@@ -47,11 +47,11 @@ async fn query_test_inner() {
         let key = [(i % 256) as u8];
         let value = [(i % 2) as u8, (i % 3) as u8, (i % 4) as u8, (i % 5) as u8];
 
-        first_generation_updates.push(KeyValueUpdate {
+        first_generation_updates.push(KeyValueUpdate::new(KeyValueUpdateNewOptions {
             key: OwnedCollectionKey::from_boxed_slice((&key as &[u8]).into()).unwrap(),
             value: Some(OwnedCollectionValue::new(&value)),
             if_not_present: false,
-        });
+        }));
     }
 
     let result = collection
@@ -104,22 +104,22 @@ async fn query_test_inner() {
         let i = i + 1;
         let value = [(i % 2) as u8, (i % 3) as u8, (i % 4) as u8, (i % 5) as u8];
 
-        second_generation_updates.push(KeyValueUpdate {
+        second_generation_updates.push(KeyValueUpdate::new(KeyValueUpdateNewOptions {
             key: OwnedCollectionKey::from_boxed_slice((&key as &[u8]).into()).unwrap(),
             value: Some(OwnedCollectionValue::new(&value)),
             if_not_present: false,
-        });
+        }));
     }
 
     // 20 items we will remove
     for i in 30..50 {
         let key = [(i % 256) as u8];
 
-        second_generation_updates.push(KeyValueUpdate {
+        second_generation_updates.push(KeyValueUpdate::new(KeyValueUpdateNewOptions {
             key: OwnedCollectionKey::from_boxed_slice((&key as &[u8]).into()).unwrap(),
             value: None,
             if_not_present: false,
-        });
+        }));
     }
 
     // 250 items will be added
@@ -127,11 +127,11 @@ async fn query_test_inner() {
         let key = [(i % 256) as u8, (i % 29) as u8];
         let value = [(i % 2) as u8, (i % 3) as u8, (i % 4) as u8, (i % 5) as u8];
 
-        second_generation_updates.push(KeyValueUpdate {
+        second_generation_updates.push(KeyValueUpdate::new(KeyValueUpdateNewOptions {
             key: OwnedCollectionKey::from_boxed_slice((&key as &[u8]).into()).unwrap(),
             value: Some(OwnedCollectionValue::new(&value)),
             if_not_present: false,
-        });
+        }));
     }
 
     let result = collection
@@ -182,7 +182,7 @@ fn key_value_update_items_to_key_value(items: Vec<KeyValueUpdate>) -> Vec<KeyVal
         .into_iter()
         .filter_map(|key_value_update| {
             key_value_update.value.map(|value| KeyValue {
-                key: key_value_update.key,
+                key: key_value_update.key.into_owned(),
                 value,
             })
         })
@@ -210,7 +210,10 @@ fn merge_kv_updates(updates_list: Vec<&Vec<KeyValueUpdate>>) -> Vec<KeyValue> {
     }
 
     map.into_iter()
-        .map(|(key, value)| KeyValue { key, value })
+        .map(|(key, value)| KeyValue {
+            key: key.into_owned(),
+            value,
+        })
         .collect()
 }
 

@@ -3,6 +3,7 @@ use crate::collection::methods::put::inner::{
     validate_put, CollectionPutInnerOptions, CollectionPutInnerResult, HandleIfNotPresentResolve,
     ResolvePutFn, ValidatePutOptions,
 };
+use std::collections::BTreeMap;
 
 use crate::collection::Collection;
 
@@ -69,16 +70,22 @@ impl Collection {
             None => {}
         }
 
-        let record_generation_id = generation_id.unwrap_or(next_generation_id);
+        let record_generation_id = generation_id.clone().unwrap_or(next_generation_id);
         let record_generation_id = record_generation_id.as_ref();
 
         //// Insert
         let deletion_lock = self.is_deleted.read().await;
-        if deletion_lock.to_owned() {
+        if *deletion_lock {
             return Err(CollectionMethodError::NoSuchCollection);
         }
 
-        let items_inner = items.into_iter().map(|update| async move {
+        let mut items_ordered = BTreeMap::new();
+
+        for item in items {
+            items_ordered.insert(item.key.clone(), item);
+        }
+
+        let items_inner = items_ordered.into_iter().map(|(_, update)| async move {
             let result = self
                 .put_inner(CollectionPutInnerOptions {
                     update: &update,
@@ -87,7 +94,7 @@ impl Collection {
                 })
                 .await;
 
-            return (result, update);
+            (result, update)
         });
 
         let items_inner: Vec<(
@@ -155,12 +162,18 @@ impl Collection {
             next_generation_id_lock.set_need_schedule_next_generation();
         }
 
+        let result_generation_id = if is_empty {
+            generation_id.unwrap_or_else(|| next_generation_id_lock.generation_id().to_owned())
+        } else {
+            record_generation_id.to_owned()
+        };
+
         drop(next_generation_id_lock);
 
         let (result, if_not_present_result) = match result {
             Ok(_) => (
                 Ok(CollectionPutManyOk {
-                    generation_id: record_generation_id.to_owned(),
+                    generation_id: result_generation_id,
                 }),
                 HandleIfNotPresentResolve::WasPut,
             ),

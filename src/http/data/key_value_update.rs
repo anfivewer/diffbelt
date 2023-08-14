@@ -1,4 +1,4 @@
-use crate::common::KeyValueUpdate;
+use crate::common::{KeyValueUpdate, KeyValueUpdateNewOptions};
 use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
 use crate::util::json::serde::deserialize_strict_null;
@@ -26,10 +26,10 @@ impl KeyValueUpdateJsonData {
 
         let if_not_present = self.if_not_present.unwrap_or(false);
 
-        Ok(KeyValueUpdate {
+        Ok(KeyValueUpdate::new(KeyValueUpdateNewOptions {
             key,
             value,
             if_not_present,
-        })
+        }))
     }
 }

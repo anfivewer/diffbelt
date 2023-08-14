@@ -3,7 +3,8 @@ use crate::collection::methods::get::CollectionGetOptions;
 use crate::collection::methods::put::{CollectionPutManyOptions, CollectionPutOptions};
 use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::common::{
-    GenerationId, KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId,
+    GenerationId, KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey,
+    OwnedCollectionValue, OwnedGenerationId,
 };
 
 use crate::database::create_collection::CreateCollectionOptions;
@@ -66,12 +67,12 @@ async fn database_test_inner() {
 
     let result = collection
         .put(CollectionPutOptions {
-            update: KeyValueUpdate {
+            update: KeyValueUpdate::new(KeyValueUpdateNewOptions {
                 key: OwnedCollectionKey::from_boxed_slice(b"test".to_vec().into_boxed_slice())
                     .unwrap(),
                 value: Option::Some(OwnedCollectionValue::new(b"passed")),
                 if_not_present: true,
-            },
+            }),
             generation_id: None,
             phantom_id: None,
         })
@@ -114,18 +115,18 @@ async fn database_test_inner() {
     let result = collection
         .put_many(CollectionPutManyOptions {
             items: vec![
-                KeyValueUpdate {
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice(b"test".to_vec().into_boxed_slice())
                         .unwrap(),
                     value: Option::Some(OwnedCollectionValue::new(b"passed3")),
                     if_not_present: true,
-                },
-                KeyValueUpdate {
+                }),
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice(b"test2".to_vec().into_boxed_slice())
                         .unwrap(),
                     value: Option::Some(OwnedCollectionValue::new(b"passed again")),
                     if_not_present: true,
-                },
+                }),
             ],
             generation_id: None,
             phantom_id: None,
@@ -158,12 +159,12 @@ async fn database_test_inner() {
 
     let result = manual_collection
         .put(CollectionPutOptions {
-            update: KeyValueUpdate {
+            update: KeyValueUpdate::new(KeyValueUpdateNewOptions {
                 key: OwnedCollectionKey::from_boxed_slice(b"test".to_vec().into_boxed_slice())
                     .unwrap(),
                 value: Option::Some(OwnedCollectionValue::new(b"manual passed")),
                 if_not_present: true,
-            },
+            }),
             generation_id: Some(
                 OwnedGenerationId::from_boxed_slice(b"first".to_vec().into_boxed_slice()).unwrap(),
             ),

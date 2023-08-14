@@ -5,7 +5,8 @@ use crate::collection::methods::put::CollectionPutManyOptions;
 use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::collection::CommitGenerationUpdateReader;
 use crate::common::{
-    KeyValue, KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId,
+    KeyValue, KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey, OwnedCollectionValue,
+    OwnedGenerationId,
 };
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
@@ -52,22 +53,22 @@ async fn garbage_collector_test_inner() {
     collection
         .put_many(CollectionPutManyOptions {
             items: vec![
-                KeyValueUpdate {
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice(b"1".to_vec().into_boxed_slice())
                         .unwrap(),
                     value: Some(OwnedCollectionValue::from_boxed_slice(
                         b"42".to_vec().into_boxed_slice(),
                     )),
                     if_not_present: false,
-                },
-                KeyValueUpdate {
+                }),
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice(b"3".to_vec().into_boxed_slice())
                         .unwrap(),
                     value: Some(OwnedCollectionValue::from_boxed_slice(
                         b"42".to_vec().into_boxed_slice(),
                     )),
                     if_not_present: false,
-                },
+                }),
             ],
             generation_id: Some(first_generation_id.clone()),
             phantom_id: None,
@@ -114,22 +115,22 @@ async fn garbage_collector_test_inner() {
     collection
         .put_many(CollectionPutManyOptions {
             items: vec![
-                KeyValueUpdate {
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice(b"1".to_vec().into_boxed_slice())
                         .unwrap(),
                     value: Some(OwnedCollectionValue::from_boxed_slice(
                         b"13".to_vec().into_boxed_slice(),
                     )),
                     if_not_present: false,
-                },
-                KeyValueUpdate {
+                }),
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice(b"2".to_vec().into_boxed_slice())
                         .unwrap(),
                     value: Some(OwnedCollectionValue::from_boxed_slice(
                         b"42".to_vec().into_boxed_slice(),
                     )),
                     if_not_present: false,
-                },
+                }),
             ],
             generation_id: Some(second_generation_id.clone()),
             phantom_id: None,

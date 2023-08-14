@@ -4,8 +4,8 @@ use crate::collection::methods::put::CollectionPutManyOptions;
 use crate::collection::Collection;
 use crate::common::generation_id::GenerationIdSource;
 use crate::common::{
-    GenerationId, IsByteArrayMut, KeyValueDiff, KeyValueUpdate, OwnedCollectionKey,
-    OwnedCollectionValue, OwnedGenerationId,
+    GenerationId, IsByteArrayMut, KeyValueDiff, KeyValueUpdate, KeyValueUpdateNewOptions,
+    OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId,
 };
 use crate::database::config::DatabaseConfig;
 use crate::database::create_collection::CreateCollectionOptions;
@@ -55,11 +55,11 @@ async fn diff_test_inner() {
 
             first_generation_items.insert(key.clone(), value.clone());
 
-            items.push(KeyValueUpdate {
+            items.push(KeyValueUpdate::new(KeyValueUpdateNewOptions {
                 key,
                 value: Some(value),
                 if_not_present: false,
-            });
+            }));
         }
 
         collection
@@ -110,11 +110,11 @@ async fn diff_test_inner() {
 
                     last_generation_items.insert(key.clone(), value.clone());
 
-                    items.push(KeyValueUpdate {
+                    items.push(KeyValueUpdate::new(KeyValueUpdateNewOptions {
                         key,
                         value: Some(value),
                         if_not_present: false,
-                    });
+                    }));
                 }
 
                 collection

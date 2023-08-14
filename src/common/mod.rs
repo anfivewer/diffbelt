@@ -4,7 +4,9 @@ use crate::common::constants::{
 };
 use crate::util::bytes::increment;
 use crate::util::bytes_constants::BYTES_255_FF;
+use std::borrow::Cow;
 use std::cmp::Ordering;
+use std::marker::PhantomData;
 
 pub mod collection;
 pub mod constants;
@@ -46,9 +48,33 @@ pub struct KeyValueDiff {
 
 #[derive(Clone)]
 pub struct KeyValueUpdate {
+    pub key: Cow<'static, OwnedCollectionKey>,
+    pub value: Option<OwnedCollectionValue>,
+    pub if_not_present: bool,
+    no_manual_creation: PhantomData<()>,
+}
+
+pub struct KeyValueUpdateNewOptions {
     pub key: OwnedCollectionKey,
     pub value: Option<OwnedCollectionValue>,
     pub if_not_present: bool,
+}
+
+impl KeyValueUpdate {
+    pub fn new(options: KeyValueUpdateNewOptions) -> Self {
+        let KeyValueUpdateNewOptions {
+            key,
+            value,
+            if_not_present,
+        } = options;
+
+        Self {
+            key: Cow::Owned(key),
+            value,
+            if_not_present,
+            no_manual_creation: PhantomData::default(),
+        }
+    }
 }
 
 impl OwnedGenerationId {

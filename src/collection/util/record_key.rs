@@ -5,7 +5,7 @@ use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::util::bytes::{read_u24, write_u24};
 use std::ops::Range;
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct RecordKey<'a> {
     pub value: &'a [u8],
 }
@@ -91,7 +91,7 @@ impl<'a> From<&'a OwnedRecordKey> for RecordKey<'a> {
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct OwnedRecordKey {
     pub value: Box<[u8]>,
 }

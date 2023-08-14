@@ -3,7 +3,10 @@ use crate::collection::methods::put::CollectionPutManyOptions;
 use crate::collection::methods::query::QueryOptions;
 use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::collection::Collection;
-use crate::common::{KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId};
+use crate::common::{
+    KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey, OwnedCollectionValue,
+    OwnedGenerationId,
+};
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
 use crate::util::tokio_runtime::create_main_tokio_runtime;
@@ -88,11 +91,11 @@ async fn initialize(collection: &Collection) {
         let key = [i as u8];
         let value = [];
 
-        first_generation_updates.push(KeyValueUpdate {
+        first_generation_updates.push(KeyValueUpdate::new(KeyValueUpdateNewOptions {
             key: OwnedCollectionKey::from_boxed_slice((&key as &[u8]).into()).unwrap(),
             value: Some(OwnedCollectionValue::new(&value)),
             if_not_present: false,
-        });
+        }));
     }
 
     collection
