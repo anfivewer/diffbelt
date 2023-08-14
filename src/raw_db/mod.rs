@@ -9,6 +9,7 @@ pub mod contains_existing_collection_record;
 pub mod delete;
 pub mod destroy;
 pub mod diff_collection_records;
+pub mod garbage_collector;
 pub mod get_collection_record;
 pub mod get_keys_around;
 pub mod get_range;

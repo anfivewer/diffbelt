@@ -1,8 +1,10 @@
 use crate::util::tokio_runtime::create_single_thread_tokio_runtime;
 use std::future::Future;
 
+#[cfg(feature = "debug_prints")]
+use crate::util::debug_print::debug_print;
 use std::thread;
-use tokio::task::JoinError;
+use tokio::task::{JoinError, LocalSet};
 
 pub fn spawn(f: impl Future<Output = ()> + Send + 'static) {
     tokio::spawn(f);
@@ -21,16 +23,17 @@ pub async fn spawn_blocking_async<T: Send + 'static>(
     result
 }
 
-pub async fn spawn_async_thread<T: Send + 'static>(
-    f: impl Future<Output = T> + Send + 'static,
+pub async fn spawn_async_thread_local<
+    T: Send + 'static,
+    Fut: Future<Output = T> + 'static,
+    F: (FnOnce() -> Fut) + Send + 'static,
+>(
+    f: F,
     #[cfg(feature = "debug_prints")] name: &str,
 ) -> tokio::task::JoinHandle<Option<T>> {
     #[cfg(feature = "debug_prints")]
     let name = {
-        std::io::stderr()
-            .write(format!("Run: {}\n", name).as_bytes())
-            .unwrap();
-        std::io::stderr().flush().unwrap();
+        debug_print(format!("Run: {}", name).as_str());
 
         Box::from(name) as Box<str>
     };
@@ -38,7 +41,11 @@ pub async fn spawn_async_thread<T: Send + 'static>(
     let join_handle = thread::spawn(move || {
         let runtime = create_single_thread_tokio_runtime().expect("Cannot create tokio runtime");
 
-        runtime.block_on(f)
+        runtime.block_on(async move {
+            let local = LocalSet::new();
+
+            local.run_until(f()).await
+        })
     });
 
     tokio::spawn(async move {
@@ -46,10 +53,7 @@ pub async fn spawn_async_thread<T: Send + 'static>(
 
         #[cfg(feature = "debug_prints")]
         {
-            std::io::stderr()
-                .write(format!("Finish: {}\n", name).as_bytes())
-                .unwrap();
-            std::io::stderr().flush().unwrap();
+            debug_print(format!("Finish: {}\n", name).as_str());
         }
 
         match result {
@@ -63,9 +67,9 @@ pub async fn spawn_async_thread<T: Send + 'static>(
 #[cfg(test)]
 mod tests {
     use crate::common::NeverEq;
-    use crate::util::tokio::spawn_async_thread;
     use crate::util::tokio_runtime::create_main_tokio_runtime;
 
+    use crate::util::tokio::spawn_async_thread_local;
     use std::time::Duration;
     use tokio::sync::{oneshot, watch};
     use tokio::time::sleep;
@@ -79,8 +83,8 @@ mod tests {
 
             let (sender, receiver) = oneshot::channel::<(usize, oneshot::Sender<usize>)>();
 
-            let a = spawn_async_thread(
-                async move {
+            let a = spawn_async_thread_local(
+                || async move {
                     let (answer, sender) = receiver.await.unwrap();
                     sender.send(answer).unwrap_or(());
                 },
@@ -89,8 +93,8 @@ mod tests {
             )
             .await;
 
-            let b = spawn_async_thread(
-                async move {
+            let b = spawn_async_thread_local(
+                || async move {
                     let (new_sender, receiver) = oneshot::channel();
 
                     sender.send((42, new_sender)).unwrap_or(());
@@ -121,8 +125,8 @@ mod tests {
             let (watcher_sender, mut watcher_receiver) = watch::channel(NeverEq);
             let (sender, receiver) = oneshot::channel::<()>();
 
-            let a = spawn_async_thread(
-                async move {
+            let a = spawn_async_thread_local(
+                || async move {
                     receiver.await.unwrap();
 
                     let mut counter = 0;

@@ -9,8 +9,8 @@ impl Collection {
         match generation_id {
             Some(generation_id) => generation_id,
             None => {
-                let current_generation_id_lock = self.generation_id.read().await;
-                current_generation_id_lock.clone()
+                let pair = self.generation_pair_receiver.borrow();
+                pair.generation_id.clone()
             }
         }
     }

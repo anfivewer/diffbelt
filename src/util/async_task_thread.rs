@@ -1,16 +1,17 @@
 use crate::util::atomic_cleanup::AtomicCleanup;
-use crate::util::tokio::spawn_async_thread;
+use crate::util::tokio::spawn_async_thread_local;
 use std::future::Future;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 
-pub struct AsyncTaskThread<T> {
+pub struct AsyncTaskThread<T: Send + 'static> {
     task_sender: mpsc::Sender<T>,
     stop_sender: AtomicCleanup<oneshot::Sender<()>>,
     join_handle: AtomicCleanup<JoinHandle<Option<()>>>,
 }
 
 pub struct TaskPoller<T> {
+    pub task_sender: mpsc::Sender<T>,
     task_receiver: mpsc::Receiver<T>,
     stop_receiver: oneshot::Receiver<()>,
 }
@@ -33,11 +34,11 @@ impl<T> TaskPoller<T> {
     }
 }
 
-impl<Task> AsyncTaskThread<Task> {
+impl<Task: Send + 'static> AsyncTaskThread<Task> {
     pub async fn new<
-        Data,
-        Fut: Future<Output = ()> + Send + 'static,
-        F: FnOnce(Data, TaskPoller<Task>) -> Fut,
+        Data: Send + 'static,
+        Fut: Future<Output = ()> + 'static,
+        F: (FnOnce(Data, TaskPoller<Task>) -> Fut) + Send + 'static,
     >(
         run: F,
         data: Data,
@@ -46,16 +47,18 @@ impl<Task> AsyncTaskThread<Task> {
         let (task_sender, task_receiver) = mpsc::channel(1000);
         let (stop_sender, stop_receiver) = oneshot::channel();
 
-        let async_task = run(
-            data,
-            TaskPoller {
-                task_receiver,
-                stop_receiver,
+        let inner_task_sender = task_sender.clone();
+        let join_handle = spawn_async_thread_local(
+            move || {
+                run(
+                    data,
+                    TaskPoller {
+                        task_sender: inner_task_sender,
+                        task_receiver,
+                        stop_receiver,
+                    },
+                )
             },
-        );
-
-        let join_handle = spawn_async_thread(
-            async_task,
             #[cfg(feature = "debug_prints")]
             name,
         )
@@ -88,7 +91,7 @@ impl<Task> AsyncTaskThread<Task> {
     }
 }
 
-impl<T> Drop for AsyncTaskThread<T> {
+impl<T: Send + 'static> Drop for AsyncTaskThread<T> {
     fn drop(&mut self) {
         self.send_stop();
     }

@@ -11,6 +11,7 @@ use serde_with::skip_serializing_none;
 
 use std::ops::Deref;
 
+use crate::database::generations::collection::GenerationIdNextGenerationIdPair;
 use crate::http::data::encoded_generation_id::EncodedGenerationIdJsonData;
 use std::sync::Arc;
 
@@ -97,41 +98,42 @@ pub async fn get_collection(
     type ResponseRef<'a> = &'a mut GetCollectionResponseJsonData;
     type ModifyResponseFn = Box<dyn FnOnce(ResponseRef<'_>) -> () + Send + Sync + 'static>;
 
-    let (generation_id_part, next_generation_id_part) = tokio::join!(
-        async {
-            if !with_generation_id {
-                return None;
-            }
-
-            let id = collection.get_generation_id().await;
-
-            Some(GenerationIdPart {
-                generation_id: Some(EncodedGenerationIdJsonData::encode(
-                    id.as_ref(),
-                    StrSerializationType::Utf8,
-                )),
-            })
-        },
-        async {
-            if !with_next_generation_id {
-                return None;
-            }
-
-            let id = collection.get_next_generation_id().await;
-            let Some(id) = id else {
-                return Some(NextGenerationIdPart {
-                    next_generation_id: None,
-                });
-            };
-
-            Some(NextGenerationIdPart {
-                next_generation_id: Some(EncodedGenerationIdJsonData::encode(
-                    id.as_ref(),
-                    StrSerializationType::Utf8,
-                )),
-            })
+    let (generation_id_part, next_generation_id_part) = 'outer: {
+        if !with_generation_id && !with_next_generation_id {
+            break 'outer (None, None);
         }
-    );
+
+        let GenerationIdNextGenerationIdPair {
+            generation_id,
+            next_generation_id,
+        } = collection.generation_pair();
+
+        (
+            if with_generation_id {
+                Some(GenerationIdPart {
+                    generation_id: Some(EncodedGenerationIdJsonData::encode(
+                        generation_id.as_ref(),
+                        StrSerializationType::Utf8,
+                    )),
+                })
+            } else {
+                None
+            },
+            if with_next_generation_id {
+                match next_generation_id {
+                    None => None,
+                    Some(id) => Some(NextGenerationIdPart {
+                        next_generation_id: Some(EncodedGenerationIdJsonData::encode(
+                            id.as_ref(),
+                            StrSerializationType::Utf8,
+                        )),
+                    }),
+                }
+            } else {
+                None
+            },
+        )
+    };
 
     generation_id_part.apply_part(&mut response);
     next_generation_id_part.apply_part(&mut response);

@@ -7,11 +7,11 @@ use crate::database::cursors::storage::{
 use std::marker::PhantomData;
 use tokio::sync::oneshot;
 
-pub struct NewCollectionTask {
+pub struct NewCollectionCursorsTask {
     pub sender: oneshot::Sender<InnerCursorsCollectionId>,
 }
 
-pub struct DropCollectionTask {
+pub struct DropCollectionCursorsTask {
     pub collection_id: InnerCursorsCollectionId,
 }
 
@@ -75,8 +75,8 @@ pub enum DatabaseCollectionSpecificCursorsTask<T: CursorType> {
 }
 
 pub enum DatabaseCollectionCursorsTask {
-    NewCollection(NewCollectionTask),
-    DropCollection(DropCollectionTask),
+    NewCollection(NewCollectionCursorsTask),
+    DropCollection(DropCollectionCursorsTask),
     Query(DatabaseCollectionSpecificCursorsTask<QueryCursorType>),
     Diff(DatabaseCollectionSpecificCursorsTask<DiffCursorType>),
 }

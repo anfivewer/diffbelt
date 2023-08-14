@@ -4,8 +4,12 @@ use crate::common::constants::{
 };
 use crate::util::bytes::increment;
 use crate::util::bytes_constants::BYTES_255_FF;
+use std::borrow::Cow;
 use std::cmp::Ordering;
+use std::marker::PhantomData;
+use std::sync::Arc;
 
+pub mod collection;
 pub mod constants;
 pub mod generation_id;
 pub mod reader;
@@ -20,7 +24,7 @@ pub struct OwnedCollectionValue(Box<[u8]>);
 pub struct CollectionValue<'a>(&'a [u8]);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
-pub struct OwnedGenerationId(Box<[u8]>);
+pub struct OwnedGenerationId(Arc<[u8]>);
 #[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Debug)]
 pub struct GenerationId<'a>(&'a [u8]);
 
@@ -45,9 +49,33 @@ pub struct KeyValueDiff {
 
 #[derive(Clone)]
 pub struct KeyValueUpdate {
+    pub key: Cow<'static, OwnedCollectionKey>,
+    pub value: Option<OwnedCollectionValue>,
+    pub if_not_present: bool,
+    no_manual_creation: PhantomData<()>,
+}
+
+pub struct KeyValueUpdateNewOptions {
     pub key: OwnedCollectionKey,
     pub value: Option<OwnedCollectionValue>,
     pub if_not_present: bool,
+}
+
+impl KeyValueUpdate {
+    pub fn new(options: KeyValueUpdateNewOptions) -> Self {
+        let KeyValueUpdateNewOptions {
+            key,
+            value,
+            if_not_present,
+        } = options;
+
+        Self {
+            key: Cow::Owned(key),
+            value,
+            if_not_present,
+            no_manual_creation: PhantomData::default(),
+        }
+    }
 }
 
 impl OwnedGenerationId {
@@ -56,18 +84,23 @@ impl OwnedGenerationId {
             return Err(());
         }
 
-        Ok(Self(bytes))
+        Ok(Self(Arc::from(bytes)))
     }
     pub fn empty() -> Self {
-        Self(Box::from([]))
+        Self(Arc::from([]))
     }
     pub fn zero_64bits() -> Self {
-        Self(vec![0; 8].into_boxed_slice())
+        Self(Arc::from(vec![0; 8].into_boxed_slice()))
     }
 
-    pub fn increment(&mut self) {
-        increment(&mut self.0);
+    pub fn incremented(&self) -> Self {
+        let bytes = self.0.as_ref();
+        let result = Arc::from(bytes);
+        let mut bytes = unsafe { &mut *(Arc::as_ptr(&result) as *mut [u8]) };
+        increment(&mut bytes);
+        Self(result)
     }
+
     pub fn as_ref(&self) -> GenerationId<'_> {
         GenerationId(&self.0)
     }
@@ -112,6 +145,14 @@ impl<'a> GenerationId<'a> {
         }
     }
 
+    pub fn incremented(&self) -> OwnedGenerationId {
+        let bytes = self.0.as_ref();
+        let result = Arc::from(bytes);
+        let mut bytes = unsafe { &mut *(Arc::as_ptr(&result) as *mut [u8]) };
+        increment(&mut bytes);
+        OwnedGenerationId(result)
+    }
+
     pub fn to_owned(&self) -> OwnedGenerationId {
         OwnedGenerationId(self.0.into())
     }
@@ -136,11 +177,6 @@ impl IsByteArray for OwnedGenerationId {
 impl IsByteArray for GenerationId<'_> {
     fn get_byte_array(&self) -> &[u8] {
         self.0
-    }
-}
-impl IsByteArrayMut<'_> for OwnedGenerationId {
-    fn get_byte_array_mut(&mut self) -> &mut [u8] {
-        &mut self.0
     }
 }
 
@@ -366,11 +402,27 @@ impl Eq for NeverEq {}
 
 #[cfg(test)]
 mod tests {
-    use crate::common::NeverEq;
+    use crate::common::{NeverEq, OwnedGenerationId};
 
     #[test]
     pub fn never_eq_is_never_eq() {
-        assert!(NeverEq != NeverEq);
+        assert_ne!(NeverEq, NeverEq);
         assert_eq!(NeverEq == NeverEq, false);
+    }
+
+    #[test]
+    fn incremented_test() {
+        let generation_id =
+            OwnedGenerationId::from_boxed_slice(vec![1, 2, 3, 4].into_boxed_slice()).unwrap();
+        let incremented_generation_id = generation_id.incremented();
+
+        assert_ne!(generation_id, incremented_generation_id);
+
+        assert_eq!(generation_id.0.as_ref(), vec![1u8, 2, 3, 4].as_slice());
+
+        assert_eq!(
+            incremented_generation_id.0.as_ref(),
+            vec![1u8, 2, 3, 5].as_slice()
+        );
     }
 }

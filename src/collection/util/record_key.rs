@@ -5,7 +5,7 @@ use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::util::bytes::{read_u24, write_u24};
 use std::ops::Range;
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct RecordKey<'a> {
     pub value: &'a [u8],
 }
@@ -91,7 +91,7 @@ impl<'a> From<&'a OwnedRecordKey> for RecordKey<'a> {
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct OwnedRecordKey {
     pub value: Box<[u8]>,
 }
@@ -177,6 +177,18 @@ impl<'a> RecordKey<'a> {
         let size = self.value[offset] as usize;
         offset += 1;
         PhantomId::new_unchecked(&self.value[offset..(offset + size)])
+    }
+
+    pub fn parse(&self) -> ParsedRecordKey<'_> {
+        let (collection_key, generation_id, phantom_id) = self.parse_to_ranges();
+
+        ParsedRecordKey {
+            collection_key: CollectionKey::new_unchecked(by_range(self.value, &collection_key)),
+            generation_id: GenerationId::new_unchecked(by_range(self.value, &generation_id)),
+            phantom_id: phantom_id
+                .as_ref()
+                .map(|range| PhantomId::new_unchecked(by_range(&self.value, range))),
+        }
     }
 
     fn parse_to_ranges(&self) -> (Range<usize>, Range<usize>, Option<Range<usize>>) {
@@ -283,6 +295,17 @@ impl OwnedRecordKey {
 
     pub fn as_ref(&self) -> RecordKey {
         self.into()
+    }
+}
+
+impl From<ParsedRecordKey<'_>> for OwnedRecordKey {
+    fn from(value: ParsedRecordKey) -> Self {
+        OwnedRecordKey::new(
+            value.collection_key,
+            value.generation_id,
+            value.phantom_id.unwrap_or_else(|| PhantomId::empty()),
+        )
+        .unwrap()
     }
 }
 

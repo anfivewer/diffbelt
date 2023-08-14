@@ -1,10 +1,15 @@
-use crate::collection::newgen::NewGenerationCommiter;
+use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::collection::util::record_key::OwnedRecordKey;
-use crate::common::{NeverEq, OwnedGenerationId, OwnedPhantomId};
+use crate::common::reader::ReaderName;
+use crate::common::{OwnedGenerationId, OwnedPhantomId};
 use crate::database::config::DatabaseConfig;
 use crate::database::cursors::collection::InnerCursorsCollectionId;
+use crate::database::generations::collection::{
+    GenerationIdNextGenerationIdPair, InnerGenerationsCollectionId,
+};
 use crate::database::DatabaseInner;
-use crate::raw_db::{RawDb, RawDbError};
+use crate::messages::garbage_collector::NewCollectionTaskResponse;
+use crate::raw_db::RawDbError;
 use if_not_present::ConcurrentPutStatus;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -16,7 +21,6 @@ pub mod cursors;
 mod drop;
 mod if_not_present;
 pub mod methods;
-mod newgen;
 pub mod open;
 pub mod readers;
 pub mod util;
@@ -24,21 +28,19 @@ pub mod util;
 pub struct Collection {
     config: Arc<DatabaseConfig>,
     name: Arc<str>,
-    raw_db: Arc<RawDb>,
+    raw_db: CollectionRawDb,
     is_manual: bool,
     // you need to lock it for reading before any operations with raw_db
     is_deleted: Arc<RwLock<bool>>,
-    generation_id_sender: Arc<watch::Sender<OwnedGenerationId>>,
-    generation_id_receiver: watch::Receiver<OwnedGenerationId>,
-    generation_id: Arc<RwLock<OwnedGenerationId>>,
-    next_generation_id: Arc<RwLock<Option<OwnedGenerationId>>>,
+    pub generation_pair_receiver: watch::Receiver<GenerationIdNextGenerationIdPair>,
     if_not_present_writes: Arc<RwLock<HashMap<OwnedRecordKey, ConcurrentPutStatus>>>,
     database_inner: Arc<DatabaseInner>,
-    // Not defined for manual collections
-    newgen: Arc<RwLock<Option<NewGenerationCommiter>>>,
-    on_put_sender: Option<watch::Sender<NeverEq>>,
+    minimum_generation_id: watch::Receiver<OwnedGenerationId>,
+    minimum_generation_id_lock: Arc<RwLock<()>>,
     prev_phantom_id: RwLock<OwnedPhantomId>,
     cursors_id: InnerCursorsCollectionId,
+    generations_id: InnerGenerationsCollectionId,
+    gc: NewCollectionTaskResponse,
     drop_sender: Option<oneshot::Sender<()>>,
 }
 
@@ -56,14 +58,8 @@ impl Collection {
         self.is_manual
     }
 
-    pub async fn get_generation_id(&self) -> OwnedGenerationId {
-        let generation_id = self.generation_id.read().await;
-        generation_id.clone()
-    }
-
-    pub async fn get_next_generation_id(&self) -> Option<OwnedGenerationId> {
-        let generation_id = self.next_generation_id.read().await;
-        generation_id.clone()
+    pub fn generation_pair(&self) -> GenerationIdNextGenerationIdPair {
+        self.generation_pair_receiver.borrow().clone()
     }
 
     pub fn get_reader_generation_id(
@@ -80,13 +76,9 @@ impl Collection {
 
         Ok(state.generation_id)
     }
-
-    pub fn get_generation_id_receiver(&self) -> watch::Receiver<OwnedGenerationId> {
-        self.generation_id_receiver.clone()
-    }
 }
 
 pub struct CommitGenerationUpdateReader {
-    pub reader_name: String,
+    pub reader_name: ReaderName,
     pub generation_id: OwnedGenerationId,
 }

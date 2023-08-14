@@ -3,7 +3,8 @@ use crate::collection::methods::get::CollectionGetOptions;
 use crate::collection::methods::put::{CollectionPutManyOptions, CollectionPutOptions};
 use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::common::{
-    GenerationId, KeyValueUpdate, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId,
+    GenerationId, KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey,
+    OwnedCollectionValue, OwnedGenerationId,
 };
 
 use crate::database::create_collection::CreateCollectionOptions;
@@ -66,12 +67,12 @@ async fn database_test_inner() {
 
     let result = collection
         .put(CollectionPutOptions {
-            update: KeyValueUpdate {
+            update: KeyValueUpdate::new(KeyValueUpdateNewOptions {
                 key: OwnedCollectionKey::from_boxed_slice(b"test".to_vec().into_boxed_slice())
                     .unwrap(),
                 value: Option::Some(OwnedCollectionValue::new(b"passed")),
                 if_not_present: true,
-            },
+            }),
             generation_id: None,
             phantom_id: None,
         })
@@ -82,22 +83,25 @@ async fn database_test_inner() {
     let generation_id_after_put = result.generation_id;
     assert!(&generation_id_after_put > &initial_generation_id);
 
-    let mut generation_id_receiver = collection.get_generation_id_receiver();
+    let mut generation_pair_receiver = collection.generation_pair_receiver.clone();
 
     loop {
         let is_got_it = {
-            let generation_id = generation_id_receiver.borrow_and_update();
-            generation_id.deref() >= &generation_id_after_put
+            let pair = generation_pair_receiver.borrow_and_update();
+            pair.deref().generation_id >= generation_id_after_put
         };
 
         if is_got_it {
             break;
         }
 
-        timeout(Duration::from_millis(100), generation_id_receiver.changed())
-            .await
-            .unwrap()
-            .unwrap();
+        timeout(
+            Duration::from_millis(100),
+            generation_pair_receiver.changed(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
     }
 
     assert_get(
@@ -111,18 +115,18 @@ async fn database_test_inner() {
     let result = collection
         .put_many(CollectionPutManyOptions {
             items: vec![
-                KeyValueUpdate {
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice(b"test".to_vec().into_boxed_slice())
                         .unwrap(),
                     value: Option::Some(OwnedCollectionValue::new(b"passed3")),
                     if_not_present: true,
-                },
-                KeyValueUpdate {
+                }),
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
                     key: OwnedCollectionKey::from_boxed_slice(b"test2".to_vec().into_boxed_slice())
                         .unwrap(),
                     value: Option::Some(OwnedCollectionValue::new(b"passed again")),
                     if_not_present: true,
-                },
+                }),
             ],
             generation_id: None,
             phantom_id: None,
@@ -155,12 +159,12 @@ async fn database_test_inner() {
 
     let result = manual_collection
         .put(CollectionPutOptions {
-            update: KeyValueUpdate {
+            update: KeyValueUpdate::new(KeyValueUpdateNewOptions {
                 key: OwnedCollectionKey::from_boxed_slice(b"test".to_vec().into_boxed_slice())
                     .unwrap(),
                 value: Option::Some(OwnedCollectionValue::new(b"manual passed")),
                 if_not_present: true,
-            },
+            }),
             generation_id: Some(
                 OwnedGenerationId::from_boxed_slice(b"first".to_vec().into_boxed_slice()).unwrap(),
             ),

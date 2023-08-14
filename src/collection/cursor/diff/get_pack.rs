@@ -1,5 +1,6 @@
 use crate::collection::cursor::diff::{DiffCursorPack, GenerationIdSource};
 use crate::collection::methods::errors::CollectionMethodError;
+use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::common::reader::ReaderDef;
 use crate::database::config::DatabaseConfig;
 use crate::database::cursors::diff::DiffCursor;
@@ -7,11 +8,10 @@ use crate::database::{DatabaseInner, GetReaderGenerationIdFnError};
 use crate::raw_db::diff_collection_records::{
     DiffCollectionRecordsOk, DiffCollectionRecordsOptions,
 };
-use crate::raw_db::RawDb;
 use std::sync::Arc;
 
 pub struct GetPackOptions {
-    pub db: Arc<RawDb>,
+    pub db: CollectionRawDb,
     pub db_inner: Arc<DatabaseInner>,
     pub config: Arc<DatabaseConfig>,
 }

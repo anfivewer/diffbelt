@@ -78,7 +78,7 @@ impl UpdateReaderJsonData {
             let generation_id = generation_id.into_generation_id()?;
 
             result.push(CommitGenerationUpdateReader {
-                reader_name,
+                reader_name: reader_name.into(),
                 generation_id,
             });
         }

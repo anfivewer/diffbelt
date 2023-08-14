@@ -27,6 +27,15 @@ impl<T: IndexedContainerItem> IndexedContainer<T> {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            array: Vec::with_capacity(capacity),
+            free_slots: VecDeque::with_capacity(capacity),
+            counter: 0,
+        }
+    }
+
     pub fn insert<F: FnOnce(T::Id) -> T::Item>(&mut self, create: F) -> T::Id {
         self.counter += 1;
         let counter = self.counter;
@@ -80,7 +89,9 @@ impl<T: IndexedContainerItem> IndexedContainer<T> {
     }
 
     pub fn delete(&mut self, id: &T::Id) -> Option<T::Item> {
-        let Some(entry) = self.array.get_mut(id.index()) else {
+        let index = id.index();
+
+        let Some(entry) = self.array.get_mut(index) else {
             return None;
         };
 
@@ -91,6 +102,8 @@ impl<T: IndexedContainerItem> IndexedContainer<T> {
         if item.counter() != id.counter() {
             return None;
         }
+
+        self.free_slots.push_back(index);
 
         entry.take()
     }

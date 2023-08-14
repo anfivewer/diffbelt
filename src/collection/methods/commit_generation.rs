@@ -1,10 +1,11 @@
 use crate::collection::methods::errors::CollectionMethodError;
-use crate::collection::newgen::commit_next_generation::{
-    commit_next_generation_sync, CommitNextGenerationError, CommitNextGenerationSyncOptions,
-};
 use crate::collection::{Collection, CommitGenerationUpdateReader};
 use crate::common::OwnedGenerationId;
-use crate::util::tokio::spawn_blocking_async;
+use crate::messages::generations::{
+    CommitManualGenerationError, CommitManualGenerationTask, DatabaseCollectionGenerationsTask,
+};
+use crate::messages::readers::{DatabaseCollectionReadersTask, GetMinimumGenerationIdLocksTask};
+use crate::util::async_sync_call::async_sync_call;
 
 pub struct CommitGenerationOptions {
     pub generation_id: OwnedGenerationId,
@@ -16,44 +17,73 @@ impl Collection {
         &self,
         options: CommitGenerationOptions,
     ) -> Result<(), CollectionMethodError> {
-        let raw_db = self.raw_db.clone();
-        let generation_id_sender = self.generation_id_sender.clone();
-        let generation_id = self.generation_id.clone();
-        let next_generation_id = self.next_generation_id.clone();
-        let is_manual_collection = self.is_manual;
-
         let CommitGenerationOptions {
             generation_id: expected_generation_id,
             update_readers,
         } = options;
 
-        let deletion_lock = self.is_deleted.read().await;
-        if deletion_lock.to_owned() {
-            return Err(CollectionMethodError::NoSuchCollection);
-        }
+        let minimum_generation_id_locks = if let Some(update_readers) = &update_readers {
+            let collection_name = self.name.clone();
+            let mut reader_names = Vec::new();
 
-        spawn_blocking_async(async move {
-            commit_next_generation_sync(CommitNextGenerationSyncOptions {
-                expected_generation_id: Some(expected_generation_id),
-                raw_db,
-                generation_id_sender,
-                generation_id,
-                next_generation_id,
-                is_manual_collection,
-                update_readers,
+            for update in update_readers {
+                reader_names.push(update.reader_name.clone());
+            }
+
+            let locks = async_sync_call(|sender| {
+                self.database_inner.add_readers_task(
+                    DatabaseCollectionReadersTask::GetMinimumGenerationIdLocks(
+                        GetMinimumGenerationIdLocksTask {
+                            collection_name,
+                            reader_names,
+                            sender,
+                        },
+                    ),
+                )
             })
-            .await
+            .await?;
+
+            for update in update_readers {
+                if let Some((minimum_generation_id, _)) = locks
+                    .minimum_generation_ids_with_locks
+                    .get(&update.reader_name)
+                {
+                    if &update.generation_id < minimum_generation_id {
+                        return Err(CollectionMethodError::GenerationIdLessThanMinimum);
+                    }
+                }
+            }
+
+            Some(locks)
+        } else {
+            None
+        };
+
+        let _: () = async_sync_call(|sender| {
+            self.database_inner.add_generations_task(
+                DatabaseCollectionGenerationsTask::CommitManualGeneration(
+                    CommitManualGenerationTask {
+                        collection_id: self.generations_id,
+                        sender,
+                        generation_id: expected_generation_id,
+                        update_readers,
+                    },
+                ),
+            )
         })
         .await
-        .or(Err(CollectionMethodError::TaskJoin))?
+        .map_err(CollectionMethodError::OneshotRecv)?
         .map_err(|err| match err {
-            CommitNextGenerationError::RawDb(err) => CollectionMethodError::RawDb(err),
-            CommitNextGenerationError::GenerationIdMissmatch => {
+            CommitManualGenerationError::RawDb(err) => CollectionMethodError::RawDb(err),
+            CommitManualGenerationError::OutdatedGeneration => {
                 CollectionMethodError::OutdatedGeneration
+            }
+            CommitManualGenerationError::NoSuchCollection => {
+                CollectionMethodError::NoSuchCollection
             }
         })?;
 
-        drop(deletion_lock);
+        drop(minimum_generation_id_locks);
 
         Ok(())
     }

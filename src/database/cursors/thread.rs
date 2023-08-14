@@ -7,8 +7,8 @@ use std::sync::Arc;
 use crate::messages::cursors::GetCollectionCursorsCountTask;
 use crate::messages::cursors::{
     AbortCursorTask, AddCursorContinuationTask, AddCursorTask, DatabaseCollectionCursorsTask,
-    DatabaseCollectionSpecificCursorsTask, DropCollectionTask, FinishCursorTask,
-    FullyFinishCursorTask, GetCursorByPublicIdTask, NewCollectionTask,
+    DatabaseCollectionSpecificCursorsTask, DropCollectionCursorsTask, FinishCursorTask,
+    FullyFinishCursorTask, GetCursorByPublicIdTask, NewCollectionCursorsTask,
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::indexed_container::IndexedContainer;
@@ -76,8 +76,8 @@ impl CursorsThreadState {
         }
     }
 
-    fn new_collection(&mut self, task: NewCollectionTask) {
-        let NewCollectionTask { sender } = task;
+    fn new_collection(&mut self, task: NewCollectionCursorsTask) {
+        let NewCollectionCursorsTask { sender } = task;
 
         let id = self
             .collections
@@ -88,8 +88,8 @@ impl CursorsThreadState {
         }
     }
 
-    fn drop_collection(&mut self, task: DropCollectionTask) {
-        let DropCollectionTask { collection_id } = task;
+    fn drop_collection(&mut self, task: DropCollectionCursorsTask) {
+        let DropCollectionCursorsTask { collection_id } = task;
 
         self.collections.delete(&collection_id);
     }

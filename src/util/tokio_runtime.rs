@@ -9,5 +9,7 @@ pub fn create_main_tokio_runtime() -> Result<Runtime, std::io::Error> {
 }
 
 pub fn create_single_thread_tokio_runtime() -> Result<Runtime, std::io::Error> {
-    tokio::runtime::Builder::new_current_thread().build()
+    tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()
 }
