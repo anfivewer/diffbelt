@@ -1,5 +1,5 @@
 use crate::http::errors::HttpError;
-use crate::http::request::FullBody;
+use diffbelt_util::http::read_full_body::FullBody;
 use serde::de::DeserializeOwned;
 
 pub fn read_json<R: DeserializeOwned>(body: FullBody) -> Result<R, HttpError> {

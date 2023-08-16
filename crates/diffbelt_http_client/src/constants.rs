@@ -1,0 +1,1 @@
+pub const MAX_LIST_COLLECTIONS_RESPONSE_BYTES: usize = 1 * 1024 * 1024;

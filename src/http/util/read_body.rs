@@ -1,5 +1,6 @@
 use crate::http::errors::HttpError;
-use crate::http::request::{FullBody, Request, RequestReadError};
+use crate::http::request::Request;
+use diffbelt_util::http::read_full_body::{FullBody, BodyReadError};
 
 pub async fn read_limited_body<Req: Request>(
     request: Req,
@@ -9,7 +10,7 @@ pub async fn read_limited_body<Req: Request>(
         .into_full_body_as_read(max_bytes)
         .await
         .map_err(|err| match err {
-            RequestReadError::IO => HttpError::Generic400("io"),
-            RequestReadError::SizeLimit => HttpError::TooBigPayload(max_bytes),
+            BodyReadError::IO => HttpError::Generic400("io"),
+            BodyReadError::SizeLimit => HttpError::TooBigPayload(max_bytes),
         })
 }

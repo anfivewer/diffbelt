@@ -1,19 +1,14 @@
+use diffbelt_util::http::read_full_body::{into_full_body_as_read, IntoFullBodyAsReadReturn};
 use hyper::body::{Buf, Bytes, HttpBody};
 use hyper::{Body, Request as HyperRequest};
 pub use request_trait::*;
 use std::borrow::Cow;
 use std::collections::VecDeque;
 
-mod full_read;
 mod request_trait;
 
 pub struct HyperRequestWrapped {
     inner: HyperRequest<Body>,
-}
-
-pub struct FullBody {
-    bufs: VecDeque<Bytes>,
-    offset: usize,
 }
 
 impl HyperRequestWrapped {
@@ -92,31 +87,7 @@ impl Request for HyperRequestWrapped {
     }
 
     fn into_full_body_as_read(self, max_size: usize) -> IntoFullBodyAsReadReturn {
-        Box::pin(async move {
-            let req = self.inner;
-            let mut body = req.into_body();
-
-            let mut bufs = VecDeque::new();
-            let mut total_size = 0;
-
-            while let Some(buf) = body.data().await {
-                let buf = buf.or(Err(RequestReadError::IO))?;
-                if !buf.has_remaining() {
-                    break;
-                }
-
-                total_size += buf.len();
-                if total_size > max_size {
-                    return Err(RequestReadError::SizeLimit);
-                }
-
-                bufs.push_back(buf);
-            }
-
-            let full = FullBody { bufs, offset: 0 };
-
-            Ok(full)
-        })
+        into_full_body_as_read(self.inner.into_body(), max_size)
     }
 }
 

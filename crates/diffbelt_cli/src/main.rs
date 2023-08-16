@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
 
 #[derive(Parser, Debug)]
@@ -16,6 +17,16 @@ enum Commands {
     },
 }
 
+impl Commands {
+    async fn run(&self, client: &DiffbeltClient) {
+        match self {
+            Commands::Collections { command } => {
+                command.run(client).await
+            }
+        }
+    }
+}
+
 #[derive(Subcommand, Debug)]
 enum CollectionsSubcommand {
     /// Lists collections
@@ -24,10 +35,25 @@ enum CollectionsSubcommand {
     Ls,
 }
 
+impl CollectionsSubcommand {
+    async fn run(&self, client: &DiffbeltClient) {
+        let response = client.list_collections().await.unwrap();
+
+        for item in response.items {
+            println!("{} {}", item.name, if item.is_manual { "manual" } else { "non-manual" });
+        }
+    }
+}
+
 async fn run() {
     let args = Args::parse();
 
-    println!("Hello {:?}!", args);
+    let client = DiffbeltClient::new(DiffbeltClientNewOptions {
+        host: "127.0.0.1".to_string(),
+        port: 3030,
+    });
+
+    args.command.run(&client).await;
 }
 
 fn main() {

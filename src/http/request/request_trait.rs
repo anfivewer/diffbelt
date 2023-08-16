@@ -1,4 +1,4 @@
-use crate::http::request::FullBody;
+use diffbelt_util::http::read_full_body::IntoFullBodyAsReadReturn;
 use futures::future::BoxFuture;
 use std::borrow::Cow;
 
@@ -6,8 +6,6 @@ pub enum RequestReadError {
     IO,
     SizeLimit,
 }
-
-pub type IntoFullBodyAsReadReturn = BoxFuture<'static, Result<FullBody, RequestReadError>>;
 
 pub trait Request {
     fn method(&self) -> &str;
