@@ -1,8 +1,8 @@
 use crate::context::Context;
+use std::sync::Arc;
 
 use futures::stream::FuturesOrdered;
 use futures::StreamExt;
-use std::sync::Arc;
 
 use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 
@@ -11,23 +11,9 @@ use crate::http::validation::MethodsValidation;
 
 use crate::collection::Collection;
 
-use serde::Serialize;
-use serde_with::skip_serializing_none;
-
-#[skip_serializing_none]
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ListCollectionsItemJsonData {
-    name: String,
-    is_manual: bool,
-}
-
-#[skip_serializing_none]
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ListCollectionsResponseJsonData {
-    items: Vec<ListCollectionsItemJsonData>,
-}
+use diffbelt_types::collection::list::{
+    ListCollectionsItemJsonData, ListCollectionsResponseJsonData,
+};
 
 fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
     Box::pin(async move {

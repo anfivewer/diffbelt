@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
 
 #[derive(Parser, Debug)]
 #[command()]
@@ -23,8 +24,14 @@ enum CollectionsSubcommand {
     Ls,
 }
 
-fn main() {
+async fn run() {
     let args = Args::parse();
 
-    println!("Hello {:?}!", args)
+    println!("Hello {:?}!", args);
+}
+
+fn main() {
+    let runtime = create_main_tokio_runtime().unwrap();
+
+    runtime.block_on(run());
 }

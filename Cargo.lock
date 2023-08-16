@@ -252,6 +252,8 @@ version = "0.0.1"
 dependencies = [
  "base64 0.20.0",
  "diffbelt_macro",
+ "diffbelt_types",
+ "diffbelt_util",
  "futures",
  "hashbrown 0.13.2",
  "hyper",
@@ -274,6 +276,22 @@ dependencies = [
 [[package]]
 name = "diffbelt_macro"
 version = "0.0.1"
+
+[[package]]
+name = "diffbelt_types"
+version = "0.0.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_with",
+]
+
+[[package]]
+name = "diffbelt_util"
+version = "0.0.1"
+dependencies = [
+ "tokio",
+]
 
 [[package]]
 name = "either"

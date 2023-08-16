@@ -27,6 +27,12 @@ urlencoding = "2.1.2"
 hashbrown = "0.13.2"
 lru = "0.10.0"
 
+[dependencies.diffbelt_types]
+path = "crates/diffbelt_types"
+
+[dependencies.diffbelt_util]
+path = "crates/diffbelt_util"
+
 [dependencies.diffbelt_macro]
 path = "crates/diffbelt_macro"
 

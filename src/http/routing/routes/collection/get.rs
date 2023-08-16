@@ -95,9 +95,6 @@ pub async fn get_collection(
         next_generation_id: None,
     };
 
-    type ResponseRef<'a> = &'a mut GetCollectionResponseJsonData;
-    type ModifyResponseFn = Box<dyn FnOnce(ResponseRef<'_>) -> () + Send + Sync + 'static>;
-
     let (generation_id_part, next_generation_id_part) = 'outer: {
         if !with_generation_id && !with_next_generation_id {
             break 'outer (None, None);
