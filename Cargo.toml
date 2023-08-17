@@ -1,41 +1,11 @@
-[package]
-name = "diffbelt"
-version = "0.0.1"
-edition = "2021"
+[workspace]
+members = [
+	"crates/diffbelt",
+	"crates/diffbelt_cli",
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+	"crates/diffbelt_types",
+	"crates/diffbelt_util",
+	"crates/diffbelt_http_client",
+	"crates/diffbelt_macro",
+]
 
-[features]
-default = []
-debug_prints = []
-
-[dependencies]
-tokio = { version = "1.22.0", features = ["full"] }
-hyper = { version = "0.14.23", features = ["full"] }
-futures = "0.3.25"
-rocksdb = { version = "0.19.0", features = ["multi-threaded-cf"] }
-protobuf = "3.2.0"
-rand = "0.8.5"
-serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.91"
-serde_with = "2.1.0"
-regex = "1.7.0"
-lazy_static = "1.4.0"
-base64 = "0.20.0"
-querystring = "1.1.0"
-urlencoding = "2.1.2"
-hashbrown = "0.13.2"
-lru = "0.10.0"
-
-[dependencies.diffbelt_types]
-path = "crates/diffbelt_types"
-
-[dependencies.diffbelt_util]
-path = "crates/diffbelt_util"
-
-[dependencies.diffbelt_macro]
-path = "crates/diffbelt_macro"
-
-[build-dependencies]
-protobuf-codegen = "3.2.0"
-protoc-rust = "2.28.0"

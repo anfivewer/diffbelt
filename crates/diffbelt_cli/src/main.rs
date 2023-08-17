@@ -1,48 +1,24 @@
+mod commands;
+pub mod format;
+mod state;
+
+use crate::commands::collection::Collection;
+use crate::commands::errors::CommandError;
+use crate::commands::Commands;
+use crate::state::CliState;
 use clap::{Parser, Subcommand};
 use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
+use std::process::exit;
+use std::sync::Arc;
+
+type CommandResult = Result<(), CommandError>;
 
 #[derive(Parser, Debug)]
 #[command()]
 struct Args {
     #[command(subcommand)]
     command: Commands,
-}
-
-#[derive(Subcommand, Debug)]
-enum Commands {
-    Collections {
-        #[command(subcommand)]
-        command: CollectionsSubcommand,
-    },
-}
-
-impl Commands {
-    async fn run(&self, client: &DiffbeltClient) {
-        match self {
-            Commands::Collections { command } => {
-                command.run(client).await
-            }
-        }
-    }
-}
-
-#[derive(Subcommand, Debug)]
-enum CollectionsSubcommand {
-    /// Lists collections
-    List,
-    /// Alias to list
-    Ls,
-}
-
-impl CollectionsSubcommand {
-    async fn run(&self, client: &DiffbeltClient) {
-        let response = client.list_collections().await.unwrap();
-
-        for item in response.items {
-            println!("{} {}", item.name, if item.is_manual { "manual" } else { "non-manual" });
-        }
-    }
 }
 
 async fn run() {
@@ -53,7 +29,17 @@ async fn run() {
         port: 3030,
     });
 
-    args.command.run(&client).await;
+    let state = Arc::new(CliState { client });
+
+    let result = args.command.run(state).await;
+
+    let Err(err) = result else {
+        return;
+    };
+
+    println!("Error: {:?}", err);
+
+    exit(1);
 }
 
 fn main() {
