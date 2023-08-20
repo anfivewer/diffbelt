@@ -1,0 +1,330 @@
+collections:
+  - name: log-lines
+    manual: no
+    format: utf8
+
+  - name: parsed-log-lines
+    format: json
+
+  - name: parsed-log-lines:1d
+    format: json
+
+  - name: kicks
+  - name: kicks:1h
+  - name: kicks:1d
+
+  - name: updateMs:1d:p
+    format: json
+
+  - name: uniqueChats:1d
+    format: json
+
+  - name: uniqueUsers:1d
+
+transforms:
+  - from: log-lines
+    to: parsed-log-lines
+    reader_name: log-lines
+    map_filter:
+      - regexp:
+          var: source
+          parts:
+            log_level: (T|I|W|E|S)
+            timestamp: (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{1,3}Z)\.(\d{1,3})
+            start: ^(?:${log_level} ${timestamp}|${timestamp} ${log_level})
+            end: ((?:\\ |[^\s])+) ((?:\\ |[^\s])+)(.*)$
+          regexp: ${start} ${end}
+          groups:
+            - log_level_a
+            - date_a
+            - microseconds_a
+            - date_b
+            - microseconds_b
+            - log_level_b
+            - logger_key_escaped
+            - log_key_escaped
+            - rest
+      - vars:
+          log_level:
+            non_empty_string: [log_level_a, log_level_b]
+          date:
+            non_empty_string: [date_a, date_b]
+          microseconds_str:
+            non_empty_string: [microseconds_a, microseconds_b]
+          timestamp_ms:
+            parse_date_to_ms: date
+          microseconds:
+            parse_uint: microseconds_str
+          timestamp_string: ${date}.${microseconds_str}
+          logger_key:
+            regexp_replace:
+              var: logger_key_escaped
+              from: \\(\\|\s)
+              to: $1
+          log_key:
+            regexp_replace:
+              var: logg_key_escaped
+              from: \\(\\|\s)
+              to: $1
+          props: !map
+          extra: !list
+      - regexp:
+          var: rest
+          regexp_multi: \s((?:\\ |\\:|[^\s:])+):((?:\\ |[^\s])+)
+          fail_on_non_continuous: yes
+          rest: rest
+          groups:
+            - key_escaped
+            - value_escaped
+      - vars:
+          key:
+            regexp_replace:
+              var: key_escaped
+              from: \\(\\|\s|:)
+              to: $1
+          value:
+            regexp_replace:
+              var: value_escaped
+              from: \\(\\|\s)
+              to: $1
+      - update_map:
+          var: props
+          key: key
+          value: value
+      - regexp:
+          var: rest
+          regexp_multi: \|((?:\\\||[^|])+)
+          fail_on_non_continuous: yes
+          groups:
+            - extra_escaped
+      - vars:
+          extra_unescaped_1:
+            regexp_replace:
+              var: extra_escaped
+              from: \\r
+              to: "\r"
+          extra_unescaped_2:
+            regexp_replace:
+              var: extra_escaped_1
+              from: \\n
+              to: "\n"
+          extra_unescaped:
+            regexp_replace:
+              var: extra_escaped_2
+              from: \\(\\|\|)
+              to: $1
+      - update_list:
+          var: extra
+          push: extra_unescaped
+      - return:
+          logLevel: log_level
+          timestampString: timestamp_string
+          timestampMilliseconds: timestamp_ms
+          timestampMicroseconds: microseconds
+          loggerKey: logger_key
+          logKey: log_key
+          props: props
+          extra: extra
+
+  - from: parsed-log-lines
+    to: parsed-log-lines:1d
+    reader_name: parsed-log-lines
+    aggregate:
+      key: &parsed_log_lines_day_date_as_key
+        - vars:
+            date:
+              date_from_unix_ms: source.timestampMilliseconds
+            key: ${date.year}-${date.month | padLeft('0', 2)}-${date.day | padLeft('0', 2)}
+        - return: key
+      map_filter:
+        - vars:
+            unified_logger_key:
+              regexp_replace:
+                var: source.loggerKey
+                from: ^(master|worker)\d+
+                to: $1#
+            merged_log_key: ${unified_logger_key}::${source.logKey}::${logLevelLetter}
+        - return: merged_log_key
+      empty_accumulator:
+        - return: !record
+            count:
+              type: int64
+              value: 0
+            log_keys: map<string, int64>
+      initial_accumulator:
+        - return:
+            count: target.count
+            log_keys: target.logKeys
+      reduce:
+        - if:
+            condition: source_old is not none
+            then:
+              - vars:
+                  key: source_old.merged_log_key
+                  value: -1
+              - block: &parsed_log_lines_aggregate_increment_count
+                - update_record:
+                    var: accumulator.count
+                    value: accumulator.count + value
+              - block: &parsed_log_lines_aggregate_increment_log_keys
+                  - vars:
+                      count: accumulator.log_keys.get_or_default(key, 0)
+                  - update_map:
+                    var: accumulator.log_keys
+                    key: key
+                    value: count + value
+        - if:
+            condition: source_new is not none
+            then:
+              - vars:
+                  key: source_new.merged_log_key
+                  value: 1
+              - block: *parsed_log_lines_aggregate_increment_count
+              - block: *parsed_log_lines_aggregate_increment_log_keys
+      merge_accumulators:
+        - update_record:
+            var: accumulator.count
+            value: accumulator.count + next.count
+        - foreach:
+            iterable: next.logKeys
+            as_var: item
+            body:
+              - vars:
+                  key: item.key
+                  value: item.value
+              - block: *parsed_log_lines_aggregate_increment_log_keys
+      apply:
+        - return: accumulator
+
+  - from: parsed-log-lines
+    intermediate:
+      collection:
+        name: updateMs:1d:intermediate
+        format: json
+      reader_name: parsed-log-lines
+    to:
+      collection: updateMs:1d:p
+      reader_name: updateMs:1d:intermediate
+    percentiles:
+      percentiles: [0, 50, 75, 90, 95, 100]
+      target_key:
+        source:
+          - block: *parsed_log_lines_day_date_as_key
+          - return: key
+        intermediate: &return_intermediate_key_before_space
+          - regexp:
+              var: intermediate_key
+              regexp: ^([^\s]+)\s
+              groups:
+                - key
+          - return: key
+      intermediate:
+        - vars:
+            is_stats: source.logLevel == 'S'
+            is_handle_full: source.logKey == 'handleFull'
+            is_from_middleware:
+              regexp_test:
+                var: source.loggerKey
+                regexp: ^worker\d*:middlewares$
+        - if:
+            condition: is_stats && is_handle_full && is_from_middleware
+            then: noop
+            else: return
+        - vars:
+            update_type: source.props.updateType.or_default('???')
+            ms:
+              parse_float: source.props.ms
+        - vars:
+            ms_fixed:
+              positive_float_to_fixed_length_string:
+                integer_digits: 9
+                fractional_digits: 1
+                overflow_as_max: yes
+        - block: *parsed_log_lines_day_date_as_key
+        - return:
+            key: ${key} ${ms_fixed} ${source_key}
+            value:
+              updateType: update_type
+              ms: ms
+      empty_accumulator:
+        - return: !record
+            sum_ms:
+              type: int64
+              value: 0
+            ms_by_type: map<string, int64>
+      initial_accumulator:
+        - return:
+            sum_ms: target.sumMs
+            ms_by_type: target.msByType
+      reduce:
+        - if:
+            condition: intermediate_old is not none
+            then:
+              - update_record:
+                  var: accumulator.sum_ms
+                  value: accumulator.sum_ms - intermediate_old.sum_ms
+              - vars:
+                  key: intermediate_old.updateType
+                  value: -1
+              - block: &update_ms_percentiles_increment_ms_by_type
+                  - vars:
+                      count: accumulator.ms_by_type.get_or_default(key, 0)
+                  - update_map:
+                    var: accumulator.ms_by_type
+                    key: key
+                    value: count + value
+        - if:
+            condition: intermediate_new is not none
+            then:
+              - update_record:
+                  var: accumulator.sum_ms
+                  value: accumulator.sum_ms + intermediate_old.sum_ms
+              - vars:
+                  key: intermediate_old.updateType
+                  value: 1
+              - block: *update_ms_percentiles_increment_ms_by_type
+      percentiles_data:
+        - return: target.percentilesData
+      apply:
+        - return:
+            sumMs: accumulator.sum_ms
+            msByType: accumulator.ms_by_type
+            percentilesData: percentiles_data
+
+  - from: parsed-log-lines
+    intermediate:
+      collection:
+        name: uniqueChats:1d:intermediate
+        format: empty
+      reader_name: parsed-log-lines
+    to:
+      collection: uniqueChats:1d
+      reader_name: uniqueChats:1d:intermediate
+    unique_count:
+      target_key:
+        source:
+          - block: *parsed_log_lines_day_date_as_key
+          - return: key
+        intermediate: *return_intermediate_key_before_space
+      intermediate:
+        - vars:
+            is_stats: source.logLevel == 'S'
+            is_chat: source.logKey == 'chat'
+            is_unique_chats:
+              regexp_test:
+                var: source.loggerKey
+                regexp: ^[^:]+:uniqueChats$
+            id: source.props.id
+        - if:
+            condition: is_stats && is_chat && is_unique_chats && id
+            then: noop
+            else: return
+        - block: *parsed_log_lines_day_date_as_key
+        - return:
+            key: ${key} ${id}
+      empty_target:
+        - return:
+            count: 0
+      apply:
+        - return:
+            count: target.count + count_diff
