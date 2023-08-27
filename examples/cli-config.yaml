@@ -130,11 +130,12 @@ transforms:
     to: parsed-log-lines:1d
     reader_name: parsed-log-lines
     aggregate:
-      key: &parsed_log_lines_day_date_as_key
-        - vars:
-            date:
-              date_from_unix_ms: source.timestampMilliseconds
-            key: ${date.year}-${date.month | padLeft('0', 2)}-${date.day | padLeft('0', 2)}
+      key:
+        - call:
+            fn: parsed_log_lines_day_date_as_key
+            vars:
+              source: source
+            result: key
         - return: key
       map_filter:
         - vars:
@@ -162,25 +163,32 @@ transforms:
               - vars:
                   key: source_old.merged_log_key
                   value: -1
-              - block: &parsed_log_lines_aggregate_increment_count
-                - update_record:
-                    var: accumulator.count
-                    value: accumulator.count + value
-              - block: &parsed_log_lines_aggregate_increment_log_keys
-                  - vars:
-                      count: accumulator.log_keys.get_or_default(key, 0)
-                  - update_map:
-                    var: accumulator.log_keys
+              - update_record:
+                  var: accumulator.count
+                  value: accumulator.count + value
+              - call:
+                  fn: parsed_log_lines_aggregate_increment_log_keys
+                  vars:
+                    accumulator: accumulator
+                    count: count
+                    value: value
                     key: key
-                    value: count + value
         - if:
             condition: source_new is not none
             then:
               - vars:
                   key: source_new.merged_log_key
                   value: 1
-              - block: *parsed_log_lines_aggregate_increment_count
-              - block: *parsed_log_lines_aggregate_increment_log_keys
+              - update_record:
+                  var: accumulator.count
+                  value: accumulator.count + value
+              - call:
+                  fn: parsed_log_lines_aggregate_increment_log_keys
+                  vars:
+                    accumulator: accumulator
+                    count: count
+                    value: value
+                    key: key
       merge_accumulators:
         - update_record:
             var: accumulator.count
@@ -192,7 +200,13 @@ transforms:
               - vars:
                   key: item.key
                   value: item.value
-              - block: *parsed_log_lines_aggregate_increment_log_keys
+              - call:
+                  fn: parsed_log_lines_aggregate_increment_log_keys
+                  vars:
+                    accumulator: accumulator
+                    count: count
+                    value: value
+                    key: key
       apply:
         - return: accumulator
 
@@ -209,14 +223,18 @@ transforms:
       percentiles: [0, 50, 75, 90, 95, 100]
       target_key:
         source:
-          - block: *parsed_log_lines_day_date_as_key
+          - call:
+              fn: parsed_log_lines_day_date_as_key
+              vars:
+                source: source
+              result: key
           - return: key
-        intermediate: &return_intermediate_key_before_space
-          - regexp:
-              var: intermediate_key
-              regexp: ^([^\s]+)\s
-              groups:
-                - key
+        intermediate:
+          - call:
+              fn: take_str_before_space
+              vars:
+                str: intermediate_key
+              result: key
           - return: key
       intermediate:
         - vars:
@@ -240,7 +258,11 @@ transforms:
                 integer_digits: 9
                 fractional_digits: 1
                 overflow_as_max: yes
-        - block: *parsed_log_lines_day_date_as_key
+        - call:
+            fn: parsed_log_lines_day_date_as_key
+            vars:
+              source: source
+            result: key
         - return:
             key: ${key} ${ms_fixed} ${source_key}
             value:
@@ -266,13 +288,13 @@ transforms:
               - vars:
                   key: intermediate_old.updateType
                   value: -1
-              - block: &update_ms_percentiles_increment_ms_by_type
-                  - vars:
-                      count: accumulator.ms_by_type.get_or_default(key, 0)
-                  - update_map:
-                    var: accumulator.ms_by_type
+              - call:
+                  fn: update_ms_percentiles_increment_ms_by_type
+                  vars:
+                    accumulator: accumulator
                     key: key
-                    value: count + value
+                    count: count
+                    value: value
         - if:
             condition: intermediate_new is not none
             then:
@@ -282,7 +304,13 @@ transforms:
               - vars:
                   key: intermediate_old.updateType
                   value: 1
-              - block: *update_ms_percentiles_increment_ms_by_type
+              - call:
+                  fn: update_ms_percentiles_increment_ms_by_type
+                  vars:
+                    accumulator: accumulator
+                    key: key
+                    count: count
+                    value: value
       percentiles_data:
         - return: target.percentilesData
       apply:
@@ -303,9 +331,19 @@ transforms:
     unique_count:
       target_key:
         source:
-          - block: *parsed_log_lines_day_date_as_key
+          - call:
+              fn: parsed_log_lines_day_date_as_key
+              vars:
+                source: source
+              result: key
           - return: key
-        intermediate: *return_intermediate_key_before_space
+        intermediate:
+          - call:
+              fn: take_str_before_space
+              vars:
+                str: intermediate_key
+              result: key
+          - return: key
       intermediate:
         - vars:
             is_stats: source.logLevel == 'S'
@@ -319,7 +357,11 @@ transforms:
             condition: is_stats && is_chat && is_unique_chats && id
             then: noop
             else: return
-        - block: *parsed_log_lines_day_date_as_key
+        - call:
+            fn: parsed_log_lines_day_date_as_key
+            vars:
+              source: source
+            result: key
         - return:
             key: ${key} ${id}
       empty_target:
@@ -328,3 +370,32 @@ transforms:
       apply:
         - return:
             count: target.count + count_diff
+
+functions:
+  parsed_log_lines_day_date_as_key:
+    - vars:
+        date:
+          date_from_unix_ms: source.timestampMilliseconds
+        key: ${date.year}-${date.month | padLeft('0', 2)}-${date.day | padLeft('0', 2)}
+    - return: key
+  parsed_log_lines_aggregate_increment_log_keys:
+    - vars:
+        count: accumulator.log_keys.get_or_default(key, 0)
+    - update_map:
+      var: accumulator.log_keys
+      key: key
+      value: count + value
+  take_str_before_space:
+    - regexp:
+        var: str
+        regexp: ^([^\s]+)\s
+        groups:
+          - str
+    - return: str
+  update_ms_percentiles_increment_ms_by_type:
+    - vars:
+        count: accumulator.ms_by_type.get_or_default(key, 0)
+    - update_map:
+      var: accumulator.ms_by_type
+      key: key
+      value: count + value
