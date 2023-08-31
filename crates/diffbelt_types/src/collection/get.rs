@@ -1,6 +1,6 @@
-use serde::{Serialize, Deserialize};
-use serde_with::skip_serializing_none;
 use crate::common::generation_id::EncodedGenerationIdJsonData;
+use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize)]

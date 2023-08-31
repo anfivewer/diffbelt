@@ -2,11 +2,10 @@ mod commands;
 pub mod format;
 mod state;
 
-use crate::commands::collection::Collection;
 use crate::commands::errors::CommandError;
 use crate::commands::Commands;
 use crate::state::CliState;
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
 use std::process::exit;

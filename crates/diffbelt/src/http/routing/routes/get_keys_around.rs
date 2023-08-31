@@ -6,7 +6,10 @@ use crate::http::data::encoded_key::EncodedKeyJsonData;
 
 use crate::http::errors::HttpError;
 
-use crate::http::data::encoded_generation_id::{encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode, EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode,
+    EncodedGenerationIdJsonData,
+};
 use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};

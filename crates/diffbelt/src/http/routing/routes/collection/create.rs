@@ -12,7 +12,10 @@ use crate::http::util::read_json::read_json;
 use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::ContentTypeValidation;
 
-use crate::http::data::encoded_generation_id::{encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode, EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode,
+    EncodedGenerationIdJsonData,
+};
 use crate::util::str_serialization::StrSerializationType;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;

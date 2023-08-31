@@ -84,7 +84,7 @@ impl Collection {
        format: utf8
     */
     pub fn from_yaml(
-        state: &mut YamlParsingState,
+        _state: &mut YamlParsingState,
         yaml: &YamlNode,
     ) -> Result<Self, ConfigParsingError> {
         let map = expect_map(yaml)?;

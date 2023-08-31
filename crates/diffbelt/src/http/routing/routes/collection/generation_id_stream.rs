@@ -10,7 +10,9 @@ use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 
 use crate::common::OwnedGenerationId;
 use crate::http::custom_errors::no_such_collection_error;
-use crate::http::data::encoded_generation_id::{encoded_generation_id_data_encode, EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
+};
 use crate::http::routing::response::Response;
 use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::MethodsValidation;
@@ -129,8 +131,7 @@ pub fn register_collection_generation_id_stream_route(context: &mut Context) {
 }
 
 fn make_response(id: OwnedGenerationId) -> Result<Response, HttpError> {
-    let generation_id =
-        encoded_generation_id_data_encode(id.as_ref(), StrSerializationType::Utf8);
+    let generation_id = encoded_generation_id_data_encode(id.as_ref(), StrSerializationType::Utf8);
 
     create_ok_json_response(&CollectionGenerationIdStreamResponseJsonData { generation_id })
 }

@@ -6,7 +6,9 @@ use serde::Deserialize;
 
 use crate::http::constants::READER_REQUEST_MAX_BYTES;
 
-use crate::http::data::encoded_generation_id::{encoded_generation_id_data_decode_opt, EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_decode_opt, EncodedGenerationIdJsonData,
+};
 
 use crate::http::errors::HttpError;
 use crate::http::request::Request;

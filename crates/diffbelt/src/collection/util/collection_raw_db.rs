@@ -1,5 +1,5 @@
 use crate::raw_db::RawDb;
-use crate::util::debug_print::debug_print;
+use diffbelt_util::debug_print::debug_print;
 use std::ops::Deref;
 use std::sync::Arc;
 

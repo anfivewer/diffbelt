@@ -7,7 +7,9 @@ use crate::collection::methods::commit_generation::CommitGenerationOptions;
 use crate::context::Context;
 use crate::http::constants::READER_REQUEST_MAX_BYTES;
 
-use crate::http::data::encoded_generation_id::{encoded_generation_id_data_into_generation_id, EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_into_generation_id, EncodedGenerationIdJsonData,
+};
 use crate::http::data::reader_record::UpdateReaderJsonData;
 
 use crate::http::errors::HttpError;

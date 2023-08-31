@@ -21,7 +21,7 @@ impl DiffbeltClient {
 
         let res = self.client.request(req).await?;
 
-        let status = res.status();
+        let _status = res.status();
 
         let body = res.into_body();
 

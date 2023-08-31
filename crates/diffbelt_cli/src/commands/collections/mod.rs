@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use clap::{Parser, Subcommand};
 use crate::CommandResult;
-use crate::commands::collection::get::get_collection_command;
+use clap::{Parser, Subcommand};
+use std::sync::Arc;
+
 use crate::state::CliState;
 
 #[derive(Parser, Debug)]
@@ -23,7 +23,15 @@ impl Collections {
         let response = state.client.list_collections().await.unwrap();
 
         for item in response.items {
-            println!("{} {}", item.name, if item.is_manual { "manual" } else { "non-manual" });
+            println!(
+                "{} {}",
+                item.name,
+                if item.is_manual {
+                    "manual"
+                } else {
+                    "non-manual"
+                }
+            );
         }
 
         Ok(())

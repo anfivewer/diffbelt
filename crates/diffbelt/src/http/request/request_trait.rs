@@ -1,11 +1,5 @@
 use diffbelt_util::http::read_full_body::IntoFullBodyAsReadReturn;
-use futures::future::BoxFuture;
 use std::borrow::Cow;
-
-pub enum RequestReadError {
-    IO,
-    SizeLimit,
-}
 
 pub trait Request {
     fn method(&self) -> &str;

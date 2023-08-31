@@ -1,6 +1,6 @@
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
-use diffbelt_util::http::read_full_body::{FullBody, BodyReadError};
+use diffbelt_util::http::read_full_body::{BodyReadError, FullBody};
 
 pub async fn read_limited_body<Req: Request>(
     request: Req,

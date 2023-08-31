@@ -14,7 +14,10 @@ use crate::http::util::encoding::StringDecoder;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
 
-use crate::http::data::encoded_generation_id::{encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode, EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode,
+    EncodedGenerationIdJsonData,
+};
 use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 use crate::http::data::key_value_update::KeyValueUpdateJsonData;
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};

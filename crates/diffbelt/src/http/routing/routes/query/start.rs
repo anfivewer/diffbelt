@@ -5,7 +5,9 @@ use serde::Deserialize;
 use crate::collection::methods::query::QueryOptions;
 use crate::context::Context;
 use crate::http::constants::QUERY_START_REQUEST_MAX_BYTES;
-use crate::http::data::encoded_generation_id::{encoded_generation_id_data_decode_opt, EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_decode_opt, EncodedGenerationIdJsonData,
+};
 use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 
 use crate::http::data::query_response::QueryResponseJsonData;

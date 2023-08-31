@@ -2,7 +2,10 @@ use crate::collection::methods::get::CollectionGetOptions;
 
 use crate::context::Context;
 use crate::http::constants::GET_REQUEST_MAX_BYTES;
-use crate::http::data::encoded_generation_id::{encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode, EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode,
+    EncodedGenerationIdJsonData,
+};
 use crate::http::data::encoded_key::EncodedKeyJsonData;
 use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 use crate::http::data::key_value::KeyValueJsonData;

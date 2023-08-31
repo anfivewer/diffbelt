@@ -219,7 +219,11 @@ impl YamlNode {
             state.used_nodes[node_index] = false;
         }
 
-        Ok(Self { value, tag, start_mark })
+        Ok(Self {
+            value,
+            tag,
+            start_mark,
+        })
     }
 }
 

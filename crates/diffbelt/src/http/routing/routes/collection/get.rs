@@ -12,7 +12,9 @@ use serde_with::skip_serializing_none;
 use std::ops::Deref;
 
 use crate::database::generations::collection::GenerationIdNextGenerationIdPair;
-use crate::http::data::encoded_generation_id::{encoded_generation_id_data_encode, EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
+};
 use std::sync::Arc;
 
 struct GenerationIdPart {

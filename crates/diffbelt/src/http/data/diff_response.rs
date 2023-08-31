@@ -1,7 +1,9 @@
 use crate::collection::methods::diff::DiffOk;
 
 use crate::common::GenerationId;
-use crate::http::data::encoded_generation_id::{encoded_generation_id_data_encode, EncodedGenerationIdJsonData};
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
+};
 use crate::http::data::key_value_diff::KeyValueDiffJsonData;
 use crate::util::str_serialization::StrSerializationType;
 use serde::Serialize;
