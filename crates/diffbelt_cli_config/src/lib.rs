@@ -6,8 +6,7 @@ pub mod util;
 use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
-use yaml_peg::repr::Repr;
-use yaml_peg::NodeRc;
+use diffbelt_yaml::YamlNode;
 
 pub struct YamlParsingState {
     //
@@ -28,20 +27,20 @@ pub struct CliConfig {
 impl CliConfig {
     pub fn from_yaml(
         state: &mut YamlParsingState,
-        yaml: &NodeRc,
+        yaml: &YamlNode,
     ) -> Result<Self, ConfigParsingError> {
         let root = expect_map(yaml)?;
 
         let mut collections = Vec::new();
 
-        for (key_node, value) in root {
+        for (key_node, value) in &root.items {
             let key = expect_str(&key_node)?;
 
             match key {
                 "collections" => {
                     let collections_node = expect_seq(&value)?;
 
-                    for node in collections_node {
+                    for node in &collections_node.items {
                         let collection = Collection::from_yaml(state, &node)?;
                         collections.push(collection);
                     }
@@ -51,7 +50,7 @@ impl CliConfig {
                 other => {
                     return Err(ConfigParsingError::UnknownKey(ExpectedError {
                         message: other.to_string(),
-                        position: key_node.pos(),
+                        position: Some((&key_node.start_mark).into()),
                     }));
                 }
             }
@@ -86,7 +85,7 @@ impl Collection {
     */
     pub fn from_yaml(
         state: &mut YamlParsingState,
-        yaml: &NodeRc,
+        yaml: &YamlNode,
     ) -> Result<Self, ConfigParsingError> {
         let map = expect_map(yaml)?;
 
@@ -94,7 +93,7 @@ impl Collection {
         let mut manual = true;
         let mut format = CollectionValueFormat::Bytes;
 
-        for (key_node, value) in map {
+        for (key_node, value) in &map.items {
             let key = expect_str(&key_node)?;
 
             match key {
@@ -115,7 +114,7 @@ impl Collection {
                         other => {
                             return Err(ConfigParsingError::Custom(ExpectedError {
                                 message: format!("unknown format: \"{}\"", other),
-                                position: value.pos(),
+                                position: Some((&value.start_mark).into()),
                             }));
                         }
                     }
@@ -123,7 +122,7 @@ impl Collection {
                 other => {
                     return Err(ConfigParsingError::UnknownKey(ExpectedError {
                         message: other.to_string(),
-                        position: key_node.pos(),
+                        position: Some((&key_node.start_mark).into()),
                     }));
                 }
             }
@@ -132,7 +131,7 @@ impl Collection {
         let name = name.ok_or_else(|| {
             ConfigParsingError::Custom(ExpectedError {
                 message: "collection should have name".to_string(),
-                position: yaml.pos(),
+                position: Some((&yaml.start_mark).into()),
             })
         })?;
 
@@ -147,13 +146,13 @@ impl Collection {
 #[cfg(test)]
 mod tests {
     use crate::{CliConfig, YamlParsingState};
-    use yaml_peg::repr::RcRepr;
+    use diffbelt_yaml::parse_yaml;
 
     #[test]
     fn read_config() {
         let config_str = include_str!("../../../examples/cli-config.yaml");
 
-        let docs = yaml_peg::parser::parse::<RcRepr>(config_str).expect("parsing");
+        let docs = parse_yaml(config_str).expect("parsing");
 
         assert_eq!(docs.len(), 1);
 
@@ -163,15 +162,5 @@ mod tests {
         let config = CliConfig::from_yaml(&mut state, doc).expect("reading");
 
         println!("{:?}", config);
-    }
-
-    #[test]
-    fn config_dumps() {
-        let config_str = include_str!("../../../examples/cli-config.yaml");
-
-        let docs = yaml_peg::parser::parse::<RcRepr>(config_str).expect("parsing");
-        let docs = docs.to_vec();
-
-        yaml_peg::dump(&docs, &[]);
     }
 }

@@ -10,6 +10,5 @@ edition = "2021"
 [dependencies.diffbelt_util]
 path = "../diffbelt_util"
 
-[dependencies.yaml-peg]
-git = "https://github.com/Rulexec/yaml-peg-rs.git"
-rev = "962db9aae5c0dfab560b3ab1647b955178a16f31"
+[dependencies.diffbelt_yaml]
+path = "../diffbelt_yaml"

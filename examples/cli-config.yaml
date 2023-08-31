@@ -21,6 +21,35 @@ collections:
 
   - name: uniqueUsers:1d
 
+functions:
+  parsed_log_lines_day_date_as_key: &parsed_log_lines_day_date_as_key
+    - vars:
+        date:
+          date_from_unix_ms: source.timestampMilliseconds
+        key: ${date.year}-${date.month | padLeft('0', 2)}-${date.day | padLeft('0', 2)}
+    - return: key
+  parsed_log_lines_aggregate_increment_log_keys: &parsed_log_lines_aggregate_increment_log_keys
+    - vars:
+        count: accumulator.log_keys.get_or_default(key, 0)
+    - update_map:
+      var: accumulator.log_keys
+      key: key
+      value: count + value
+  take_str_before_space: &take_str_before_space
+    - regexp:
+        var: str
+        regexp: ^([^\s]+)\s
+        groups:
+          - str
+    - return: str
+  update_ms_percentiles_increment_ms_by_type: &update_ms_percentiles_increment_ms_by_type
+    - vars:
+        count: accumulator.ms_by_type.get_or_default(key, 0)
+    - update_map:
+      var: accumulator.ms_by_type
+      key: key
+      value: count + value
+
 transforms:
   - from: log-lines
     to: parsed-log-lines
@@ -132,7 +161,7 @@ transforms:
     aggregate:
       key:
         - call:
-            fn: parsed_log_lines_day_date_as_key
+            fn: *parsed_log_lines_day_date_as_key
             vars:
               source: source
             result: key
@@ -167,7 +196,7 @@ transforms:
                   var: accumulator.count
                   value: accumulator.count + value
               - call:
-                  fn: parsed_log_lines_aggregate_increment_log_keys
+                  fn: *parsed_log_lines_aggregate_increment_log_keys
                   vars:
                     accumulator: accumulator
                     count: count
@@ -183,7 +212,7 @@ transforms:
                   var: accumulator.count
                   value: accumulator.count + value
               - call:
-                  fn: parsed_log_lines_aggregate_increment_log_keys
+                  fn: *parsed_log_lines_aggregate_increment_log_keys
                   vars:
                     accumulator: accumulator
                     count: count
@@ -201,7 +230,7 @@ transforms:
                   key: item.key
                   value: item.value
               - call:
-                  fn: parsed_log_lines_aggregate_increment_log_keys
+                  fn: *parsed_log_lines_aggregate_increment_log_keys
                   vars:
                     accumulator: accumulator
                     count: count
@@ -224,14 +253,14 @@ transforms:
       target_key:
         source:
           - call:
-              fn: parsed_log_lines_day_date_as_key
+              fn: *parsed_log_lines_day_date_as_key
               vars:
                 source: source
               result: key
           - return: key
         intermediate:
           - call:
-              fn: take_str_before_space
+              fn: *take_str_before_space
               vars:
                 str: intermediate_key
               result: key
@@ -259,7 +288,7 @@ transforms:
                 fractional_digits: 1
                 overflow_as_max: yes
         - call:
-            fn: parsed_log_lines_day_date_as_key
+            fn: *parsed_log_lines_day_date_as_key
             vars:
               source: source
             result: key
@@ -289,7 +318,7 @@ transforms:
                   key: intermediate_old.updateType
                   value: -1
               - call:
-                  fn: update_ms_percentiles_increment_ms_by_type
+                  fn: *update_ms_percentiles_increment_ms_by_type
                   vars:
                     accumulator: accumulator
                     key: key
@@ -305,7 +334,7 @@ transforms:
                   key: intermediate_old.updateType
                   value: 1
               - call:
-                  fn: update_ms_percentiles_increment_ms_by_type
+                  fn: *update_ms_percentiles_increment_ms_by_type
                   vars:
                     accumulator: accumulator
                     key: key
@@ -332,14 +361,14 @@ transforms:
       target_key:
         source:
           - call:
-              fn: parsed_log_lines_day_date_as_key
+              fn: *parsed_log_lines_day_date_as_key
               vars:
                 source: source
               result: key
           - return: key
         intermediate:
           - call:
-              fn: take_str_before_space
+              fn: *take_str_before_space
               vars:
                 str: intermediate_key
               result: key
@@ -358,7 +387,7 @@ transforms:
             then: noop
             else: return
         - call:
-            fn: parsed_log_lines_day_date_as_key
+            fn: *parsed_log_lines_day_date_as_key
             vars:
               source: source
             result: key
@@ -370,32 +399,3 @@ transforms:
       apply:
         - return:
             count: target.count + count_diff
-
-functions:
-  parsed_log_lines_day_date_as_key:
-    - vars:
-        date:
-          date_from_unix_ms: source.timestampMilliseconds
-        key: ${date.year}-${date.month | padLeft('0', 2)}-${date.day | padLeft('0', 2)}
-    - return: key
-  parsed_log_lines_aggregate_increment_log_keys:
-    - vars:
-        count: accumulator.log_keys.get_or_default(key, 0)
-    - update_map:
-      var: accumulator.log_keys
-      key: key
-      value: count + value
-  take_str_before_space:
-    - regexp:
-        var: str
-        regexp: ^([^\s]+)\s
-        groups:
-          - str
-    - return: str
-  update_ms_percentiles_increment_ms_by_type:
-    - vars:
-        count: accumulator.ms_by_type.get_or_default(key, 0)
-    - update_map:
-      var: accumulator.ms_by_type
-      key: key
-      value: count + value

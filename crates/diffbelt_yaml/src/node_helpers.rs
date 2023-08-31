@@ -2,7 +2,7 @@ use std::ops::Deref;
 use crate::{YamlMapping, YamlNode, YamlNodeValue, YamlSequence};
 
 impl YamlNode {
-    pub fn as_string(&self) -> Option<&str> {
+    pub fn as_str(&self) -> Option<&str> {
         let YamlNodeValue::Scalar(scalar) = &self.value else {
             return None;
         };
