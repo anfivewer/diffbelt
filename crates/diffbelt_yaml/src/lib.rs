@@ -1,5 +1,6 @@
 pub mod node_helpers;
 
+use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::pin::Pin;
 use std::slice::from_raw_parts;
@@ -139,6 +140,7 @@ impl YamlMapping {
 #[derive(Debug)]
 pub struct YamlNode {
     pub value: YamlNodeValue,
+    pub tag: Option<String>,
     pub start_mark: YamlMark,
 }
 
@@ -153,6 +155,17 @@ impl YamlNode {
         let start_mark = YamlMark::from_yaml_mark_t(&node.start_mark);
 
         let mut is_used_node = false;
+
+        let tag = if *node.tag == '!' as u8 {
+            let tag: &CStr = CStr::from_ptr(node.tag as *const i8);
+            let Ok(tag) = tag.to_str() else {
+                return Err(YamlParsingError::NotUtf8At(start_mark));
+            };
+
+            Some(tag.to_string())
+        } else {
+            None
+        };
 
         let value = match node.type_ {
             yaml_node_type_t::YAML_NO_NODE => YamlNodeValue::Empty,
@@ -206,7 +219,7 @@ impl YamlNode {
             state.used_nodes[node_index] = false;
         }
 
-        Ok(Self { value, start_mark })
+        Ok(Self { value, tag, start_mark })
     }
 }
 
@@ -340,7 +353,7 @@ mod tests {
         let config = r#"
 anchored: &test
   value: 42
-  list:
+  list: !tagged
     - with_values: yes
     - and_lists: [1, 'test', "something", 42]
       tratata: wuts
