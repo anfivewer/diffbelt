@@ -51,7 +51,7 @@ pub enum YamlNodeValue {
 
 #[derive(Debug)]
 pub struct YamlScalar {
-    pub value: String,
+    pub value: Box<str>,
 }
 
 #[derive(Debug)]
@@ -140,7 +140,7 @@ impl YamlMapping {
 #[derive(Debug)]
 pub struct YamlNode {
     pub value: YamlNodeValue,
-    pub tag: Option<String>,
+    pub tag: Option<Box<str>>,
     pub start_mark: YamlMark,
 }
 
@@ -162,7 +162,7 @@ impl YamlNode {
                 return Err(YamlParsingError::NotUtf8At(start_mark));
             };
 
-            Some(tag.to_string())
+            Some(Box::from(tag))
         } else {
             None
         };
@@ -179,7 +179,7 @@ impl YamlNode {
                 };
 
                 YamlNodeValue::Scalar(YamlScalar {
-                    value: s.to_string(),
+                    value: Box::from(s),
                 })
             }
             yaml_node_type_t::YAML_SEQUENCE_NODE => {
