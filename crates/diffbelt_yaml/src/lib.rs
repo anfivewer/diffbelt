@@ -1,3 +1,5 @@
+pub mod node_helpers;
+
 use std::mem::MaybeUninit;
 use std::pin::Pin;
 use std::slice::from_raw_parts;
@@ -8,6 +10,16 @@ use unsafe_libyaml::{
     yaml_parser_load, yaml_parser_set_encoding, yaml_parser_set_input_string, yaml_parser_t,
     yaml_stack_t,
 };
+
+#[derive(Debug)]
+pub enum YamlParsingError {
+    InitializationFailed,
+    UnknownNodeTypeAt(YamlMark),
+    NotUtf8At(YamlMark),
+    LoopDetected,
+    // TODO: use streaming parsed variant, show error position
+    Parsing,
+}
 
 #[derive(Debug)]
 pub struct YamlMark {
@@ -46,11 +58,16 @@ pub struct YamlSequence {
     pub items: Vec<YamlNode>,
 }
 
+struct ParsingState {
+    used_nodes: Vec<bool>,
+}
+
 impl YamlSequence {
     unsafe fn from_yaml_stack_t(
+        state: &mut ParsingState,
         root_stack: *const yaml_stack_t<yaml_node_t>,
         stack: *const yaml_stack_t<yaml_node_item_t>,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, YamlParsingError> {
         let mut items = Vec::new();
 
         let root_stack = &*root_stack;
@@ -63,10 +80,10 @@ impl YamlSequence {
         let mut node_ptr = stack.start;
 
         while node_ptr != stack.top {
-            let index: i32 = *node_ptr;
+            let index = (*node_ptr - 1) as usize;
 
-            let node = root_stack.start.add((index - 1) as usize);
-            let node = YamlNode::from_yaml_node_t(root_stack, node)?;
+            let node = root_stack.start.add(index);
+            let node = YamlNode::from_yaml_node_t(state, root_stack, node, index)?;
 
             items.push(node);
 
@@ -84,9 +101,10 @@ pub struct YamlMapping {
 
 impl YamlMapping {
     unsafe fn from_yaml_stack_t(
+        state: &mut ParsingState,
         root_stack: *const yaml_stack_t<yaml_node_t>,
         stack: *const yaml_stack_t<yaml_node_pair_t>,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, YamlParsingError> {
         let mut items = Vec::new();
 
         let root_stack = &*root_stack;
@@ -100,14 +118,14 @@ impl YamlMapping {
 
         while node_ptr != stack.top {
             let pair = &*node_ptr;
-            let key_index: i32 = pair.key;
-            let value_index: i32 = pair.value;
+            let key_index = (pair.key - 1) as usize;
+            let value_index = (pair.value - 1) as usize;
 
-            let key_node = root_stack.start.add((key_index - 1) as usize);
-            let key = YamlNode::from_yaml_node_t(root_stack, key_node)?;
+            let key_node = root_stack.start.add(key_index);
+            let key = YamlNode::from_yaml_node_t(state, root_stack, key_node, key_index)?;
 
-            let value_node = root_stack.start.add((value_index - 1) as usize);
-            let value = YamlNode::from_yaml_node_t(root_stack, value_node)?;
+            let value_node = root_stack.start.add(value_index);
+            let value = YamlNode::from_yaml_node_t(state, root_stack, value_node, value_index)?;
 
             items.push((key, value));
 
@@ -126,11 +144,15 @@ pub struct YamlNode {
 
 impl YamlNode {
     unsafe fn from_yaml_node_t(
+        state: &mut ParsingState,
         root_stack: *const yaml_stack_t<yaml_node_t>,
         node: *const yaml_node_t,
-    ) -> Result<Self, ()> {
+        node_index: usize,
+    ) -> Result<Self, YamlParsingError> {
         let node = &*node;
         let start_mark = YamlMark::from_yaml_mark_t(&node.start_mark);
+
+        let mut is_used_node = false;
 
         let value = match node.type_ {
             yaml_node_type_t::YAML_NO_NODE => YamlNodeValue::Empty,
@@ -139,22 +161,50 @@ impl YamlNode {
                     node.data.scalar.value,
                     node.data.scalar.length.try_into().unwrap(),
                 );
-                let s = from_utf8(s).map_err(|_| ())?;
+                let Ok(s) = from_utf8(s) else {
+                    return Err(YamlParsingError::NotUtf8At(start_mark));
+                };
 
                 YamlNodeValue::Scalar(YamlScalar {
                     value: s.to_string(),
                 })
             }
-            yaml_node_type_t::YAML_SEQUENCE_NODE => YamlNodeValue::Sequence(
-                YamlSequence::from_yaml_stack_t(root_stack, &node.data.sequence.items)?,
-            ),
-            yaml_node_type_t::YAML_MAPPING_NODE => YamlNodeValue::Mapping(
-                YamlMapping::from_yaml_stack_t(root_stack, &node.data.mapping.pairs)?,
-            ),
+            yaml_node_type_t::YAML_SEQUENCE_NODE => {
+                if state.used_nodes[node_index] {
+                    return Err(YamlParsingError::LoopDetected);
+                }
+
+                is_used_node = true;
+                state.used_nodes[node_index] = true;
+
+                YamlNodeValue::Sequence(YamlSequence::from_yaml_stack_t(
+                    state,
+                    root_stack,
+                    &node.data.sequence.items,
+                )?)
+            }
+            yaml_node_type_t::YAML_MAPPING_NODE => {
+                if state.used_nodes[node_index] {
+                    return Err(YamlParsingError::LoopDetected);
+                }
+
+                is_used_node = true;
+                state.used_nodes[node_index] = true;
+
+                YamlNodeValue::Mapping(YamlMapping::from_yaml_stack_t(
+                    state,
+                    root_stack,
+                    &node.data.mapping.pairs,
+                )?)
+            }
             _ => {
-                return Err(());
+                return Err(YamlParsingError::UnknownNodeTypeAt(start_mark));
             }
         };
+
+        if is_used_node {
+            state.used_nodes[node_index] = false;
+        }
 
         Ok(Self { value, start_mark })
     }
@@ -169,14 +219,14 @@ impl Parser {
         self.value.as_mut_ptr()
     }
 
-    fn new(input: &str) -> Result<Self, ()> {
+    fn new(input: &str) -> Result<Self, YamlParsingError> {
         unsafe {
             let parser_value = MaybeUninit::uninit();
             let mut parser_value = Box::pin(parser_value);
             let parser = parser_value.as_mut_ptr();
             let result = yaml_parser_initialize(parser);
             if !result.ok {
-                return Err(());
+                return Err(YamlParsingError::InitializationFailed);
             }
 
             let input = input.as_bytes();
@@ -218,7 +268,7 @@ impl Document {
         self.value.as_mut_ptr()
     }
 
-    fn load(&mut self, parser: &mut Parser) -> Result<(), ()> {
+    fn load(&mut self, parser: &mut Parser) -> Result<(), YamlParsingError> {
         unsafe {
             if self.is_initialized {
                 yaml_document_delete(self.ptr());
@@ -230,7 +280,7 @@ impl Document {
                 self.is_initialized = true;
                 Ok(())
             } else {
-                Err(())
+                Err(YamlParsingError::Parsing)
             }
         }
     }
@@ -252,7 +302,7 @@ impl Drop for Document {
     }
 }
 
-pub fn parse_yaml(yaml: &str) -> Result<Vec<YamlNode>, ()> {
+pub fn parse_yaml(yaml: &str) -> Result<Vec<YamlNode>, YamlParsingError> {
     let mut nodes = Vec::new();
 
     unsafe {
@@ -268,7 +318,13 @@ pub fn parse_yaml(yaml: &str) -> Result<Vec<YamlNode>, ()> {
 
             let doc = &*document.ptr();
 
-            let node = YamlNode::from_yaml_node_t(&doc.nodes, doc.nodes.start)?;
+            let max_nodes_count = doc.nodes.end.offset_from(doc.nodes.start) as usize;
+
+            let mut state = ParsingState {
+                used_nodes: vec![false; max_nodes_count],
+            };
+
+            let node = YamlNode::from_yaml_node_t(&mut state, &doc.nodes, doc.nodes.start, 0)?;
 
             nodes.push(node);
         }
@@ -287,7 +343,7 @@ anchored: &test
   list:
     - with_values: yes
     - and_lists: [1, 'test', "something", 42]
-      tratata: wut
+      tratata: wuts
 with_anchor: *test
 "#;
 
