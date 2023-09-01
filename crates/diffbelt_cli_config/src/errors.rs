@@ -1,4 +1,4 @@
-use diffbelt_yaml::YamlMark;
+use diffbelt_yaml::{YamlMark, YamlNode};
 
 #[derive(Debug)]
 pub enum ConfigParsingError {
@@ -21,6 +21,22 @@ pub struct ConfigPositionMark {
     pub index: u64,
     pub line: u64,
     pub column: u64,
+}
+
+impl From<&YamlNode> for ConfigPositionMark {
+    fn from(value: &YamlNode) -> Self {
+        let YamlMark {
+            index,
+            line,
+            column,
+        } = &value.start_mark;
+
+        Self {
+            index: *index,
+            line: *line,
+            column: *column,
+        }
+    }
 }
 
 impl From<&YamlMark> for ConfigPositionMark {

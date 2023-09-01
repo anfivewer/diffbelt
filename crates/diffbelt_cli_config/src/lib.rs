@@ -3,10 +3,12 @@ pub mod errors;
 pub mod transforms;
 pub mod util;
 
+use std::collections::HashMap;
 use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
 use diffbelt_yaml::YamlNode;
+use crate::code::Code;
 
 pub struct YamlParsingState {
     //
@@ -22,6 +24,7 @@ impl YamlParsingState {
 pub struct CliConfig {
     collections: Vec<Collection>,
     transforms: Vec<Transform>,
+    functions: HashMap<String, Code>,
 }
 
 impl CliConfig {
@@ -32,6 +35,7 @@ impl CliConfig {
         let root = expect_map(yaml)?;
 
         let mut collections = Vec::new();
+        let mut functions = HashMap::new();
 
         for (key_node, value) in &root.items {
             let key = expect_str(&key_node)?;
@@ -46,7 +50,16 @@ impl CliConfig {
                     }
                 }
                 "transforms" => {}
-                "functions" => {}
+                "functions" => {
+                    let functions_node = expect_map(&value)?;
+
+                    for (name, code) in &functions_node.items {
+                        let name = expect_str(name)?;
+                        let code = Code::from_yaml(state, code)?;
+
+                        functions.insert(name.to_string(), code);
+                    }
+                }
                 other => {
                     return Err(ConfigParsingError::UnknownKey(ExpectedError {
                         message: other.to_string(),
@@ -58,6 +71,7 @@ impl CliConfig {
 
         Ok(Self {
             collections,
+            functions,
             transforms: Vec::new(),
         })
     }
