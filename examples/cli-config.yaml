@@ -32,9 +32,9 @@ functions:
     - vars:
         count: accumulator.log_keys.get_or_default(key, 0)
     - update_map:
-      var: accumulator.log_keys
-      key: key
-      value: count + value
+        var: accumulator.log_keys
+        key: key
+        value: count + value
   take_str_before_space: &take_str_before_space
     - regexp:
         var: str
@@ -46,9 +46,9 @@ functions:
     - vars:
         count: accumulator.ms_by_type.get_or_default(key, 0)
     - update_map:
-      var: accumulator.ms_by_type
-      key: key
-      value: count + value
+        var: accumulator.ms_by_type
+        key: key
+        value: count + value
 
 transforms:
   - from: log-lines

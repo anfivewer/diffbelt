@@ -27,8 +27,15 @@ pub struct CliConfig {
     functions: HashMap<String, Code>,
 }
 
-impl CliConfig {
-    pub fn from_yaml(
+pub trait FromYaml: Sized {
+    fn from_yaml(
+        state: &mut YamlParsingState,
+        yaml: &YamlNode,
+    ) -> Result<Self, ConfigParsingError>;
+}
+
+impl FromYaml for CliConfig {
+    fn from_yaml(
         state: &mut YamlParsingState,
         yaml: &YamlNode,
     ) -> Result<Self, ConfigParsingError> {
@@ -91,13 +98,13 @@ pub enum CollectionValueFormat {
     Json,
 }
 
-impl Collection {
+impl FromYaml for Collection {
     /*
        name: log-lines
        manual: no
        format: utf8
     */
-    pub fn from_yaml(
+    fn from_yaml(
         _state: &mut YamlParsingState,
         yaml: &YamlNode,
     ) -> Result<Self, ConfigParsingError> {
@@ -159,7 +166,7 @@ impl Collection {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CliConfig, YamlParsingState};
+    use crate::{CliConfig, FromYaml, YamlParsingState};
     use diffbelt_yaml::parse_yaml;
 
     #[test]
@@ -173,7 +180,7 @@ mod tests {
         let doc = &docs[0];
 
         let mut state = YamlParsingState::new();
-        let config = CliConfig::from_yaml(&mut state, doc).expect("reading");
+        let config: CliConfig = FromYaml::from_yaml(&mut state, doc).expect("reading");
 
         println!("{:?}", config);
     }

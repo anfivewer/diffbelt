@@ -95,6 +95,15 @@ impl YamlSequence {
     }
 }
 
+impl <'a> IntoIterator for &'a YamlSequence {
+    type Item = &'a YamlNode;
+    type IntoIter = std::slice::Iter<'a, YamlNode>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.iter()
+    }
+}
+
 #[derive(Debug)]
 pub struct YamlMapping {
     pub items: Vec<(YamlNode, YamlNode)>,
@@ -134,6 +143,15 @@ impl YamlMapping {
         }
 
         Ok(Self { items })
+    }
+}
+
+impl <'a> IntoIterator for &'a YamlMapping {
+    type Item = &'a (YamlNode, YamlNode);
+    type IntoIter = std::slice::Iter<'a, (YamlNode, YamlNode)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.iter()
     }
 }
 
