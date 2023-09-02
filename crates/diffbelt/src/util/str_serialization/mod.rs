@@ -9,7 +9,9 @@ pub enum StrSerializationType {
 
 impl StrSerializationType {
     pub fn from_opt_str<T: AsRef<str>>(str_like: Option<T>) -> Result<Self, ()> {
-        let Some(t) = str_like else { return Ok(StrSerializationType::Utf8); };
+        let Some(t) = str_like else {
+            return Ok(StrSerializationType::Utf8);
+        };
 
         Self::from_str(t.as_ref())
     }

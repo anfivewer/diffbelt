@@ -3,12 +3,12 @@ pub mod errors;
 pub mod transforms;
 pub mod util;
 
-use std::collections::HashMap;
+use crate::code::Code;
 use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
 use diffbelt_yaml::YamlNode;
-use crate::code::Code;
+use std::collections::HashMap;
 
 pub struct YamlParsingState {
     //
@@ -28,10 +28,8 @@ pub struct CliConfig {
 }
 
 pub trait FromYaml: Sized {
-    fn from_yaml(
-        state: &mut YamlParsingState,
-        yaml: &YamlNode,
-    ) -> Result<Self, ConfigParsingError>;
+    fn from_yaml(state: &mut YamlParsingState, yaml: &YamlNode)
+        -> Result<Self, ConfigParsingError>;
 }
 
 impl FromYaml for CliConfig {

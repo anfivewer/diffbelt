@@ -1,5 +1,5 @@
-use crate::{parse_yaml, YamlMark};
 use crate::serde::{Deserializer, WithMark};
+use crate::{parse_yaml, YamlMark};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

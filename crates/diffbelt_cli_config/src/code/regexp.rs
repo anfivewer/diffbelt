@@ -1,7 +1,7 @@
-use diffbelt_yaml::YamlNode;
-use crate::{FromYaml, YamlParsingState};
 use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::util::expect::{expect_map, expect_seq, expect_str};
+use crate::{FromYaml, YamlParsingState};
+use diffbelt_yaml::YamlNode;
 
 #[derive(Debug)]
 pub struct RegexpInstruction {
@@ -11,7 +11,10 @@ pub struct RegexpInstruction {
 }
 
 impl FromYaml for RegexpInstruction {
-    fn from_yaml(_state: &mut YamlParsingState, yaml: &YamlNode) -> Result<Self, ConfigParsingError> {
+    fn from_yaml(
+        _state: &mut YamlParsingState,
+        yaml: &YamlNode,
+    ) -> Result<Self, ConfigParsingError> {
         let map = expect_map(yaml)?;
 
         let mut instruction_var = None;
@@ -50,12 +53,12 @@ impl FromYaml for RegexpInstruction {
 
         let (Some(var), Some(regexp), Some(groups)) =
             (instruction_var, instruction_regexp, instruction_groups)
-            else {
-                return Err(ConfigParsingError::Custom(ExpectedError {
-                    message: "regexp should have var, regexp, groups".to_string(),
-                    position: Some(yaml.into()),
-                }));
-            };
+        else {
+            return Err(ConfigParsingError::Custom(ExpectedError {
+                message: "regexp should have var, regexp, groups".to_string(),
+                position: Some(yaml.into()),
+            }));
+        };
 
         Ok(Self {
             var: var.to_string(),

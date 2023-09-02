@@ -35,8 +35,8 @@ pub fn encoded_generation_id_data_decode_opt(
     value: Option<EncodedGenerationIdJsonData>,
 ) -> Result<Option<OwnedGenerationId>, HttpError> {
     let Some(value) = value else {
-            return Ok(None);
-        };
+        return Ok(None);
+    };
 
     let value = encoded_generation_id_data_into_generation_id(value)?;
 

@@ -48,7 +48,9 @@ impl Read for FullBody {
         let bufs = &mut self.bufs;
         let offset = &mut self.offset;
 
-        let Some(mut bytes) = bufs.front() else { return Ok(0); };
+        let Some(mut bytes) = bufs.front() else {
+            return Ok(0);
+        };
 
         let mut bytes_written = 0;
         let mut result_offset = 0;
@@ -64,7 +66,9 @@ impl Read for FullBody {
                 bufs.pop_front();
                 *offset = 0;
 
-                let Some(front) = bufs.front() else { break 'outer; };
+                let Some(front) = bufs.front() else {
+                    break 'outer;
+                };
                 bytes = front;
             };
 
@@ -94,7 +98,9 @@ impl Read for FullBody {
             bufs.pop_front();
             *offset = 0;
 
-            let Some(front) = bufs.front() else { break; };
+            let Some(front) = bufs.front() else {
+                break;
+            };
             bytes = front;
         }
 

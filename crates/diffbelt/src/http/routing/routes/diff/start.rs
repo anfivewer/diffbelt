@@ -80,7 +80,9 @@ fn into_from_generation_id_source(
     }
 
     let Some(reader) = reader else {
-        return Err(HttpError::Generic400("either fromGenerationId or readerId should be present"));
+        return Err(HttpError::Generic400(
+            "either fromGenerationId or readerId should be present",
+        ));
     };
 
     Ok(GenerationIdSource::Reader(ReaderDef {

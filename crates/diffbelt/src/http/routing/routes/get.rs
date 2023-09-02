@@ -55,7 +55,9 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     let data: GetRequestJsonData = read_json(body)?;
 
     let collection = context.database.get_collection(&collection_name).await;
-    let Some(collection) = collection else { return Err(HttpError::Generic400("no such collection")); };
+    let Some(collection) = collection else {
+        return Err(HttpError::Generic400("no such collection"));
+    };
 
     let decoder = StringDecoder::new(StrSerializationType::Utf8);
 

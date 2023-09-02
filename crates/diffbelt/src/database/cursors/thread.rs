@@ -109,7 +109,9 @@ impl CursorsThreadState {
         } = task;
 
         let Some(collection) = self.collections.get_mut(&collection_id) else {
-            sender.send(Err(CursorError::NoSuchCollection)).unwrap_or(());
+            sender
+                .send(Err(CursorError::NoSuchCollection))
+                .unwrap_or(());
             return;
         };
 
@@ -162,7 +164,9 @@ impl CursorsThreadState {
         } = task;
 
         let Some(collection) = self.collections.get_mut(&collection_id) else {
-            sender.send(Err(CursorError::NoSuchCollection)).unwrap_or(());
+            sender
+                .send(Err(CursorError::NoSuchCollection))
+                .unwrap_or(());
             return;
         };
 
@@ -187,7 +191,9 @@ impl CursorsThreadState {
         } = task;
 
         let Some(collection) = self.collections.get_mut(&collection_id) else {
-            sender.send(Err(CursorError::NoSuchCollection)).unwrap_or(());
+            sender
+                .send(Err(CursorError::NoSuchCollection))
+                .unwrap_or(());
             return;
         };
 
@@ -211,7 +217,9 @@ impl CursorsThreadState {
         } = task;
 
         let Some(collection) = self.collections.get_mut(&collection_id) else {
-            sender.send(Err(CursorError::NoSuchCollection)).unwrap_or(());
+            sender
+                .send(Err(CursorError::NoSuchCollection))
+                .unwrap_or(());
             return;
         };
 
@@ -236,7 +244,9 @@ impl CursorsThreadState {
         } = task;
 
         let Some(collection) = self.collections.get_mut(&collection_id) else {
-            sender.send(Err(CursorError::NoSuchCollection)).unwrap_or(());
+            sender
+                .send(Err(CursorError::NoSuchCollection))
+                .unwrap_or(());
             return;
         };
 
@@ -268,7 +278,9 @@ impl CursorsThreadState {
         } = task;
 
         let Some(collection) = self.collections.get_mut(&collection_id) else {
-            sender.send(Err(CursorError::NoSuchCollection)).unwrap_or(());
+            sender
+                .send(Err(CursorError::NoSuchCollection))
+                .unwrap_or(());
             return;
         };
 

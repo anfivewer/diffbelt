@@ -12,7 +12,9 @@ impl<T: Request> ContentTypeValidation for T {
     fn allow_only_utf8_json_by_default(&self) -> Result<(), HttpError> {
         let content_type = self.get_header("Content-Type");
 
-        let Some(content_type) = content_type else { return Ok(()); };
+        let Some(content_type) = content_type else {
+            return Ok(());
+        };
 
         if is_utf8_json_content_type(content_type) {
             return Ok(());

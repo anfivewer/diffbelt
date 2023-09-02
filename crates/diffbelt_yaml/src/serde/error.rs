@@ -1,6 +1,6 @@
 use crate::YamlMark;
 use serde::de::StdError;
-use std::error::Error;
+
 use std::fmt::{Display, Formatter, Write};
 
 #[derive(Debug)]

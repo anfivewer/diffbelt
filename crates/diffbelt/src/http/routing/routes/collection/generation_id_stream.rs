@@ -66,7 +66,7 @@ fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
         let Some(generation_id) = generation_id else {
             // If no `generationId` passed, response with current generationId
             let id = collection.generation_pair().generation_id;
-            return make_response(id)
+            return make_response(id);
         };
 
         let encoding = StrSerializationType::from_opt_str(generation_id_encoding)

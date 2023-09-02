@@ -258,7 +258,12 @@ impl InnerGenerationsCollection {
                 return Err(LockManualGenerationIdError::GenerationIdMismatch);
             };
 
-            let Some(next_generation_id) = lock.value().next_generation_id.as_ref().map(|id| id.as_ref()) else {
+            let Some(next_generation_id) = lock
+                .value()
+                .next_generation_id
+                .as_ref()
+                .map(|id| id.as_ref())
+            else {
                 return Err(LockManualGenerationIdError::GenerationIdMismatch);
             };
 

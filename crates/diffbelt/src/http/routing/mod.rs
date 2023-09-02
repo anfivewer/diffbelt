@@ -85,8 +85,8 @@ impl Routing {
             let captures = regex.captures(path);
 
             let Some(captures) = captures else {
-                    return Err(options);
-                };
+                return Err(options);
+            };
 
             let groups = make_groups(captures);
 

@@ -230,7 +230,9 @@ impl GenerationsThreadState {
         } = task;
 
         let Some(item) = self.collections.get_mut(&collection_id) else {
-            sender.send(Err(StartManualGenerationIdError::NoSuchCollection)).unwrap_or(());
+            sender
+                .send(Err(StartManualGenerationIdError::NoSuchCollection))
+                .unwrap_or(());
             return;
         };
 
@@ -259,7 +261,9 @@ impl GenerationsThreadState {
         } = task;
 
         let Some(item) = self.collections.get_mut(&collection_id) else {
-            sender.send(Err(LockManualGenerationIdError::NoSuchCollection)).unwrap_or(());
+            sender
+                .send(Err(LockManualGenerationIdError::NoSuchCollection))
+                .unwrap_or(());
             return;
         };
 
@@ -323,7 +327,9 @@ impl GenerationsThreadState {
             return;
         };
 
-        let NextGenerationScheduleAction::NeedSchedule = item.schedule_next_generation(expected_generation_id) else {
+        let NextGenerationScheduleAction::NeedSchedule =
+            item.schedule_next_generation(expected_generation_id)
+        else {
             return;
         };
 
@@ -359,7 +365,9 @@ impl GenerationsThreadState {
         } = task;
 
         let Some(item) = self.collections.get_mut(&collection_id) else {
-            sender.send(Err(CommitManualGenerationError::NoSuchCollection)).unwrap_or(());
+            sender
+                .send(Err(CommitManualGenerationError::NoSuchCollection))
+                .unwrap_or(());
             return;
         };
 
@@ -381,7 +389,9 @@ impl GenerationsThreadState {
         } = task;
 
         let Some(item) = self.collections.get_mut(&collection_id) else {
-            sender.send(Err(CommitManualGenerationError::NoSuchCollection)).unwrap_or(());
+            sender
+                .send(Err(CommitManualGenerationError::NoSuchCollection))
+                .unwrap_or(());
             return;
         };
 

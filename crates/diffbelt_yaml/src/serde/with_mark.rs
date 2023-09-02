@@ -1,5 +1,5 @@
 use crate::YamlMark;
-use serde::de::{Error, MapAccess, SeqAccess, Visitor};
+use serde::de::{Error, MapAccess, Visitor};
 use serde::Deserializer;
 use std::fmt::Formatter;
 use std::marker::PhantomData;
