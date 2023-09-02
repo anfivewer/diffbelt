@@ -1,3 +1,4 @@
+use diffbelt_yaml::serde::error::YamlDecodingError;
 use diffbelt_yaml::{YamlMark, YamlNode};
 
 #[derive(Debug)]
@@ -51,6 +52,21 @@ impl From<&YamlMark> for ConfigPositionMark {
             index: *index,
             line: *line,
             column: *column,
+        }
+    }
+}
+
+impl From<YamlDecodingError> for ConfigParsingError {
+    fn from(value: YamlDecodingError) -> Self {
+        match value {
+            YamlDecodingError::Custom(error) => {
+                let diffbelt_yaml::serde::error::ExpectError { message, position } = error;
+
+                ConfigParsingError::Custom(ExpectedError {
+                    message,
+                    position: position.map(|x| (&x).into()),
+                })
+            }
         }
     }
 }
