@@ -1,5 +1,7 @@
 pub mod node_helpers;
+pub mod serde;
 
+pub use crate::serde::decode_yaml;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::pin::Pin;
@@ -22,7 +24,7 @@ pub enum YamlParsingError {
     Parsing,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct YamlMark {
     pub index: u64,
     pub line: u64,
@@ -30,6 +32,14 @@ pub struct YamlMark {
 }
 
 impl YamlMark {
+    pub fn empty() -> Self {
+        Self {
+            index: 0,
+            line: 0,
+            column: 0,
+        }
+    }
+
     unsafe fn from_yaml_mark_t(value: *const yaml_mark_t) -> Self {
         let mark = &*value;
 
@@ -95,7 +105,7 @@ impl YamlSequence {
     }
 }
 
-impl <'a> IntoIterator for &'a YamlSequence {
+impl<'a> IntoIterator for &'a YamlSequence {
     type Item = &'a YamlNode;
     type IntoIter = std::slice::Iter<'a, YamlNode>;
 
@@ -146,7 +156,7 @@ impl YamlMapping {
     }
 }
 
-impl <'a> IntoIterator for &'a YamlMapping {
+impl<'a> IntoIterator for &'a YamlMapping {
     type Item = &'a (YamlNode, YamlNode);
     type IntoIter = std::slice::Iter<'a, (YamlNode, YamlNode)>;
 

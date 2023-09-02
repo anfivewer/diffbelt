@@ -387,6 +387,7 @@ version = "0.0.1"
 dependencies = [
  "diffbelt_util",
  "diffbelt_yaml",
+ "serde",
 ]
 
 [[package]]
@@ -427,6 +428,7 @@ dependencies = [
 name = "diffbelt_yaml"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "unsafe-libyaml",
 ]
 
