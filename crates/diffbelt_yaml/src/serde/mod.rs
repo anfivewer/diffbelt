@@ -10,12 +10,10 @@ use crate::serde::error::{ExpectError, YamlDecodingError};
 use crate::serde::mapping::YamlMappingDe;
 use crate::serde::raw::{YamlNodeDe, RAW_YAML_NODE};
 use crate::serde::sequence::YamlSequenceDe;
-use crate::serde::with_mark::{
-    WithMarkDe, WITH_MARK_COLUMN, WITH_MARK_INDEX, WITH_MARK_LINE, WITH_MARK_NAME, WITH_MARK_VALUE,
-};
+use crate::serde::with_mark::{WithMarkDe, WITH_MARK_NAME};
 use crate::{YamlNode, YamlNodeValue};
-use serde::de::value::{BorrowedStrDeserializer, U64Deserializer};
-use serde::de::{DeserializeSeed, MapAccess, Visitor};
+
+use serde::de::Visitor;
 use serde::Deserialize;
 use std::ops::Deref;
 pub use with_mark::Mark;

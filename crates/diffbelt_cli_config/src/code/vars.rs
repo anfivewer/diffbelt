@@ -1,5 +1,5 @@
 use crate::errors::ConfigParsingError;
-use crate::{FromYaml, YamlParsingState};
+use crate::YamlParsingState;
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};

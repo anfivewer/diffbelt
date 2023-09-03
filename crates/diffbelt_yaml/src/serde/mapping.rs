@@ -1,6 +1,6 @@
-use serde::de::{DeserializeSeed, MapAccess};
-use crate::{YamlMapping, YamlNode};
 use crate::serde::error::{ExpectError, YamlDecodingError};
+use crate::{YamlMapping, YamlNode};
+use serde::de::{DeserializeSeed, MapAccess};
 
 pub struct YamlMappingDe<'de> {
     pub mapping: &'de YamlMapping,
@@ -12,8 +12,8 @@ impl<'de> MapAccess<'de> for YamlMappingDe<'de> {
     type Error = YamlDecodingError;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
-        where
-            K: DeserializeSeed<'de>,
+    where
+        K: DeserializeSeed<'de>,
     {
         let Some((key, _)) = self.iter_key.next() else {
             return Ok(None);
@@ -25,8 +25,8 @@ impl<'de> MapAccess<'de> for YamlMappingDe<'de> {
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
-        where
-            V: DeserializeSeed<'de>,
+    where
+        V: DeserializeSeed<'de>,
     {
         let Some((_, value)) = self.iter_value.next() else {
             return Err(YamlDecodingError::Custom(ExpectError {

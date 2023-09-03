@@ -5,7 +5,7 @@ pub mod vars;
 use crate::code::regexp::RegexpInstruction;
 use crate::code::update_map::UpdateMapInstruction;
 use crate::code::vars::VarsInstruction;
-use crate::FromYaml;
+
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::{Deserialize, Deserializer};
 

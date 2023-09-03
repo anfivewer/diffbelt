@@ -1,10 +1,9 @@
 use crate::serde::error::{ExpectError, YamlDecodingError};
-use crate::{YamlMark, YamlNode, YamlNodeValue};
+use crate::YamlNode;
 use serde::de::value::{BorrowedStrDeserializer, U64Deserializer};
 use serde::de::{DeserializeSeed, Error, MapAccess, Visitor};
 use serde::Deserializer;
 use std::fmt::Formatter;
-use std::ops::Deref;
 
 pub const RAW_YAML_NODE: &str = "__diffbelt_yaml_raw_yaml_node__private_struct";
 pub const RAW_YAML_NODE_VALUE: &str = "__diffbelt_yaml_raw_yaml_node__private_value";
@@ -31,7 +30,7 @@ impl<'de> Visitor<'de> for YamlNodeVisitor {
         }
 
         let node = unsafe {
-            let ptr = ptr as (*const YamlNode);
+            let ptr = ptr as *const YamlNode;
             &*ptr
         };
 

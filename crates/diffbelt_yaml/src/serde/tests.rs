@@ -1,4 +1,3 @@
-use crate::serde::raw::YamlNodeDe;
 use crate::serde::{Deserializer, WithMark};
 use crate::{decode_yaml, parse_yaml, YamlMark, YamlNode};
 use serde::de::Error;

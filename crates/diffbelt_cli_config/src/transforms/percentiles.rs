@@ -1,6 +1,6 @@
-use serde::Deserialize;
 use crate::code::Code;
 use crate::transforms::TranformTargetKey;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct Percentiles {

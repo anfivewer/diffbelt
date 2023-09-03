@@ -1,5 +1,5 @@
-use crate::errors::{ConfigParsingError, ExpectedError};
-use crate::util::expect::{expect_map, expect_str};
+use crate::errors::ConfigParsingError;
+
 use crate::{FromYaml, YamlParsingState};
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::Deserialize;
