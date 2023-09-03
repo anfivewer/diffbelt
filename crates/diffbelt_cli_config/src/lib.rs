@@ -50,7 +50,7 @@ impl FromYaml for CliConfig {
                 "collections" => {
                     let collections_node = expect_seq(&value)?;
 
-                    for node in &collections_node.items {
+                    for node in collections_node {
                         let collection = Collection::from_yaml(state, &node)?;
                         collections.push(collection);
                     }
@@ -63,7 +63,7 @@ impl FromYaml for CliConfig {
 
                     for (name, code) in &functions_node.items {
                         let name = expect_str(name)?;
-                        let code = Code::from_yaml(state, code)?;
+                        let code = decode_yaml(code)?;
 
                         functions.insert(name.to_string(), code);
                     }
@@ -183,6 +183,6 @@ mod tests {
         let mut state = YamlParsingState::new();
         let config: CliConfig = FromYaml::from_yaml(&mut state, doc).expect("reading");
 
-        println!("{:#?}", config);
+        let _ = config;
     }
 }

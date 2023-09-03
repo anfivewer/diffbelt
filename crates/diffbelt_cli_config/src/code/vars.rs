@@ -48,25 +48,34 @@ pub struct Var {
     pub value: VarProcessing,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
-#[serde(untagged)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum VarProcessing {
     ByString(String),
     DateFromUnixMs(DateFromUnixMsProcessing),
+    Unknown(YamlNode),
+}
+
+impl<'de> Deserialize<'de> for VarProcessing {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = Deserialize::deserialize(deserializer)?;
+
+        if let Ok(value) = decode_yaml(raw) {
+            return Ok(VarProcessing::ByString(value));
+        }
+        if let Ok(value) = decode_yaml(raw) {
+            return Ok(VarProcessing::DateFromUnixMs(value));
+        }
+
+        Ok(VarProcessing::Unknown(raw.clone()))
+    }
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct DateFromUnixMsProcessing {
     date_from_unix_ms: String,
-}
-
-impl FromYaml for VarsInstruction {
-    fn from_yaml(
-        state: &mut YamlParsingState,
-        yaml: &YamlNode,
-    ) -> Result<Self, ConfigParsingError> {
-        Ok(decode_yaml(yaml)?)
-    }
 }
 
 impl VarProcessing {

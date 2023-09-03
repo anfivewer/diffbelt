@@ -5,19 +5,17 @@ pub mod vars;
 use crate::code::regexp::RegexpInstruction;
 use crate::code::update_map::UpdateMapInstruction;
 use crate::code::vars::VarsInstruction;
-use crate::errors::ConfigParsingError;
-use crate::{FromYaml, YamlParsingState};
+use crate::FromYaml;
 use diffbelt_yaml::{decode_yaml, YamlNode};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
 pub struct Code {
     instructions: Vec<Instruction>,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
-#[serde(untagged)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Instruction {
     Vars(VarsInstruction),
     UpdateMap(UpdateMapInstruction),
@@ -26,28 +24,34 @@ pub enum Instruction {
     Unknown(YamlNode),
 }
 
+impl<'de> Deserialize<'de> for Instruction {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = Deserialize::deserialize(deserializer)?;
+
+        if let Ok(value) = decode_yaml(raw) {
+            return Ok(Instruction::Vars(value));
+        }
+        if let Ok(value) = decode_yaml(raw) {
+            return Ok(Instruction::UpdateMap(value));
+        }
+        if let Ok(value) = decode_yaml(raw) {
+            return Ok(Instruction::Regexp(value));
+        }
+        if let Ok(value) = decode_yaml(raw) {
+            return Ok(Instruction::Return(value));
+        }
+
+        Ok(Instruction::Unknown(raw.clone()))
+    }
+}
+
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct ReturnInstruction {
     #[serde(rename = "return")]
     pub value: String,
-}
-
-impl Code {
-    pub fn from_yaml(
-        state: &mut YamlParsingState,
-        yaml: &YamlNode,
-    ) -> Result<Self, ConfigParsingError> {
-        Ok(decode_yaml(yaml)?)
-    }
-}
-
-impl Instruction {
-    pub fn from_yaml(
-        state: &mut YamlParsingState,
-        yaml: &YamlNode,
-    ) -> Result<Self, ConfigParsingError> {
-        Ok(decode_yaml(yaml)?)
-    }
 }
 
 #[cfg(test)]
@@ -64,7 +68,14 @@ mod tests {
         let input = &parse_yaml(input).expect("parsing")[0];
         let value: Code = decode_yaml(input).expect("decode");
 
-        println!("code {:?}", value);
+        assert_eq!(
+            value,
+            Code {
+                instructions: vec![Instruction::Return(ReturnInstruction {
+                    value: "42".to_string()
+                })]
+            }
+        )
     }
 
     #[test]

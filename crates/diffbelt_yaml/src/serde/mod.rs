@@ -55,7 +55,6 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        println!("any {:?}", self.input);
         match &self.input.value {
             YamlNodeValue::Empty => visitor.visit_unit(),
             YamlNodeValue::Scalar(scalar) => visitor.visit_borrowed_str(scalar.value.deref()),
@@ -249,7 +248,6 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        println!("newtype {}", _name);
         self.deserialize_any(visitor)
     }
 
@@ -316,8 +314,6 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        println!("deserialize struct {} {:?}", name, fields);
-
         if name == WITH_MARK_NAME {
             return visitor.visit_map(WithMarkDe {
                 node: self.input,
@@ -371,13 +367,24 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
         visitor.visit_str(s)
     }
 
-    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        Err(YamlDecodingError::Custom(ExpectError {
-            message: "unexpected value".to_string(),
-            position: Some(self.input.start_mark.clone()),
-        }))
+        match &self.input.value {
+            YamlNodeValue::Empty => visitor.visit_unit(),
+            YamlNodeValue::Scalar(s) => Err(YamlDecodingError::Custom(ExpectError {
+                message: format!("unexpected string \"{}\"", s.value),
+                position: Some(self.input.start_mark.clone()),
+            })),
+            YamlNodeValue::Sequence(_) => Err(YamlDecodingError::Custom(ExpectError {
+                message: "unexpected seqence".to_string(),
+                position: Some(self.input.start_mark.clone()),
+            })),
+            YamlNodeValue::Mapping(_) => Err(YamlDecodingError::Custom(ExpectError {
+                message: "unexpected mapping".to_string(),
+                position: Some(self.input.start_mark.clone()),
+            })),
+        }
     }
 }
