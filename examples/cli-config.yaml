@@ -26,7 +26,7 @@ functions:
     - vars:
         date:
           date_from_unix_ms: source.timestampMilliseconds
-        key: ${date.year}-${date.month | padLeft('0', 2)}-${date.day | padLeft('0', 2)}
+        key: ${date.year}-${(padLeft date.month '0' 2)}-${(padLeft date.day '0', 2)}
     - return: key
   parsed_log_lines_aggregate_increment_log_keys: &parsed_log_lines_aggregate_increment_log_keys
     - vars:
@@ -62,7 +62,7 @@ transforms:
             timestamp: '''(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{1,3}Z)\.(\d{1,3})'''
             start: '"^(?:${log_level} ${timestamp}|${timestamp} ${log_level})"'
             end: '''((?:\\ |[^\s])+) ((?:\\ |[^\s])+)(.*)$'''
-          regexp: ${start} ${end}
+          regexp: '"${start} ${end}"'
           groups:
             - log_level_a
             - date_a
