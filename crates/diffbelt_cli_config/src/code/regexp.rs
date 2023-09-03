@@ -3,7 +3,7 @@ use crate::{FromYaml, YamlParsingState};
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct RegexpInstruction {
     pub var: String,
     pub regexp: String,

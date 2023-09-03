@@ -7,7 +7,7 @@ use crate::code::Code;
 use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
-use diffbelt_yaml::YamlNode;
+use diffbelt_yaml::{decode_yaml, YamlNode};
 use std::collections::HashMap;
 
 pub struct YamlParsingState {
@@ -41,6 +41,7 @@ impl FromYaml for CliConfig {
 
         let mut collections = Vec::new();
         let mut functions = HashMap::new();
+        let mut transforms = None;
 
         for (key_node, value) in &root.items {
             let key = expect_str(&key_node)?;
@@ -54,7 +55,9 @@ impl FromYaml for CliConfig {
                         collections.push(collection);
                     }
                 }
-                "transforms" => {}
+                "transforms" => {
+                    transforms = Some(decode_yaml(value)?);
+                }
                 "functions" => {
                     let functions_node = expect_map(&value)?;
 
@@ -77,7 +80,7 @@ impl FromYaml for CliConfig {
         Ok(Self {
             collections,
             functions,
-            transforms: Vec::new(),
+            transforms: transforms.unwrap_or_else(|| Vec::new()),
         })
     }
 }
@@ -180,6 +183,6 @@ mod tests {
         let mut state = YamlParsingState::new();
         let config: CliConfig = FromYaml::from_yaml(&mut state, doc).expect("reading");
 
-        println!("{:?}", config);
+        println!("{:#?}", config);
     }
 }

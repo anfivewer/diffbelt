@@ -5,6 +5,7 @@ pub use crate::serde::decode_yaml;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::pin::Pin;
+use std::rc::Rc;
 use std::slice::from_raw_parts;
 use std::str::from_utf8;
 use unsafe_libyaml::{
@@ -24,7 +25,7 @@ pub enum YamlParsingError {
     Parsing,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct YamlMark {
     pub index: u64,
     pub line: u64,
@@ -45,13 +46,13 @@ impl YamlMark {
 
         Self {
             index: mark.index,
-            line: mark.line,
-            column: mark.column,
+            line: mark.line + 1,
+            column: mark.column + 1,
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum YamlNodeValue {
     Empty,
     Scalar(YamlScalar),
@@ -59,14 +60,14 @@ pub enum YamlNodeValue {
     Mapping(YamlMapping),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct YamlScalar {
-    pub value: Box<str>,
+    pub value: Rc<str>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct YamlSequence {
-    pub items: Vec<YamlNode>,
+    pub items: Rc<Vec<YamlNode>>,
 }
 
 struct ParsingState {
@@ -85,7 +86,9 @@ impl YamlSequence {
         let stack = &*stack;
 
         if stack.top == stack.start {
-            return Ok(Self { items });
+            return Ok(Self {
+                items: Rc::new(items),
+            });
         }
 
         let mut node_ptr = stack.start;
@@ -101,7 +104,9 @@ impl YamlSequence {
             node_ptr = node_ptr.add(1);
         }
 
-        Ok(Self { items })
+        Ok(Self {
+            items: Rc::new(items),
+        })
     }
 }
 
@@ -114,7 +119,7 @@ impl<'a> IntoIterator for &'a YamlSequence {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct YamlMapping {
     pub items: Vec<(YamlNode, YamlNode)>,
 }
@@ -165,10 +170,10 @@ impl<'a> IntoIterator for &'a YamlMapping {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct YamlNode {
     pub value: YamlNodeValue,
-    pub tag: Option<Box<str>>,
+    pub tag: Option<Rc<str>>,
     pub start_mark: YamlMark,
 }
 
@@ -190,7 +195,7 @@ impl YamlNode {
                 return Err(YamlParsingError::NotUtf8At(start_mark));
             };
 
-            Some(Box::from(tag))
+            Some(Rc::from(tag))
         } else {
             None
         };
@@ -206,9 +211,7 @@ impl YamlNode {
                     return Err(YamlParsingError::NotUtf8At(start_mark));
                 };
 
-                YamlNodeValue::Scalar(YamlScalar {
-                    value: Box::from(s),
-                })
+                YamlNodeValue::Scalar(YamlScalar { value: Rc::from(s) })
             }
             yaml_node_type_t::YAML_SEQUENCE_NODE => {
                 if state.used_nodes[node_index] {

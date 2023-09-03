@@ -1,5 +1,7 @@
-use crate::YamlMark;
-use serde::de::{Error, MapAccess, Visitor};
+use crate::serde::error::{ExpectError, YamlDecodingError};
+use crate::{YamlMark, YamlNode};
+use serde::de::value::{BorrowedStrDeserializer, U64Deserializer};
+use serde::de::{DeserializeSeed, Error, MapAccess, Visitor};
 use serde::Deserializer;
 use std::fmt::Formatter;
 use std::marker::PhantomData;
@@ -96,5 +98,73 @@ impl<'de, T: serde::de::Deserialize<'de>, M: Mark> serde::de::Deserialize<'de> f
                 mark: PhantomData::<M>::default(),
             },
         )
+    }
+}
+
+pub struct WithMarkDe<'de> {
+    pub node: &'de YamlNode,
+    pub fields: &'de [&'de str],
+    pub key_index: usize,
+    pub value_index: usize,
+}
+
+impl<'de> MapAccess<'de> for WithMarkDe<'de> {
+    type Error = YamlDecodingError;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        if self.key_index >= self.fields.len() {
+            return Err(YamlDecodingError::Custom(ExpectError {
+                message: "WithMarkDe: no more fields".to_string(),
+                position: Some(self.node.start_mark.clone()),
+            }));
+        }
+
+        let field = self.fields[self.key_index];
+
+        self.key_index += 1;
+
+        let de = BorrowedStrDeserializer::new(field);
+
+        seed.deserialize(de).map(Some)
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        if self.value_index >= self.fields.len() {
+            return Err(YamlDecodingError::Custom(ExpectError {
+                message: "WithMarkDe: no more fields".to_string(),
+                position: Some(self.node.start_mark.clone()),
+            }));
+        }
+
+        let field = self.fields[self.value_index];
+
+        self.value_index += 1;
+
+        let value = match field {
+            WITH_MARK_INDEX => self.node.start_mark.index,
+            WITH_MARK_LINE => self.node.start_mark.line,
+            WITH_MARK_COLUMN => self.node.start_mark.column,
+            WITH_MARK_VALUE => {
+                let de = super::Deserializer { input: self.node };
+
+                return seed.deserialize(de);
+            }
+            _ => {
+                return Err(YamlDecodingError::Custom(ExpectError {
+                    message: "WithMarkDe: unsupported field".to_string(),
+                    position: Some(self.node.start_mark.clone()),
+                }));
+            }
+        };
+
+        let de = U64Deserializer::new(value);
+
+        seed.deserialize(de)
     }
 }

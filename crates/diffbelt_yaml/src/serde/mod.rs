@@ -1,5 +1,6 @@
 pub mod error;
 mod mapping;
+mod raw;
 mod sequence;
 #[cfg(test)]
 mod tests;
@@ -7,9 +8,10 @@ mod with_mark;
 
 use crate::serde::error::{ExpectError, YamlDecodingError};
 use crate::serde::mapping::YamlMappingDe;
+use crate::serde::raw::{YamlNodeDe, RAW_YAML_NODE};
 use crate::serde::sequence::YamlSequenceDe;
 use crate::serde::with_mark::{
-    WITH_MARK_COLUMN, WITH_MARK_INDEX, WITH_MARK_LINE, WITH_MARK_NAME, WITH_MARK_VALUE,
+    WithMarkDe, WITH_MARK_COLUMN, WITH_MARK_INDEX, WITH_MARK_LINE, WITH_MARK_NAME, WITH_MARK_VALUE,
 };
 use crate::{YamlNode, YamlNodeValue};
 use serde::de::value::{BorrowedStrDeserializer, U64Deserializer};
@@ -35,74 +37,6 @@ impl<'de> Deserializer<'de> {
     }
 }
 
-struct WithMarkDe<'de> {
-    node: &'de YamlNode,
-    fields: &'de [&'de str],
-    key_index: usize,
-    value_index: usize,
-}
-
-impl<'de> MapAccess<'de> for WithMarkDe<'de> {
-    type Error = YamlDecodingError;
-
-    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
-    where
-        K: DeserializeSeed<'de>,
-    {
-        if self.key_index >= self.fields.len() {
-            return Err(YamlDecodingError::Custom(ExpectError {
-                message: "WithMarkDe: no more fields".to_string(),
-                position: Some(self.node.start_mark.clone()),
-            }));
-        }
-
-        let field = self.fields[self.key_index];
-
-        self.key_index += 1;
-
-        let de = BorrowedStrDeserializer::new(field);
-
-        seed.deserialize(de).map(Some)
-    }
-
-    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
-    where
-        V: DeserializeSeed<'de>,
-    {
-        if self.value_index >= self.fields.len() {
-            return Err(YamlDecodingError::Custom(ExpectError {
-                message: "WithMarkDe: no more fields".to_string(),
-                position: Some(self.node.start_mark.clone()),
-            }));
-        }
-
-        let field = self.fields[self.value_index];
-
-        self.value_index += 1;
-
-        let value = match field {
-            WITH_MARK_INDEX => self.node.start_mark.index,
-            WITH_MARK_LINE => self.node.start_mark.line,
-            WITH_MARK_COLUMN => self.node.start_mark.column,
-            WITH_MARK_VALUE => {
-                let de = Deserializer { input: self.node };
-
-                return seed.deserialize(de);
-            }
-            _ => {
-                return Err(YamlDecodingError::Custom(ExpectError {
-                    message: "WithMarkDe: unsupported field".to_string(),
-                    position: Some(self.node.start_mark.clone()),
-                }));
-            }
-        };
-
-        let de = U64Deserializer::new(value);
-
-        seed.deserialize(de)
-    }
-}
-
 impl<'de> Deserializer<'de> {
     fn expect_str(&self) -> Result<&str, YamlDecodingError> {
         self.input.as_str().ok_or_else(|| {
@@ -121,9 +55,10 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        println!("any {:?}", self.input);
         match &self.input.value {
             YamlNodeValue::Empty => visitor.visit_unit(),
-            YamlNodeValue::Scalar(scalar) => visitor.visit_str(scalar.value.deref()),
+            YamlNodeValue::Scalar(scalar) => visitor.visit_borrowed_str(scalar.value.deref()),
             YamlNodeValue::Sequence(sequence) => visitor.visit_seq(YamlSequenceDe {
                 sequence,
                 iter: sequence.items.iter(),
@@ -198,11 +133,20 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
         todo!()
     }
 
-    fn deserialize_u32<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        let s = self.expect_str()?;
+
+        let number = s.parse::<u32>().map_err(|_| {
+            YamlDecodingError::Custom(ExpectError {
+                message: format!("expected u64, got \"{}\"", s),
+                position: Some(self.input.start_mark.clone()),
+            })
+        })?;
+
+        visitor.visit_u32(number)
     }
 
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -242,20 +186,20 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
         todo!()
     }
 
-    fn deserialize_str<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        todo!()
-    }
-
-    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
         let s = self.expect_str()?;
 
         visitor.visit_str(s)
+    }
+
+    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        self.deserialize_str(visitor)
     }
 
     fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -272,11 +216,11 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
         todo!()
     }
 
-    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        visitor.visit_some(self)
     }
 
     fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -300,12 +244,13 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
     fn deserialize_newtype_struct<V>(
         self,
         _name: &'static str,
-        _visitor: V,
+        visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        println!("newtype {}", _name);
+        self.deserialize_any(visitor)
     }
 
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -314,7 +259,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
     {
         let sequence = self.input.as_sequence().ok_or_else(|| {
             YamlDecodingError::Custom(ExpectError {
-                message: "expected seq".to_string(),
+                message: "YamlDeserializer: expected seq".to_string(),
                 position: Some(self.input.start_mark.clone()),
             })
         })?;
@@ -344,11 +289,22 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
         todo!()
     }
 
-    fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        let mapping = self.input.as_mapping().ok_or_else(|| {
+            YamlDecodingError::Custom(ExpectError {
+                message: "expected map".to_string(),
+                position: Some(self.input.start_mark.clone()),
+            })
+        })?;
+
+        visitor.visit_map(YamlMappingDe {
+            mapping,
+            iter_key: mapping.items.iter(),
+            iter_value: mapping.items.iter(),
+        })
     }
 
     fn deserialize_struct<V>(
@@ -360,8 +316,19 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        println!("deserialize struct {} {:?}", name, fields);
+
         if name == WITH_MARK_NAME {
             return visitor.visit_map(WithMarkDe {
+                node: self.input,
+                fields,
+                key_index: 0,
+                value_index: 0,
+            });
+        }
+
+        if name == RAW_YAML_NODE {
+            return visitor.visit_map(YamlNodeDe {
                 node: self.input,
                 fields,
                 key_index: 0,

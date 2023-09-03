@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 unsafe-libyaml = "0.2.9"
-serde = { version = "1.0.152", features = ["derive"] }
+serde = { version = "1.0.188", features = ["derive"] }
