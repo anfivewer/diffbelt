@@ -24,18 +24,28 @@ impl<'a> FunctionInitState<'a> {
     pub fn process_expression(
         &mut self,
         expr: &str,
-        cleanups_holder: &mut Vec<Statement>,
-    ) -> Result<VarPointer, InterpreterError> {
+        destination: VarPointer,
+        cleanups: &mut Vec<Statement>,
+    ) -> Result<(), InterpreterError> {
         if SIMPLE_VAR.is_match(expr) {
-            return self.named_var(expr);
+            let ptr = self.named_var(expr)?;
+            self.statements.push(Statement::Copy {
+                source: ptr,
+                destination,
+            });
+            return Ok(());
         }
         if let Some(captures) = LITERAL_STR.captures(expr) {
             let s = &captures[1];
-            return Ok(VarPointer::LiteralStr(Rc::from(s)));
+            self.statements.push(Statement::Copy {
+                source: VarPointer::LiteralStr(Rc::from(s)),
+                destination,
+            });
+            return Ok(());
         }
         if let Some(captures) = TEMPLATE_STR.captures(expr) {
             let s = &captures[1];
-            return self.process_template_str(s);
+            return self.process_template_str(s, destination);
         }
 
         println!("process expr: {}", expr);

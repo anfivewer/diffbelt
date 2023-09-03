@@ -1,13 +1,45 @@
 use crate::interpreter::error::InterpreterError;
 use crate::interpreter::expression::VarPointer;
 use crate::interpreter::function::FunctionInitState;
+use crate::interpreter::statement::concat::ConcatStatement;
+use crate::interpreter::statement::Statement;
+use crate::interpreter::var::VarDef;
 use regex::Regex;
+use std::rc::Rc;
 
 impl<'a> FunctionInitState<'a> {
-    pub fn process_template_str(&mut self, template: &str) -> Result<VarPointer, InterpreterError> {
-        println!("template str: {}", template);
+    pub fn process_template_str(
+        &mut self,
+        template: &str,
+        destination: VarPointer,
+    ) -> Result<(), InterpreterError> {
+        let parts = match_inserts(template).map_err(|_| InterpreterError::InvalidTemplate)?;
 
-        todo!()
+        let mut cleanups = Vec::new();
+
+        let mut new_parts = Vec::with_capacity(parts.len());
+
+        for part in parts {
+            let ptr = match part {
+                InnerTemplatePart::Literal(s) => VarPointer::LiteralStr(Rc::from(s)),
+                InnerTemplatePart::Insert(expr) => {
+                    let tmp = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
+                    self.process_expression(expr, tmp.clone(), &mut cleanups)?;
+                    tmp
+                }
+            };
+
+            new_parts.push(ptr);
+        }
+
+        self.statements.push(Statement::Concat(ConcatStatement {
+            parts: new_parts,
+            destination,
+        }));
+
+        self.push_statements(cleanups);
+
+        Ok(())
     }
 }
 

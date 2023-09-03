@@ -1,5 +1,5 @@
 use crate::code::regexp::RegexpInstructionBody;
-use crate::interpreter::error::{add_position_to_no_such_variable, InterpreterError};
+use crate::interpreter::error::{add_position, InterpreterError};
 use crate::interpreter::expression::{VarPointer, NO_TEMP_VARS};
 use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::Statement;
@@ -24,35 +24,39 @@ impl<'a> FunctionInitState<'a> {
             groups,
         } = regexp;
 
-        let mut cleanup_statements = Vec::new();
+        let mut cleanups = Vec::new();
+        let mut drop_names = Vec::new();
 
-        let var = self
-            .process_expression(var.value.as_str(), &mut cleanup_statements)
-            .map_err(add_position_to_no_such_variable(&var.mark))?;
+        let var_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
+
+        let _: () = self
+            .process_expression(var.value.as_str(), var_ptr.clone(), &mut cleanups)
+            .map_err(add_position(&var.mark))?;
 
         if let Some(parts) = parts {
             for (name, value) in parts {
-                let part = self.process_expression(value.as_str(), &mut cleanup_statements)?;
+                let part_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
 
-                let index = self.temp_var(VarDef::anonymous_string());
-                cleanup_statements.push(Statement::FreeTempVar(index));
+                let _: () =
+                    self.process_expression(value.as_str(), part_ptr.clone(), &mut cleanups)?;
 
-                let temp_var_ptr = VarPointer::VarIndex(index);
-                self.add_named_var(name.as_str(), temp_var_ptr.clone());
-
-                self.statements.push(Statement::Copy {
-                    source: part,
-                    destination: temp_var_ptr,
-                });
+                self.add_named_var(name.as_str(), part_ptr.clone());
+                drop_names.push(name.as_str());
             }
         }
 
-        let regexp = self.process_expression(regexp.as_str(), &mut cleanup_statements)?;
+        let regexp_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
+        let _: () = self.process_expression(regexp.as_str(), regexp_ptr.clone(), &mut cleanups)?;
 
-        self.statements
-            .push(Statement::Regexp(RegexpStatement { regexp, var }));
+        self.statements.push(Statement::Regexp(RegexpStatement {
+            regexp: regexp_ptr,
+            var: var_ptr,
+        }));
 
-        self.push_statements(cleanup_statements);
+        self.push_statements(cleanups);
+        for name in drop_names {
+            self.drop_named_var(name)?;
+        }
 
         Ok(())
     }

@@ -80,7 +80,6 @@ mod tests {
     use crate::interpreter::var::VarDef;
     use crate::CliConfig;
     use diffbelt_yaml::parse_yaml;
-    use indexmap::IndexMap;
 
     #[test]
     fn create_function_test() {

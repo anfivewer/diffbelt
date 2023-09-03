@@ -1,10 +1,12 @@
 pub mod regexp;
+pub mod concat;
 
 use crate::code;
 use crate::code::regexp::RegexpInstruction;
 use crate::interpreter::error::{ExpectError, InterpreterError};
 use crate::interpreter::expression::VarPointer;
 use crate::interpreter::function::FunctionInitState;
+use crate::interpreter::statement::concat::ConcatStatement;
 use crate::interpreter::statement::regexp::RegexpStatement;
 
 #[derive(Debug, Clone)]
@@ -16,6 +18,7 @@ pub enum Statement {
     FreeTempVar(usize),
 
     Regexp(RegexpStatement),
+    Concat(ConcatStatement),
 }
 
 impl<'a> FunctionInitState<'a> {
