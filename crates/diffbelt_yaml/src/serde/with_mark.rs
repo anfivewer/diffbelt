@@ -26,7 +26,7 @@ impl Mark for YamlMark {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct WithMark<T, M> {
     pub value: T,
     pub mark: M,

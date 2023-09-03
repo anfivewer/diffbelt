@@ -1,5 +1,6 @@
 pub mod code;
 pub mod errors;
+pub mod interpreter;
 pub mod transforms;
 pub mod util;
 
@@ -10,16 +11,6 @@ use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use std::collections::HashMap;
 
-pub struct YamlParsingState {
-    //
-}
-
-impl YamlParsingState {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
 #[derive(Debug)]
 pub struct CliConfig {
     collections: Vec<Collection>,
@@ -27,16 +18,8 @@ pub struct CliConfig {
     functions: HashMap<String, Code>,
 }
 
-pub trait FromYaml: Sized {
-    fn from_yaml(state: &mut YamlParsingState, yaml: &YamlNode)
-        -> Result<Self, ConfigParsingError>;
-}
-
-impl FromYaml for CliConfig {
-    fn from_yaml(
-        state: &mut YamlParsingState,
-        yaml: &YamlNode,
-    ) -> Result<Self, ConfigParsingError> {
+impl CliConfig {
+    fn from_yaml(yaml: &YamlNode) -> Result<Self, ConfigParsingError> {
         let root = expect_map(yaml)?;
 
         let mut collections = Vec::new();
@@ -51,7 +34,7 @@ impl FromYaml for CliConfig {
                     let collections_node = expect_seq(&value)?;
 
                     for node in collections_node {
-                        let collection = Collection::from_yaml(state, &node)?;
+                        let collection = Collection::from_yaml(&node)?;
                         collections.push(collection);
                     }
                 }
@@ -99,16 +82,8 @@ pub enum CollectionValueFormat {
     Json,
 }
 
-impl FromYaml for Collection {
-    /*
-       name: log-lines
-       manual: no
-       format: utf8
-    */
-    fn from_yaml(
-        _state: &mut YamlParsingState,
-        yaml: &YamlNode,
-    ) -> Result<Self, ConfigParsingError> {
+impl Collection {
+    fn from_yaml(yaml: &YamlNode) -> Result<Self, ConfigParsingError> {
         let map = expect_map(yaml)?;
 
         let mut name = None;
@@ -167,7 +142,7 @@ impl FromYaml for Collection {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CliConfig, FromYaml, YamlParsingState};
+    use crate::CliConfig;
     use diffbelt_yaml::parse_yaml;
 
     #[test]
@@ -180,8 +155,7 @@ mod tests {
 
         let doc = &docs[0];
 
-        let mut state = YamlParsingState::new();
-        let config: CliConfig = FromYaml::from_yaml(&mut state, doc).expect("reading");
+        let config = CliConfig::from_yaml(doc).expect("reading");
 
         let _ = config;
     }

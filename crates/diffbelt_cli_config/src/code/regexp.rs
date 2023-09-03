@@ -1,20 +1,16 @@
-use crate::errors::ConfigParsingError;
-use crate::{FromYaml, YamlParsingState};
-use diffbelt_yaml::{decode_yaml, YamlNode};
+use crate::errors::{ConfigPositionMark, WithMark};
+use indexmap::IndexMap;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct RegexpInstruction {
-    pub var: String,
-    pub regexp: String,
-    pub groups: Vec<String>,
+    pub regexp: RegexpInstructionBody,
 }
 
-impl FromYaml for RegexpInstruction {
-    fn from_yaml(
-        _state: &mut YamlParsingState,
-        yaml: &YamlNode,
-    ) -> Result<Self, ConfigParsingError> {
-        Ok(decode_yaml(yaml)?)
-    }
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RegexpInstructionBody {
+    pub var: WithMark<String>,
+    pub parts: Option<IndexMap<String, String>>,
+    pub regexp: String,
+    pub groups: Vec<String>,
 }

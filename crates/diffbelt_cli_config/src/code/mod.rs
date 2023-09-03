@@ -12,7 +12,7 @@ use serde::{Deserialize, Deserializer};
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
 pub struct Code {
-    instructions: Vec<Instruction>,
+    pub instructions: Vec<Instruction>,
 }
 
 #[derive(Debug, Eq, PartialEq)]

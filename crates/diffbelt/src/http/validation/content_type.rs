@@ -28,7 +28,6 @@ impl<T: Request> ContentTypeValidation for T {
 
 fn is_utf8_json_content_type(value: &str) -> bool {
     lazy_static::lazy_static! {
-        //Regex::new("^application/json(;\\s*charset=utf-8)$").unwrap();
         static ref RE: Regex =
             RegexBuilder::new("^application/json(;\\s*charset=utf-8)?$")
                 .case_insensitive(true)

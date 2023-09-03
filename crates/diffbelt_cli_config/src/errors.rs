@@ -1,4 +1,5 @@
 use diffbelt_yaml::serde::error::YamlDecodingError;
+use diffbelt_yaml::serde::Mark;
 use diffbelt_yaml::{YamlMark, YamlNode};
 
 #[derive(Debug)]
@@ -17,11 +18,23 @@ pub struct ExpectedError {
     pub position: Option<ConfigPositionMark>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ConfigPositionMark {
     pub index: u64,
     pub line: u64,
     pub column: u64,
+}
+
+pub type WithMark<T> = diffbelt_yaml::serde::WithMark<T, ConfigPositionMark>;
+
+impl Mark for ConfigPositionMark {
+    fn new(index: u64, line: u64, column: u64) -> Self {
+        Self {
+            index,
+            line,
+            column,
+        }
+    }
 }
 
 impl From<&YamlNode> for ConfigPositionMark {

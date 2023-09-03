@@ -58,10 +58,10 @@ transforms:
       - regexp:
           var: source
           parts:
-            log_level: (T|I|W|E|S)
-            timestamp: (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{1,3}Z)\.(\d{1,3})
-            start: ^(?:${log_level} ${timestamp}|${timestamp} ${log_level})
-            end: ((?:\\ |[^\s])+) ((?:\\ |[^\s])+)(.*)$
+            log_level: '''(T|I|W|E|S)'''
+            timestamp: '''(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{1,3}Z)\.(\d{1,3})'''
+            start: '"^(?:${log_level} ${timestamp}|${timestamp} ${log_level})"'
+            end: '''((?:\\ |[^\s])+) ((?:\\ |[^\s])+)(.*)$'''
           regexp: ${start} ${end}
           groups:
             - log_level_a

@@ -1,6 +1,5 @@
 use crate::errors::ConfigParsingError;
 
-use crate::{FromYaml, YamlParsingState};
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::Deserialize;
 
@@ -11,11 +10,8 @@ pub struct UpdateMapInstruction {
     pub value: String,
 }
 
-impl FromYaml for UpdateMapInstruction {
-    fn from_yaml(
-        _state: &mut YamlParsingState,
-        yaml: &YamlNode,
-    ) -> Result<Self, ConfigParsingError> {
+impl UpdateMapInstruction {
+    fn from_yaml(yaml: &YamlNode) -> Result<Self, ConfigParsingError> {
         Ok(decode_yaml(yaml)?)
     }
 }

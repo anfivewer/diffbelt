@@ -1,5 +1,4 @@
 use crate::errors::ConfigParsingError;
-use crate::YamlParsingState;
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
@@ -79,10 +78,7 @@ pub struct DateFromUnixMsProcessing {
 }
 
 impl VarProcessing {
-    pub fn from_yaml(
-        _state: &mut YamlParsingState,
-        yaml: &YamlNode,
-    ) -> Result<Self, ConfigParsingError> {
+    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, ConfigParsingError> {
         Ok(decode_yaml(yaml)?)
     }
 }
