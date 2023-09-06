@@ -1,4 +1,5 @@
 pub mod template_str;
+pub mod sexpr;
 
 use crate::interpreter::cleanups::Cleanups;
 use crate::interpreter::error::{ExpectError, InterpreterError};
@@ -6,6 +7,7 @@ use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::Statement;
 use regex::Regex;
 use std::rc::Rc;
+use crate::interpreter::expression::sexpr::SExpr;
 
 #[derive(Debug, Clone)]
 pub enum VarPointer {
@@ -28,6 +30,9 @@ impl<'a> FunctionInitState<'a> {
         destination: VarPointer,
         cleanups: &mut Cleanups,
     ) -> Result<(), InterpreterError> {
+        if expr.is_empty() {
+            return Err(InterpreterError::InvalidExpression(expr.to_string()));
+        }
         if SIMPLE_VAR.is_match(expr) {
             let ptr = self.named_var(expr)?;
             self.statements.push(Statement::Copy {
@@ -47,6 +52,12 @@ impl<'a> FunctionInitState<'a> {
         if let Some(captures) = TEMPLATE_STR.captures(expr) {
             let s = &captures[1];
             return self.process_template_str(s, destination);
+        }
+        if let Some(first) = expr.get(0..1) {
+            if first == "(" {
+                let s_expr = SExpr::parse(expr)?;
+                todo!()
+            }
         }
 
         Err(InterpreterError::InvalidExpression(expr.to_string()))
