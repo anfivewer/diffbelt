@@ -1,5 +1,7 @@
-pub mod regexp;
 pub mod concat;
+pub mod regexp;
+pub mod vars;
+pub mod jump;
 
 use crate::code;
 use crate::code::regexp::RegexpInstruction;
@@ -7,15 +9,21 @@ use crate::interpreter::error::{ExpectError, InterpreterError};
 use crate::interpreter::expression::VarPointer;
 use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::concat::ConcatStatement;
+use crate::interpreter::statement::jump::JumpIfStatement;
 use crate::interpreter::statement::regexp::RegexpStatement;
 
 #[derive(Debug, Clone)]
 pub enum Statement {
+    Noop,
     Copy {
         source: VarPointer,
         destination: VarPointer,
     },
-    FreeTempVar(usize),
+    JumpIf(JumpIfStatement),
+
+    DateFromUnixMs {
+        ptr: VarPointer,
+    },
 
     Regexp(RegexpStatement),
     Concat(ConcatStatement),
@@ -27,9 +35,7 @@ impl<'a> FunctionInitState<'a> {
         instruction: &code::Instruction,
     ) -> Result<(), InterpreterError> {
         match instruction {
-            code::Instruction::Vars(_) => {
-                todo!()
-            }
+            code::Instruction::Vars(vars) => self.process_vars_instruction(vars),
             code::Instruction::UpdateMap(_) => {
                 todo!()
             }

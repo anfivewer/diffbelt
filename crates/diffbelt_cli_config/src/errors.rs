@@ -25,6 +25,16 @@ pub struct ConfigPositionMark {
     pub column: u64,
 }
 
+impl ConfigPositionMark {
+    pub fn empty() -> Self {
+        Self {
+            index: 0,
+            line: 0,
+            column: 0,
+        }
+    }
+}
+
 pub type WithMark<T> = diffbelt_yaml::serde::WithMark<T, ConfigPositionMark>;
 
 impl Mark for ConfigPositionMark {

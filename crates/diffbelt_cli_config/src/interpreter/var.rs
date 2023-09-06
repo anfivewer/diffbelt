@@ -6,6 +6,12 @@ pub struct VarDef {
 }
 
 impl VarDef {
+    pub fn unknown() -> Self {
+        VarDef {
+            name: String::with_capacity(0),
+        }
+    }
+
     pub fn anonymous_string() -> Self {
         VarDef {
             name: String::with_capacity(0),

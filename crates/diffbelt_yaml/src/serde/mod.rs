@@ -36,7 +36,7 @@ impl<'de> Deserializer<'de> {
 }
 
 impl<'de> Deserializer<'de> {
-    fn expect_str(&self) -> Result<&str, YamlDecodingError> {
+    fn expect_str(&self) -> Result<&'de str, YamlDecodingError> {
         self.input.as_str().ok_or_else(|| {
             YamlDecodingError::Custom(ExpectError {
                 message: "expected str".to_string(),
@@ -189,7 +189,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
     {
         let s = self.expect_str()?;
 
-        visitor.visit_str(s)
+        visitor.visit_borrowed_str(s)
     }
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>

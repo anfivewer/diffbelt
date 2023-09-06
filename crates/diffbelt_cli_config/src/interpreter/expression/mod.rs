@@ -5,6 +5,7 @@ use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::Statement;
 use regex::Regex;
 use std::rc::Rc;
+use crate::interpreter::cleanups::Cleanups;
 
 #[derive(Debug, Clone)]
 pub enum VarPointer {
@@ -25,7 +26,7 @@ impl<'a> FunctionInitState<'a> {
         &mut self,
         expr: &str,
         destination: VarPointer,
-        cleanups: &mut Vec<Statement>,
+        cleanups: &mut Cleanups,
     ) -> Result<(), InterpreterError> {
         if SIMPLE_VAR.is_match(expr) {
             let ptr = self.named_var(expr)?;

@@ -8,6 +8,7 @@ use diffbelt_util::Wrap;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct Function {
@@ -19,8 +20,8 @@ pub struct Function {
 pub struct FunctionInitState<'a> {
     pub config: &'a CliConfig,
     pub is_const_input_vars: bool,
-    pub input_vars: IndexMap<String, VarDef>,
-    pub named_vars: HashMap<String, Vec<VarPointer>>,
+    pub input_vars: IndexMap<Rc<str>, VarDef>,
+    pub named_vars: HashMap<Rc<str>, Vec<VarPointer>>,
     pub vars: Vec<Var>,
     pub free_temp_var_indices: Vec<usize>,
     pub statements: Vec<Statement>,
@@ -30,7 +31,7 @@ impl Function {
     pub fn from_code(
         config: &CliConfig,
         code: &Code,
-        input_vars: Option<IndexMap<String, VarDef>>,
+        input_vars: Option<IndexMap<Rc<str>, VarDef>>,
     ) -> Result<Self, InterpreterError> {
         let (is_const_input_vars, input_vars) = match input_vars {
             Some(input_vars) => (true, input_vars),
@@ -80,6 +81,7 @@ mod tests {
     use crate::interpreter::var::VarDef;
     use crate::CliConfig;
     use diffbelt_yaml::parse_yaml;
+    use std::rc::Rc;
 
     #[test]
     fn create_function_test() {
@@ -95,7 +97,7 @@ mod tests {
             .as_ref()
             .expect("first transform is not mapFilter");
 
-        let input_vars = [("source".to_string(), VarDef::anonymous_string())]
+        let input_vars = [(Rc::from("source"), VarDef::anonymous_string())]
             .into_iter()
             .collect();
 

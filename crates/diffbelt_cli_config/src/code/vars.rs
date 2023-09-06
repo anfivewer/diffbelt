@@ -1,8 +1,9 @@
-use crate::errors::ConfigParsingError;
+use crate::errors::{ConfigParsingError, WithMark};
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use std::fmt::Formatter;
+use std::rc::Rc;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct VarsInstruction {
@@ -26,8 +27,11 @@ impl<'de> Visitor<'de> for VarsInstructionVisitor {
     {
         let mut vars = Vec::new();
 
-        while let Some((name, value)) = map.next_entry::<String, VarProcessing>()? {
-            vars.push(Var { name, value })
+        while let Some((name, value)) = map.next_entry::<&str, VarProcessing>()? {
+            vars.push(Var {
+                name: Rc::from(name),
+                value,
+            })
         }
 
         Ok(vars)
@@ -43,14 +47,15 @@ where
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Var {
-    pub name: String,
+    pub name: Rc<str>,
     pub value: VarProcessing,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum VarProcessing {
-    ByString(String),
+    ByString(WithMark<Rc<str>>),
     DateFromUnixMs(DateFromUnixMsProcessing),
+    NonEmptyString(NonEmptyStringProcessing),
     Unknown(YamlNode),
 }
 
@@ -67,6 +72,9 @@ impl<'de> Deserialize<'de> for VarProcessing {
         if let Ok(value) = decode_yaml(raw) {
             return Ok(VarProcessing::DateFromUnixMs(value));
         }
+        if let Ok(value) = decode_yaml(raw) {
+            return Ok(VarProcessing::NonEmptyString(value));
+        }
 
         Ok(VarProcessing::Unknown(raw.clone()))
     }
@@ -74,19 +82,21 @@ impl<'de> Deserialize<'de> for VarProcessing {
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct DateFromUnixMsProcessing {
-    date_from_unix_ms: String,
+    pub date_from_unix_ms: WithMark<Rc<str>>,
 }
 
-impl VarProcessing {
-    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, ConfigParsingError> {
-        Ok(decode_yaml(yaml)?)
-    }
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct NonEmptyStringProcessing {
+    pub non_empty_string: Vec<WithMark<Rc<str>>>,
 }
 
 #[cfg(test)]
 mod tests {
     use crate::code::vars::{DateFromUnixMsProcessing, VarProcessing, VarsInstruction};
+    use crate::errors::{ConfigPositionMark, WithMark};
     use diffbelt_yaml::{decode_yaml, parse_yaml};
+    use std::ops::Deref;
+    use std::rc::Rc;
 
     #[test]
     fn parsing_test() {
@@ -101,17 +111,23 @@ vars:
         let value: VarsInstruction = decode_yaml(input).expect("decode");
 
         assert_eq!(value.vars.len(), 2);
-        assert_eq!(value.vars[0].name.as_str(), "date");
+        assert_eq!(value.vars[0].name.deref(), "date");
         assert_eq!(
             value.vars[0].value,
             VarProcessing::DateFromUnixMs(DateFromUnixMsProcessing {
-                date_from_unix_ms: "source.timestampMilliseconds".to_string()
+                date_from_unix_ms: WithMark {
+                    value: Rc::from("source.timestampMilliseconds"),
+                    mark: ConfigPositionMark::empty()
+                },
             })
         );
-        assert_eq!(value.vars[1].name.as_str(), "key");
+        assert_eq!(value.vars[1].name.deref(), "key");
         assert_eq!(
             value.vars[1].value,
-            VarProcessing::ByString("some_string".to_string())
+            VarProcessing::ByString(WithMark {
+                value: Rc::from("some_string"),
+                mark: ConfigPositionMark::empty()
+            })
         );
     }
 }

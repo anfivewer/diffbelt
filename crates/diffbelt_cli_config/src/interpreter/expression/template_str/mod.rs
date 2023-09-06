@@ -1,3 +1,4 @@
+use crate::interpreter::cleanups::Cleanups;
 use crate::interpreter::error::InterpreterError;
 use crate::interpreter::expression::VarPointer;
 use crate::interpreter::function::FunctionInitState;
@@ -15,7 +16,7 @@ impl<'a> FunctionInitState<'a> {
     ) -> Result<(), InterpreterError> {
         let parts = match_inserts(template).map_err(|_| InterpreterError::InvalidTemplate)?;
 
-        let mut cleanups = Vec::new();
+        let mut cleanups = Cleanups::new();
 
         let mut new_parts = Vec::with_capacity(parts.len());
 
@@ -37,7 +38,7 @@ impl<'a> FunctionInitState<'a> {
             destination,
         }));
 
-        self.push_statements(cleanups);
+        self.apply_cleanups(cleanups)?;
 
         Ok(())
     }

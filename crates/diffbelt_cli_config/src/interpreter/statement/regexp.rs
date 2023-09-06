@@ -1,4 +1,5 @@
 use crate::code::regexp::RegexpInstructionBody;
+use crate::interpreter::cleanups::{Cleanups, CompileTimeCleanup};
 use crate::interpreter::error::{add_position, InterpreterError};
 use crate::interpreter::expression::{VarPointer, NO_TEMP_VARS};
 use crate::interpreter::function::FunctionInitState;
@@ -10,6 +11,7 @@ use std::collections::HashMap;
 pub struct RegexpStatement {
     pub regexp: VarPointer,
     pub var: VarPointer,
+    pub groups: Vec<VarPointer>,
 }
 
 impl<'a> FunctionInitState<'a> {
@@ -24,39 +26,46 @@ impl<'a> FunctionInitState<'a> {
             groups,
         } = regexp;
 
-        let mut cleanups = Vec::new();
-        let mut drop_names = Vec::new();
+        let mut cleanups = Cleanups::new();
 
         let var_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
 
         let _: () = self
-            .process_expression(var.value.as_str(), var_ptr.clone(), &mut cleanups)
+            .process_expression(&var.value, var_ptr.clone(), &mut cleanups)
             .map_err(add_position(&var.mark))?;
 
         if let Some(parts) = parts {
             for (name, value) in parts {
                 let part_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
 
-                let _: () =
-                    self.process_expression(value.as_str(), part_ptr.clone(), &mut cleanups)?;
+                self.process_expression(&value.value, part_ptr.clone(), &mut cleanups)
+                    .map_err(add_position(&value.mark))?;
 
-                self.add_named_var(name.as_str(), part_ptr.clone());
-                drop_names.push(name.as_str());
+                self.add_named_var(name.clone(), part_ptr.clone());
+                cleanups
+                    .compile_time
+                    .push(CompileTimeCleanup::DropNamedVar(name.clone()));
             }
         }
 
         let regexp_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
-        let _: () = self.process_expression(regexp.as_str(), regexp_ptr.clone(), &mut cleanups)?;
+        self.process_expression(&regexp.value, regexp_ptr.clone(), &mut cleanups)
+            .map_err(add_position(&regexp.mark))?;
+
+        let mut groups_ptrs = Vec::with_capacity(groups.len());
+
+        for name in groups {
+            let ptr = self.named_var_or_create(name)?;
+            groups_ptrs.push(ptr);
+        }
 
         self.statements.push(Statement::Regexp(RegexpStatement {
             regexp: regexp_ptr,
             var: var_ptr,
+            groups: groups_ptrs,
         }));
 
-        self.push_statements(cleanups);
-        for name in drop_names {
-            self.drop_named_var(name)?;
-        }
+        self.apply_cleanups(cleanups)?;
 
         Ok(())
     }
