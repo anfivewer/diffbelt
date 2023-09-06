@@ -1,8 +1,10 @@
 pub mod concat;
+pub mod jump;
 pub mod regexp;
 pub mod vars;
-pub mod jump;
 
+use std::rc::Rc;
+use regex::Regex;
 use crate::code;
 use crate::code::regexp::RegexpInstruction;
 use crate::interpreter::error::{ExpectError, InterpreterError};
@@ -23,6 +25,17 @@ pub enum Statement {
 
     DateFromUnixMs {
         ptr: VarPointer,
+    },
+    ParseDateToMs {
+        ptr: VarPointer,
+    },
+    ParseUint {
+        ptr: VarPointer,
+    },
+    RegexpReplace {
+        ptr: VarPointer,
+        regexp: Regex,
+        to: Rc<str>,
     },
 
     Regexp(RegexpStatement),

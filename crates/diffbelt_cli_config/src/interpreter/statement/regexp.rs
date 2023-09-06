@@ -1,4 +1,5 @@
 use crate::code::regexp::RegexpInstructionBody;
+use crate::errors::ConfigPositionMark;
 use crate::interpreter::cleanups::{Cleanups, CompileTimeCleanup};
 use crate::interpreter::error::{add_position, InterpreterError};
 use crate::interpreter::expression::{VarPointer, NO_TEMP_VARS};
@@ -10,6 +11,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct RegexpStatement {
     pub regexp: VarPointer,
+    pub regexp_mark: ConfigPositionMark,
     pub var: VarPointer,
     pub groups: Vec<VarPointer>,
 }
@@ -61,6 +63,7 @@ impl<'a> FunctionInitState<'a> {
 
         self.statements.push(Statement::Regexp(RegexpStatement {
             regexp: regexp_ptr,
+            regexp_mark: regexp.mark.clone(),
             var: var_ptr,
             groups: groups_ptrs,
         }));

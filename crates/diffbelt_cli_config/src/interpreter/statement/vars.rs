@@ -1,13 +1,17 @@
 use crate::code;
 use crate::code::regexp::RegexpInstructionBody;
 use crate::code::vars::{
-    DateFromUnixMsProcessing, NonEmptyStringProcessing, VarProcessing, VarsInstruction,
+    DateFromUnixMsProcessing, NonEmptyStringProcessing, ParseDateToMsProcessing,
+    ParseUintProcessing, RegexpReplaceProcessing, RegexpReplaceProcessingBody, VarProcessing,
+    VarsInstruction,
 };
 use crate::interpreter::cleanups::Cleanups;
 use crate::interpreter::error::{add_position, ExpectError, InterpreterError};
 use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::jump::Condition;
 use crate::interpreter::statement::Statement;
+use diffbelt_yaml::YamlNodeValue;
+use regex::Regex;
 
 #[derive(Debug, Clone)]
 pub struct VarsStatement {
@@ -62,11 +66,67 @@ impl<'a> FunctionInitState<'a> {
                         update_jump_to(self, noop_index);
                     }
                 }
+                VarProcessing::ParseDateToMs(parse_date_to_ms) => {
+                    let ParseDateToMsProcessing {
+                        parse_date_to_ms: expr,
+                    } = parse_date_to_ms;
+
+                    self.process_expression(&expr.value, var_ptr.clone(), &mut cleanups)
+                        .map_err(add_position(&expr.mark))?;
+
+                    self.statements
+                        .push(Statement::ParseDateToMs { ptr: var_ptr });
+                }
+                VarProcessing::ParseUint(parse_uint) => {
+                    let ParseUintProcessing { parse_uint: expr } = parse_uint;
+
+                    self.process_expression(&expr.value, var_ptr.clone(), &mut cleanups)
+                        .map_err(add_position(&expr.mark))?;
+
+                    self.statements.push(Statement::ParseUint { ptr: var_ptr });
+                }
+                VarProcessing::RegexpReplace(regexp_replace) => {
+                    let RegexpReplaceProcessing {
+                        regexp_replace: RegexpReplaceProcessingBody { var, from, to },
+                    } = regexp_replace;
+
+                    let regexp = Regex::new(&from.value).map_err(|_| {
+                        InterpreterError::custom_with_mark(
+                            "invalid regexp".to_string(),
+                            from.mark.clone(),
+                        )
+                    })?;
+
+                    let source = self
+                        .named_var(&var.value)
+                        .map_err(add_position(&var.mark))?;
+
+                    self.statements.push(Statement::Copy {
+                        source,
+                        destination: var_ptr.clone(),
+                    });
+                    self.statements.push(Statement::RegexpReplace {
+                        ptr: var_ptr,
+                        regexp,
+                        to: to.clone(),
+                    });
+                }
                 VarProcessing::Unknown(node) => {
+                    if let Some(mapping) = node.as_mapping() {
+                        if let Some((name_node, _)) = mapping.items.first() {
+                            if let Some(name) = name_node.as_str() {
+                                return Err(InterpreterError::Custom(ExpectError {
+                                    message: format!("unknown var processing: \"{}\"", name),
+                                    position: Some(name_node.into()),
+                                }));
+                            }
+                        }
+                    }
+
                     return Err(InterpreterError::Custom(ExpectError {
                         message: "unknown var processing".to_string(),
                         position: Some(node.into()),
-                    }))
+                    }));
                 }
             }
         }

@@ -56,6 +56,9 @@ pub enum VarProcessing {
     ByString(WithMark<Rc<str>>),
     DateFromUnixMs(DateFromUnixMsProcessing),
     NonEmptyString(NonEmptyStringProcessing),
+    ParseDateToMs(ParseDateToMsProcessing),
+    ParseUint(ParseUintProcessing),
+    RegexpReplace(RegexpReplaceProcessing),
     Unknown(YamlNode),
 }
 
@@ -75,6 +78,15 @@ impl<'de> Deserialize<'de> for VarProcessing {
         if let Ok(value) = decode_yaml(raw) {
             return Ok(VarProcessing::NonEmptyString(value));
         }
+        if let Ok(value) = decode_yaml(raw) {
+            return Ok(VarProcessing::ParseDateToMs(value));
+        }
+        if let Ok(value) = decode_yaml(raw) {
+            return Ok(VarProcessing::ParseUint(value));
+        }
+        if let Ok(value) = decode_yaml(raw) {
+            return Ok(VarProcessing::RegexpReplace(value));
+        }
 
         Ok(VarProcessing::Unknown(raw.clone()))
     }
@@ -88,6 +100,28 @@ pub struct DateFromUnixMsProcessing {
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct NonEmptyStringProcessing {
     pub non_empty_string: Vec<WithMark<Rc<str>>>,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct ParseDateToMsProcessing {
+    pub parse_date_to_ms: WithMark<Rc<str>>,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct ParseUintProcessing {
+    pub parse_uint: WithMark<Rc<str>>,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RegexpReplaceProcessing {
+    pub regexp_replace: RegexpReplaceProcessingBody,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RegexpReplaceProcessingBody {
+    pub var: WithMark<Rc<str>>,
+    pub from: WithMark<Rc<str>>,
+    pub to: Rc<str>,
 }
 
 #[cfg(test)]

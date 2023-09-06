@@ -1,11 +1,11 @@
 pub mod template_str;
 
-use crate::interpreter::error::InterpreterError;
+use crate::interpreter::cleanups::Cleanups;
+use crate::interpreter::error::{ExpectError, InterpreterError};
 use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::Statement;
 use regex::Regex;
 use std::rc::Rc;
-use crate::interpreter::cleanups::Cleanups;
 
 #[derive(Debug, Clone)]
 pub enum VarPointer {
@@ -49,8 +49,6 @@ impl<'a> FunctionInitState<'a> {
             return self.process_template_str(s, destination);
         }
 
-        println!("process expr: {}", expr);
-
-        todo!()
+        Err(InterpreterError::InvalidExpression(expr.to_string()))
     }
 }

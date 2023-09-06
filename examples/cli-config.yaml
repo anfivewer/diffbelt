@@ -84,7 +84,7 @@ transforms:
             parse_date_to_ms: date
           microseconds:
             parse_uint: microseconds_str
-          timestamp_string: ${date}.${microseconds_str}
+          timestamp_string: '"${date}.${microseconds_str}"'
           logger_key:
             regexp_replace:
               var: logger_key_escaped
@@ -92,11 +92,11 @@ transforms:
               to: $1
           log_key:
             regexp_replace:
-              var: logg_key_escaped
+              var: log_key_escaped
               from: \\(\\|\s)
               to: $1
-          props: !map
-          extra: !list
+          props: (map)
+          extra: (list)
       - regexp:
           var: rest
           regexp_multi: \s((?:\\ |\\:|[^\s:])+):((?:\\ |[^\s])+)
