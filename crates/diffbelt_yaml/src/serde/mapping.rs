@@ -1,14 +1,17 @@
 use crate::serde::error::{ExpectError, YamlDecodingError};
 use crate::{YamlMapping, YamlNode};
 use serde::de::{DeserializeSeed, MapAccess};
+use std::rc::Rc;
 
-pub struct YamlMappingDe<'de> {
+pub struct YamlMappingDe<'de, I: Iterator<Item = &'de (Rc<YamlNode>, Rc<YamlNode>)>> {
     pub mapping: &'de YamlMapping,
-    pub iter_key: std::slice::Iter<'de, (YamlNode, YamlNode)>,
-    pub iter_value: std::slice::Iter<'de, (YamlNode, YamlNode)>,
+    pub iter_key: I,
+    pub iter_value: I,
 }
 
-impl<'de> MapAccess<'de> for YamlMappingDe<'de> {
+impl<'de, I: Iterator<Item = &'de (Rc<YamlNode>, Rc<YamlNode>)>> MapAccess<'de>
+    for YamlMappingDe<'de, I>
+{
     type Error = YamlDecodingError;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>

@@ -47,29 +47,13 @@ impl Mark for ConfigPositionMark {
     }
 }
 
-impl From<&YamlNode> for ConfigPositionMark {
-    fn from(value: &YamlNode) -> Self {
+impl<T: AsRef<YamlMark>> From<T> for ConfigPositionMark {
+    fn from(value: T) -> Self {
         let YamlMark {
             index,
             line,
             column,
-        } = &value.start_mark;
-
-        Self {
-            index: *index,
-            line: *line,
-            column: *column,
-        }
-    }
-}
-
-impl From<&YamlMark> for ConfigPositionMark {
-    fn from(value: &YamlMark) -> Self {
-        let YamlMark {
-            index,
-            line,
-            column,
-        } = value;
+        } = value.as_ref();
 
         Self {
             index: *index,

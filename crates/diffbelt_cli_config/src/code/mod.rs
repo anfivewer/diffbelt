@@ -5,6 +5,7 @@ pub mod vars;
 use crate::code::regexp::RegexpInstruction;
 use crate::code::update_map::UpdateMapInstruction;
 use crate::code::vars::VarsInstruction;
+use std::rc::Rc;
 
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::{Deserialize, Deserializer};
@@ -21,7 +22,7 @@ pub enum Instruction {
     UpdateMap(UpdateMapInstruction),
     Regexp(RegexpInstruction),
     Return(ReturnInstruction),
-    Unknown(YamlNode),
+    Unknown(Rc<YamlNode>),
 }
 
 impl<'de> Deserialize<'de> for Instruction {
@@ -29,22 +30,22 @@ impl<'de> Deserialize<'de> for Instruction {
     where
         D: Deserializer<'de>,
     {
-        let raw = Deserialize::deserialize(deserializer)?;
+        let raw = YamlNode::deserialize(deserializer)?;
 
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(Instruction::Vars(value));
         }
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(Instruction::UpdateMap(value));
         }
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(Instruction::Regexp(value));
         }
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(Instruction::Return(value));
         }
 
-        Ok(Instruction::Unknown(raw.clone()))
+        Ok(Instruction::Unknown(raw))
     }
 }
 
@@ -58,6 +59,7 @@ pub struct ReturnInstruction {
 mod tests {
     use crate::code::{Code, Instruction, ReturnInstruction};
     use diffbelt_yaml::{decode_yaml, parse_yaml};
+    use std::rc::Rc;
 
     #[test]
     fn single_return_test() {
@@ -65,8 +67,13 @@ mod tests {
 - return: 42
 "#;
 
-        let input = &parse_yaml(input).expect("parsing")[0];
-        let value: Code = decode_yaml(input).expect("decode");
+        let input = parse_yaml(input)
+            .expect("parsing")
+            .into_iter()
+            .next()
+            .expect("no doc");
+        let input = Rc::new(input);
+        let value: Code = decode_yaml(&input).expect("decode");
 
         assert_eq!(
             value,
@@ -82,8 +89,13 @@ mod tests {
     fn return_instruction_test() {
         let input = "return: 42";
 
-        let input = &parse_yaml(input).expect("parsing")[0];
-        let value: Instruction = decode_yaml(input).expect("decode");
+        let input = parse_yaml(input)
+            .expect("parsing")
+            .into_iter()
+            .next()
+            .expect("no doc");
+        let input = Rc::new(input);
+        let value: Instruction = decode_yaml(&input).expect("decode");
 
         assert_eq!(
             value,

@@ -5,6 +5,7 @@ use serde::de::{DeserializeSeed, Error, MapAccess, Visitor};
 use serde::Deserializer;
 use std::fmt::Formatter;
 use std::marker::PhantomData;
+use std::rc::Rc;
 
 pub const WITH_MARK_NAME: &str = "__diffbelt_yaml_with_mark__private_struct";
 pub const WITH_MARK_INDEX: &str = "__diffbelt_yaml_with_mark__private_index";
@@ -102,7 +103,7 @@ impl<'de, T: serde::de::Deserialize<'de>, M: Mark> serde::de::Deserialize<'de> f
 }
 
 pub struct WithMarkDe<'de> {
-    pub node: &'de YamlNode,
+    pub node: &'de Rc<YamlNode>,
     pub fields: &'de [&'de str],
     pub key_index: usize,
     pub value_index: usize,

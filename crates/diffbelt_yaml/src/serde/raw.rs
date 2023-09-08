@@ -1,9 +1,11 @@
 use crate::serde::error::{ExpectError, YamlDecodingError};
-use crate::YamlNode;
+use crate::serde::static_trespass::{save_yaml_node, take_yaml_node};
+use crate::{YamlNode, YamlNodeRc};
 use serde::de::value::{BorrowedStrDeserializer, U64Deserializer};
 use serde::de::{DeserializeSeed, Error, MapAccess, Visitor};
-use serde::Deserializer;
+use serde::{Deserialize, Deserializer};
 use std::fmt::Formatter;
+use std::rc::Rc;
 
 pub const RAW_YAML_NODE: &str = "__diffbelt_yaml_raw_yaml_node__private_struct";
 pub const RAW_YAML_NODE_VALUE: &str = "__diffbelt_yaml_raw_yaml_node__private_value";
@@ -11,7 +13,7 @@ pub const RAW_YAML_NODE_VALUE: &str = "__diffbelt_yaml_raw_yaml_node__private_va
 struct YamlNodeVisitor;
 
 impl<'de> Visitor<'de> for YamlNodeVisitor {
-    type Value = &'de YamlNode;
+    type Value = Rc<YamlNode>;
 
     fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
         formatter.write_str("YamlNode")
@@ -21,7 +23,7 @@ impl<'de> Visitor<'de> for YamlNodeVisitor {
     where
         A: MapAccess<'de>,
     {
-        let (key, ptr) = map
+        let (key, trespass_counter) = map
             .next_entry::<&str, u64>()?
             .ok_or_else(|| A::Error::custom("YamlNodeVisitor: no value entry"))?;
 
@@ -29,31 +31,35 @@ impl<'de> Visitor<'de> for YamlNodeVisitor {
             return Err(A::Error::custom("YamlNodeVisitor: key order missmatch"));
         }
 
-        let node = unsafe {
-            let ptr = ptr as *const YamlNode;
-            &*ptr
-        };
+        let node = take_yaml_node(trespass_counter).expect("YamlNodeVisitor: not received");
 
         Ok(node)
     }
 }
 
-impl<'de> serde::de::Deserialize<'de> for &'de YamlNode {
+impl<'de> serde::de::Deserialize<'de> for YamlNodeRc {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        deserializer.deserialize_struct(RAW_YAML_NODE, &[RAW_YAML_NODE_VALUE], YamlNodeVisitor)
+        let node = deserializer.deserialize_struct(
+            RAW_YAML_NODE,
+            &[RAW_YAML_NODE_VALUE],
+            YamlNodeVisitor,
+        )?;
+
+        Ok(YamlNodeRc(node))
     }
 }
 
-impl<'de> serde::de::Deserialize<'de> for YamlNode {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let raw: &YamlNode = serde::de::Deserialize::deserialize(deserializer)?;
-
-        Ok(raw.clone())
+impl YamlNode {
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Rc<YamlNode>, D::Error> {
+        let YamlNodeRc(node) = YamlNodeRc::deserialize(deserializer)?;
+        Ok(node)
     }
 }
 
 pub struct YamlNodeDe<'de> {
-    pub node: &'de YamlNode,
+    pub node: &'de Rc<YamlNode>,
     pub fields: &'de [&'de str],
     pub key_index: usize,
     pub value_index: usize,
@@ -96,10 +102,8 @@ impl<'de> MapAccess<'de> for YamlNodeDe<'de> {
 
         let value = match field {
             RAW_YAML_NODE_VALUE => {
-                let node = self.node;
-                let ptr = node as *const YamlNode;
-                let ptr = ptr as u64;
-                ptr
+                let node = self.node.clone();
+                save_yaml_node(node)
             }
             _ => {
                 return Err(YamlDecodingError::Custom(ExpectError {

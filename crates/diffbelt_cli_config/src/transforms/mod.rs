@@ -5,6 +5,7 @@ use crate::transforms::percentiles::Percentiles;
 use crate::transforms::unique_count::UniqueCount;
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::{Deserialize, Deserializer};
+use std::rc::Rc;
 
 pub mod aggregate;
 pub mod map_filter;
@@ -27,14 +28,14 @@ pub struct Transform {
 pub enum TransformCollectionDef {
     Named(String),
     WithReader(CollectionWithReader),
-    Unknown(YamlNode),
+    Unknown(Rc<YamlNode>),
 }
 
 #[derive(Debug)]
 pub enum CollectionDef {
     Named(String),
     WithFormat(CollectionWithFormat),
-    Unknown(YamlNode),
+    Unknown(Rc<YamlNode>),
 }
 
 #[derive(Debug, Deserialize)]
@@ -60,16 +61,16 @@ impl<'de> Deserialize<'de> for TransformCollectionDef {
     where
         D: Deserializer<'de>,
     {
-        let raw = Deserialize::deserialize(deserializer)?;
+        let raw = YamlNode::deserialize(deserializer)?;
 
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(TransformCollectionDef::Named(value));
         }
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(TransformCollectionDef::WithReader(value));
         }
 
-        Ok(TransformCollectionDef::Unknown(raw.clone()))
+        Ok(TransformCollectionDef::Unknown(raw))
     }
 }
 
@@ -78,15 +79,15 @@ impl<'de> Deserialize<'de> for CollectionDef {
     where
         D: Deserializer<'de>,
     {
-        let raw = Deserialize::deserialize(deserializer)?;
+        let raw = YamlNode::deserialize(deserializer)?;
 
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(CollectionDef::Named(value));
         }
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(CollectionDef::WithFormat(value));
         }
 
-        Ok(CollectionDef::Unknown(raw.clone()))
+        Ok(CollectionDef::Unknown(raw))
     }
 }

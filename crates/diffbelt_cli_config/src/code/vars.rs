@@ -59,7 +59,7 @@ pub enum VarProcessing {
     ParseDateToMs(ParseDateToMsProcessing),
     ParseUint(ParseUintProcessing),
     RegexpReplace(RegexpReplaceProcessing),
-    Unknown(YamlNode),
+    Unknown(Rc<YamlNode>),
 }
 
 impl<'de> Deserialize<'de> for VarProcessing {
@@ -67,28 +67,28 @@ impl<'de> Deserialize<'de> for VarProcessing {
     where
         D: Deserializer<'de>,
     {
-        let raw = Deserialize::deserialize(deserializer)?;
+        let raw = YamlNode::deserialize(deserializer)?;
 
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(VarProcessing::ByString(value));
         }
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(VarProcessing::DateFromUnixMs(value));
         }
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(VarProcessing::NonEmptyString(value));
         }
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(VarProcessing::ParseDateToMs(value));
         }
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(VarProcessing::ParseUint(value));
         }
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(VarProcessing::RegexpReplace(value));
         }
 
-        Ok(VarProcessing::Unknown(raw.clone()))
+        Ok(VarProcessing::Unknown(raw))
     }
 }
 
@@ -141,8 +141,13 @@ vars:
   key: some_string
 "#;
 
-        let input = &parse_yaml(input).expect("parsing")[0];
-        let value: VarsInstruction = decode_yaml(input).expect("decode");
+        let input = parse_yaml(input)
+            .expect("parsing")
+            .into_iter()
+            .next()
+            .expect("no doc");
+        let input = Rc::new(input);
+        let value: VarsInstruction = decode_yaml(&input).expect("decode");
 
         assert_eq!(value.vars.len(), 2);
         assert_eq!(value.vars[0].name.deref(), "date");

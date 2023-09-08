@@ -4,6 +4,7 @@ pub mod serde;
 pub use crate::serde::decode_yaml;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
+use std::ops::Deref;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::slice::from_raw_parts;
@@ -52,6 +53,22 @@ impl YamlMark {
     }
 }
 
+impl AsRef<YamlMark> for &YamlMark {
+    fn as_ref(&self) -> &YamlMark {
+        self
+    }
+}
+impl AsRef<YamlMark> for &YamlNode {
+    fn as_ref(&self) -> &YamlMark {
+        &self.start_mark
+    }
+}
+impl AsRef<YamlMark> for &Rc<YamlNode> {
+    fn as_ref(&self) -> &YamlMark {
+        &self.start_mark
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum YamlNodeValue {
     Empty,
@@ -67,7 +84,7 @@ pub struct YamlScalar {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct YamlSequence {
-    pub items: Rc<Vec<YamlNode>>,
+    pub items: Rc<Vec<Rc<YamlNode>>>,
 }
 
 struct ParsingState {
@@ -99,7 +116,7 @@ impl YamlSequence {
             let node = root_stack.start.add(index);
             let node = YamlNode::from_yaml_node_t(state, root_stack, node, index)?;
 
-            items.push(node);
+            items.push(Rc::new(node));
 
             node_ptr = node_ptr.add(1);
         }
@@ -112,16 +129,17 @@ impl YamlSequence {
 
 impl<'a> IntoIterator for &'a YamlSequence {
     type Item = &'a YamlNode;
-    type IntoIter = std::slice::Iter<'a, YamlNode>;
+    type IntoIter =
+        std::iter::Map<std::slice::Iter<'a, Rc<YamlNode>>, fn(&'a Rc<YamlNode>) -> &'a YamlNode>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.items.iter()
+        self.items.iter().map(|node| node.deref())
     }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct YamlMapping {
-    pub items: Vec<(YamlNode, YamlNode)>,
+    pub items: Vec<(Rc<YamlNode>, Rc<YamlNode>)>,
 }
 
 impl YamlMapping {
@@ -152,7 +170,7 @@ impl YamlMapping {
             let value_node = root_stack.start.add(value_index);
             let value = YamlNode::from_yaml_node_t(state, root_stack, value_node, value_index)?;
 
-            items.push((key, value));
+            items.push((Rc::new(key), Rc::new(value)));
 
             node_ptr = node_ptr.add(1);
         }
@@ -162,11 +180,16 @@ impl YamlMapping {
 }
 
 impl<'a> IntoIterator for &'a YamlMapping {
-    type Item = &'a (YamlNode, YamlNode);
-    type IntoIter = std::slice::Iter<'a, (YamlNode, YamlNode)>;
+    type Item = (&'a YamlNode, &'a YamlNode);
+    type IntoIter = std::iter::Map<
+        std::slice::Iter<'a, (Rc<YamlNode>, Rc<YamlNode>)>,
+        fn(&'a (Rc<YamlNode>, Rc<YamlNode>)) -> (&'a YamlNode, &'a YamlNode),
+    >;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.items.iter()
+        self.items
+            .iter()
+            .map(|(key, value)| (key.deref(), value.deref()))
     }
 }
 
@@ -176,6 +199,8 @@ pub struct YamlNode {
     pub tag: Option<Rc<str>>,
     pub start_mark: YamlMark,
 }
+
+pub struct YamlNodeRc(Rc<YamlNode>);
 
 impl YamlNode {
     unsafe fn from_yaml_node_t(

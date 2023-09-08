@@ -2,6 +2,7 @@ pub mod error;
 mod mapping;
 mod raw;
 mod sequence;
+mod static_trespass;
 #[cfg(test)]
 mod tests;
 mod with_mark;
@@ -16,21 +17,24 @@ use crate::{YamlNode, YamlNodeValue};
 use serde::de::Visitor;
 use serde::Deserialize;
 use std::ops::Deref;
+use std::rc::Rc;
 pub use with_mark::Mark;
 pub use with_mark::WithMark;
 
-pub fn decode_yaml<'de, T: Deserialize<'de>>(input: &'de YamlNode) -> Result<T, YamlDecodingError> {
-    let de = Deserializer::from_yaml_node(&input);
+pub fn decode_yaml<'de, T: Deserialize<'de>>(
+    input: &'de Rc<YamlNode>,
+) -> Result<T, YamlDecodingError> {
+    let de = Deserializer::from_yaml_node(input);
 
     serde::de::Deserialize::deserialize(de)
 }
 
 pub struct Deserializer<'de> {
-    input: &'de YamlNode,
+    input: &'de Rc<YamlNode>,
 }
 
 impl<'de> Deserializer<'de> {
-    pub fn from_yaml_node(input: &'de YamlNode) -> Self {
+    pub fn from_yaml_node(input: &'de Rc<YamlNode>) -> Self {
         Self { input }
     }
 }
