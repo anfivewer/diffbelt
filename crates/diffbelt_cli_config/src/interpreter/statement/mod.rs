@@ -3,8 +3,6 @@ pub mod jump;
 pub mod regexp;
 pub mod vars;
 
-use std::rc::Rc;
-use regex::Regex;
 use crate::code;
 use crate::code::regexp::RegexpInstruction;
 use crate::interpreter::error::{ExpectError, InterpreterError};
@@ -13,12 +11,19 @@ use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::concat::ConcatStatement;
 use crate::interpreter::statement::jump::JumpIfStatement;
 use crate::interpreter::statement::regexp::RegexpStatement;
+use crate::interpreter::value::Value;
+use regex::Regex;
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub enum Statement {
     Noop,
     Copy {
         source: VarPointer,
+        destination: VarPointer,
+    },
+    Set {
+        value: Value,
         destination: VarPointer,
     },
     JumpIf(JumpIfStatement),

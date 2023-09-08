@@ -33,14 +33,14 @@ impl<'a> FunctionInitState<'a> {
         let var_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
 
         let _: () = self
-            .process_expression(&var.value, var_ptr.clone(), &mut cleanups)
+            .process_expression(&var.value, var_ptr.clone())
             .map_err(add_position(&var.mark))?;
 
         if let Some(parts) = parts {
             for (name, value) in parts {
                 let part_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
 
-                self.process_expression(&value.value, part_ptr.clone(), &mut cleanups)
+                self.process_expression(&value.value, part_ptr.clone())
                     .map_err(add_position(&value.mark))?;
 
                 self.add_named_var(name.clone(), part_ptr.clone());
@@ -51,7 +51,7 @@ impl<'a> FunctionInitState<'a> {
         }
 
         let regexp_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
-        self.process_expression(&regexp.value, regexp_ptr.clone(), &mut cleanups)
+        self.process_expression(&regexp.value, regexp_ptr.clone())
             .map_err(add_position(&regexp.mark))?;
 
         let mut groups_ptrs = Vec::with_capacity(groups.len());

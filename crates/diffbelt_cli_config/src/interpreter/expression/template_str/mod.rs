@@ -25,7 +25,7 @@ impl<'a> FunctionInitState<'a> {
                 InnerTemplatePart::Literal(s) => VarPointer::LiteralStr(Rc::from(s)),
                 InnerTemplatePart::Insert(expr) => {
                     let tmp = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
-                    self.process_expression(expr, tmp.clone(), &mut cleanups)?;
+                    self.process_expression(expr, tmp.clone())?;
                     tmp
                 }
             };

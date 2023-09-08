@@ -28,7 +28,6 @@ impl<'a> FunctionInitState<'a> {
         &mut self,
         expr: &str,
         destination: VarPointer,
-        cleanups: &mut Cleanups,
     ) -> Result<(), InterpreterError> {
         if expr.is_empty() {
             return Err(InterpreterError::InvalidExpression(expr.to_string()));
@@ -56,7 +55,7 @@ impl<'a> FunctionInitState<'a> {
         if let Some(first) = expr.get(0..1) {
             if first == "(" {
                 let s_expr = SExpr::parse(expr)?;
-                todo!()
+                return self.process_s_expr(s_expr, destination);
             }
         }
 

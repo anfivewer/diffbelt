@@ -34,7 +34,7 @@ impl<'a> FunctionInitState<'a> {
 
             match value {
                 VarProcessing::ByString(expr) => {
-                    self.process_expression(&expr.value, var_ptr, &mut cleanups)
+                    self.process_expression(&expr.value, var_ptr)
                         .map_err(add_position(&expr.mark))?;
                 }
                 VarProcessing::DateFromUnixMs(date_from_unix_ms) => {
@@ -42,7 +42,7 @@ impl<'a> FunctionInitState<'a> {
                         date_from_unix_ms: expr,
                     } = date_from_unix_ms;
 
-                    self.process_expression(&expr.value, var_ptr.clone(), &mut cleanups)
+                    self.process_expression(&expr.value, var_ptr.clone())
                         .map_err(add_position(&expr.mark))?;
                     self.statements
                         .push(Statement::DateFromUnixMs { ptr: var_ptr });
@@ -53,7 +53,7 @@ impl<'a> FunctionInitState<'a> {
                     let mut jumps_to_end = Vec::new();
 
                     for expr in non_empty_string {
-                        self.process_expression(&expr.value, var_ptr.clone(), &mut cleanups)
+                        self.process_expression(&expr.value, var_ptr.clone())
                             .map_err(add_position(&expr.mark))?;
 
                         jumps_to_end.push(self.jump_if(Condition::NonEmptyString(var_ptr.clone())));
@@ -71,7 +71,7 @@ impl<'a> FunctionInitState<'a> {
                         parse_date_to_ms: expr,
                     } = parse_date_to_ms;
 
-                    self.process_expression(&expr.value, var_ptr.clone(), &mut cleanups)
+                    self.process_expression(&expr.value, var_ptr.clone())
                         .map_err(add_position(&expr.mark))?;
 
                     self.statements
@@ -80,7 +80,7 @@ impl<'a> FunctionInitState<'a> {
                 VarProcessing::ParseUint(parse_uint) => {
                     let ParseUintProcessing { parse_uint: expr } = parse_uint;
 
-                    self.process_expression(&expr.value, var_ptr.clone(), &mut cleanups)
+                    self.process_expression(&expr.value, var_ptr.clone())
                         .map_err(add_position(&expr.mark))?;
 
                     self.statements.push(Statement::ParseUint { ptr: var_ptr });

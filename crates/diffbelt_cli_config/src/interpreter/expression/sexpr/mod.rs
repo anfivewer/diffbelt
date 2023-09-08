@@ -1,8 +1,13 @@
 use crate::interpreter::error::InterpreterError;
-use lexpr::parse::Brackets;
+use crate::interpreter::expression::VarPointer;
+use crate::interpreter::function::FunctionInitState;
+use crate::interpreter::statement::Statement;
+use crate::interpreter::value::Value;
+use std::collections::HashMap;
 
 pub enum SExpr {
-    //
+    EmptyMap,
+    EmptyList,
 }
 
 impl SExpr {
@@ -18,8 +23,40 @@ impl SExpr {
 
         let name = name.as_symbol().ok_or_else(as_invalid_expr_opt)?;
 
-        println!("parsed s-expr {:#?} {:#?}", name, params);
+        match name {
+            "map" => {
+                params.as_null().ok_or_else(as_invalid_expr_opt)?;
+                Ok(SExpr::EmptyMap)
+            }
+            "list" => {
+                params.as_null().ok_or_else(as_invalid_expr_opt)?;
+                Ok(SExpr::EmptyList)
+            }
+            unknown => Err(InterpreterError::InvalidExpression(format!(
+                "Unknown s-expr fn {}",
+                unknown
+            ))),
+        }
+    }
+}
 
-        todo!()
+impl<'a> FunctionInitState<'a> {
+    pub fn process_s_expr(
+        &mut self,
+        expr: SExpr,
+        destination: VarPointer,
+    ) -> Result<(), InterpreterError> {
+        match expr {
+            SExpr::EmptyMap => self.statements.push(Statement::Set {
+                value: Value::Map(HashMap::new()),
+                destination,
+            }),
+            SExpr::EmptyList => self.statements.push(Statement::Set {
+                value: Value::List(Vec::new()),
+                destination,
+            }),
+        }
+
+        Ok(())
     }
 }
