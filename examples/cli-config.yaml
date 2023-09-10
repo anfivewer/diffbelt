@@ -99,52 +99,54 @@ transforms:
           extra: (list)
       - regexp:
           var: rest
-          regexp_multi: \s((?:\\ |\\:|[^\s:])+):((?:\\ |[^\s])+)
+          regexp_multi: '''\s((?:\\ |\\:|[^\s:])+):((?:\\ |[^\s])+)'''
           fail_on_non_continuous: yes
           rest: rest
           groups:
             - key_escaped
             - value_escaped
-      - vars:
-          key:
-            regexp_replace:
-              var: key_escaped
-              from: \\(\\|\s|:)
-              to: $1
-          value:
-            regexp_replace:
-              var: value_escaped
-              from: \\(\\|\s)
-              to: $1
-      - update_map:
-          var: props
-          key: key
-          value: value
+          loop:
+            - vars:
+                key:
+                  regexp_replace:
+                    var: key_escaped
+                    from: \\(\\|\s|:)
+                    to: $1
+                value:
+                  regexp_replace:
+                    var: value_escaped
+                    from: \\(\\|\s)
+                    to: $1
+            - update_map:
+                var: props
+                key: key
+                value: value
       - regexp:
           var: rest
-          regexp_multi: \|((?:\\\||[^|])+)
+          regexp_multi: '''\|((?:\\\||[^|])+)'''
           fail_on_non_continuous: yes
           groups:
             - extra_escaped
-      - vars:
-          extra_unescaped_1:
-            regexp_replace:
-              var: extra_escaped
-              from: \\r
-              to: "\r"
-          extra_unescaped_2:
-            regexp_replace:
-              var: extra_escaped_1
-              from: \\n
-              to: "\n"
-          extra_unescaped:
-            regexp_replace:
-              var: extra_escaped_2
-              from: \\(\\|\|)
-              to: $1
-      - update_list:
-          var: extra
-          push: extra_unescaped
+          loop:
+            - vars:
+                extra_unescaped_1:
+                  regexp_replace:
+                    var: extra_escaped
+                    from: \\r
+                    to: "\r"
+                extra_unescaped_2:
+                  regexp_replace:
+                    var: extra_escaped_1
+                    from: \\n
+                    to: "\n"
+                extra_unescaped:
+                  regexp_replace:
+                    var: extra_escaped_2
+                    from: \\(\\|\|)
+                    to: $1
+            - update_list:
+                var: extra
+                push: extra_unescaped
       - return:
           logLevel: log_level
           timestampString: timestamp_string

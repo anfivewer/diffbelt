@@ -1,4 +1,6 @@
-use crate::interpreter::value::ValueHolder;
+use std::ops::Deref;
+use crate::interpreter::value::{Value, ValueHolder};
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct VarDef {
@@ -23,4 +25,25 @@ impl VarDef {
 pub struct Var {
     pub def: VarDef,
     pub value: Option<ValueHolder>,
+}
+
+impl Var {
+    pub fn new_string(value: Rc<str>) -> Self {
+        Var {
+            def: VarDef::anonymous_string(),
+            value: Some(ValueHolder {
+                value: Value::String(value),
+            }),
+        }
+    }
+
+    pub fn as_str(&self) -> Option<&str> {
+        self.value.as_ref().and_then(|var| {
+            let Value::String(s) = &var.value else {
+                return None;
+            };
+
+            Some(s.deref())
+        })
+    }
 }

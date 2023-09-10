@@ -2,6 +2,7 @@ pub mod concat;
 pub mod jump;
 pub mod regexp;
 pub mod vars;
+pub mod ret;
 
 use crate::code;
 use crate::code::regexp::RegexpInstruction;
@@ -18,6 +19,7 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub enum Statement {
     Noop,
+    Todo(String),
     Copy {
         source: VarPointer,
         destination: VarPointer,
@@ -27,6 +29,13 @@ pub enum Statement {
         destination: VarPointer,
     },
     JumpIf(JumpIfStatement),
+    Return(VarPointer),
+
+    InsertToMap {
+        map: VarPointer,
+        key: VarPointer,
+        value: VarPointer,
+    },
 
     DateFromUnixMs {
         ptr: VarPointer,
@@ -62,8 +71,8 @@ impl<'a> FunctionInitState<'a> {
 
                 self.process_regexp(regexp)
             }
-            code::Instruction::Return(_) => {
-                todo!()
+            code::Instruction::Return(ret) => {
+                self.process_return(&ret.value)
             }
             code::Instruction::Unknown(node) => Err(InterpreterError::Custom(ExpectError {
                 message: "unknown instruction".to_string(),

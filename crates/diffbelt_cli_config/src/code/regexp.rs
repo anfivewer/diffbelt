@@ -1,7 +1,8 @@
-use std::rc::Rc;
 use crate::errors::{ConfigPositionMark, WithMark};
 use indexmap::IndexMap;
 use serde::Deserialize;
+use std::rc::Rc;
+use crate::code::Code;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct RegexpInstruction {
@@ -12,6 +13,11 @@ pub struct RegexpInstruction {
 pub struct RegexpInstructionBody {
     pub var: WithMark<Rc<str>>,
     pub parts: Option<IndexMap<Rc<str>, WithMark<Rc<str>>>>,
-    pub regexp: WithMark<Rc<str>>,
+    pub regexp: Option<WithMark<Rc<str>>>,
+    pub regexp_multi: Option<WithMark<Rc<str>>>,
+    pub fail_on_non_continuous: Option<bool>,
+    pub rest: Option<WithMark<Rc<str>>>,
     pub groups: Vec<Rc<str>>,
+    #[serde(rename = "loop")]
+    pub loop_code: Option<Code>,
 }

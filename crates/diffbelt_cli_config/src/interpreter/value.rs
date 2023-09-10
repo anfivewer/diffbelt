@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct ValueHolder {
@@ -14,4 +15,5 @@ pub enum PrimitiveValue {
 pub enum Value {
     Map(HashMap<PrimitiveValue, Value>),
     List(Vec<Value>),
+    String(Rc<str>),
 }

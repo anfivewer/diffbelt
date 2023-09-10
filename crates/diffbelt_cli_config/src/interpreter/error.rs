@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::errors::ConfigPositionMark;
 
 #[derive(Debug)]
@@ -5,6 +6,8 @@ pub enum InterpreterError {
     NoSuchVariable(String),
     InvalidTemplate,
     InvalidExpression(String),
+    MissingVariableInFunctionCall(Rc<str>),
+    ExtraVariableInFunctionCall(Rc<str>),
     Custom(ExpectError),
 }
 
@@ -19,6 +22,13 @@ impl InterpreterError {
         InterpreterError::Custom(ExpectError {
             message,
             position: Some(mark),
+        })
+    }
+
+    pub fn custom_without_mark(message: String) -> Self {
+        InterpreterError::Custom(ExpectError {
+            message,
+            position: None,
         })
     }
 }

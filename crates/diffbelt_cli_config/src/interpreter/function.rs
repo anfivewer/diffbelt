@@ -12,9 +12,9 @@ use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct Function {
-    pub input_vars: IndexMap<String, VarDef>,
+    pub input_vars_def: IndexMap<Rc<str>, VarDef>,
     pub vars: Vec<Var>,
-    pub instructions: Vec<Statement>,
+    pub statements: Vec<Statement>,
 }
 
 pub struct FunctionInitState<'a> {
@@ -71,14 +71,26 @@ impl Function {
             let _: () = state.process_instruction(instruction)?;
         }
 
-        todo!()
+        let FunctionInitState {
+            input_vars,
+            vars,
+            statements,
+            ..
+        } = state;
+
+        Ok(Self {
+            input_vars_def: input_vars,
+            vars,
+            statements,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::interpreter::function::Function;
-    use crate::interpreter::var::VarDef;
+    use crate::interpreter::value::{Value, ValueHolder};
+    use crate::interpreter::var::{Var, VarDef};
     use crate::CliConfig;
     use diffbelt_yaml::parse_yaml;
     use std::rc::Rc;
@@ -103,6 +115,15 @@ mod tests {
 
         let function = Function::from_code(&config, code, Some(input_vars)).expect("function");
 
-        //
+        let input_vars = vec![(
+            Rc::from("source"),
+            Var {
+                def: VarDef::anonymous_string(),
+                value: Some(ValueHolder { value: Value::String(Rc::from("S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27")) }),
+            },
+        )]
+            .into_iter().collect();
+
+        function.call(input_vars).expect("function execution");
     }
 }

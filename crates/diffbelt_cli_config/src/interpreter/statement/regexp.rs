@@ -1,5 +1,5 @@
 use crate::code::regexp::RegexpInstructionBody;
-use crate::errors::ConfigPositionMark;
+use crate::errors::{ConfigPositionMark, WithMark};
 use crate::interpreter::cleanups::{Cleanups, CompileTimeCleanup};
 use crate::interpreter::error::{add_position, InterpreterError};
 use crate::interpreter::expression::{VarPointer, NO_TEMP_VARS};
@@ -25,7 +25,11 @@ impl<'a> FunctionInitState<'a> {
             var,
             parts,
             regexp,
+            regexp_multi,
+            fail_on_non_continuous,
+            rest,
             groups,
+            loop_code,
         } = regexp;
 
         let mut cleanups = Cleanups::new();
@@ -50,23 +54,36 @@ impl<'a> FunctionInitState<'a> {
             }
         }
 
-        let regexp_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
-        self.process_expression(&regexp.value, regexp_ptr.clone())
-            .map_err(add_position(&regexp.mark))?;
+        if let Some(regexp) = regexp {
+            let regexp_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
+            self.process_expression(&regexp.value, regexp_ptr.clone())
+                .map_err(add_position(&regexp.mark))?;
 
-        let mut groups_ptrs = Vec::with_capacity(groups.len());
+            let mut groups_ptrs = Vec::with_capacity(groups.len());
 
-        for name in groups {
-            let ptr = self.named_var_or_create(name)?;
-            groups_ptrs.push(ptr);
+            for name in groups {
+                let ptr = self.named_var_or_create(name)?;
+                groups_ptrs.push(ptr);
+            }
+
+            self.statements.push(Statement::Regexp(RegexpStatement {
+                regexp: regexp_ptr,
+                regexp_mark: regexp.mark.clone(),
+                var: var_ptr,
+                groups: groups_ptrs,
+            }));
+        } else if let Some(regexp_multi) = regexp_multi {
+            let regexp_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
+            self.process_expression(&regexp_multi.value, regexp_ptr.clone())
+                .map_err(add_position(&regexp_multi.mark))?;
+
+            self.statements.push(Statement::Todo("process_regexp:regexp_multi".to_string()));
+        } else {
+            return Err(InterpreterError::custom_with_mark(
+                "regexp should have regexp or regexp_multi field".to_string(),
+                var.mark.clone(),
+            ));
         }
-
-        self.statements.push(Statement::Regexp(RegexpStatement {
-            regexp: regexp_ptr,
-            regexp_mark: regexp.mark.clone(),
-            var: var_ptr,
-            groups: groups_ptrs,
-        }));
 
         self.apply_cleanups(cleanups)?;
 

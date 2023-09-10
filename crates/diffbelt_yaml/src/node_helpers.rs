@@ -1,5 +1,6 @@
 use crate::{YamlMapping, YamlNode, YamlNodeValue, YamlSequence};
 use std::ops::Deref;
+use std::rc::Rc;
 
 impl YamlNode {
     pub fn as_str(&self) -> Option<&str> {
@@ -8,6 +9,14 @@ impl YamlNode {
         };
 
         Some(scalar.value.deref())
+    }
+
+    pub fn as_rc_str(&self) -> Option<Rc<str>> {
+        let YamlNodeValue::Scalar(scalar) = &self.value else {
+            return None;
+        };
+
+        Some(scalar.value.clone())
     }
 
     pub fn as_sequence(&self) -> Option<&YamlSequence> {
