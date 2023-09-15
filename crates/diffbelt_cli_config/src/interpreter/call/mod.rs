@@ -1,6 +1,7 @@
 mod copy;
 mod concat;
 mod util;
+mod regexp;
 
 use crate::interpreter::error::InterpreterError;
 use crate::interpreter::expression::VarPointer;
@@ -110,8 +111,8 @@ impl<'a> FunctionExecution<'a> {
             Statement::RegexpReplace { .. } => {
                 todo!()
             }
-            Statement::Regexp(_) => {
-                todo!()
+            Statement::Regexp(regexp) => {
+                self.execute_regexp(regexp)
             }
             Statement::Concat(concat) => {
                 self.execute_concat(concat)

@@ -18,6 +18,13 @@ pub struct ExpectError {
 }
 
 impl InterpreterError {
+    pub fn custom(message: String, mark: Option<ConfigPositionMark>) -> Self {
+        InterpreterError::Custom(ExpectError {
+            message,
+            position: mark,
+        })
+    }
+
     pub fn custom_with_mark(message: String, mark: ConfigPositionMark) -> Self {
         InterpreterError::Custom(ExpectError {
             message,

@@ -13,6 +13,7 @@ pub struct RegexpStatement {
     pub regexp: VarPointer,
     pub regexp_mark: ConfigPositionMark,
     pub var: VarPointer,
+    pub var_mark: ConfigPositionMark,
     pub groups: Vec<VarPointer>,
 }
 
@@ -70,6 +71,7 @@ impl<'a> FunctionInitState<'a> {
                 regexp: regexp_ptr,
                 regexp_mark: regexp.mark.clone(),
                 var: var_ptr,
+                var_mark: var.mark.clone(),
                 groups: groups_ptrs,
             }));
         } else if let Some(regexp_multi) = regexp_multi {

@@ -1,8 +1,11 @@
+use crate::errors::ConfigPositionMark;
 use crate::interpreter::call::FunctionExecution;
 use crate::interpreter::error::InterpreterError;
 use crate::interpreter::expression::VarPointer;
 use crate::interpreter::value::Value;
 use crate::interpreter::var::Var;
+use std::ops::Deref;
+use std::rc::Rc;
 
 impl<'a> FunctionExecution<'a> {
     pub fn borrow_var_by_index(&self, index: usize) -> Result<&Var, InterpreterError> {
@@ -32,6 +35,34 @@ impl<'a> FunctionExecution<'a> {
         *destination = value;
 
         Ok(())
+    }
+
+    pub fn read_var_by_index(&self, index: usize) -> Result<&Var, InterpreterError> {
+        self.vars.get(index).ok_or_else(|| {
+            InterpreterError::custom_without_mark(format!(
+                "FunctionExecution: no source at index {}",
+                index
+            ))
+        })
+    }
+
+    pub fn read_var_as_rc_str(
+        &self,
+        ptr: &VarPointer,
+        mark: Option<&ConfigPositionMark>,
+    ) -> Result<Rc<str>, InterpreterError> {
+        let source = match ptr {
+            VarPointer::VarIndex(index) => self.read_var_by_index(*index)?,
+            VarPointer::LiteralStr(s) => {
+                return Ok(s.clone());
+            }
+        };
+
+        let value = source.as_rc_str().ok_or_else(|| {
+            InterpreterError::custom("Value is not a string".to_string(), mark.map(|x| x.clone()))
+        })?;
+
+        Ok(value)
     }
 }
 

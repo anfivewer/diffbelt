@@ -46,4 +46,14 @@ impl Var {
             Some(s.deref())
         })
     }
+
+    pub fn as_rc_str(&self) -> Option<Rc<str>> {
+        self.value.as_ref().and_then(|var| {
+            let Value::String(s) = &var.value else {
+                return None;
+            };
+
+            Some(s.clone())
+        })
+    }
 }
