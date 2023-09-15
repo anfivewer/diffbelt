@@ -1,7 +1,9 @@
-mod copy;
 mod concat;
-mod util;
+mod copy;
+mod jump_if;
+mod parse_date;
 mod regexp;
+mod util;
 
 use crate::interpreter::error::InterpreterError;
 use crate::interpreter::expression::VarPointer;
@@ -90,9 +92,7 @@ impl<'a> FunctionExecution<'a> {
             Statement::Set { .. } => {
                 todo!()
             }
-            Statement::JumpIf(_) => {
-                todo!()
-            }
+            Statement::JumpIf(jump_if) => self.execute_jump_if(jump_if),
             Statement::Return(_) => {
                 todo!()
             }
@@ -102,21 +102,15 @@ impl<'a> FunctionExecution<'a> {
             Statement::DateFromUnixMs { .. } => {
                 todo!()
             }
-            Statement::ParseDateToMs { .. } => {
-                todo!()
-            }
+            Statement::ParseDateToMs(statement) => self.execute_parse_date_to_ms(statement),
             Statement::ParseUint { .. } => {
                 todo!()
             }
             Statement::RegexpReplace { .. } => {
                 todo!()
             }
-            Statement::Regexp(regexp) => {
-                self.execute_regexp(regexp)
-            }
-            Statement::Concat(concat) => {
-                self.execute_concat(concat)
-            }
+            Statement::Regexp(regexp) => self.execute_regexp(regexp),
+            Statement::Concat(concat) => self.execute_concat(concat),
         }
     }
 }

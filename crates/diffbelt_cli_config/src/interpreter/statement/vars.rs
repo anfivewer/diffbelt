@@ -9,6 +9,7 @@ use crate::interpreter::cleanups::Cleanups;
 use crate::interpreter::error::{add_position, ExpectError, InterpreterError};
 use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::jump::Condition;
+use crate::interpreter::statement::parse_date::ParseDateToMsStatement;
 use crate::interpreter::statement::Statement;
 use diffbelt_yaml::YamlNodeValue;
 use regex::Regex;
@@ -75,7 +76,10 @@ impl<'a> FunctionInitState<'a> {
                         .map_err(add_position(&expr.mark))?;
 
                     self.statements
-                        .push(Statement::ParseDateToMs { ptr: var_ptr });
+                        .push(Statement::ParseDateToMs(ParseDateToMsStatement {
+                            ptr: var_ptr,
+                            mark: expr.mark.clone(),
+                        }));
                 }
                 VarProcessing::ParseUint(parse_uint) => {
                     let ParseUintProcessing { parse_uint: expr } = parse_uint;

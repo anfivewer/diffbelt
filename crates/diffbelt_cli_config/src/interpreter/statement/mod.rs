@@ -1,8 +1,9 @@
 pub mod concat;
 pub mod jump;
+pub mod parse_date;
 pub mod regexp;
-pub mod vars;
 pub mod ret;
+pub mod vars;
 
 use crate::code;
 use crate::code::regexp::RegexpInstruction;
@@ -11,6 +12,7 @@ use crate::interpreter::expression::VarPointer;
 use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::concat::ConcatStatement;
 use crate::interpreter::statement::jump::JumpIfStatement;
+use crate::interpreter::statement::parse_date::ParseDateToMsStatement;
 use crate::interpreter::statement::regexp::RegexpStatement;
 use crate::interpreter::value::Value;
 use regex::Regex;
@@ -40,9 +42,7 @@ pub enum Statement {
     DateFromUnixMs {
         ptr: VarPointer,
     },
-    ParseDateToMs {
-        ptr: VarPointer,
-    },
+    ParseDateToMs(ParseDateToMsStatement),
     ParseUint {
         ptr: VarPointer,
     },
@@ -71,9 +71,7 @@ impl<'a> FunctionInitState<'a> {
 
                 self.process_regexp(regexp)
             }
-            code::Instruction::Return(ret) => {
-                self.process_return(&ret.value)
-            }
+            code::Instruction::Return(ret) => self.process_return(&ret.value),
             code::Instruction::Unknown(node) => Err(InterpreterError::Custom(ExpectError {
                 message: "unknown instruction".to_string(),
                 position: Some(node.into()),

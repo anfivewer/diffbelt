@@ -46,6 +46,25 @@ impl<'a> FunctionExecution<'a> {
         })
     }
 
+    pub fn read_var_as_str<'b>(
+        &'b self,
+        ptr: &'b VarPointer,
+        mark: Option<&ConfigPositionMark>,
+    ) -> Result<&'b str, InterpreterError> {
+        let source = match ptr {
+            VarPointer::VarIndex(index) => self.read_var_by_index(*index)?,
+            VarPointer::LiteralStr(s) => {
+                return Ok(s.deref());
+            }
+        };
+
+        let value = source.as_str().ok_or_else(|| {
+            InterpreterError::custom("Value is not a string".to_string(), mark.map(|x| x.clone()))
+        })?;
+
+        Ok(value)
+    }
+
     pub fn read_var_as_rc_str(
         &self,
         ptr: &VarPointer,

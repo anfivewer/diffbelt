@@ -16,4 +16,5 @@ pub enum Value {
     Map(HashMap<PrimitiveValue, Value>),
     List(Vec<Value>),
     String(Rc<str>),
+    U64(u64),
 }

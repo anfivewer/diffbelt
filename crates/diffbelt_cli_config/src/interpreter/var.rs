@@ -19,6 +19,12 @@ impl VarDef {
             name: String::with_capacity(0),
         }
     }
+
+    pub fn anonymous_u64() -> Self {
+        VarDef {
+            name: String::with_capacity(0),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -33,6 +39,15 @@ impl Var {
             def: VarDef::anonymous_string(),
             value: Some(ValueHolder {
                 value: Value::String(value),
+            }),
+        }
+    }
+
+    pub fn new_u64(value: u64) -> Self {
+        Var {
+            def: VarDef::anonymous_string(),
+            value: Some(ValueHolder {
+                value: Value::U64(value),
             }),
         }
     }
