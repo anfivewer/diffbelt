@@ -1,7 +1,8 @@
 use crate::serde::{Deserializer, WithMark};
-use crate::{decode_yaml, parse_yaml, YamlMark, YamlNode};
+use crate::{decode_yaml, parse_yaml, YamlMark, YamlNodeRc};
 use serde::de::Error;
 use serde::Deserialize;
+use std::rc::Rc;
 
 #[derive(Debug, Deserialize)]
 struct SimpleStruct {
@@ -18,13 +19,13 @@ struct StructWithMark {
 #[derive(Debug, Deserialize)]
 struct StructWithRaw {
     answer: u32,
-    raw: YamlNode,
+    raw: YamlNodeRc,
 }
 
 #[derive(Debug)]
 enum EnumWithRaw {
     Variant(String),
-    Raw(YamlNode),
+    Raw(YamlNodeRc),
 }
 
 impl<'de> Deserialize<'de> for EnumWithRaw {
@@ -32,12 +33,12 @@ impl<'de> Deserialize<'de> for EnumWithRaw {
     where
         D: serde::Deserializer<'de>,
     {
-        let raw: &YamlNode = Deserialize::deserialize(deserializer)?;
+        let raw: YamlNodeRc = Deserialize::deserialize(deserializer)?;
 
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(EnumWithRaw::Variant(value));
         }
-        if let Ok(value) = decode_yaml(raw) {
+        if let Ok(value) = decode_yaml(&raw) {
             return Ok(EnumWithRaw::Raw(value));
         }
 
@@ -53,7 +54,12 @@ b: test
 c: yes
 "#;
 
-    let input = &parse_yaml(input).expect("parsing")[0];
+    let input = parse_yaml(input)
+        .expect("parsing")
+        .into_iter()
+        .next()
+        .unwrap();
+    let input = Rc::from(input);
 
     let de = Deserializer::from_yaml_node(&input);
 
@@ -72,7 +78,12 @@ fn deserialize_with_mark_test() {
 field: test
 "#;
 
-    let input = &parse_yaml(input).expect("parsing")[0];
+    let input = parse_yaml(input)
+        .expect("parsing")
+        .into_iter()
+        .next()
+        .unwrap();
+    let input = Rc::from(input);
 
     let de = Deserializer::from_yaml_node(&input);
 
@@ -84,8 +95,8 @@ field: test
 
     assert_eq!(value.as_str(), "test");
     assert_eq!(mark.index, 22);
-    assert_eq!(mark.line, 1);
-    assert_eq!(mark.column, 7);
+    assert_eq!(mark.line, 2);
+    assert_eq!(mark.column, 8);
 }
 
 #[test]
@@ -98,7 +109,12 @@ raw:
   - 3
 "#;
 
-    let input = &parse_yaml(input).expect("parsing")[0];
+    let input = parse_yaml(input)
+        .expect("parsing")
+        .into_iter()
+        .next()
+        .unwrap();
+    let input = Rc::from(input);
 
     let de = Deserializer::from_yaml_node(&input);
 
@@ -125,7 +141,12 @@ fn deserialize_enum_with_raw_test() {
 answer: 42
 "#;
 
-    let input = &parse_yaml(input).expect("parsing")[0];
+    let input = parse_yaml(input)
+        .expect("parsing")
+        .into_iter()
+        .next()
+        .unwrap();
+    let input = Rc::from(input);
 
     let de = Deserializer::from_yaml_node(&input);
 

@@ -1,12 +1,11 @@
 use crate::code::regexp::RegexpInstructionBody;
-use crate::errors::{ConfigPositionMark, WithMark};
+use crate::errors::ConfigPositionMark;
 use crate::interpreter::cleanups::{Cleanups, CompileTimeCleanup};
 use crate::interpreter::error::{add_position, InterpreterError};
-use crate::interpreter::expression::{VarPointer, NO_TEMP_VARS};
+use crate::interpreter::expression::VarPointer;
 use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::Statement;
 use crate::interpreter::var::VarDef;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct RegexpStatement {
@@ -27,10 +26,10 @@ impl<'a> FunctionInitState<'a> {
             parts,
             regexp,
             regexp_multi,
-            fail_on_non_continuous,
-            rest,
+            fail_on_non_continuous: _,
+            rest: _,
             groups,
-            loop_code,
+            loop_code: _,
         } = regexp;
 
         let mut cleanups = Cleanups::new();
@@ -79,7 +78,8 @@ impl<'a> FunctionInitState<'a> {
             self.process_expression(&regexp_multi.value, regexp_ptr.clone())
                 .map_err(add_position(&regexp_multi.mark))?;
 
-            self.statements.push(Statement::Todo("process_regexp:regexp_multi".to_string()));
+            self.statements
+                .push(Statement::Todo("process_regexp:regexp_multi".to_string()));
         } else {
             return Err(InterpreterError::custom_with_mark(
                 "regexp should have regexp or regexp_multi field".to_string(),

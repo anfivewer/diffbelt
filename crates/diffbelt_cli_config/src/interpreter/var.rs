@@ -1,5 +1,5 @@
-use std::ops::Deref;
 use crate::interpreter::value::{Value, ValueHolder};
+use std::ops::Deref;
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]

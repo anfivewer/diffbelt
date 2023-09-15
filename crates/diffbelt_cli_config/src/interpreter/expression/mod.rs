@@ -1,13 +1,12 @@
-pub mod template_str;
 pub mod sexpr;
+pub mod template_str;
 
-use crate::interpreter::cleanups::Cleanups;
-use crate::interpreter::error::{ExpectError, InterpreterError};
+use crate::interpreter::error::InterpreterError;
+use crate::interpreter::expression::sexpr::SExpr;
 use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::Statement;
 use regex::Regex;
 use std::rc::Rc;
-use crate::interpreter::expression::sexpr::SExpr;
 
 #[derive(Debug, Clone)]
 pub enum VarPointer {

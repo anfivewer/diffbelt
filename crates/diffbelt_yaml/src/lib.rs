@@ -200,7 +200,16 @@ pub struct YamlNode {
     pub start_mark: YamlMark,
 }
 
+#[derive(Debug)]
 pub struct YamlNodeRc(Rc<YamlNode>);
+
+impl Deref for YamlNodeRc {
+    type Target = Rc<YamlNode>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl YamlNode {
     unsafe fn from_yaml_node_t(

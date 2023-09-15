@@ -1,4 +1,4 @@
-use crate::errors::{ConfigParsingError, WithMark};
+use crate::errors::WithMark;
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};

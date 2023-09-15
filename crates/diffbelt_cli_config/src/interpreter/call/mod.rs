@@ -6,7 +6,7 @@ mod regexp;
 mod util;
 
 use crate::interpreter::error::InterpreterError;
-use crate::interpreter::expression::VarPointer;
+
 use crate::interpreter::function::Function;
 use crate::interpreter::statement::Statement;
 use crate::interpreter::value::Value;

@@ -4,10 +4,10 @@ use crate::interpreter::expression::VarPointer;
 use crate::interpreter::statement::Statement;
 use crate::interpreter::var::{Var, VarDef};
 use crate::CliConfig;
-use diffbelt_util::Wrap;
+
 use indexmap::IndexMap;
 use std::collections::HashMap;
-use std::ops::Deref;
+
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]

@@ -1,6 +1,6 @@
 use crate::interpreter::call::FunctionExecution;
 use crate::interpreter::error::InterpreterError;
-use crate::interpreter::expression::VarPointer;
+
 use crate::interpreter::statement::parse_date::ParseDateToMsStatement;
 use crate::interpreter::var::Var;
 use chrono::{NaiveDate, NaiveTime};

@@ -1,6 +1,6 @@
 use diffbelt_yaml::serde::error::YamlDecodingError;
 use diffbelt_yaml::serde::Mark;
-use diffbelt_yaml::{YamlMark, YamlNode};
+use diffbelt_yaml::YamlMark;
 
 #[derive(Debug)]
 pub enum ConfigParsingError {

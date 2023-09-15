@@ -1,5 +1,5 @@
 use crate::code;
-use crate::code::regexp::RegexpInstructionBody;
+
 use crate::code::vars::{
     DateFromUnixMsProcessing, NonEmptyStringProcessing, ParseDateToMsProcessing,
     ParseUintProcessing, RegexpReplaceProcessing, RegexpReplaceProcessingBody, VarProcessing,
@@ -11,7 +11,7 @@ use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::jump::Condition;
 use crate::interpreter::statement::parse_date::ParseDateToMsStatement;
 use crate::interpreter::statement::Statement;
-use diffbelt_yaml::YamlNodeValue;
+
 use regex::Regex;
 
 #[derive(Debug, Clone)]
@@ -26,7 +26,7 @@ impl<'a> FunctionInitState<'a> {
     ) -> Result<(), InterpreterError> {
         let VarsInstruction { vars } = vars;
 
-        let mut cleanups = Cleanups::new();
+        let cleanups = Cleanups::new();
 
         for var in vars {
             let code::vars::Var { name, value } = var;

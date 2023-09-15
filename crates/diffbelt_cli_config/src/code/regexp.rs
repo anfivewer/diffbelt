@@ -1,8 +1,8 @@
-use crate::errors::{ConfigPositionMark, WithMark};
+use crate::code::Code;
+use crate::errors::WithMark;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::rc::Rc;
-use crate::code::Code;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct RegexpInstruction {
