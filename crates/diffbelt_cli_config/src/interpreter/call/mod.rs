@@ -3,14 +3,15 @@ mod copy;
 mod jump_if;
 mod parse_date;
 mod regexp;
+mod regexp_replace;
 mod util;
 
 use crate::interpreter::error::InterpreterError;
 
 use crate::interpreter::function::Function;
 use crate::interpreter::statement::Statement;
-use crate::interpreter::value::Value;
-use crate::interpreter::var::Var;
+use crate::interpreter::value::{Value, ValueHolder};
+use crate::interpreter::var::{Var, VarDef};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -89,8 +90,19 @@ impl<'a> FunctionExecution<'a> {
                 source,
                 destination,
             } => self.execute_copy(source, destination),
-            Statement::Set { .. } => {
-                todo!()
+            Statement::Set { value, destination } => {
+                self.set_var(
+                    destination,
+                    Var {
+                        def: VarDef::unknown(),
+                        value: Some(ValueHolder {
+                            value: value.clone(),
+                        }),
+                    },
+                )?;
+
+                self.statement_index += 1;
+                Ok(())
             }
             Statement::JumpIf(jump_if) => self.execute_jump_if(jump_if),
             Statement::Return(_) => {
@@ -103,12 +115,20 @@ impl<'a> FunctionExecution<'a> {
                 todo!()
             }
             Statement::ParseDateToMs(statement) => self.execute_parse_date_to_ms(statement),
-            Statement::ParseUint { .. } => {
-                todo!()
+            Statement::ParseUint { ptr } => {
+                let value = self.read_var_as_str(ptr, None)?;
+                let value = str::parse::<u64>(value).map_err(|_| {
+                    InterpreterError::custom_without_mark(format!(
+                        "parse_uint: not a number \"{}\"",
+                        value
+                    ))
+                })?;
+
+                self.set_var(ptr, Var::new_u64(value))?;
+                self.statement_index += 1;
+                Ok(())
             }
-            Statement::RegexpReplace { .. } => {
-                todo!()
-            }
+            Statement::RegexpReplace(statement) => self.execute_regexp_replace(statement),
             Statement::Regexp(regexp) => self.execute_regexp(regexp),
             Statement::Concat(concat) => self.execute_concat(concat),
         }

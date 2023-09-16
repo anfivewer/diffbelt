@@ -1,4 +1,5 @@
 use crate::code;
+use std::rc::Rc;
 
 use crate::code::vars::{
     DateFromUnixMsProcessing, NonEmptyStringProcessing, ParseDateToMsProcessing,
@@ -12,11 +13,19 @@ use crate::interpreter::statement::jump::Condition;
 use crate::interpreter::statement::parse_date::ParseDateToMsStatement;
 use crate::interpreter::statement::Statement;
 
+use crate::interpreter::expression::VarPointer;
 use regex::Regex;
 
 #[derive(Debug, Clone)]
 pub struct VarsStatement {
     //
+}
+
+#[derive(Debug, Clone)]
+pub struct RegexpReplaceStatement {
+    pub ptr: VarPointer,
+    pub regexp: Regex,
+    pub to: Rc<str>,
 }
 
 impl<'a> FunctionInitState<'a> {
@@ -109,11 +118,12 @@ impl<'a> FunctionInitState<'a> {
                         source,
                         destination: var_ptr.clone(),
                     });
-                    self.statements.push(Statement::RegexpReplace {
-                        ptr: var_ptr,
-                        regexp,
-                        to: to.clone(),
-                    });
+                    self.statements
+                        .push(Statement::RegexpReplace(RegexpReplaceStatement {
+                            ptr: var_ptr,
+                            regexp,
+                            to: to.clone(),
+                        }));
                 }
                 VarProcessing::Unknown(node) => {
                     if let Some(mapping) = node.as_mapping() {

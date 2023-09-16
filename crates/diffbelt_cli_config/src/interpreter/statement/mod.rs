@@ -17,6 +17,7 @@ use crate::interpreter::statement::regexp::RegexpStatement;
 use crate::interpreter::value::Value;
 use regex::Regex;
 use std::rc::Rc;
+use crate::interpreter::statement::vars::RegexpReplaceStatement;
 
 #[derive(Debug, Clone)]
 pub enum Statement {
@@ -46,11 +47,7 @@ pub enum Statement {
     ParseUint {
         ptr: VarPointer,
     },
-    RegexpReplace {
-        ptr: VarPointer,
-        regexp: Regex,
-        to: Rc<str>,
-    },
+    RegexpReplace(RegexpReplaceStatement),
 
     Regexp(RegexpStatement),
     Concat(ConcatStatement),
