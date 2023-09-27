@@ -14,10 +14,8 @@ use crate::interpreter::statement::concat::ConcatStatement;
 use crate::interpreter::statement::jump::JumpIfStatement;
 use crate::interpreter::statement::parse_date::ParseDateToMsStatement;
 use crate::interpreter::statement::regexp::RegexpStatement;
-use crate::interpreter::value::Value;
-use regex::Regex;
-use std::rc::Rc;
 use crate::interpreter::statement::vars::RegexpReplaceStatement;
+use crate::interpreter::value::Value;
 
 #[derive(Debug, Clone)]
 pub enum Statement {
@@ -30,6 +28,9 @@ pub enum Statement {
     Set {
         value: Value,
         destination: VarPointer,
+    },
+    Jump {
+        statement_index: usize,
     },
     JumpIf(JumpIfStatement),
     Return(VarPointer),
@@ -54,6 +55,16 @@ pub enum Statement {
 }
 
 impl<'a> FunctionInitState<'a> {
+    pub fn process_code(&mut self, code: &code::Code) -> Result<(), InterpreterError> {
+        let code::Code { instructions } = code;
+
+        for instruction in instructions {
+            () = self.process_instruction(instruction)?;
+        }
+
+        Ok(())
+    }
+
     pub fn process_instruction(
         &mut self,
         instruction: &code::Instruction,

@@ -30,6 +30,11 @@ impl<'a> FunctionExecution<'a> {
                     "FunctionExecution: destination cannot be literal".to_string(),
                 ))
             }
+            VarPointer::LiteralUsize(_) => {
+                return Err(InterpreterError::custom_without_mark(
+                    "FunctionExecution: destination cannot be literal".to_string(),
+                ))
+            }
         };
 
         *destination = value;
@@ -56,6 +61,11 @@ impl<'a> FunctionExecution<'a> {
             VarPointer::LiteralStr(s) => {
                 return Ok(s.deref());
             }
+            VarPointer::LiteralUsize(_) => {
+                return Err(InterpreterError::custom_without_mark(
+                    "Value is not a string".to_string(),
+                ));
+            }
         };
 
         let value = source.as_str().ok_or_else(|| {
@@ -74,6 +84,11 @@ impl<'a> FunctionExecution<'a> {
             VarPointer::VarIndex(index) => self.read_var_by_index(*index)?,
             VarPointer::LiteralStr(s) => {
                 return Ok(s.clone());
+            }
+            VarPointer::LiteralUsize(_) => {
+                return Err(InterpreterError::custom_without_mark(
+                    "Value is not a string".to_string(),
+                ));
             }
         };
 

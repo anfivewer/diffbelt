@@ -65,11 +65,7 @@ impl Function {
             statements: Vec::new(),
         };
 
-        let Code { instructions } = code;
-
-        for instruction in instructions {
-            let _: () = state.process_instruction(instruction)?;
-        }
+        state.process_code(code)?;
 
         let FunctionInitState {
             input_vars,

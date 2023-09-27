@@ -1,6 +1,7 @@
 use crate::interpreter::call::FunctionExecution;
 use crate::interpreter::error::InterpreterError;
 
+use crate::interpreter::expression::VarPointer;
 use crate::interpreter::statement::regexp::RegexpStatement;
 use crate::interpreter::var::Var;
 use regex::Regex;
@@ -15,7 +16,23 @@ impl<'a> FunctionExecution<'a> {
             var,
             var_mark,
             groups,
+            start_pos,
+            start_pos_is_exact,
+            jump_statement_index_if_not_matches,
+            fail_on_non_full_match_if_no_rest_and_start_pos_is_exact,
+            last_index_output,
+            rest,
         } = regexp;
+
+        if rest.is_some()
+            || *fail_on_non_full_match_if_no_rest_and_start_pos_is_exact
+            || jump_statement_index_if_not_matches.is_some()
+            || *start_pos_is_exact
+            || start_pos != &VarPointer::LiteralUsize(0)
+            || last_index_output.is_some()
+        {
+            todo!();
+        }
 
         let input = self.read_var_as_rc_str(var, Some(var_mark))?;
         let input = input.deref();

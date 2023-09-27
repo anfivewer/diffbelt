@@ -131,6 +131,9 @@ impl<'a> FunctionExecution<'a> {
             Statement::RegexpReplace(statement) => self.execute_regexp_replace(statement),
             Statement::Regexp(regexp) => self.execute_regexp(regexp),
             Statement::Concat(concat) => self.execute_concat(concat),
+            Statement::Jump { .. } => {
+                todo!()
+            }
         }
     }
 }

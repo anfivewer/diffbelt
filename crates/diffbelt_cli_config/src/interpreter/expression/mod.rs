@@ -8,10 +8,11 @@ use crate::interpreter::statement::Statement;
 use regex::Regex;
 use std::rc::Rc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VarPointer {
     VarIndex(usize),
     LiteralStr(Rc<str>),
+    LiteralUsize(usize),
 }
 
 pub const NO_TEMP_VARS: fn(&str) -> Option<VarPointer> = |_| None;

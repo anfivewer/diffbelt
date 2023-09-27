@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use crate::interpreter::call::util::var_as_str;
 use crate::interpreter::call::FunctionExecution;
 use crate::interpreter::error::InterpreterError;
@@ -19,10 +20,13 @@ impl<'a> FunctionExecution<'a> {
                     let var = self.borrow_var_by_index(*index)?;
                     let s = var_as_str(var)?;
 
-                    strings.push(s);
+                    strings.push(Cow::Borrowed(s));
                 }
                 VarPointer::LiteralStr(s) => {
-                    strings.push(s.deref());
+                    strings.push(Cow::Borrowed(s.deref()));
+                }
+                VarPointer::LiteralUsize(n) => {
+                    strings.push(Cow::Owned(n.to_string()));
                 }
             }
         }

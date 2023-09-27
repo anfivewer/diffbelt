@@ -21,6 +21,7 @@ impl<'a> FunctionExecution<'a> {
                 })?
                 .clone(),
             VarPointer::LiteralStr(s) => Var::new_string(s.clone()),
+            VarPointer::LiteralUsize(n) => Var::new_u64(*n as u64),
         };
 
         self.set_var(destination, source)?;
