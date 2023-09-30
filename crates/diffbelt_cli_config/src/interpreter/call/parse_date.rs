@@ -5,6 +5,7 @@ use crate::interpreter::statement::parse_date::ParseDateToMsStatement;
 use crate::interpreter::var::Var;
 use chrono::{NaiveDate, NaiveTime};
 use regex::Regex;
+use diffbelt_util::cast::checked_positive_i64_to_u64;
 
 lazy_static::lazy_static! {
     static ref DATE_1: Regex = Regex::new(
@@ -71,7 +72,7 @@ impl<'a> FunctionExecution<'a> {
 
         let date_time = date.and_time(time).and_utc();
 
-        let timestamp = date_time.timestamp_millis() as u64;
+        let timestamp = checked_positive_i64_to_u64(date_time.timestamp_millis());
 
         self.set_var(ptr, Var::new_u64(timestamp))?;
 

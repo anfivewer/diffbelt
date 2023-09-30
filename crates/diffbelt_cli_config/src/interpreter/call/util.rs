@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use crate::interpreter::value::{PrimitiveValue, Value};
 use crate::interpreter::var::Var;
+use diffbelt_util::cast::{u64_to_usize, usize_to_u64};
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -61,7 +62,7 @@ impl<'a> FunctionExecution<'a> {
                 return Ok(Value::String(s.clone()));
             }
             VarPointer::LiteralUsize(value) => {
-                return Ok(Value::U64(*value as u64));
+                return Ok(Value::U64(usize_to_u64(*value)));
             }
         };
 
@@ -145,7 +146,7 @@ impl<'a> FunctionExecution<'a> {
         })?;
 
         match &value.value {
-            Value::U64(value) => Ok(*value as usize),
+            Value::U64(value) => Ok(u64_to_usize(*value)),
             _ => Err(InterpreterError::custom(
                 "Value is not a number".to_string(),
                 mark.map(|x| x.clone()),

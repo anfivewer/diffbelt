@@ -1,3 +1,4 @@
+use diffbelt_util::cast::usize_to_u64;
 use crate::interpreter::call::FunctionExecution;
 use crate::interpreter::error::InterpreterError;
 use crate::interpreter::expression::VarPointer;
@@ -21,7 +22,7 @@ impl<'a> FunctionExecution<'a> {
                 })?
                 .clone(),
             VarPointer::LiteralStr(s) => Var::new_string(s.clone()),
-            VarPointer::LiteralUsize(n) => Var::new_u64(*n as u64),
+            VarPointer::LiteralUsize(n) => Var::new_u64(usize_to_u64(*n)),
         };
 
         self.set_var(destination, source)?;

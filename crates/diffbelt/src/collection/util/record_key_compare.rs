@@ -1,4 +1,5 @@
 use crate::util::bytes::read_u24;
+use diffbelt_util::cast::{u32_to_usize, u8_to_usize};
 use std::cmp::Ordering;
 
 /*
@@ -15,8 +16,8 @@ pub fn record_key_compare_u24_sized(
     left_offset: usize,
     right_offset: usize,
 ) -> (Ordering, usize, usize) {
-    let left_key_size = read_u24(left, left_offset) as usize;
-    let right_key_size = read_u24(right, right_offset) as usize;
+    let left_key_size = u32_to_usize(read_u24(left, left_offset));
+    let right_key_size = u32_to_usize(read_u24(right, right_offset));
 
     if left.len() - left_offset - 3 < left_key_size
         || right.len() - right_offset - 3 < right_key_size
@@ -41,8 +42,8 @@ pub fn record_key_compare_byte_sized(
     left_offset: usize,
     right_offset: usize,
 ) -> (Ordering, usize, usize) {
-    let left_size = left[left_offset] as usize;
-    let right_size = right[right_offset] as usize;
+    let left_size = u8_to_usize(left[left_offset]);
+    let right_size = u8_to_usize(right[right_offset]);
 
     if left.len() - left_offset - 1 < left_size || right.len() - right_offset - 1 < right_size {
         panic!("record key single-byte invalid size");

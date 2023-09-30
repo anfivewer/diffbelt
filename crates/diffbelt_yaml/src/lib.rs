@@ -2,6 +2,9 @@ pub mod node_helpers;
 pub mod serde;
 
 pub use crate::serde::decode_yaml;
+use diffbelt_util::cast::{
+    checked_positive_i32_to_usize, checked_positive_isize_to_usize, usize_to_u64,
+};
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::ops::Deref;
@@ -111,7 +114,7 @@ impl YamlSequence {
         let mut node_ptr = stack.start;
 
         while node_ptr != stack.top {
-            let index = (*node_ptr - 1) as usize;
+            let index = checked_positive_i32_to_usize(*node_ptr - 1);
 
             let node = root_stack.start.add(index);
             let node = YamlNode::from_yaml_node_t(state, root_stack, node, index)?;
@@ -161,8 +164,8 @@ impl YamlMapping {
 
         while node_ptr != stack.top {
             let pair = &*node_ptr;
-            let key_index = (pair.key - 1) as usize;
-            let value_index = (pair.value - 1) as usize;
+            let key_index = checked_positive_i32_to_usize(pair.key - 1);
+            let value_index = checked_positive_i32_to_usize(pair.value - 1);
 
             let key_node = root_stack.start.add(key_index);
             let key = YamlNode::from_yaml_node_t(state, root_stack, key_node, key_index)?;
@@ -313,7 +316,7 @@ impl Parser {
 
             let input = input.as_bytes();
             let input_ptr = input.as_ptr();
-            let input_size = input.len() as u64;
+            let input_size = usize_to_u64(input.len());
 
             yaml_parser_set_encoding(parser, yaml_encoding_t::YAML_UTF8_ENCODING);
             yaml_parser_set_input_string(parser, input_ptr, input_size);
@@ -400,7 +403,8 @@ pub fn parse_yaml(yaml: &str) -> Result<Vec<YamlNode>, YamlParsingError> {
 
             let doc = &*document.ptr();
 
-            let max_nodes_count = doc.nodes.end.offset_from(doc.nodes.start) as usize;
+            let max_nodes_count =
+                checked_positive_isize_to_usize(doc.nodes.end.offset_from(doc.nodes.start));
 
             let mut state = ParsingState {
                 used_nodes: vec![false; max_nodes_count],

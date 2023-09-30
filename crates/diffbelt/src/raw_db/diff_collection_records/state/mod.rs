@@ -10,6 +10,7 @@ use crate::util::bytes::to_u32_be_unchecked;
 use rocksdb::{BoundColumnFamily, Direction, IteratorMode, ReadOptions};
 use std::collections::BTreeSet;
 use std::sync::Arc;
+use diffbelt_util::cast::u32_to_usize;
 
 mod diff;
 pub mod in_memory;
@@ -104,7 +105,7 @@ impl<'a> DiffState<'a> {
                 return Ok(DiffStateNewResult::Empty);
             }
 
-            let count = to_u32_be_unchecked(&value) as usize;
+            let count = u32_to_usize(to_u32_be_unchecked(&value));
 
             if count > total_count_in_generations_limit {
                 return Ok(DiffStateNewResult::State((
@@ -135,7 +136,7 @@ impl<'a> DiffState<'a> {
                 break;
             }
 
-            let count = to_u32_be_unchecked(&value) as usize;
+            let count = u32_to_usize(to_u32_be_unchecked(&value));
 
             if total_count + count > total_count_in_generations_limit {
                 break;

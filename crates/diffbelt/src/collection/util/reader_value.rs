@@ -1,5 +1,6 @@
 use crate::common::{GenerationId, IsByteArray};
 use std::str::from_utf8;
+use diffbelt_util::cast::u8_to_usize;
 
 #[derive(Debug)]
 pub struct OwnedReaderValue(Box<[u8]>);
@@ -36,7 +37,7 @@ impl OwnedReaderValue {
 
 impl<'a> ReaderValue<'a> {
     pub fn get_collection_name(&self) -> &str {
-        let collection_name_len = self.0[0] as usize;
+        let collection_name_len = u8_to_usize(self.0[0]);
 
         let bytes = &self.0[1..(1 + collection_name_len)];
 
@@ -44,7 +45,7 @@ impl<'a> ReaderValue<'a> {
     }
 
     pub fn get_generation_id(&self) -> GenerationId<'a> {
-        let collection_name_len = self.0[0] as usize;
+        let collection_name_len = u8_to_usize(self.0[0]);
 
         let bytes = &self.0[(2 + collection_name_len)..];
 
@@ -56,7 +57,7 @@ impl<'a> ReaderValue<'a> {
             return Err(());
         }
 
-        let collection_name_len = bytes[0] as usize;
+        let collection_name_len = u8_to_usize(bytes[0]);
 
         if bytes.len() < 2 + collection_name_len {
             return Err(());
@@ -70,7 +71,7 @@ impl<'a> ReaderValue<'a> {
             _ => {}
         }
 
-        let generation_id_len = bytes[1 + collection_name_len] as usize;
+        let generation_id_len = u8_to_usize(bytes[1 + collection_name_len]);
 
         if bytes.len() != 2 + collection_name_len + generation_id_len {
             return Err(());

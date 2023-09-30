@@ -3,6 +3,7 @@ use crate::common::constants::{
 };
 use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::util::bytes::{read_u24, write_u24};
+use diffbelt_util::cast::{u32_to_usize, u8_to_usize};
 use std::ops::Range;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -124,7 +125,7 @@ impl<'a> RecordKey<'a> {
 
         let mut rest_size = bytes.len() - MIN_RECORD_KEY_LENGTH;
 
-        let key_size = read_u24(bytes, 1) as usize;
+        let key_size = u32_to_usize(read_u24(bytes, 1));
         if rest_size < key_size {
             return false;
         }
@@ -132,7 +133,7 @@ impl<'a> RecordKey<'a> {
         let mut offset = 4 + key_size;
         rest_size -= key_size;
 
-        let generation_id_size = bytes[offset] as usize;
+        let generation_id_size = u8_to_usize(bytes[offset]);
         if rest_size < generation_id_size {
             return false;
         }
@@ -140,7 +141,7 @@ impl<'a> RecordKey<'a> {
         offset += 1 + generation_id_size;
         rest_size -= generation_id_size;
 
-        let phantom_id_size = bytes[offset] as usize;
+        let phantom_id_size = u8_to_usize(bytes[offset]);
         if rest_size != phantom_id_size {
             return false;
         }
@@ -157,24 +158,24 @@ impl<'a> RecordKey<'a> {
     }
 
     pub fn get_collection_key(&self) -> CollectionKey {
-        let size = read_u24(self.value, 1) as usize;
+        let size = u32_to_usize(read_u24(self.value, 1));
         CollectionKey::new_unchecked(&self.value[4..(4 + size)])
     }
 
     pub fn get_generation_id(&self) -> GenerationId {
-        let key_size = read_u24(self.value, 1) as usize;
+        let key_size = u32_to_usize(read_u24(self.value, 1));
         let mut offset = 4 + key_size;
-        let size = self.value[offset] as usize;
+        let size = u8_to_usize(self.value[offset]);
         offset += 1;
         GenerationId::new_unchecked(&self.value[offset..(offset + size)])
     }
 
     pub fn get_phantom_id(&self) -> PhantomId {
-        let key_size = read_u24(self.value, 1) as usize;
+        let key_size = u32_to_usize(read_u24(self.value, 1));
         let mut offset = 4 + key_size;
-        let generation_id_size = self.value[offset] as usize;
+        let generation_id_size = u8_to_usize(self.value[offset]);
         offset += 1 + generation_id_size;
-        let size = self.value[offset] as usize;
+        let size = u8_to_usize(self.value[offset]);
         offset += 1;
         PhantomId::new_unchecked(&self.value[offset..(offset + size)])
     }
@@ -192,17 +193,17 @@ impl<'a> RecordKey<'a> {
     }
 
     fn parse_to_ranges(&self) -> (Range<usize>, Range<usize>, Option<Range<usize>>) {
-        let key_size = read_u24(self.value, 1) as usize;
+        let key_size = u32_to_usize(read_u24(self.value, 1));
         let collection_key = 4..(4 + key_size);
 
         let mut offset = 4 + key_size;
 
-        let generation_id_size = self.value[offset] as usize;
+        let generation_id_size = u8_to_usize(self.value[offset]);
         offset += 1;
         let generation_id = offset..(offset + generation_id_size);
 
         offset += generation_id_size;
-        let phantom_id_size = self.value[offset] as usize;
+        let phantom_id_size = u8_to_usize(self.value[offset]);
         offset += 1;
 
         let phantom_id_bytes = &self.value[offset..(offset + phantom_id_size)];
@@ -240,7 +241,7 @@ impl OwnedRecordKey {
         }
 
         let mut value = vec![
-            0 as u8;
+            0u8;
             1 + 3
                 + key_bytes.len()
                 + 1
@@ -255,7 +256,7 @@ impl OwnedRecordKey {
 
         write_u24(&mut value, 1, key_bytes.len() as u32);
 
-        let mut offset = 4 as usize;
+        let mut offset = 4usize;
 
         {
             (&mut value[offset..(offset + key_bytes.len())]).copy_from_slice(key_bytes);
@@ -289,7 +290,7 @@ impl OwnedRecordKey {
     }
 
     pub fn get_collection_key_bytes_mut(&mut self) -> &mut [u8] {
-        let size = read_u24(&self.value, 1) as usize;
+        let size = u32_to_usize(read_u24(&self.value, 1));
         &mut self.value[4..(4 + size)]
     }
 

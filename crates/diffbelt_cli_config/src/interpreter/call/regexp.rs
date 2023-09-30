@@ -4,6 +4,7 @@ use crate::interpreter::error::InterpreterError;
 use crate::interpreter::expression::VarPointer;
 use crate::interpreter::statement::regexp::RegexpStatement;
 use crate::interpreter::var::Var;
+use diffbelt_util::cast::usize_to_u64;
 use diffbelt_util::debug_print::debug_print;
 use regex::Regex;
 use std::ops::Deref;
@@ -84,7 +85,10 @@ impl<'a> FunctionExecution<'a> {
         }
 
         if let Some(last_index_ptr) = last_index_output {
-            self.set_var(last_index_ptr, Var::new_u64(full_match.end() as u64))?;
+            self.set_var(
+                last_index_ptr,
+                Var::new_u64(usize_to_u64(full_match.end())),
+            )?;
         }
 
         let count = captures.len();

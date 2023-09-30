@@ -1,5 +1,6 @@
 use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut};
 use crate::util::bytes::{read_u24, write_u24};
+use diffbelt_util::cast::{u32_to_usize, u8_to_usize};
 use std::ops::Deref;
 
 pub struct GenerationKey<'a> {
@@ -55,12 +56,12 @@ impl<'a> GenerationKey<'a> {
             return Err(());
         }
 
-        let generation_id_size = bytes[1] as usize;
+        let generation_id_size = u8_to_usize(bytes[1]);
         if bytes.len() - 2 < generation_id_size + 3 {
             return Err(());
         }
 
-        let key_size = read_u24(bytes, 2 + generation_id_size) as usize;
+        let key_size = u32_to_usize(read_u24(bytes, 2 + generation_id_size));
         if bytes.len() - 2 - 3 - generation_id_size != key_size {
             return Err(());
         }
@@ -69,20 +70,20 @@ impl<'a> GenerationKey<'a> {
     }
 
     pub fn get_collection_key(&self) -> CollectionKey {
-        let generation_id_size = self.value[1] as usize;
+        let generation_id_size = u8_to_usize(self.value[1]);
         let mut offset = 2 + generation_id_size;
-        let size = read_u24(self.value, offset) as usize;
+        let size = u32_to_usize(read_u24(self.value, offset));
         offset += 3;
         CollectionKey::new_unchecked(&self.value[offset..(offset + size)])
     }
 
     pub fn get_generation_id(&self) -> GenerationId {
-        let size = self.value[1] as usize;
+        let size = u8_to_usize(self.value[1]);
         GenerationId::new_unchecked(&self.value[2..(2 + size)])
     }
 }
 
-const MAX_KEY_LENGTH: usize = (2 as usize).pow(24) - 1;
+const MAX_KEY_LENGTH: usize = (2usize).pow(24) - 1;
 const MAX_GENERATION_ID_LENGTH: usize = 255;
 
 impl OwnedGenerationKey {
