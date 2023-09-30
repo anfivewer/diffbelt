@@ -6,6 +6,7 @@ use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::Statement;
 use crate::interpreter::value::Value;
 use crate::interpreter::var::VarDef;
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -26,7 +27,7 @@ impl<'a> FunctionInitState<'a> {
             }
             ReturnValue::Mapping(mapping) => {
                 self.statements.push(Statement::Set {
-                    value: Value::Map(HashMap::new()),
+                    value: Value::Map(RefCell::new(HashMap::new())),
                     destination: result_ptr.clone(),
                 });
 
@@ -36,6 +37,7 @@ impl<'a> FunctionInitState<'a> {
                     self.process_expression(&expr.value, tmp_ptr.clone())
                         .map_err(add_position(&expr.mark))?;
                     self.statements.push(Statement::InsertToMap {
+                        map_mark: None,
                         map: result_ptr.clone(),
                         key: VarPointer::LiteralStr(key.clone()),
                         value: tmp_ptr.clone(),

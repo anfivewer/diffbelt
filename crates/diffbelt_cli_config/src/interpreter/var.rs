@@ -1,4 +1,6 @@
-use crate::interpreter::value::{Value, ValueHolder};
+use crate::interpreter::value::{PrimitiveValue, Value, ValueHolder};
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -69,6 +71,16 @@ impl Var {
             };
 
             Some(s.clone())
+        })
+    }
+
+    pub fn as_map(&self) -> Option<&RefCell<HashMap<PrimitiveValue, Value>>> {
+        self.value.as_ref().and_then(|var| {
+            let Value::Map(s) = &var.value else {
+                return None;
+            };
+
+            Some(s)
         })
     }
 }

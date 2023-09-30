@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -6,14 +7,14 @@ pub struct ValueHolder {
     pub value: Value,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum PrimitiveValue {
-    String(String),
+    String(Rc<str>),
 }
 
 #[derive(Debug, Clone)]
 pub enum Value {
-    Map(HashMap<PrimitiveValue, Value>),
+    Map(RefCell<HashMap<PrimitiveValue, Value>>),
     List(Vec<Value>),
     String(Rc<str>),
     U64(u64),

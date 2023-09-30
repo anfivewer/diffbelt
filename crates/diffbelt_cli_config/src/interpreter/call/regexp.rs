@@ -4,6 +4,7 @@ use crate::interpreter::error::InterpreterError;
 use crate::interpreter::expression::VarPointer;
 use crate::interpreter::statement::regexp::RegexpStatement;
 use crate::interpreter::var::Var;
+use diffbelt_util::debug_print::debug_print;
 use regex::Regex;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -19,20 +20,9 @@ impl<'a> FunctionExecution<'a> {
             start_pos,
             start_pos_is_exact,
             jump_statement_index_if_not_matches,
-            fail_on_non_full_match_if_no_rest_and_start_pos_is_exact,
             last_index_output,
             rest,
         } = regexp;
-
-        if rest.is_some()
-            || *fail_on_non_full_match_if_no_rest_and_start_pos_is_exact
-            || jump_statement_index_if_not_matches.is_some()
-            || *start_pos_is_exact
-            || start_pos != &VarPointer::LiteralUsize(0)
-            || last_index_output.is_some()
-        {
-            todo!();
-        }
 
         let input = self.read_var_as_rc_str(var, Some(var_mark))?;
         let input = input.deref();
@@ -44,12 +34,58 @@ impl<'a> FunctionExecution<'a> {
             InterpreterError::custom_with_mark("Invalid regexp".to_string(), regexp_mark.clone())
         })?;
 
-        let captures = regexp.captures(input).ok_or_else(|| {
-            InterpreterError::custom_with_mark(
+        let start_pos = self.read_var_as_usize(start_pos, None)?;
+
+        let input_slice = &input[start_pos..];
+
+        if input_slice.is_empty() {
+            if let Some(rest) = rest {
+                self.set_var(rest, Var::new_string(Rc::from("")))?;
+            }
+
+            if let Some(index) = jump_statement_index_if_not_matches {
+                self.statement_index = *index;
+                return Ok(());
+            }
+
+            return Err(InterpreterError::custom_with_mark(
+                format!("Regexp not matched: \"{input_slice}\""),
+                regexp_mark.clone(),
+            ));
+        }
+
+        let Some(captures) = regexp.captures_at(input, start_pos) else {
+            if let Some(rest) = rest {
+                self.set_var(rest, Var::new_string(Rc::from(input)))?;
+
+                if let Some(index) = jump_statement_index_if_not_matches {
+                    self.statement_index = *index;
+                }
+
+                return Ok(());
+            }
+
+            return Err(InterpreterError::custom_with_mark(
                 format!("Regexp not matched: \"{}\"", input),
                 regexp_mark.clone(),
-            )
-        })?;
+            ));
+        };
+
+        let full_match = captures.get(0).unwrap();
+
+        if *start_pos_is_exact {
+            let actual_start = full_match.start();
+            if actual_start != start_pos {
+                return Err(InterpreterError::custom_with_mark(
+                    format!("Is not exact match: \"{input}\", /{regexp}/, expected pos {start_pos}, actual {actual_start}"),
+                    regexp_mark.clone(),
+                ));
+            }
+        }
+
+        if let Some(last_index_ptr) = last_index_output {
+            self.set_var(last_index_ptr, Var::new_u64(full_match.end() as u64))?;
+        }
 
         let count = captures.len();
 

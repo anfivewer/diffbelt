@@ -3,6 +3,7 @@ use crate::interpreter::expression::VarPointer;
 use crate::interpreter::function::FunctionInitState;
 use crate::interpreter::statement::Statement;
 use crate::interpreter::value::Value;
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 pub enum SExpr {
@@ -48,7 +49,7 @@ impl<'a> FunctionInitState<'a> {
     ) -> Result<(), InterpreterError> {
         match expr {
             SExpr::EmptyMap => self.statements.push(Statement::Set {
-                value: Value::Map(HashMap::new()),
+                value: Value::Map(RefCell::new(HashMap::new())),
                 destination,
             }),
             SExpr::EmptyList => self.statements.push(Statement::Set {

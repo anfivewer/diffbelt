@@ -26,10 +26,11 @@ impl<'a> FunctionInitState<'a> {
 
         let value_ptr = self.temp_var(VarDef::unknown(), &mut cleanups);
         () = self
-            .process_expression(&value.value, map_ptr.clone())
+            .process_expression(&value.value, value_ptr.clone())
             .map_err(add_position(&value.mark))?;
 
         self.statements.push(Statement::InsertToMap {
+            map_mark: Some(var.mark.clone()),
             map: map_ptr,
             key: key_ptr,
             value: value_ptr,

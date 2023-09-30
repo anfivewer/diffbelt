@@ -2,7 +2,10 @@ use crate::errors::ConfigPositionMark;
 use crate::interpreter::call::FunctionExecution;
 use crate::interpreter::error::InterpreterError;
 use crate::interpreter::expression::VarPointer;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
+use crate::interpreter::value::{PrimitiveValue, Value};
 use crate::interpreter::var::Var;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -51,6 +54,24 @@ impl<'a> FunctionExecution<'a> {
         })
     }
 
+    pub fn read_var_value(&self, ptr: &VarPointer) -> Result<Value, InterpreterError> {
+        let source = match ptr {
+            VarPointer::VarIndex(index) => self.read_var_by_index(*index)?,
+            VarPointer::LiteralStr(s) => {
+                return Ok(Value::String(s.clone()));
+            }
+            VarPointer::LiteralUsize(value) => {
+                return Ok(Value::U64(*value as u64));
+            }
+        };
+
+        source
+            .value
+            .as_ref()
+            .map(|holder| holder.value.clone())
+            .ok_or_else(|| InterpreterError::custom_without_mark("Uninitialized value".to_string()))
+    }
+
     pub fn read_var_as_str<'b>(
         &'b self,
         ptr: &'b VarPointer,
@@ -62,8 +83,9 @@ impl<'a> FunctionExecution<'a> {
                 return Ok(s.deref());
             }
             VarPointer::LiteralUsize(_) => {
-                return Err(InterpreterError::custom_without_mark(
+                return Err(InterpreterError::custom(
                     "Value is not a string".to_string(),
+                    mark.map(|x| x.clone()),
                 ));
             }
         };
@@ -86,14 +108,70 @@ impl<'a> FunctionExecution<'a> {
                 return Ok(s.clone());
             }
             VarPointer::LiteralUsize(_) => {
-                return Err(InterpreterError::custom_without_mark(
+                return Err(InterpreterError::custom(
                     "Value is not a string".to_string(),
+                    mark.map(|x| x.clone()),
                 ));
             }
         };
 
         let value = source.as_rc_str().ok_or_else(|| {
             InterpreterError::custom("Value is not a string".to_string(), mark.map(|x| x.clone()))
+        })?;
+
+        Ok(value)
+    }
+
+    pub fn read_var_as_usize<'b>(
+        &'b self,
+        ptr: &'b VarPointer,
+        mark: Option<&ConfigPositionMark>,
+    ) -> Result<usize, InterpreterError> {
+        let source = match ptr {
+            VarPointer::VarIndex(index) => self.read_var_by_index(*index)?,
+            VarPointer::LiteralStr(s) => {
+                return Err(InterpreterError::custom(
+                    "Value is a string".to_string(),
+                    mark.map(|x| x.clone()),
+                ));
+            }
+            VarPointer::LiteralUsize(value) => {
+                return Ok(*value);
+            }
+        };
+
+        let value = source.value.as_ref().ok_or_else(|| {
+            InterpreterError::custom("Uninitialized value".to_string(), mark.map(|x| x.clone()))
+        })?;
+
+        match &value.value {
+            Value::U64(value) => Ok(*value as usize),
+            _ => Err(InterpreterError::custom(
+                "Value is not a number".to_string(),
+                mark.map(|x| x.clone()),
+            )),
+        }
+    }
+
+    pub fn read_var_as_map<'b>(
+        &'b self,
+        ptr: &'b VarPointer,
+        mark: Option<&ConfigPositionMark>,
+    ) -> Result<&'b RefCell<HashMap<PrimitiveValue, Value>>, InterpreterError> {
+        let source = match ptr {
+            VarPointer::VarIndex(index) => {
+                self.read_var_by_index(*index)?
+            },
+            _ => {
+                return Err(InterpreterError::custom(
+                    "Expected pointer".to_string(),
+                    mark.map(|x| x.clone()),
+                ));
+            }
+        };
+
+        let value = source.as_map().ok_or_else(|| {
+            InterpreterError::custom("Value is not a map".to_string(), mark.map(|x| x.clone()))
         })?;
 
         Ok(value)

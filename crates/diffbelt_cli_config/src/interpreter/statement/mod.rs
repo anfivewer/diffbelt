@@ -11,6 +11,7 @@ use crate::code;
 use crate::code::regexp::RegexpInstruction;
 use crate::code::update_list::UpdateListInstruction;
 use crate::code::update_map::UpdateMapInstruction;
+use crate::errors::ConfigPositionMark;
 use crate::interpreter::error::{ExpectError, InterpreterError};
 use crate::interpreter::expression::VarPointer;
 use crate::interpreter::function::FunctionInitState;
@@ -40,6 +41,7 @@ pub enum Statement {
     Return(VarPointer),
 
     InsertToMap {
+        map_mark: Option<ConfigPositionMark>,
         map: VarPointer,
         key: VarPointer,
         value: VarPointer,

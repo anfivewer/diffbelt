@@ -10,7 +10,7 @@ use crate::interpreter::error::InterpreterError;
 
 use crate::interpreter::function::Function;
 use crate::interpreter::statement::Statement;
-use crate::interpreter::value::{Value, ValueHolder};
+use crate::interpreter::value::{PrimitiveValue, Value, ValueHolder};
 use crate::interpreter::var::{Var, VarDef};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -108,8 +108,23 @@ impl<'a> FunctionExecution<'a> {
             Statement::Return(_) => {
                 todo!()
             }
-            Statement::InsertToMap { .. } => {
-                todo!()
+            Statement::InsertToMap {
+                map_mark,
+                map,
+                key,
+                value,
+            } => {
+                let map = self.read_var_as_map(map, map_mark.as_ref())?;
+                let key = self.read_var_as_rc_str(key, None)?;
+                let value = self.read_var_value(value)?;
+
+                {
+                    let mut map = map.borrow_mut();
+                    map.insert(PrimitiveValue::String(key), value);
+                }
+
+                self.statement_index += 1;
+                Ok(())
             }
             Statement::PushToList { .. } => {
                 todo!()
@@ -134,8 +149,9 @@ impl<'a> FunctionExecution<'a> {
             Statement::RegexpReplace(statement) => self.execute_regexp_replace(statement),
             Statement::Regexp(regexp) => self.execute_regexp(regexp),
             Statement::Concat(concat) => self.execute_concat(concat),
-            Statement::Jump { .. } => {
-                todo!()
+            Statement::Jump { statement_index } => {
+                self.statement_index = *statement_index;
+                Ok(())
             }
         }
     }

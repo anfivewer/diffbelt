@@ -19,7 +19,6 @@ pub struct RegexpStatement {
     pub start_pos: VarPointer,
     pub start_pos_is_exact: bool,
     pub jump_statement_index_if_not_matches: Option<usize>,
-    pub fail_on_non_full_match_if_no_rest_and_start_pos_is_exact: bool,
     pub last_index_output: Option<VarPointer>,
     pub rest: Option<VarPointer>,
 }
@@ -84,18 +83,11 @@ impl<'a> FunctionInitState<'a> {
                 jump_statement_index_if_not_matches: None,
                 last_index_output: None,
                 rest: None,
-                fail_on_non_full_match_if_no_rest_and_start_pos_is_exact: false,
             }));
         } else if let Some(regexp_multi) = regexp_multi {
             let regexp_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
             self.process_expression(&regexp_multi.value, regexp_ptr.clone())
                 .map_err(add_position(&regexp_multi.mark))?;
-
-            let pos_ptr = self.temp_var(VarDef::anonymous_u64(), &mut cleanups);
-            self.statements.push(Statement::Set {
-                value: Value::U64(0),
-                destination: pos_ptr.clone(),
-            });
 
             let last_index_ptr = self.temp_var(VarDef::anonymous_u64(), &mut cleanups);
             self.statements.push(Statement::Set {
@@ -118,12 +110,11 @@ impl<'a> FunctionInitState<'a> {
                 var: var_ptr.clone(),
                 var_mark: var.mark.clone(),
                 groups: groups_ptrs,
-                start_pos: pos_ptr.clone(),
+                start_pos: last_index_ptr.clone(),
                 start_pos_is_exact: fail_on_non_continuous,
                 jump_statement_index_if_not_matches: None,
-                last_index_output: Some(last_index_ptr.clone()),
+                last_index_output: Some(last_index_ptr),
                 rest,
-                fail_on_non_full_match_if_no_rest_and_start_pos_is_exact: fail_on_non_continuous,
             }));
 
             if let Some(loop_code) = loop_code {
