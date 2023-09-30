@@ -51,7 +51,8 @@ functions:
         value: count + value
 
 transforms:
-  - from: log-lines
+  - name: parse_lines
+    from: log-lines
     to: parsed-log-lines
     reader_name: log-lines
     map_filter:
@@ -401,3 +402,80 @@ transforms:
       apply:
         - return:
             count: target.count + count_diff
+
+tests:
+  transforms.parse_lines.map_filter:
+    - name: with props and no extras
+      vars:
+        source: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27'
+      return:
+        logLevel: S
+        timestampString: 2023-02-20T21:42:48.822Z.000
+        timestampMilliseconds: 1676929368822
+        timestampMicroseconds: 0
+        loggerKey: worker258688:middlewares
+        logKey: handleFull
+        props:
+          updateType: edited_message
+          ms: 27
+
+    - name: with props and one extra
+      vars:
+        source: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra'
+      return:
+        logLevel: S
+        timestampString: 2023-02-20T21:42:48.822Z.000
+        timestampMilliseconds: 1676929368822
+        timestampMicroseconds: 0
+        loggerKey: worker258688:middlewares
+        logKey: handleFull
+        props:
+          updateType: edited_message
+          ms: 27
+        extra:
+          - some extra
+
+    - name: with props and two extras
+      vars:
+        source: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra|another extra'
+      return:
+        logLevel: S
+        timestampString: 2023-02-20T21:42:48.822Z.000
+        timestampMilliseconds: 1676929368822
+        timestampMicroseconds: 0
+        loggerKey: worker258688:middlewares
+        logKey: handleFull
+        props:
+          updateType: edited_message
+          ms: 27
+        extra:
+          - some extra
+          - another extra
+
+    - name: with no props and no extras
+      vars:
+        source: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull'
+      return:
+        logLevel: S
+        timestampString: 2023-02-20T21:42:48.822Z.000
+        timestampMilliseconds: 1676929368822
+        timestampMicroseconds: 0
+        loggerKey: worker258688:middlewares
+        logKey: handleFull
+        props: {}
+        extra: []
+
+    - name: with no props and two extras
+      vars:
+        source: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull |some extra|another extra'
+      return:
+        logLevel: S
+        timestampString: 2023-02-20T21:42:48.822Z.000
+        timestampMilliseconds: 1676929368822
+        timestampMicroseconds: 0
+        loggerKey: worker258688:middlewares
+        logKey: handleFull
+        props: {}
+        extra:
+          - some extra
+          - another extra

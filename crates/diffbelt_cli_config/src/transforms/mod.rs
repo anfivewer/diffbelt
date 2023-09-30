@@ -14,10 +14,11 @@ pub mod unique_count;
 
 #[derive(Debug, Deserialize)]
 pub struct Transform {
-    pub from: String,
+    pub name: Option<Rc<str>>,
+    pub from: Rc<str>,
     pub intermediate: Option<TransformCollectionDef>,
     pub to: TransformCollectionDef,
-    pub reader_name: Option<String>,
+    pub reader_name: Option<Rc<str>>,
     pub map_filter: Option<MapFilterYaml>,
     pub aggregate: Option<Aggregate>,
     pub percentiles: Option<Percentiles>,

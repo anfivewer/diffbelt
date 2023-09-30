@@ -1,21 +1,25 @@
 pub mod code;
 pub mod errors;
 pub mod interpreter;
+pub mod config_tests;
 pub mod transforms;
 pub mod util;
 
 use crate::code::Code;
 use crate::errors::{ConfigParsingError, ExpectedError};
+use crate::config_tests::TestSuite;
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct CliConfig {
     collections: Vec<Collection>,
     transforms: Vec<Transform>,
     functions: HashMap<String, Code>,
+    tests: HashMap<Rc<str>, TestSuite>,
 }
 
 impl CliConfig {
@@ -25,6 +29,7 @@ impl CliConfig {
         let mut collections = Vec::new();
         let mut functions = HashMap::new();
         let mut transforms = None;
+        let mut tests = None;
 
         for (key_node, value) in &root.items {
             let key = expect_str(&key_node)?;
@@ -51,6 +56,10 @@ impl CliConfig {
                         functions.insert(name.to_string(), code);
                     }
                 }
+                "tests" => {
+                    let parsed_tests = decode_yaml(value)?;
+                    tests = Some(parsed_tests);
+                }
                 other => {
                     return Err(ConfigParsingError::UnknownKey(ExpectedError {
                         message: other.to_string(),
@@ -64,6 +73,7 @@ impl CliConfig {
             collections,
             functions,
             transforms: transforms.unwrap_or_else(|| Vec::new()),
+            tests: tests.unwrap_or_else(|| HashMap::new()),
         })
     }
 }

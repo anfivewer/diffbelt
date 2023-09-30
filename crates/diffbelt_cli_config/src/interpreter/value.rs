@@ -19,3 +19,12 @@ pub enum Value {
     String(Rc<str>),
     U64(u64),
 }
+
+impl Value {
+    pub fn as_primitive_value(&self) -> Result<PrimitiveValue, ()> {
+        match self {
+            Value::String(s) => Ok(PrimitiveValue::String(s.clone())),
+            _ => Err(()),
+        }
+    }
+}
