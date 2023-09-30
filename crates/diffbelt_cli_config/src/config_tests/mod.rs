@@ -1,4 +1,5 @@
 pub mod value;
+pub mod run;
 
 use crate::config_tests::value::{construct_value_from_yaml, YamlValueConstructionError};
 use crate::interpreter::error::InterpreterError;

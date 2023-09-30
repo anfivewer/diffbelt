@@ -56,3 +56,10 @@ pub fn checked_positive_isize_to_usize(value: isize) -> usize {
     );
     value as usize
 }
+
+#[inline(always)]
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+pub fn checked_usize_to_i32(value: usize) -> i32 {
+    assert!(value <= i32::MAX as usize, "{value} > i32::MAX",);
+    value as i32
+}

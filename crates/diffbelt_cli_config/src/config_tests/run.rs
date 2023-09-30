@@ -1,0 +1,58 @@
+use crate::config_tests::{SingleTestResult, TestResult};
+use crate::errors::ConfigParsingError;
+use crate::CliConfig;
+use diffbelt_yaml::{parse_yaml, YamlParsingError};
+
+#[derive(Debug)]
+pub enum RunTestsError {
+    YamlParsing(YamlParsingError),
+    ConfigParsing(ConfigParsingError),
+}
+
+pub fn run_tests(config_str: &str) -> Result<bool, RunTestsError> {
+    let docs = parse_yaml(config_str).map_err(RunTestsError::YamlParsing)?;
+    let doc = &docs[0];
+    let config = CliConfig::from_yaml(doc).map_err(RunTestsError::ConfigParsing)?;
+
+    let results = config.run_tests();
+
+    let mut is_ok = true;
+
+    for result in results {
+        let TestResult {
+            name: function_name,
+            result,
+        } = result;
+
+        let results = match result {
+            Ok(x) => x,
+            Err(err) => {
+                println!("[FAIL] {function_name}: {:?}", err);
+                is_ok = false;
+                continue;
+            }
+        };
+
+        for result in results {
+            let SingleTestResult { name, result } = result;
+
+            let result = match result {
+                Ok(x) => x,
+                Err(err) => {
+                    println!("[FAIL] {function_name} > {name}: {:?}", err);
+                    is_ok = false;
+                    continue;
+                }
+            };
+
+            if let Some(err) = result {
+                println!("[FAIL] {function_name} > {name}: {:?}", err);
+                is_ok = false;
+            } else {
+                println!("[ OK ] {function_name} > {name}");
+            }
+        }
+    }
+
+    Ok(is_ok)
+}

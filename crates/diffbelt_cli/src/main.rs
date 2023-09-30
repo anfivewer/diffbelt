@@ -9,6 +9,7 @@ use clap::Parser;
 use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
 use std::process::exit;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 type CommandResult = Result<(), CommandError>;
@@ -16,6 +17,8 @@ type CommandResult = Result<(), CommandError>;
 #[derive(Parser, Debug)]
 #[command()]
 struct Args {
+    #[arg(short, long)]
+    config: Option<String>,
     #[command(subcommand)]
     command: Commands,
 }
@@ -28,17 +31,26 @@ async fn run() {
         port: 3030,
     });
 
-    let state = Arc::new(CliState { client });
+    let state = Arc::new(CliState::new(client, args.config.clone()));
 
-    let result = args.command.run(state).await;
+    let result = args.command.run(state.clone()).await;
+
+    let exit_code = state.exit_code();
 
     let Err(err) = result else {
-        return;
+        exit(exit_code);
     };
 
-    println!("Error: {:?}", err);
+    match err {
+        CommandError::Message(msg) => {
+            eprintln!("{msg}");
+        }
+        err => {
+            eprintln!("Error: {:?}", err);
+        }
+    }
 
-    exit(1);
+    exit(if exit_code == 0 { 1 } else { exit_code });
 }
 
 fn main() {
