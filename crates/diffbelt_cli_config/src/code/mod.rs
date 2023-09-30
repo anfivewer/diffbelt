@@ -1,4 +1,5 @@
 pub mod regexp;
+pub mod update_list;
 pub mod update_map;
 pub mod vars;
 
@@ -8,10 +9,12 @@ use crate::code::vars::VarsInstruction;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::code::update_list::UpdateListInstruction;
 use crate::errors::WithMark;
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
+use crate::decode_case;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
@@ -23,6 +26,7 @@ pub struct Code {
 pub enum Instruction {
     Vars(VarsInstruction),
     UpdateMap(UpdateMapInstruction),
+    UpdateList(UpdateListInstruction),
     Regexp(RegexpInstruction),
     Return(ReturnInstruction),
     Unknown(Rc<YamlNode>),
@@ -50,18 +54,10 @@ impl<'de> Deserialize<'de> for Instruction {
             }
         }
 
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(Instruction::Vars(value));
-        }
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(Instruction::UpdateMap(value));
-        }
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(Instruction::Regexp(value));
-        }
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(Instruction::Return(value));
-        }
+        decode_case!(&raw, Instruction::Vars);
+        decode_case!(&raw, Instruction::UpdateMap);
+        decode_case!(&raw, Instruction::UpdateList);
+        decode_case!(&raw, Instruction::Return);
 
         Ok(Instruction::Unknown(raw))
     }

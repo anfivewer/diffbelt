@@ -111,6 +111,9 @@ impl<'a> FunctionExecution<'a> {
             Statement::InsertToMap { .. } => {
                 todo!()
             }
+            Statement::PushToList { .. } => {
+                todo!()
+            }
             Statement::DateFromUnixMs { .. } => {
                 todo!()
             }

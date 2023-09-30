@@ -3,11 +3,13 @@ pub mod jump;
 pub mod parse_date;
 pub mod regexp;
 pub mod ret;
-pub mod vars;
+pub mod update_list;
 pub mod update_map;
+pub mod vars;
 
 use crate::code;
 use crate::code::regexp::RegexpInstruction;
+use crate::code::update_list::UpdateListInstruction;
 use crate::code::update_map::UpdateMapInstruction;
 use crate::interpreter::error::{ExpectError, InterpreterError};
 use crate::interpreter::expression::VarPointer;
@@ -40,6 +42,10 @@ pub enum Statement {
     InsertToMap {
         map: VarPointer,
         key: VarPointer,
+        value: VarPointer,
+    },
+    PushToList {
+        list: VarPointer,
         value: VarPointer,
     },
 
@@ -77,6 +83,11 @@ impl<'a> FunctionInitState<'a> {
                 let UpdateMapInstruction { update_map } = instruction;
 
                 self.process_update_map(update_map)
+            }
+            code::Instruction::UpdateList(instruction) => {
+                let UpdateListInstruction { update_list } = instruction;
+
+                self.process_update_list(update_list)
             }
             code::Instruction::Regexp(regexp) => {
                 let RegexpInstruction { regexp } = regexp;
