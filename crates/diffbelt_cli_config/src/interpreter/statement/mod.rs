@@ -47,6 +47,7 @@ pub enum Statement {
         value: VarPointer,
     },
     PushToList {
+        list_mark: Option<ConfigPositionMark>,
         list: VarPointer,
         value: VarPointer,
     },

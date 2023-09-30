@@ -12,10 +12,10 @@ pub enum PrimitiveValue {
     String(Rc<str>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
-    Map(RefCell<HashMap<PrimitiveValue, Value>>),
-    List(Vec<Value>),
+    Map(Rc<RefCell<HashMap<PrimitiveValue, Value>>>),
+    List(Rc<RefCell<Vec<Value>>>),
     String(Rc<str>),
     U64(u64),
 }

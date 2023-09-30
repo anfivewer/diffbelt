@@ -159,9 +159,7 @@ impl<'a> FunctionExecution<'a> {
         mark: Option<&ConfigPositionMark>,
     ) -> Result<&'b RefCell<HashMap<PrimitiveValue, Value>>, InterpreterError> {
         let source = match ptr {
-            VarPointer::VarIndex(index) => {
-                self.read_var_by_index(*index)?
-            },
+            VarPointer::VarIndex(index) => self.read_var_by_index(*index)?,
             _ => {
                 return Err(InterpreterError::custom(
                     "Expected pointer".to_string(),
@@ -172,6 +170,28 @@ impl<'a> FunctionExecution<'a> {
 
         let value = source.as_map().ok_or_else(|| {
             InterpreterError::custom("Value is not a map".to_string(), mark.map(|x| x.clone()))
+        })?;
+
+        Ok(value)
+    }
+
+    pub fn read_var_as_list<'b>(
+        &'b self,
+        ptr: &'b VarPointer,
+        mark: Option<&ConfigPositionMark>,
+    ) -> Result<&'b RefCell<Vec<Value>>, InterpreterError> {
+        let source = match ptr {
+            VarPointer::VarIndex(index) => self.read_var_by_index(*index)?,
+            _ => {
+                return Err(InterpreterError::custom(
+                    "Expected pointer".to_string(),
+                    mark.map(|x| x.clone()),
+                ));
+            }
+        };
+
+        let value = source.as_list().ok_or_else(|| {
+            InterpreterError::custom("Value is not a list".to_string(), mark.map(|x| x.clone()))
         })?;
 
         Ok(value)

@@ -80,7 +80,17 @@ impl Var {
                 return None;
             };
 
-            Some(s)
+            Some(s.deref())
+        })
+    }
+
+    pub fn as_list(&self) -> Option<&RefCell<Vec<Value>>> {
+        self.value.as_ref().and_then(|var| {
+            let Value::List(s) = &var.value else {
+                return None;
+            };
+
+            Some(s.deref())
         })
     }
 }

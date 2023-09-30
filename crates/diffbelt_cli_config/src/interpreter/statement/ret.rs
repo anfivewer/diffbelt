@@ -8,6 +8,7 @@ use crate::interpreter::value::Value;
 use crate::interpreter::var::VarDef;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use diffbelt_util::Wrap;
 
 #[derive(Debug, Clone)]
 pub struct ReturnStatement {
@@ -27,7 +28,7 @@ impl<'a> FunctionInitState<'a> {
             }
             ReturnValue::Mapping(mapping) => {
                 self.statements.push(Statement::Set {
-                    value: Value::Map(RefCell::new(HashMap::new())),
+                    value: Value::Map(Wrap::wrap(HashMap::new())),
                     destination: result_ptr.clone(),
                 });
 

@@ -57,17 +57,15 @@ impl Function {
         };
 
         loop {
-            // let statement = state.current_statement()?;
-            //
-            state.execute_statement()?;
+            if let Some(value) = state.execute_statement()? {
+                return Ok(value);
+            }
         }
-
-        todo!()
     }
 }
 
 impl<'a> FunctionExecution<'a> {
-    pub fn execute_statement(&mut self) -> Result<(), InterpreterError> {
+    pub fn execute_statement(&mut self) -> Result<Option<Value>, InterpreterError> {
         let statement = self.statements.get(self.statement_index).ok_or_else(|| {
             InterpreterError::custom_without_mark(format!(
                 "no statement by index {}",
@@ -78,7 +76,7 @@ impl<'a> FunctionExecution<'a> {
         match statement {
             Statement::Noop => {
                 self.statement_index += 1;
-                Ok(())
+                Ok(None)
             }
             Statement::Todo(msg) => {
                 return Err(InterpreterError::custom_without_mark(format!(
@@ -89,7 +87,7 @@ impl<'a> FunctionExecution<'a> {
             Statement::Copy {
                 source,
                 destination,
-            } => self.execute_copy(source, destination),
+            } => self.execute_copy(source, destination).map(|()| None),
             Statement::Set { value, destination } => {
                 self.set_var(
                     destination,
@@ -102,11 +100,12 @@ impl<'a> FunctionExecution<'a> {
                 )?;
 
                 self.statement_index += 1;
-                Ok(())
+                Ok(None)
             }
-            Statement::JumpIf(jump_if) => self.execute_jump_if(jump_if),
-            Statement::Return(_) => {
-                todo!()
+            Statement::JumpIf(jump_if) => self.execute_jump_if(jump_if).map(|()| None),
+            Statement::Return(ptr) => {
+                let value = self.read_var_value(ptr)?;
+                Ok(Some(value))
             }
             Statement::InsertToMap {
                 map_mark,
@@ -124,15 +123,26 @@ impl<'a> FunctionExecution<'a> {
                 }
 
                 self.statement_index += 1;
-                Ok(())
+                Ok(None)
             }
-            Statement::PushToList { .. } => {
-                todo!()
+            Statement::PushToList { list_mark, list, value } => {
+                let list = self.read_var_as_list(list, list_mark.as_ref())?;
+                let value = self.read_var_value(value)?;
+
+                {
+                    let mut list = list.borrow_mut();
+                    list.push(value);
+                }
+
+                self.statement_index += 1;
+                Ok(None)
             }
             Statement::DateFromUnixMs { .. } => {
                 todo!()
             }
-            Statement::ParseDateToMs(statement) => self.execute_parse_date_to_ms(statement),
+            Statement::ParseDateToMs(statement) => {
+                self.execute_parse_date_to_ms(statement).map(|()| None)
+            }
             Statement::ParseUint { ptr } => {
                 let value = self.read_var_as_str(ptr, None)?;
                 let value = str::parse::<u64>(value).map_err(|_| {
@@ -144,14 +154,16 @@ impl<'a> FunctionExecution<'a> {
 
                 self.set_var(ptr, Var::new_u64(value))?;
                 self.statement_index += 1;
-                Ok(())
+                Ok(None)
             }
-            Statement::RegexpReplace(statement) => self.execute_regexp_replace(statement),
-            Statement::Regexp(regexp) => self.execute_regexp(regexp),
-            Statement::Concat(concat) => self.execute_concat(concat),
+            Statement::RegexpReplace(statement) => {
+                self.execute_regexp_replace(statement).map(|()| None)
+            }
+            Statement::Regexp(regexp) => self.execute_regexp(regexp).map(|()| None),
+            Statement::Concat(concat) => self.execute_concat(concat).map(|()| None),
             Statement::Jump { statement_index } => {
                 self.statement_index = *statement_index;
-                Ok(())
+                Ok(None)
             }
         }
     }

@@ -22,10 +22,11 @@ impl<'a> FunctionInitState<'a> {
 
         let value_ptr = self.temp_var(VarDef::unknown(), &mut cleanups);
         () = self
-            .process_expression(&push.value, list_ptr.clone())
+            .process_expression(&push.value, value_ptr.clone())
             .map_err(add_position(&push.mark))?;
 
         self.statements.push(Statement::PushToList {
+            list_mark: Some(var.mark.clone()),
             list: list_ptr,
             value: value_ptr,
         });

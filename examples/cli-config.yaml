@@ -123,7 +123,7 @@ transforms:
                 value: value
       - regexp:
           var: rest
-          regexp_multi: '''\|((?:\\\||[^|])+)'''
+          regexp_multi: '''\s*\|((?:\\\||[^|])+)'''
           fail_on_non_continuous: yes
           groups:
             - extra_escaped

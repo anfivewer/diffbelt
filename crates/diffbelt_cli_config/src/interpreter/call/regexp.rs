@@ -49,14 +49,14 @@ impl<'a> FunctionExecution<'a> {
             }
 
             return Err(InterpreterError::custom_with_mark(
-                format!("Regexp not matched: \"{input_slice}\""),
+                format!("Regexp not matched: \"{input_slice}\", /{regexp}/"),
                 regexp_mark.clone(),
             ));
         }
 
         let Some(captures) = regexp.captures_at(input, start_pos) else {
             if let Some(rest) = rest {
-                self.set_var(rest, Var::new_string(Rc::from(input)))?;
+                self.set_var(rest, Var::new_string(Rc::from(input_slice)))?;
 
                 if let Some(index) = jump_statement_index_if_not_matches {
                     self.statement_index = *index;
@@ -66,7 +66,7 @@ impl<'a> FunctionExecution<'a> {
             }
 
             return Err(InterpreterError::custom_with_mark(
-                format!("Regexp not matched: \"{}\"", input),
+                format!("Regexp not matched: \"{input}\", /{regexp}/"),
                 regexp_mark.clone(),
             ));
         };

@@ -5,6 +5,7 @@ use crate::interpreter::statement::Statement;
 use crate::interpreter::value::Value;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use diffbelt_util::Wrap;
 
 pub enum SExpr {
     EmptyMap,
@@ -49,11 +50,11 @@ impl<'a> FunctionInitState<'a> {
     ) -> Result<(), InterpreterError> {
         match expr {
             SExpr::EmptyMap => self.statements.push(Statement::Set {
-                value: Value::Map(RefCell::new(HashMap::new())),
+                value: Value::Map(Wrap::wrap(HashMap::new())),
                 destination,
             }),
             SExpr::EmptyList => self.statements.push(Statement::Set {
-                value: Value::List(Vec::new()),
+                value: Value::List(Wrap::wrap(Vec::new())),
                 destination,
             }),
         }

@@ -85,10 +85,12 @@ impl Function {
 #[cfg(test)]
 mod tests {
     use crate::interpreter::function::Function;
-    use crate::interpreter::value::{Value, ValueHolder};
+    use crate::interpreter::value::{PrimitiveValue, Value, ValueHolder};
     use crate::interpreter::var::{Var, VarDef};
     use crate::CliConfig;
+    use diffbelt_util::Wrap;
     use diffbelt_yaml::parse_yaml;
+    use std::collections::HashMap;
     use std::rc::Rc;
 
     #[test]
@@ -115,11 +117,60 @@ mod tests {
             Rc::from("source"),
             Var {
                 def: VarDef::anonymous_string(),
-                value: Some(ValueHolder { value: Value::String(Rc::from("S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27")) }),
+                value: Some(ValueHolder { value: Value::String(Rc::from("S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra|another extra")) }),
             },
         )]
             .into_iter().collect();
 
-        function.call(input_vars).expect("function execution");
+        let actual_value = function.call(input_vars).expect("function execution");
+
+        let expected_value = Value::Map(Wrap::wrap(HashMap::from([
+            (
+                PrimitiveValue::String(Rc::from("logLevel")),
+                Value::String(Rc::from("S")),
+            ),
+            (
+                PrimitiveValue::String(Rc::from("loggerKey")),
+                Value::String(Rc::from("worker258688:middlewares")),
+            ),
+            (
+                PrimitiveValue::String(Rc::from("timestampString")),
+                Value::String(Rc::from("2023-02-20T21:42:48.822Z.000")),
+            ),
+            (
+                PrimitiveValue::String(Rc::from("timestampMilliseconds")),
+                Value::U64(1676929368822),
+            ),
+            (
+                PrimitiveValue::String(Rc::from("timestampMicroseconds")),
+                Value::U64(0),
+            ),
+            (
+                PrimitiveValue::String(Rc::from("logKey")),
+                Value::String(Rc::from("handleFull")),
+            ),
+            (
+                PrimitiveValue::String(Rc::from("props")),
+                Value::Map(Wrap::wrap(HashMap::from([
+                    (
+                        PrimitiveValue::String(Rc::from("updateType")),
+                        Value::String(Rc::from("edited_message")),
+                    ),
+                    (
+                        PrimitiveValue::String(Rc::from("ms")),
+                        Value::String(Rc::from("27")),
+                    ),
+                ]))),
+            ),
+            (
+                PrimitiveValue::String(Rc::from("extra")),
+                Value::List(Wrap::wrap(vec![
+                    Value::String(Rc::from("some extra")),
+                    Value::String(Rc::from("another extra")),
+                ])),
+            ),
+        ])));
+
+        assert_eq!(actual_value, expected_value);
     }
 }
