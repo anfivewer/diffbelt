@@ -129,12 +129,12 @@ transforms:
             - extra_escaped
           loop:
             - vars:
-                extra_unescaped_1:
+                extra_escaped_1:
                   regexp_replace:
                     var: extra_escaped
                     from: \\r
                     to: "\r"
-                extra_unescaped_2:
+                extra_escaped_2:
                   regexp_replace:
                     var: extra_escaped_1
                     from: \\n

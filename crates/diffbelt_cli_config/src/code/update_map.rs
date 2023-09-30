@@ -1,18 +1,15 @@
-use crate::errors::ConfigParsingError;
 use std::rc::Rc;
-
-use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::Deserialize;
+use crate::errors::WithMark;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct UpdateMapInstruction {
-    pub var: String,
-    pub key: String,
-    pub value: String,
+    pub update_map: UpdateMapInstructionBody,
 }
 
-impl UpdateMapInstruction {
-    fn from_yaml(yaml: &Rc<YamlNode>) -> Result<Self, ConfigParsingError> {
-        Ok(decode_yaml(yaml)?)
-    }
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct UpdateMapInstructionBody {
+    pub var: WithMark<Rc<str>>,
+    pub key: WithMark<Rc<str>>,
+    pub value: WithMark<Rc<str>>,
 }

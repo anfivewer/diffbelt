@@ -4,9 +4,11 @@ pub mod parse_date;
 pub mod regexp;
 pub mod ret;
 pub mod vars;
+pub mod update_map;
 
 use crate::code;
 use crate::code::regexp::RegexpInstruction;
+use crate::code::update_map::UpdateMapInstruction;
 use crate::interpreter::error::{ExpectError, InterpreterError};
 use crate::interpreter::expression::VarPointer;
 use crate::interpreter::function::FunctionInitState;
@@ -71,8 +73,10 @@ impl<'a> FunctionInitState<'a> {
     ) -> Result<(), InterpreterError> {
         match instruction {
             code::Instruction::Vars(vars) => self.process_vars_instruction(vars),
-            code::Instruction::UpdateMap(_) => {
-                todo!()
+            code::Instruction::UpdateMap(instruction) => {
+                let UpdateMapInstruction { update_map } = instruction;
+
+                self.process_update_map(update_map)
             }
             code::Instruction::Regexp(regexp) => {
                 let RegexpInstruction { regexp } = regexp;
