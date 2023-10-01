@@ -156,7 +156,11 @@ vars:
             VarProcessing::DateFromUnixMs(DateFromUnixMsProcessing {
                 date_from_unix_ms: WithMark {
                     value: Rc::from("source.timestampMilliseconds"),
-                    mark: ConfigPositionMark::empty()
+                    mark: ConfigPositionMark {
+                        index: 38,
+                        line: 4,
+                        column: 24,
+                    }
                 },
             })
         );
@@ -165,7 +169,11 @@ vars:
             value.vars[1].value,
             VarProcessing::ByString(WithMark {
                 value: Rc::from("some_string"),
-                mark: ConfigPositionMark::empty()
+                mark: ConfigPositionMark {
+                    index: 74,
+                    line: 5,
+                    column: 8,
+                }
             })
         );
     }

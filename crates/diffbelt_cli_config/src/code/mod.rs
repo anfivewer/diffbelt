@@ -122,7 +122,11 @@ mod tests {
                 instructions: vec![Instruction::Return(ReturnInstruction {
                     value: ReturnValue::Var(WithMark {
                         value: Rc::from("42"),
-                        mark: ConfigPositionMark::empty()
+                        mark: ConfigPositionMark {
+                            index: 11,
+                            line: 2,
+                            column: 11,
+                        }
                     })
                 })]
             }
@@ -146,7 +150,11 @@ mod tests {
             Instruction::Return(ReturnInstruction {
                 value: ReturnValue::Var(WithMark {
                     value: Rc::from("42"),
-                    mark: ConfigPositionMark::empty()
+                    mark: ConfigPositionMark {
+                        index: 8,
+                        line: 1,
+                        column: 9,
+                    }
                 })
             })
         )
