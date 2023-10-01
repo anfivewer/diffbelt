@@ -9,6 +9,7 @@ members = [
 	"crates/diffbelt_util",
 	"crates/diffbelt_http_client",
 	"crates/diffbelt_macro",
+	"crates/diffbelt_transforms",
 
 	"crates/diffbelt_yaml",
 ]
