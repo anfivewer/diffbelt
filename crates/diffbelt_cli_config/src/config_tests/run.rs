@@ -9,11 +9,7 @@ pub enum RunTestsError {
     ConfigParsing(ConfigParsingError),
 }
 
-pub fn run_tests(config_str: &str) -> Result<bool, RunTestsError> {
-    let docs = parse_yaml(config_str).map_err(RunTestsError::YamlParsing)?;
-    let doc = &docs[0];
-    let config = CliConfig::from_yaml(doc).map_err(RunTestsError::ConfigParsing)?;
-
+pub fn run_tests(config: &CliConfig) -> Result<bool, RunTestsError> {
     let results = config.run_tests();
 
     let mut is_ok = true;

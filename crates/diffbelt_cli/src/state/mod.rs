@@ -1,18 +1,20 @@
+use std::rc::Rc;
 use diffbelt_http_client::client::DiffbeltClient;
 use diffbelt_util::cast::checked_usize_to_i32;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use diffbelt_cli_config::CliConfig;
 
 pub struct CliState {
     pub client: DiffbeltClient,
-    pub config_path: Option<String>,
+    pub config: Option<Rc<CliConfig>>,
     exit_code_atomic: AtomicUsize,
 }
 
 impl CliState {
-    pub fn new(client: DiffbeltClient, config_path: Option<String>) -> Self {
+    pub fn new(client: DiffbeltClient, config: Option<Rc<CliConfig>>) -> Self {
         Self {
             client,
-            config_path,
+            config,
             exit_code_atomic: AtomicUsize::new(0),
         }
     }

@@ -1,17 +1,18 @@
 pub mod code;
+pub mod config_tests;
 pub mod errors;
 pub mod interpreter;
-pub mod config_tests;
 pub mod transforms;
 pub mod util;
 
 use crate::code::Code;
-use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::config_tests::TestSuite;
+use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
-use diffbelt_yaml::{decode_yaml, YamlNode};
+use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::rc::Rc;
 
 #[derive(Debug)]
@@ -20,6 +21,12 @@ pub struct CliConfig {
     transforms: Vec<Transform>,
     functions: HashMap<String, Code>,
     tests: HashMap<Rc<str>, TestSuite>,
+}
+
+#[derive(Debug)]
+pub enum ParseConfigError {
+    YamlParsing(YamlParsingError),
+    ConfigParsing(ConfigParsingError),
 }
 
 impl CliConfig {
@@ -75,6 +82,22 @@ impl CliConfig {
             transforms: transforms.unwrap_or_else(|| Vec::new()),
             tests: tests.unwrap_or_else(|| HashMap::new()),
         })
+    }
+
+    pub fn from_str(config_str: &str) -> Result<Self, ParseConfigError> {
+        let docs = parse_yaml(config_str).map_err(ParseConfigError::YamlParsing)?;
+        let doc = &docs[0];
+        let config = CliConfig::from_yaml(doc).map_err(ParseConfigError::ConfigParsing)?;
+
+        Ok(config)
+    }
+
+    pub fn transform_names(&self) -> impl Iterator<Item = &str> {
+        self.transforms
+            .iter()
+            .map(|transform| transform.name.as_ref())
+            .filter_map(|name| name)
+            .map(|name| name.deref())
     }
 }
 
