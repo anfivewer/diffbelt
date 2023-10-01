@@ -19,7 +19,6 @@ struct FunctionExecution<'a> {
     pub vars: Vec<Var>,
     pub statement_index: usize,
     pub statements: &'a [Statement],
-    pub result: Option<Value>,
 }
 
 impl Function {
@@ -53,7 +52,6 @@ impl Function {
             vars,
             statement_index: 0,
             statements: &statements,
-            result: None,
         };
 
         loop {
@@ -125,7 +123,11 @@ impl<'a> FunctionExecution<'a> {
                 self.statement_index += 1;
                 Ok(None)
             }
-            Statement::PushToList { list_mark, list, value } => {
+            Statement::PushToList {
+                list_mark,
+                list,
+                value,
+            } => {
                 let list = self.read_var_as_list(list, list_mark.as_ref())?;
                 let value = self.read_var_value(value)?;
 

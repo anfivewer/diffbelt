@@ -1,5 +1,5 @@
 use crate::code::update_list::UpdateListInstructionBody;
-use crate::code::update_map::UpdateMapInstructionBody;
+
 use crate::interpreter::cleanups::Cleanups;
 use crate::interpreter::error::{add_position, InterpreterError};
 use crate::interpreter::function::FunctionInitState;

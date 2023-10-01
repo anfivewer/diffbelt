@@ -1,5 +1,5 @@
-use std::str::Utf8Error;
 use diffbelt_cli_config::config_tests::run::RunTestsError;
+use std::str::Utf8Error;
 
 #[derive(Debug)]
 pub enum CommandError {

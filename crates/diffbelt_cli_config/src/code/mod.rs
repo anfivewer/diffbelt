@@ -10,11 +10,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::code::update_list::UpdateListInstruction;
+use crate::decode_case;
 use crate::errors::WithMark;
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
-use crate::decode_case;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]

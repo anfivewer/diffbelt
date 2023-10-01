@@ -1,7 +1,7 @@
 use crate::YamlMark;
 use serde::de::StdError;
 
-use std::fmt::{Display, Formatter, Write};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub enum YamlDecodingError {

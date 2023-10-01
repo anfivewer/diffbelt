@@ -1,10 +1,10 @@
-pub mod value;
 pub mod run;
+pub mod value;
 
 use crate::config_tests::value::{construct_value_from_yaml, YamlValueConstructionError};
 use crate::interpreter::error::InterpreterError;
 use crate::interpreter::function::Function;
-use crate::interpreter::value::{Value, ValueHolder};
+use crate::interpreter::value::ValueHolder;
 use crate::interpreter::var::{Var, VarDef};
 use crate::CliConfig;
 use diffbelt_yaml::YamlNodeRc;

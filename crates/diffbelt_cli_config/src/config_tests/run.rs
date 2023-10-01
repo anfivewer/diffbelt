@@ -1,7 +1,7 @@
 use crate::config_tests::{SingleTestResult, TestResult};
 use crate::errors::ConfigParsingError;
 use crate::CliConfig;
-use diffbelt_yaml::{parse_yaml, YamlParsingError};
+use diffbelt_yaml::YamlParsingError;
 
 #[derive(Debug)]
 pub enum RunTestsError {

@@ -19,7 +19,7 @@ enum TransformSubcommand {
 }
 
 impl Transform {
-    pub async fn run(&self, state: Arc<CliState>) -> CommandResult {
+    pub async fn run(&self, _state: Arc<CliState>) -> CommandResult {
         Ok(())
     }
 }

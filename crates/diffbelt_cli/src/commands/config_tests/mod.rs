@@ -3,7 +3,6 @@ use crate::state::CliState;
 use crate::CommandResult;
 use clap::Parser;
 use diffbelt_cli_config::config_tests::run::run_tests;
-use std::str::from_utf8;
 use std::sync::Arc;
 
 #[derive(Parser, Debug)]

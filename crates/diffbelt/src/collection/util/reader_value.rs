@@ -1,6 +1,6 @@
 use crate::common::{GenerationId, IsByteArray};
-use std::str::from_utf8;
 use diffbelt_util::cast::u8_to_usize;
+use std::str::from_utf8;
 
 #[derive(Debug)]
 pub struct OwnedReaderValue(Box<[u8]>);

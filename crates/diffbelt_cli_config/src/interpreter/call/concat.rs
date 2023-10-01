@@ -1,10 +1,10 @@
-use std::borrow::Cow;
 use crate::interpreter::call::util::var_as_str;
 use crate::interpreter::call::FunctionExecution;
 use crate::interpreter::error::InterpreterError;
 use crate::interpreter::expression::VarPointer;
 use crate::interpreter::statement::concat::ConcatStatement;
 use crate::interpreter::var::Var;
+use std::borrow::Cow;
 use std::ops::Deref;
 use std::rc::Rc;
 

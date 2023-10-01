@@ -1,8 +1,8 @@
-use diffbelt_util::cast::usize_to_u64;
 use crate::interpreter::call::FunctionExecution;
 use crate::interpreter::error::InterpreterError;
 use crate::interpreter::expression::VarPointer;
 use crate::interpreter::var::Var;
+use diffbelt_util::cast::usize_to_u64;
 
 impl<'a> FunctionExecution<'a> {
     pub fn execute_copy(

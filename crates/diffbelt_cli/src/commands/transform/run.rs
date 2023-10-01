@@ -1,7 +1,5 @@
-use clap::{
-    ArgMatches, Args, Command, Error, FromArgMatches, Subcommand,
-};
 use clap::error::ErrorKind;
+use clap::{ArgMatches, Args, Command, Error, FromArgMatches, Subcommand};
 
 use crate::global::get_global_config;
 

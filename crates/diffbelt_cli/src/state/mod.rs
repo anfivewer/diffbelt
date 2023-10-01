@@ -1,8 +1,8 @@
-use std::rc::Rc;
+use diffbelt_cli_config::CliConfig;
 use diffbelt_http_client::client::DiffbeltClient;
 use diffbelt_util::cast::checked_usize_to_i32;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use diffbelt_cli_config::CliConfig;
 
 pub struct CliState {
     pub client: DiffbeltClient,

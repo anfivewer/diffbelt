@@ -1,6 +1,6 @@
-use std::rc::Rc;
-use serde::Deserialize;
 use crate::errors::WithMark;
+use serde::Deserialize;
+use std::rc::Rc;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct UpdateMapInstruction {

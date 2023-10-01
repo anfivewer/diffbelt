@@ -130,7 +130,7 @@ impl<'a> FunctionExecution<'a> {
     ) -> Result<usize, InterpreterError> {
         let source = match ptr {
             VarPointer::VarIndex(index) => self.read_var_by_index(*index)?,
-            VarPointer::LiteralStr(s) => {
+            VarPointer::LiteralStr(_s) => {
                 return Err(InterpreterError::custom(
                     "Value is a string".to_string(),
                     mark.map(|x| x.clone()),

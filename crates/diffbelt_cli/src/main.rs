@@ -7,14 +7,14 @@ use crate::commands::errors::CommandError;
 use crate::commands::Commands;
 use crate::global::set_global_config;
 use crate::state::CliState;
-use clap::{Arg, ArgMatches, Command, Parser};
-use diffbelt_cli_config::{CliConfig, ParseConfigError};
+use clap::{Arg, Command, Parser};
+use diffbelt_cli_config::CliConfig;
 use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
 use std::process::exit;
 use std::rc::Rc;
-use std::str::{from_utf8, Utf8Error};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::str::from_utf8;
+
 use std::sync::Arc;
 
 type CommandResult = Result<(), CommandError>;

@@ -1,11 +1,11 @@
 use crate::commands::collection::Collection;
 use crate::commands::collections::Collections;
 use crate::commands::config_tests::Test;
+use crate::commands::transform::Transform;
 use crate::state::CliState;
 use crate::CommandResult;
 use clap::Subcommand;
 use std::sync::Arc;
-use crate::commands::transform::Transform;
 
 pub mod collection;
 pub mod collections;

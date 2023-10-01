@@ -7,10 +7,10 @@ use crate::common::{
 use crate::raw_db::diff_collection_records::DiffCursorState;
 use crate::raw_db::RawDbError;
 use crate::util::bytes::to_u32_be_unchecked;
+use diffbelt_util::cast::u32_to_usize;
 use rocksdb::{BoundColumnFamily, Direction, IteratorMode, ReadOptions};
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use diffbelt_util::cast::u32_to_usize;
 
 mod diff;
 pub mod in_memory;

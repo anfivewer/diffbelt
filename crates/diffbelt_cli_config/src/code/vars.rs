@@ -11,7 +11,6 @@ pub struct VarsInstruction {
     pub vars: Vec<Var>,
 }
 
-struct VarsList;
 struct VarsInstructionVisitor;
 
 impl<'de> Visitor<'de> for VarsInstructionVisitor {
