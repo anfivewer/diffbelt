@@ -420,6 +420,7 @@ dependencies = [
  "diffbelt_types",
  "diffbelt_util",
  "generational-arena",
+ "urlencoding",
 ]
 
 [[package]]

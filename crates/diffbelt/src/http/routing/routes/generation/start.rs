@@ -1,6 +1,7 @@
 use crate::collection::methods::start_generation::StartGenerationOptions;
 
 use diffbelt_macro::fn_box_pin_async;
+use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
 use regex::Regex;
 use serde::Deserialize;
 
@@ -21,13 +22,6 @@ use crate::http::util::read_json::read_json;
 use crate::http::util::response::create_ok_no_error_json_response;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RequestJsonData {
-    generation_id: EncodedGenerationIdJsonData,
-    abort_outdated: Option<bool>,
-}
-
 #[fn_box_pin_async]
 async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult {
     let context = options.context;
@@ -38,9 +32,9 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     request.allow_only_utf8_json_by_default()?;
 
     let body = read_limited_body(request, READER_REQUEST_MAX_BYTES).await?;
-    let data: RequestJsonData = read_json(body)?;
+    let data: StartGenerationRequestJsonData = read_json(body)?;
 
-    let RequestJsonData {
+    let StartGenerationRequestJsonData {
         generation_id,
         abort_outdated,
     } = data;
