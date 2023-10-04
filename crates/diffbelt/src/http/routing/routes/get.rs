@@ -6,7 +6,7 @@ use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode,
     EncodedGenerationIdJsonData,
 };
-use crate::http::data::encoded_key::EncodedKeyJsonData;
+use crate::http::data::encoded_key::{EncodedKeyJsonData, EncodedKeyJsonDataTrait};
 use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 use crate::http::data::key_value::KeyValueJsonData;
 use crate::http::errors::HttpError;

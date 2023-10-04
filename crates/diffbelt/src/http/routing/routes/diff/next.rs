@@ -1,9 +1,8 @@
 use crate::collection::methods::diff::ReadDiffCursorOptions;
 use std::sync::Arc;
+use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 
 use crate::collection::Collection;
-
-use crate::http::data::diff_response::DiffResponseJsonData;
 
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
@@ -29,6 +28,6 @@ pub async fn read_cursor(
         }
     };
 
-    let response = DiffResponseJsonData::from(result);
+    let response = DiffCollectionResponseJsonData::from(result);
     create_ok_json_response(&response)
 }

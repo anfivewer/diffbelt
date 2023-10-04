@@ -3,8 +3,8 @@ use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
 use crate::util::json::serde::deserialize_strict_null;
 
-use crate::http::data::encoded_key::EncodedKeyJsonData;
-use crate::http::data::encoded_value::EncodedValueJsonData;
+use crate::http::data::encoded_key::{EncodedKeyJsonData, EncodedKeyJsonDataTrait};
+use crate::http::data::encoded_value::{EncodedValueJsonData, EncodedValueJsonDataTrait};
 use serde::Deserialize;
 use serde_with::skip_serializing_none;
 

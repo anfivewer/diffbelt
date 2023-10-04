@@ -1,5 +1,8 @@
 use crate::collection::methods::diff::DiffOptions;
 use diffbelt_macro::fn_box_pin_async;
+use diffbelt_types::collection::diff::{
+    DiffCollectionRequestJsonData, DiffCollectionResponseJsonData,
+};
 use regex::Regex;
 use serde::Deserialize;
 
@@ -8,7 +11,6 @@ use crate::common::reader::ReaderDef;
 use crate::common::OwnedGenerationId;
 use crate::context::Context;
 use crate::http::constants::DIFF_START_REQUEST_MAX_BYTES;
-use crate::http::data::diff_response::DiffResponseJsonData;
 use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_decode_opt, EncodedGenerationIdJsonData,
 };
@@ -24,15 +26,6 @@ use crate::http::util::read_json::read_json;
 use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RequestJsonData {
-    from_generation_id: Option<EncodedGenerationIdJsonData>,
-    to_generation_id: Option<EncodedGenerationIdJsonData>,
-
-    from_reader: Option<ReaderDiffFromDefJsonData>,
-}
-
 #[fn_box_pin_async]
 async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult {
     let context = options.context;
@@ -43,7 +36,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     request.allow_only_utf8_json_by_default()?;
 
     let body = read_limited_body(request, DIFF_START_REQUEST_MAX_BYTES).await?;
-    let data: RequestJsonData = read_json(body)?;
+    let data: DiffCollectionRequestJsonData = read_json(body)?;
 
     let from_generation_id = encoded_generation_id_data_decode_opt(data.from_generation_id)?;
     let to_generation_id = encoded_generation_id_data_decode_opt(data.to_generation_id)?;
@@ -66,7 +59,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
         }
     };
 
-    let response = DiffResponseJsonData::from(result);
+    let response = DiffCollectionResponseJsonData::from(result);
     create_ok_json_response(&response)
 }
 

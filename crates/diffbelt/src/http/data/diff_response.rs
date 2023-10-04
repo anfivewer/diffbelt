@@ -1,25 +1,14 @@
+use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use crate::collection::methods::diff::DiffOk;
 
 use crate::common::GenerationId;
 use crate::http::data::encoded_generation_id::{
-    encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
+    encoded_generation_id_data_encode,
 };
-use crate::http::data::key_value_diff::KeyValueDiffJsonData;
+use crate::http::data::key_value_diff::{KeyValueDiffJsonData, KeyValueDiffJsonDataTrait};
 use crate::util::str_serialization::StrSerializationType;
-use serde::Serialize;
-use serde_with::skip_serializing_none;
 
-#[skip_serializing_none]
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DiffResponseJsonData {
-    from_generation_id: EncodedGenerationIdJsonData,
-    to_generation_id: EncodedGenerationIdJsonData,
-    items: Vec<KeyValueDiffJsonData>,
-    cursor_id: Option<Box<str>>,
-}
-
-impl From<DiffOk> for DiffResponseJsonData {
+impl From<DiffOk> for DiffCollectionResponseJsonData {
     fn from(data: DiffOk) -> Self {
         let DiffOk {
             from_generation_id,

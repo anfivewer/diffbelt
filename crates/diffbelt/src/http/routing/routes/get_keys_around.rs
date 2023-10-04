@@ -2,7 +2,7 @@ use crate::collection::methods::get_keys_around::CollectionGetKeysAroundOptions;
 
 use crate::context::Context;
 use crate::http::constants::GET_KEYS_AROUND_REQUEST_MAX_BYTES;
-use crate::http::data::encoded_key::EncodedKeyJsonData;
+use crate::http::data::encoded_key::{EncodedKeyJsonData, EncodedKeyJsonDataTrait};
 
 use crate::http::errors::HttpError;
 

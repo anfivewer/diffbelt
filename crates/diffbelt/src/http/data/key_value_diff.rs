@@ -1,20 +1,8 @@
 use crate::common::{KeyValueDiff, OwnedCollectionValue};
-use crate::http::data::encoded_value::EncodedValueJsonData;
+use crate::http::data::encoded_value::{EncodedValueJsonData, EncodedValueJsonDataTrait};
 
-use crate::http::data::encoded_key::EncodedKeyJsonData;
-use serde::Serialize;
-use serde_with::skip_serializing_none;
-
-#[skip_serializing_none]
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KeyValueDiffJsonData {
-    key: EncodedKeyJsonData,
-
-    from_value: Option<Option<EncodedValueJsonData>>,
-    intermediate_values: Vec<Option<EncodedValueJsonData>>,
-    to_value: Option<Option<EncodedValueJsonData>>,
-}
+use crate::http::data::encoded_key::{EncodedKeyJsonData, EncodedKeyJsonDataTrait};
+pub use diffbelt_types::collection::diff::KeyValueDiffJsonData;
 
 impl From<KeyValueDiff> for KeyValueDiffJsonData {
     fn from(kv: KeyValueDiff) -> Self {
@@ -27,8 +15,12 @@ impl From<KeyValueDiff> for KeyValueDiffJsonData {
     }
 }
 
-impl KeyValueDiffJsonData {
-    pub fn encode_vec(items: Vec<KeyValueDiff>) -> Vec<Self> {
+pub trait KeyValueDiffJsonDataTrait: Sized {
+    fn encode_vec(items: Vec<KeyValueDiff>) -> Vec<Self>;
+}
+
+impl KeyValueDiffJsonDataTrait for KeyValueDiffJsonData {
+    fn encode_vec(items: Vec<KeyValueDiff>) -> Vec<Self> {
         let mut result = Vec::with_capacity(items.len());
 
         for item in items {

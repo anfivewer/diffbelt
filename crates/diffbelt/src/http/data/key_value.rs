@@ -1,7 +1,7 @@
 use crate::common::KeyValue;
 
-use crate::http::data::encoded_key::EncodedKeyJsonData;
-use crate::http::data::encoded_value::EncodedValueJsonData;
+use crate::http::data::encoded_key::{EncodedKeyJsonData, EncodedKeyJsonDataTrait};
+use crate::http::data::encoded_value::{EncodedValueJsonData, EncodedValueJsonDataTrait};
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 

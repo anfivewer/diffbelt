@@ -8,15 +8,9 @@ use crate::http::data::encoded_generation_id::{
 use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
 use crate::util::str_serialization::StrSerializationType;
+pub use diffbelt_types::collection::diff::ReaderDiffFromDefJsonData;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ReaderDiffFromDefJsonData {
-    pub reader_name: String,
-    pub collection_name: Option<String>,
-}
 
 #[skip_serializing_none]
 #[derive(Serialize)]
