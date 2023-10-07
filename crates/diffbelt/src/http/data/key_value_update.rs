@@ -1,26 +1,17 @@
 use crate::common::{KeyValueUpdate, KeyValueUpdateNewOptions};
 use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
-use crate::util::json::serde::deserialize_strict_null;
+use diffbelt_types::common::key_value_update::KeyValueUpdateJsonData;
 
-use crate::http::data::encoded_key::{EncodedKeyJsonData, EncodedKeyJsonDataTrait};
+use crate::http::data::encoded_key::EncodedKeyJsonDataTrait;
 use crate::http::data::encoded_value::{EncodedValueJsonData, EncodedValueJsonDataTrait};
-use serde::Deserialize;
-use serde_with::skip_serializing_none;
 
-#[skip_serializing_none]
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KeyValueUpdateJsonData {
-    key: EncodedKeyJsonData,
-    if_not_present: Option<bool>,
-
-    #[serde(deserialize_with = "deserialize_strict_null")]
-    value: Option<EncodedValueJsonData>,
+pub trait KeyValueUpdateJsonDataTrait {
+    fn deserialize(self, decoder: &StringDecoder) -> Result<KeyValueUpdate, HttpError>;
 }
 
-impl KeyValueUpdateJsonData {
-    pub fn deserialize(self, decoder: &StringDecoder) -> Result<KeyValueUpdate, HttpError> {
+impl KeyValueUpdateJsonDataTrait for KeyValueUpdateJsonData {
+    fn deserialize(self, decoder: &StringDecoder) -> Result<KeyValueUpdate, HttpError> {
         let key = self.key.decode(&decoder)?;
         let value = EncodedValueJsonData::decode_opt(self.value)?;
 

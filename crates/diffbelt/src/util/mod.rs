@@ -9,7 +9,6 @@ pub mod bytes;
 pub mod bytes_constants;
 pub mod hashmap;
 pub mod indexed_container;
-pub mod json;
 pub mod option;
 pub mod owned_peek;
 pub mod str_serialization;

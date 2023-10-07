@@ -6,10 +6,7 @@ use crate::context::Context;
 use crate::http::constants::PUT_MANY_REQUEST_MAX_BYTES;
 use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode,
-    EncodedGenerationIdJsonData,
 };
-use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
-use crate::http::data::key_value_update::KeyValueUpdateJsonData;
 use crate::http::errors::HttpError;
 use crate::http::routing::response::{BaseResponse, BytesVecResponse, Response};
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
@@ -21,22 +18,10 @@ use crate::http::util::read_json::read_json;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 use crate::util::str_serialization::StrSerializationType;
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PutManyRequestJsonData {
-    items: Vec<KeyValueUpdateJsonData>,
-    generation_id: Option<EncodedGenerationIdJsonData>,
-    phantom_id: Option<EncodedPhantomIdJsonData>,
-}
-
-#[skip_serializing_none]
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct PutManyResponseJsonData {
-    generation_id: EncodedGenerationIdJsonData,
-}
+use diffbelt_types::collection::put_many::{PutManyRequestJsonData, PutManyResponseJsonData};
+use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
+use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonDataTrait;
+use crate::http::data::key_value_update::KeyValueUpdateJsonDataTrait;
 
 #[fn_box_pin_async]
 async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult {

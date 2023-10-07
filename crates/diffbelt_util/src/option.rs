@@ -7,3 +7,7 @@ pub fn lift_result_from_option<R, E>(opt: Option<Result<R, E>>) -> Result<Option
         None => Ok(None),
     }
 }
+
+pub fn cut_layer<T>(opt: Option<Option<T>>) -> Option<T> {
+    opt.and_then(|inner| inner)
+}

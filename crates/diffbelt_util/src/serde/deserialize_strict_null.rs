@@ -11,7 +11,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::util::json::serde::deserialize_strict_null;
     use serde::{Deserialize, Serialize};
     use serde_with::skip_serializing_none;
 

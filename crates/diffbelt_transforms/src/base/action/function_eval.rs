@@ -3,5 +3,7 @@ pub enum FunctionEvalAction {
 }
 
 pub struct MapFilterEvalAction {
-    pub source: Box<[u8]>,
+    pub key: Box<[u8]>,
+    pub from_value: Option<Box<[u8]>>,
+    pub to_value: Option<Box<[u8]>>,
 }

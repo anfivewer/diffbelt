@@ -10,7 +10,6 @@ use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode,
     EncodedGenerationIdJsonData,
 };
-use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 use crate::http::util::encoding::StringDecoder;
@@ -23,6 +22,8 @@ use diffbelt_macro::fn_box_pin_async;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
+use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonDataTrait;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]

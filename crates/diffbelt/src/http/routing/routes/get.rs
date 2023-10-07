@@ -7,7 +7,6 @@ use crate::http::data::encoded_generation_id::{
     EncodedGenerationIdJsonData,
 };
 use crate::http::data::encoded_key::{EncodedKeyJsonData, EncodedKeyJsonDataTrait};
-use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonData;
 use crate::http::data::key_value::KeyValueJsonData;
 use crate::http::errors::HttpError;
 
@@ -23,6 +22,8 @@ use diffbelt_macro::fn_box_pin_async;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
+use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonDataTrait;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]

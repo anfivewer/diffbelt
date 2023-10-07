@@ -3,19 +3,21 @@ use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
 
 use crate::util::str_serialization::StrSerializationType;
+use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-#[skip_serializing_none]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EncodedPhantomIdJsonData {
-    value: String,
-    encoding: Option<String>,
+pub trait EncodedPhantomIdJsonDataTrait: Sized {
+    fn new(phantom_id: OwnedPhantomId, encoding: StrSerializationType) -> Self;
+    fn decode(self, decoder: &StringDecoder) -> Result<OwnedPhantomId, HttpError>;
+    fn decode_opt(
+        value: Option<Self>,
+        decoder: &StringDecoder,
+    ) -> Result<Option<OwnedPhantomId>, HttpError>;
 }
 
-impl EncodedPhantomIdJsonData {
-    pub fn new(phantom_id: OwnedPhantomId, encoding: StrSerializationType) -> Self {
+impl EncodedPhantomIdJsonDataTrait for EncodedPhantomIdJsonData {
+    fn new(phantom_id: OwnedPhantomId, encoding: StrSerializationType) -> Self {
         let (value, encoding) = encoding.serialize_with_priority(phantom_id.get_byte_array());
 
         Self {
@@ -24,7 +26,7 @@ impl EncodedPhantomIdJsonData {
         }
     }
 
-    pub fn decode(self, decoder: &StringDecoder) -> Result<OwnedPhantomId, HttpError> {
+    fn decode(self, decoder: &StringDecoder) -> Result<OwnedPhantomId, HttpError> {
         decoder.decode_field_with_map(
             "phantomId",
             self.value,
@@ -44,7 +46,7 @@ impl EncodedPhantomIdJsonData {
         )
     }
 
-    pub fn decode_opt(
+    fn decode_opt(
         value: Option<Self>,
         decoder: &StringDecoder,
     ) -> Result<Option<OwnedPhantomId>, HttpError> {

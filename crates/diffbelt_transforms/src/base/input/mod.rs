@@ -1,5 +1,5 @@
 use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
-use crate::base::input::function_eval::FunctionEvalInput;
+use crate::base::input::function_eval::{FunctionEvalInput, FunctionEvalInputBody};
 
 pub mod diffbelt_call;
 pub mod function_eval;
@@ -11,5 +11,5 @@ pub struct Input {
 
 pub enum InputType {
     DiffbeltCall(DiffbeltCallInput<DiffbeltResponseBody>),
-    FunctionEval(FunctionEvalInput),
+    FunctionEval(FunctionEvalInput<FunctionEvalInputBody>),
 }

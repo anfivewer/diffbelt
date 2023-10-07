@@ -428,6 +428,7 @@ name = "diffbelt_types"
 version = "0.0.1"
 dependencies = [
  "base64 0.20.0",
+ "diffbelt_util",
  "serde",
  "serde_json",
  "serde_with",
@@ -437,9 +438,11 @@ dependencies = [
 name = "diffbelt_util"
 version = "0.0.1"
 dependencies = [
- "diffbelt_types",
  "futures",
  "hyper",
+ "serde",
+ "serde_json",
+ "serde_with",
  "tokio",
 ]
 
