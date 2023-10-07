@@ -1,5 +1,5 @@
 use diffbelt_types::collection::diff::DiffCollectionRequestJsonData;
-use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
+use diffbelt_types::collection::generation::{CommitGenerationRequestJsonData, StartGenerationRequestJsonData};
 use std::borrow::Cow;
 use diffbelt_types::collection::put_many::PutManyRequestJsonData;
 
@@ -12,6 +12,7 @@ pub enum DiffbeltRequestBody {
     None,
     DiffCollectionStart(DiffCollectionRequestJsonData),
     StartGeneration(StartGenerationRequestJsonData),
+    CommitGeneration(CommitGenerationRequestJsonData),
     PutMany(PutManyRequestJsonData),
 }
 

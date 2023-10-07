@@ -63,3 +63,7 @@ pub fn checked_usize_to_i32(value: usize) -> i32 {
     assert!(value <= i32::MAX as usize, "{value} > i32::MAX",);
     value as i32
 }
+
+pub fn div_u64_usize_to_f64(a: u64, b: usize) -> f64 {
+    a as f64 / b as f64
+}

@@ -9,6 +9,7 @@ use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
 use crate::util::str_serialization::StrSerializationType;
 pub use diffbelt_types::collection::diff::ReaderDiffFromDefJsonData;
+use diffbelt_types::common::reader::UpdateReaderJsonData;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
@@ -18,13 +19,6 @@ use serde_with::skip_serializing_none;
 pub struct ReaderRecordJsonData {
     reader_name: String,
     collection_name: Option<String>,
-    generation_id: EncodedGenerationIdJsonData,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateReaderJsonData {
-    reader_name: String,
     generation_id: EncodedGenerationIdJsonData,
 }
 
@@ -59,8 +53,15 @@ impl ReaderRecordJsonData {
     }
 }
 
-impl UpdateReaderJsonData {
-    pub fn decode_vec(
+pub trait UpdateReaderJsonDataTrait {
+    fn decode_vec(
+        items: Vec<UpdateReaderJsonData>,
+        _decoder: &StringDecoder,
+    ) -> Result<Vec<CommitGenerationUpdateReader>, HttpError>;
+}
+
+impl UpdateReaderJsonDataTrait for UpdateReaderJsonData {
+    fn decode_vec(
         items: Vec<UpdateReaderJsonData>,
         _decoder: &StringDecoder,
     ) -> Result<Vec<CommitGenerationUpdateReader>, HttpError> {

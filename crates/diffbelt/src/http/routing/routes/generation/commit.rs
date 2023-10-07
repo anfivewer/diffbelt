@@ -1,4 +1,6 @@
 use diffbelt_macro::fn_box_pin_async;
+use diffbelt_types::collection::generation::CommitGenerationRequestJsonData;
+use diffbelt_types::common::reader::UpdateReaderJsonData;
 use regex::Regex;
 use serde::Deserialize;
 
@@ -10,7 +12,7 @@ use crate::http::constants::READER_REQUEST_MAX_BYTES;
 use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_into_generation_id, EncodedGenerationIdJsonData,
 };
-use crate::http::data::reader_record::UpdateReaderJsonData;
+use crate::http::data::reader_record::UpdateReaderJsonDataTrait;
 
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
@@ -24,13 +26,6 @@ use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 use crate::util::option::lift_result_from_option;
 use crate::util::str_serialization::StrSerializationType;
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RequestJsonData {
-    generation_id: EncodedGenerationIdJsonData,
-    update_readers: Option<Vec<UpdateReaderJsonData>>,
-}
-
 #[fn_box_pin_async]
 async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult {
     let context = options.context;
@@ -41,9 +36,9 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     request.allow_only_utf8_json_by_default()?;
 
     let body = read_limited_body(request, READER_REQUEST_MAX_BYTES).await?;
-    let data: RequestJsonData = read_json(body)?;
+    let data: CommitGenerationRequestJsonData = read_json(body)?;
 
-    let RequestJsonData {
+    let CommitGenerationRequestJsonData {
         generation_id,
         update_readers,
     } = data;
