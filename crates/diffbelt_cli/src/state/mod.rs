@@ -4,8 +4,8 @@ use diffbelt_http_client::client::DiffbeltClient;
 use diffbelt_util::cast::checked_usize_to_i32;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 pub struct CliState {
     pub client: Arc<DiffbeltClient>,

@@ -105,9 +105,7 @@ impl<'a> FunctionExecution<'a> {
                     destination,
                     Var {
                         def: VarDef::unknown(),
-                        value: Some(ValueHolder {
-                            value: value(),
-                        }),
+                        value: Some(ValueHolder { value: value() }),
                     },
                 )?;
 

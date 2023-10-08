@@ -4,8 +4,6 @@ use crate::http::util::encoding::StringDecoder;
 
 use crate::util::str_serialization::StrSerializationType;
 use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
-use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 
 pub trait EncodedPhantomIdJsonDataTrait: Sized {
     fn new(phantom_id: OwnedPhantomId, encoding: StrSerializationType) -> Self;

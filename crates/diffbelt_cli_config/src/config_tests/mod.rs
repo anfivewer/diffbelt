@@ -11,7 +11,7 @@ use diffbelt_yaml::YamlNodeRc;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::ops::Deref;
+
 use std::rc::Rc;
 
 #[derive(Debug, Deserialize)]

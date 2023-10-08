@@ -4,16 +4,13 @@ use diffbelt_types::collection::diff::{
     DiffCollectionRequestJsonData, DiffCollectionResponseJsonData,
 };
 use regex::Regex;
-use serde::Deserialize;
 
 use crate::common::generation_id::GenerationIdSource;
 use crate::common::reader::ReaderDef;
 use crate::common::OwnedGenerationId;
 use crate::context::Context;
 use crate::http::constants::DIFF_START_REQUEST_MAX_BYTES;
-use crate::http::data::encoded_generation_id::{
-    encoded_generation_id_data_decode_opt, EncodedGenerationIdJsonData,
-};
+use crate::http::data::encoded_generation_id::encoded_generation_id_data_decode_opt;
 use crate::http::data::reader_record::ReaderDiffFromDefJsonData;
 
 use crate::http::errors::HttpError;

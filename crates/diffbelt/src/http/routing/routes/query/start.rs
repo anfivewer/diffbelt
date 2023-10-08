@@ -1,7 +1,7 @@
 use diffbelt_macro::fn_box_pin_async;
+use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
 use regex::Regex;
 use serde::Deserialize;
-use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
 
 use crate::collection::methods::query::QueryOptions;
 use crate::context::Context;

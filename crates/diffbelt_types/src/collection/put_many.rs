@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
-use crate::common::generation_id::{EncodedGenerationIdJsonData};
+use crate::common::generation_id::EncodedGenerationIdJsonData;
 use crate::common::key_value_update::KeyValueUpdateJsonData;
 use crate::common::phantom_id::EncodedPhantomIdJsonData;
+use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]

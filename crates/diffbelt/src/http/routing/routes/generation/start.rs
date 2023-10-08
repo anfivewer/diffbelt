@@ -3,14 +3,11 @@ use crate::collection::methods::start_generation::StartGenerationOptions;
 use diffbelt_macro::fn_box_pin_async;
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
 use regex::Regex;
-use serde::Deserialize;
 
 use crate::context::Context;
 use crate::http::constants::READER_REQUEST_MAX_BYTES;
 
-use crate::http::data::encoded_generation_id::{
-    encoded_generation_id_data_into_generation_id, EncodedGenerationIdJsonData,
-};
+use crate::http::data::encoded_generation_id::encoded_generation_id_data_into_generation_id;
 
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};

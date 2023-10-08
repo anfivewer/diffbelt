@@ -1,5 +1,4 @@
 use crate::base::action::Action;
-use crate::base::error::TransformError;
 
 pub mod base;
 pub mod map_filter;

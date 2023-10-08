@@ -1,8 +1,8 @@
+pub mod condition;
 pub mod regexp;
 pub mod update_list;
 pub mod update_map;
 pub mod vars;
-pub mod condition;
 
 use crate::code::regexp::RegexpInstruction;
 use crate::code::update_map::UpdateMapInstruction;
@@ -10,13 +10,13 @@ use crate::code::vars::VarsInstruction;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::code::condition::ConditionInstruction;
 use crate::code::update_list::UpdateListInstruction;
 use crate::decode_case;
 use crate::errors::WithMark;
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
-use crate::code::condition::ConditionInstruction;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]

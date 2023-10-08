@@ -1,7 +1,9 @@
 use diffbelt_types::collection::diff::DiffCollectionRequestJsonData;
-use diffbelt_types::collection::generation::{CommitGenerationRequestJsonData, StartGenerationRequestJsonData};
-use std::borrow::Cow;
+use diffbelt_types::collection::generation::{
+    CommitGenerationRequestJsonData, StartGenerationRequestJsonData,
+};
 use diffbelt_types::collection::put_many::PutManyRequestJsonData;
+use std::borrow::Cow;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Method {

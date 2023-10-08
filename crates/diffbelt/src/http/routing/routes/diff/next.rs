@@ -1,6 +1,6 @@
 use crate::collection::methods::diff::ReadDiffCursorOptions;
-use std::sync::Arc;
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
+use std::sync::Arc;
 
 use crate::collection::Collection;
 

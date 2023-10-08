@@ -16,7 +16,7 @@ use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
 use diffbelt_types::common::key_value::{EncodedKeyJsonData, EncodedValueJsonData};
 use diffbelt_types::common::key_value_update::KeyValueUpdateJsonData;
 use diffbelt_types::common::reader::UpdateReaderJsonData;
-use diffbelt_util::cast::{div_u64_usize_to_f64, u64_to_usize, usize_to_u64};
+use diffbelt_util::cast::{u64_to_usize, usize_to_u64};
 use diffbelt_util::option::{cut_layer, lift_result_from_option};
 
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};

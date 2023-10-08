@@ -73,7 +73,7 @@ pub enum Statement {
     IsNone {
         ptr: VarPointer,
         destination: VarPointer,
-    }
+    },
 }
 
 impl<'a> FunctionInitState<'a> {

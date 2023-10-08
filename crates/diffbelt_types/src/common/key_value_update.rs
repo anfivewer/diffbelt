@@ -1,7 +1,7 @@
+use crate::common::key_value::{EncodedKeyJsonData, EncodedValueJsonData};
+use diffbelt_util::serde::deserialize_strict_null::deserialize_strict_null;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use diffbelt_util::serde::deserialize_strict_null::deserialize_strict_null;
-use crate::common::key_value::{EncodedKeyJsonData, EncodedValueJsonData};
 
 #[skip_serializing_none]
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]

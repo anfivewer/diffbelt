@@ -1,3 +1,3 @@
 pub mod action;
-pub mod input;
 pub mod error;
+pub mod input;

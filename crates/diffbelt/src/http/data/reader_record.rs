@@ -10,7 +10,7 @@ use crate::http::util::encoding::StringDecoder;
 use crate::util::str_serialization::StrSerializationType;
 pub use diffbelt_types::collection::diff::ReaderDiffFromDefJsonData;
 use diffbelt_types::common::reader::UpdateReaderJsonData;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]

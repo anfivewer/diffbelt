@@ -1,4 +1,4 @@
-use crate::code::condition::{ConditionInstructionBody};
+use crate::code::condition::ConditionInstructionBody;
 use crate::interpreter::cleanups::Cleanups;
 use crate::interpreter::error::{add_position, InterpreterError};
 use crate::interpreter::function::FunctionInitState;
