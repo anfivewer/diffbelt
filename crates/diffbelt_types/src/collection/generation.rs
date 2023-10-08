@@ -2,14 +2,14 @@ use crate::common::generation_id::EncodedGenerationIdJsonData;
 use serde::{Deserialize, Serialize};
 use crate::common::reader::UpdateReaderJsonData;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct StartGenerationRequestJsonData {
     pub generation_id: EncodedGenerationIdJsonData,
     pub abort_outdated: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitGenerationRequestJsonData {
     pub generation_id: EncodedGenerationIdJsonData,

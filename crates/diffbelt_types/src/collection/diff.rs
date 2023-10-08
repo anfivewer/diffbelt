@@ -3,7 +3,7 @@ use crate::common::key_value::{EncodedKeyJsonData, EncodedValueJsonData};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ReaderDiffFromDefJsonData {
     pub reader_name: String,
@@ -21,7 +21,7 @@ pub struct KeyValueDiffJsonData {
     pub to_value: Option<Option<EncodedValueJsonData>>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DiffCollectionRequestJsonData {
     pub from_generation_id: Option<EncodedGenerationIdJsonData>,

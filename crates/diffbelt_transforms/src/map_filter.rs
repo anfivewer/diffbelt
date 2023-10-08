@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::mem;
 use std::ops::Deref;
 
-use generational_arena::Arena;
+use generational_arena::{Arena, Index};
 
 use diffbelt_types::collection::diff::{
     DiffCollectionRequestJsonData, DiffCollectionResponseJsonData, KeyValueDiffJsonData,
@@ -30,6 +30,7 @@ use crate::TransformRunResult;
 
 enum State {
     Uninitialized,
+    Initialization,
     AwaitingForGenerationStart(AwaitingForGenerationStartState),
     Processing(ProcessingState),
     Committing,
@@ -130,16 +131,78 @@ impl MapFilterTransform {
         }
     }
 
-    pub fn run(&mut self, inputs: Vec<Input>) -> TransformRunResult {
-        todo!()
+    pub fn run(&mut self, inputs: Vec<Input>) -> Result<TransformRunResult, TransformError> {
+        match self.state {
+            State::Uninitialized => {
+                return self.run_init(inputs);
+            }
+            State::Invalid => {
+                return Err(TransformError::Unspecified("State is Invalid".to_string()));
+            }
+            _ => {}
+        }
+
+        let mut must_finish = false;
+
+        let mut actions = Vec::new();
+
+        for input in inputs {
+            if must_finish {
+                return Err(TransformError::Unspecified(
+                    "Expected to finish, but got more inputs".to_string(),
+                ));
+            }
+
+            let Input { id: (a, b), input } = input;
+
+            let handler = self
+                .action_input_handlers
+                .remove(Index::from_raw_parts(u64_to_usize(a), b));
+
+            let Some(handler) = handler else {
+                return Err(TransformError::Unspecified(
+                    "No such handler exists".to_string(),
+                ));
+            };
+
+            let action_result = handler(self, input)?;
+
+            match action_result {
+                ActionInputHandlerResult::Finish => {
+                    must_finish = true;
+                }
+                ActionInputHandlerResult::Consumed => {
+                    // Nothing to do, just wait more inputs
+                }
+                ActionInputHandlerResult::AddActions(new_actions) => {
+                    for (action, handler) in new_actions {
+                        self.push_action(&mut actions, action, handler);
+                    }
+                }
+            }
+        }
+
+        if must_finish {
+            if !actions.is_empty() {
+                return Err(TransformError::Unspecified(
+                    "Expected to finish, but got spawned more actions".to_string(),
+                ));
+            }
+
+            return Ok(TransformRunResult::Finish);
+        }
+
+        Ok(TransformRunResult::Actions(actions))
     }
 
-    fn run_init(&mut self, inputs: Vec<Input>) -> TransformRunResult {
+    fn run_init(&mut self, inputs: Vec<Input>) -> Result<TransformRunResult, TransformError> {
         if !inputs.is_empty() {
-            return TransformRunResult::Error(TransformError::Unspecified(
+            return Err(TransformError::Unspecified(
                 "Unexpected inputs on init".to_string(),
             ));
         }
+
+        self.state = State::Initialization;
 
         let mut actions = Vec::new();
 
@@ -168,7 +231,7 @@ impl MapFilterTransform {
             }),
         );
 
-        TransformRunResult::Actions(actions)
+        Ok(TransformRunResult::Actions(actions))
     }
 
     fn on_start_diff(&mut self, diff: DiffCollectionResponseJsonData) -> HandlerResult {
@@ -236,8 +299,6 @@ impl MapFilterTransform {
 
         let mut actions = Vec::new();
 
-        () = Self::diff_items_to_actions(&mut state, &mut actions, items)?;
-
         if let Some(cursor_id) = cursor_id.as_ref() {
             state.actions_left += 1;
             actions.push(Self::read_cursor(
@@ -245,6 +306,8 @@ impl MapFilterTransform {
                 cursor_id.deref(),
             ));
         }
+
+        () = Self::diff_items_to_actions(&mut state, &mut actions, items)?;
 
         self.state = State::Processing(state);
 
@@ -337,21 +400,25 @@ impl MapFilterTransform {
         } = input;
 
         let (Some(new_key), Some(value)) = (new_key, value) else {
-            self.puts_buffer.push(KeyValueUpdateJsonData {
-                key: EncodedKeyJsonData::from_boxed_bytes(old_key),
-                if_not_present: None,
-                value: None,
-            });
+            if let Some(old_key) = old_key {
+                self.puts_buffer.push(KeyValueUpdateJsonData {
+                    key: EncodedKeyJsonData::from_boxed_bytes(old_key),
+                    if_not_present: None,
+                    value: None,
+                });
+            }
 
             return self.post_handle();
         };
 
-        if old_key != new_key {
-            self.puts_buffer.push(KeyValueUpdateJsonData {
-                key: EncodedKeyJsonData::from_boxed_bytes(old_key),
-                if_not_present: None,
-                value: None,
-            });
+        if let Some(old_key) = old_key {
+            if old_key != new_key {
+                self.puts_buffer.push(KeyValueUpdateJsonData {
+                    key: EncodedKeyJsonData::from_boxed_bytes(old_key),
+                    if_not_present: None,
+                    value: None,
+                });
+            }
         }
 
         self.puts_buffer.push(KeyValueUpdateJsonData {
@@ -440,8 +507,8 @@ impl MapFilterTransform {
             ActionType::DiffbeltCall(DiffbeltCallAction {
                 method: Method::Post,
                 path: Cow::Owned(format!(
-                    "/collections/{}/putMany",
-                    urlencoding::encode(self.from_collection_name.deref()),
+                    "/collections/{}/generation/commit",
+                    urlencoding::encode(self.to_collection_name.deref()),
                 )),
                 query: Vec::with_capacity(0),
                 body: DiffbeltRequestBody::CommitGeneration(CommitGenerationRequestJsonData {
@@ -514,7 +581,7 @@ impl MapFilterTransform {
     ) -> (ActionType, ActionInputHandler) {
         (
             ActionType::DiffbeltCall(DiffbeltCallAction {
-                method: Method::Post,
+                method: Method::Get,
                 path: Cow::Owned(format!(
                     "/collections/{}/diff/{}",
                     urlencoding::encode(from_collection_name),

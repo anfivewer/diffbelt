@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use crate::common::generation_id::EncodedGenerationIdJsonData;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateReaderJsonData {
     pub reader_name: String,

@@ -4,7 +4,7 @@ use diffbelt_util::serde::deserialize_strict_null::deserialize_strict_null;
 use crate::common::key_value::{EncodedKeyJsonData, EncodedValueJsonData};
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyValueUpdateJsonData {
     pub key: EncodedKeyJsonData,

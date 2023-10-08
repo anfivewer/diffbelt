@@ -4,7 +4,7 @@ use crate::common::generation_id::{EncodedGenerationIdJsonData};
 use crate::common::key_value_update::KeyValueUpdateJsonData;
 use crate::common::phantom_id::EncodedPhantomIdJsonData;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PutManyRequestJsonData {
     pub items: Vec<KeyValueUpdateJsonData>,
