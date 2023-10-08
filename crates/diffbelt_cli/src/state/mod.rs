@@ -1,11 +1,14 @@
+use crate::commands::errors::CommandError;
 use diffbelt_cli_config::CliConfig;
 use diffbelt_http_client::client::DiffbeltClient;
 use diffbelt_util::cast::checked_usize_to_i32;
+use std::ops::Deref;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub struct CliState {
-    pub client: DiffbeltClient,
+    pub client: Arc<DiffbeltClient>,
     pub config: Option<Rc<CliConfig>>,
     exit_code_atomic: AtomicUsize,
 }
@@ -13,7 +16,7 @@ pub struct CliState {
 impl CliState {
     pub fn new(client: DiffbeltClient, config: Option<Rc<CliConfig>>) -> Self {
         Self {
-            client,
+            client: Arc::new(client),
             config,
             exit_code_atomic: AtomicUsize::new(0),
         }
@@ -44,5 +47,13 @@ impl CliState {
                 break;
             }
         }
+    }
+
+    pub fn require_config(&self) -> Result<&CliConfig, CommandError> {
+        let Some(config) = &self.config else {
+            return Err(CommandError::Message("Specify config path with --config parameter\n\nExample: diffbelt_cli --config config.yaml test".to_string()));
+        };
+
+        Ok(config.deref())
     }
 }

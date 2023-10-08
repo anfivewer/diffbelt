@@ -147,7 +147,7 @@ fn map_filter_test() {
             method: Method::Get,
             path: Cow::Borrowed("/collections/from/diff/first_cursor"),
             query: vec![],
-            body: DiffbeltRequestBody::None,
+            body: DiffbeltRequestBody::ReadDiffCursorNone,
         })
     );
 
@@ -228,7 +228,7 @@ fn map_filter_test() {
             method: Method::Get,
             path: Cow::Borrowed("/collections/from/diff/second_cursor"),
             query: vec![],
-            body: DiffbeltRequestBody::None,
+            body: DiffbeltRequestBody::ReadDiffCursorNone,
         })
     );
 

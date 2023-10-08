@@ -79,13 +79,7 @@ impl CliConfig {
                         continue 'outer;
                     };
 
-                    let Some(transform) = self.transforms.iter().find(|transform| {
-                        transform
-                            .name
-                            .as_ref()
-                            .map(|name| name.deref() == transform_name)
-                            .unwrap_or(false)
-                    }) else {
+                    let Some(transform) = self.transform_by_name(transform_name) else {
                         push_error!(format!(
                             "Transform {transform_name} not found, add name to it's declaration"
                         ));

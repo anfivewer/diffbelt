@@ -10,13 +10,7 @@ pub struct Test;
 
 impl Test {
     pub async fn run(&self, state: Arc<CliState>) -> CommandResult {
-        let config = state
-            .config
-            .as_ref()
-            .map(|x| x.as_ref())
-            .ok_or_else(|| {
-                CommandError::Message("Specify config path with --config parameter\n\nExample: diffbelt_cli --config config.yaml test".to_string())
-            })?;
+        let config = state.require_config()?;
 
         let is_ok = run_tests(config).map_err(CommandError::RunTests)?;
 

@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+serde = { version = "1.0.152", features = [] }
 tokio = { version = "1.22.0", features = ["full"] }
 hyper = { version = "0.14.23", features = ["full"] }
 serde_json = "1.0.91"
@@ -16,3 +17,6 @@ path = "../diffbelt_types"
 
 [dependencies.diffbelt_util]
 path = "../diffbelt_util"
+
+[dependencies.diffbelt_transforms]
+path = "../diffbelt_transforms"

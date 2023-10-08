@@ -191,7 +191,10 @@ mod tests {
         ])));
 
         let expected_value = Value::Map(Wrap::wrap(HashMap::from([
-            (PrimitiveValue::String(Rc::from("key")), Value::String(key)),
+            (
+                PrimitiveValue::String(Rc::from("key")),
+                Value::String(Rc::from("2023-02-20T21:42:48.822Z.000 worker258688")),
+            ),
             (PrimitiveValue::String(Rc::from("value")), expected_value),
         ])));
 

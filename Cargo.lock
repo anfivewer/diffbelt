@@ -378,6 +378,7 @@ dependencies = [
  "clap",
  "diffbelt_cli_config",
  "diffbelt_http_client",
+ "diffbelt_transforms",
  "diffbelt_types",
  "diffbelt_util",
  "hyper",
@@ -402,9 +403,11 @@ dependencies = [
 name = "diffbelt_http_client"
 version = "0.0.1"
 dependencies = [
+ "diffbelt_transforms",
  "diffbelt_types",
  "diffbelt_util",
  "hyper",
+ "serde",
  "serde_json",
  "tokio",
 ]

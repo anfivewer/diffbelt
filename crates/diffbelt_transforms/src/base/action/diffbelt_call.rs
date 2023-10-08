@@ -11,7 +11,7 @@ pub enum Method {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum DiffbeltRequestBody {
-    None,
+    ReadDiffCursorNone,
     DiffCollectionStart(DiffCollectionRequestJsonData),
     StartGeneration(StartGenerationRequestJsonData),
     CommitGeneration(CommitGenerationRequestJsonData),

@@ -21,3 +21,6 @@ path = "../diffbelt_http_client"
 
 [dependencies.diffbelt_cli_config]
 path = "../diffbelt_cli_config"
+
+[dependencies.diffbelt_transforms]
+path = "../diffbelt_transforms"

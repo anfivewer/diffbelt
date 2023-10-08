@@ -1,6 +1,7 @@
 mod run;
+mod run_parse;
 
-use crate::commands::transform::run::Run;
+use crate::commands::transform::run::{run_transform_command, Run};
 use crate::state::CliState;
 use crate::CommandResult;
 use clap::{Parser, Subcommand};
@@ -19,7 +20,14 @@ enum TransformSubcommand {
 }
 
 impl Transform {
-    pub async fn run(&self, _state: Arc<CliState>) -> CommandResult {
-        Ok(())
+    pub async fn run(&self, state: Arc<CliState>) -> CommandResult {
+        let Transform { command } = self;
+        match command {
+            TransformSubcommand::Run(run) => {
+                let Run { run } = run;
+
+                run_transform_command(run, state).await
+            }
+        }
     }
 }

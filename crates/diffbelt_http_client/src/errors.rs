@@ -4,7 +4,10 @@ use diffbelt_util::http::read_full_body::BodyReadError;
 pub enum DiffbeltClientError {
     Hyper(hyper::Error),
     BodyRead(BodyReadError),
+    Not200Unknown,
+    Not200(String),
     JsonParsing,
+    JsonSerialize(serde_json::Error),
 }
 
 impl From<hyper::Error> for DiffbeltClientError {

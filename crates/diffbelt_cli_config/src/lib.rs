@@ -99,20 +99,55 @@ impl CliConfig {
             .filter_map(|name| name)
             .map(|name| name.deref())
     }
+
+    pub fn collection_by_name(&self, collection_name: &str) -> Option<&Collection> {
+        self.collections
+            .iter()
+            .find(|collection| collection.name.as_str() == collection_name)
+    }
+
+    pub fn transform_by_name(&self, required_name: &str) -> Option<&Transform> {
+        self.transforms.iter().find(|transform| {
+            transform
+                .name
+                .as_ref()
+                .map(|name| name.deref() == required_name)
+                .unwrap_or(false)
+        })
+    }
 }
 
 #[derive(Debug)]
 pub struct Collection {
-    name: String,
-    manual: bool,
-    format: CollectionValueFormat,
+    pub name: String,
+    pub manual: bool,
+    pub format: CollectionValueFormat,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum CollectionValueFormat {
     Bytes,
     Utf8,
     Json,
+}
+
+impl CollectionValueFormat {
+    pub fn from_str(format: &str) -> Option<Self> {
+        match format {
+            "bytes" => Some(Self::Bytes),
+            "utf8" => Some(Self::Utf8),
+            "json" => Some(Self::Json),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CollectionValueFormat::Bytes => "bytes",
+            CollectionValueFormat::Utf8 => "utf8",
+            CollectionValueFormat::Json => "json",
+        }
+    }
 }
 
 impl Collection {
@@ -137,17 +172,14 @@ impl Collection {
                 "format" => {
                     let format_str = expect_str(&value)?;
 
-                    format = match format_str {
-                        "bytes" => CollectionValueFormat::Bytes,
-                        "utf8" => CollectionValueFormat::Utf8,
-                        "json" => CollectionValueFormat::Json,
-                        other => {
-                            return Err(ConfigParsingError::Custom(ExpectedError {
-                                message: format!("unknown format: \"{}\"", other),
-                                position: Some((&value.start_mark).into()),
-                            }));
-                        }
-                    }
+                    let Some(fmt) = CollectionValueFormat::from_str(format_str) else {
+                        return Err(ConfigParsingError::Custom(ExpectedError {
+                            message: format!("unknown format: \"{}\"", format_str),
+                            position: Some((&value.start_mark).into()),
+                        }));
+                    };
+
+                    format = fmt
                 }
                 other => {
                     return Err(ConfigParsingError::UnknownKey(ExpectedError {

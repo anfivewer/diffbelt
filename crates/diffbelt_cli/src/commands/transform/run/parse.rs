@@ -1,18 +1,8 @@
+use crate::commands::transform::run::RunSubcommand;
 use clap::error::ErrorKind;
-use clap::{ArgMatches, Args, Command, Error, FromArgMatches, Subcommand};
+use clap::{ArgMatches, Command, Error, FromArgMatches, Subcommand};
 
 use crate::global::get_global_config;
-
-#[derive(Args, Debug)]
-pub struct Run {
-    #[command(subcommand)]
-    run: RunSubcommand,
-}
-
-#[derive(Clone, Debug)]
-struct RunSubcommand {
-    name: String,
-}
 
 impl FromArgMatches for RunSubcommand {
     fn from_arg_matches(matches: &ArgMatches) -> Result<Self, Error> {

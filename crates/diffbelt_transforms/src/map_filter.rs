@@ -588,7 +588,7 @@ impl MapFilterTransform {
                     urlencoding::encode(cursor_id),
                 )),
                 query: Vec::with_capacity(0),
-                body: DiffbeltRequestBody::None,
+                body: DiffbeltRequestBody::ReadDiffCursorNone,
             }),
             input_handler!(this, input, {
                 let DiffbeltCallInput { body } = input.into_diffbelt_diff()?;
