@@ -10,6 +10,7 @@ pub struct JumpIfStatement {
 
 #[derive(Debug, Clone)]
 pub enum Condition {
+    IsFalse(VarPointer),
     NonEmptyString(VarPointer),
 }
 

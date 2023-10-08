@@ -4,7 +4,7 @@ pub mod value;
 use crate::config_tests::value::{construct_value_from_yaml, YamlValueConstructionError};
 use crate::interpreter::error::InterpreterError;
 use crate::interpreter::function::Function;
-use crate::interpreter::value::ValueHolder;
+use crate::interpreter::value::{Value, ValueHolder};
 use crate::interpreter::var::{Var, VarDef};
 use crate::CliConfig;
 use diffbelt_yaml::YamlNodeRc;
@@ -28,7 +28,10 @@ pub struct SingleTest {
     pub value: YamlNodeRc,
 }
 
-pub type AssertError = Rc<str>;
+#[derive(Debug)]
+pub enum AssertError {
+    ValueMissmatch { expected: Value, actual: Value },
+}
 
 #[derive(Debug)]
 pub enum TestError {
@@ -105,9 +108,15 @@ impl CliConfig {
                         "map_filter" => {
                             if let Some(map_filter) = transform.map_filter.as_ref() {
                                 (
-                                    [(Rc::from("source"), VarDef::anonymous_string())]
-                                        .into_iter()
-                                        .collect::<IndexMap<Rc<str>, VarDef>>(),
+                                    [
+                                        (Rc::from("map_filter_key"), VarDef::anonymous_string()),
+                                        (
+                                            Rc::from("map_filter_new_value"),
+                                            VarDef::anonymous_string(),
+                                        ),
+                                    ]
+                                    .into_iter()
+                                    .collect::<IndexMap<Rc<str>, VarDef>>(),
                                     map_filter,
                                 )
                             } else {
@@ -137,17 +146,6 @@ impl CliConfig {
                     continue 'outer;
                 }
             };
-
-            // let input_vars = vec![(
-            //     Rc::from("source"),
-            //     Var {
-            //         def: VarDef::anonymous_string(),
-            //         value: Some(ValueHolder { value: Value::String(Rc::from("S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra|another extra")) }),
-            //     },
-            // )]
-            //     .into_iter().collect();
-            //
-            // let actual_value = function.call(input_vars).expect("function execution");
 
             let mut single_tests = Vec::with_capacity(tests.len());
 
@@ -203,10 +201,13 @@ impl CliConfig {
                     }
                 };
 
-                if actual_value == expected_value {
+                if actual_value != expected_value {
                     single_tests.push(SingleTestResult {
                         name: name.clone(),
-                        result: Ok(Some(Rc::from("value missmatch"))),
+                        result: Ok(Some(AssertError::ValueMissmatch {
+                            expected: expected_value,
+                            actual: actual_value,
+                        })),
                     });
                 } else {
                     single_tests.push(SingleTestResult {

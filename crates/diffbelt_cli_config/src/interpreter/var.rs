@@ -16,6 +16,12 @@ impl VarDef {
         }
     }
 
+    pub fn anonymous_bool() -> Self {
+        VarDef {
+            name: String::with_capacity(0),
+        }
+    }
+
     pub fn anonymous_string() -> Self {
         VarDef {
             name: String::with_capacity(0),
@@ -36,6 +42,15 @@ pub struct Var {
 }
 
 impl Var {
+    pub fn new_bool(value: bool) -> Self {
+        Var {
+            def: VarDef::anonymous_bool(),
+            value: Some(ValueHolder {
+                value: Value::Bool(value),
+            }),
+        }
+    }
+
     pub fn new_string(value: Rc<str>) -> Self {
         Var {
             def: VarDef::anonymous_string(),
@@ -52,6 +67,26 @@ impl Var {
                 value: Value::U64(value),
             }),
         }
+    }
+
+    pub fn as_initialized_none(&self) -> Option<bool> {
+        self.value.as_ref().map(|var| {
+            let Value::None = &var.value else {
+                return false;
+            };
+
+            true
+        })
+    }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        self.value.as_ref().and_then(|var| {
+            let Value::Bool(b) = &var.value else {
+                return None;
+            };
+
+            Some(*b)
+        })
     }
 
     pub fn as_str(&self) -> Option<&str> {

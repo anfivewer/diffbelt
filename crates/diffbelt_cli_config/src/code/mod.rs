@@ -2,6 +2,7 @@ pub mod regexp;
 pub mod update_list;
 pub mod update_map;
 pub mod vars;
+pub mod condition;
 
 use crate::code::regexp::RegexpInstruction;
 use crate::code::update_map::UpdateMapInstruction;
@@ -15,6 +16,7 @@ use crate::errors::WithMark;
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
+use crate::code::condition::ConditionInstruction;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
@@ -28,6 +30,7 @@ pub enum Instruction {
     UpdateMap(UpdateMapInstruction),
     UpdateList(UpdateListInstruction),
     Regexp(RegexpInstruction),
+    Condition(ConditionInstruction),
     Return(ReturnInstruction),
     Unknown(Rc<YamlNode>),
 }
@@ -57,6 +60,7 @@ impl<'de> Deserialize<'de> for Instruction {
         decode_case!(&raw, Instruction::Vars);
         decode_case!(&raw, Instruction::UpdateMap);
         decode_case!(&raw, Instruction::UpdateList);
+        decode_case!(&raw, Instruction::Condition);
         decode_case!(&raw, Instruction::Return);
 
         Ok(Instruction::Unknown(raw))

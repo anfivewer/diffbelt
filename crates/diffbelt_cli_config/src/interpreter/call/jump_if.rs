@@ -10,6 +10,10 @@ impl<'a> FunctionExecution<'a> {
         } = jump_if;
 
         let success = match condition {
+            Condition::IsFalse(ptr) => {
+                let b = self.read_var_as_bool(ptr, None)?;
+                !b
+            }
             Condition::NonEmptyString(ptr) => {
                 let s = self.read_var_as_str(ptr, None)?;
                 !s.is_empty()

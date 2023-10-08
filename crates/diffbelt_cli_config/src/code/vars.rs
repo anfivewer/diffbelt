@@ -1,7 +1,9 @@
+use crate::decode_case;
 use crate::errors::WithMark;
 use diffbelt_yaml::{decode_yaml, YamlNode};
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
+use std::collections::HashMap;
 use std::fmt::Formatter;
 use std::rc::Rc;
 
@@ -58,6 +60,7 @@ pub enum VarProcessing {
     ParseDateToMs(ParseDateToMsProcessing),
     ParseUint(ParseUintProcessing),
     RegexpReplace(RegexpReplaceProcessing),
+    CreateMap(CreateMapProcessing),
     Unknown(Rc<YamlNode>),
 }
 
@@ -68,24 +71,13 @@ impl<'de> Deserialize<'de> for VarProcessing {
     {
         let raw = YamlNode::deserialize(deserializer)?;
 
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(VarProcessing::ByString(value));
-        }
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(VarProcessing::DateFromUnixMs(value));
-        }
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(VarProcessing::NonEmptyString(value));
-        }
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(VarProcessing::ParseDateToMs(value));
-        }
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(VarProcessing::ParseUint(value));
-        }
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(VarProcessing::RegexpReplace(value));
-        }
+        decode_case!(&raw, VarProcessing::ByString);
+        decode_case!(&raw, VarProcessing::DateFromUnixMs);
+        decode_case!(&raw, VarProcessing::NonEmptyString);
+        decode_case!(&raw, VarProcessing::ParseDateToMs);
+        decode_case!(&raw, VarProcessing::ParseUint);
+        decode_case!(&raw, VarProcessing::RegexpReplace);
+        decode_case!(&raw, VarProcessing::CreateMap);
 
         Ok(VarProcessing::Unknown(raw))
     }
@@ -121,6 +113,11 @@ pub struct RegexpReplaceProcessingBody {
     pub var: WithMark<Rc<str>>,
     pub from: WithMark<Rc<str>>,
     pub to: Rc<str>,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct CreateMapProcessing {
+    pub map: HashMap<Rc<str>, WithMark<Rc<str>>>,
 }
 
 #[cfg(test)]

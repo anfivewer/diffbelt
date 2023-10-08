@@ -1,10 +1,11 @@
 use crate::code;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::code::vars::{
-    DateFromUnixMsProcessing, NonEmptyStringProcessing, ParseDateToMsProcessing,
-    ParseUintProcessing, RegexpReplaceProcessing, RegexpReplaceProcessingBody, VarProcessing,
-    VarsInstruction,
+    CreateMapProcessing, DateFromUnixMsProcessing, NonEmptyStringProcessing,
+    ParseDateToMsProcessing, ParseUintProcessing, RegexpReplaceProcessing,
+    RegexpReplaceProcessingBody, VarProcessing, VarsInstruction,
 };
 use crate::interpreter::cleanups::Cleanups;
 use crate::interpreter::error::{add_position, ExpectError, InterpreterError};
@@ -14,6 +15,9 @@ use crate::interpreter::statement::parse_date::ParseDateToMsStatement;
 use crate::interpreter::statement::Statement;
 
 use crate::interpreter::expression::VarPointer;
+use crate::interpreter::value::Value;
+use crate::interpreter::var::VarDef;
+use diffbelt_util::Wrap;
 use regex::Regex;
 
 #[derive(Debug, Clone)]
@@ -35,7 +39,7 @@ impl<'a> FunctionInitState<'a> {
     ) -> Result<(), InterpreterError> {
         let VarsInstruction { vars } = vars;
 
-        let cleanups = Cleanups::new();
+        let mut cleanups = Cleanups::new();
 
         for var in vars {
             let code::vars::Var { name, value } = var;
@@ -124,6 +128,28 @@ impl<'a> FunctionInitState<'a> {
                             regexp,
                             to: to.clone(),
                         }));
+                }
+                VarProcessing::CreateMap(processing) => {
+                    let CreateMapProcessing { map } = processing;
+
+                    self.statements.push(Statement::Set {
+                        value: Value::Map(Wrap::wrap(HashMap::with_capacity(map.len()))),
+                        destination: var_ptr.clone(),
+                    });
+
+                    let temp_ptr = self.temp_var(VarDef::unknown(), &mut cleanups);
+
+                    for (key, value) in map {
+                        self.process_expression(&value.value, temp_ptr.clone())
+                            .map_err(add_position(&value.mark))?;
+
+                        self.statements.push(Statement::InsertToMap {
+                            map_mark: None,
+                            map: var_ptr.clone(),
+                            key: VarPointer::LiteralStr(key.clone()),
+                            value: temp_ptr.clone(),
+                        });
+                    }
                 }
                 VarProcessing::Unknown(node) => {
                     if let Some(mapping) = node.as_mapping() {

@@ -23,7 +23,7 @@ pub fn run_tests(config: &CliConfig) -> Result<bool, RunTestsError> {
         let results = match result {
             Ok(x) => x,
             Err(err) => {
-                println!("[FAIL] {function_name}: {:?}", err);
+                println!("[FAIL] {function_name}: {err:?}");
                 is_ok = false;
                 continue;
             }
@@ -42,7 +42,7 @@ pub fn run_tests(config: &CliConfig) -> Result<bool, RunTestsError> {
             };
 
             if let Some(err) = result {
-                println!("[FAIL] {function_name} > {name}: {:?}", err);
+                println!("[FAIL] {function_name} > {name}:\n{:#?}", err);
                 is_ok = false;
             } else {
                 println!("[ OK ] {function_name} > {name}");

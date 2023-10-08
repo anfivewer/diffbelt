@@ -100,6 +100,20 @@ impl<'a> FunctionExecution<'a> {
                 self.statement_index += 1;
                 Ok(None)
             }
+            Statement::SetDyn { value, destination } => {
+                self.set_var(
+                    destination,
+                    Var {
+                        def: VarDef::unknown(),
+                        value: Some(ValueHolder {
+                            value: value(),
+                        }),
+                    },
+                )?;
+
+                self.statement_index += 1;
+                Ok(None)
+            }
             Statement::JumpIf(jump_if) => self.execute_jump_if(jump_if).map(|()| None),
             Statement::Return(ptr) => {
                 let value = self.read_var_value(ptr)?;
@@ -165,6 +179,14 @@ impl<'a> FunctionExecution<'a> {
             Statement::Concat(concat) => self.execute_concat(concat).map(|()| None),
             Statement::Jump { statement_index } => {
                 self.statement_index = *statement_index;
+                Ok(None)
+            }
+            Statement::IsNone { ptr, destination } => {
+                let value = self.is_var_initialized_none(ptr, None)?;
+
+                self.set_var(destination, Var::new_bool(value))?;
+
+                self.statement_index += 1;
                 Ok(None)
             }
         }

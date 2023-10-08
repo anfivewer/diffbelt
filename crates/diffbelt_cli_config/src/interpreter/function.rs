@@ -107,20 +107,39 @@ mod tests {
             .as_ref()
             .expect("first transform is not mapFilter");
 
-        let input_vars = [(Rc::from("source"), VarDef::anonymous_string())]
-            .into_iter()
-            .collect();
+        let input_vars = [
+            (Rc::from("map_filter_key"), VarDef::anonymous_string()),
+            (Rc::from("map_filter_new_value"), VarDef::anonymous_string()),
+        ]
+        .into_iter()
+        .collect();
 
         let function = Function::from_code(&config, code, Some(input_vars)).expect("function");
 
-        let input_vars = vec![(
-            Rc::from("source"),
-            Var {
-                def: VarDef::anonymous_string(),
-                value: Some(ValueHolder { value: Value::String(Rc::from("S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra|another extra")) }),
-            },
-        )]
-            .into_iter().collect();
+        let key = Rc::<str>::from("S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra|another extra");
+
+        let input_vars = vec![
+            (
+                Rc::from("map_filter_key"),
+                Var {
+                    def: VarDef::anonymous_string(),
+                    value: Some(ValueHolder {
+                        value: Value::String(key.clone()),
+                    }),
+                },
+            ),
+            (
+                Rc::from("map_filter_new_value"),
+                Var {
+                    def: VarDef::anonymous_string(),
+                    value: Some(ValueHolder {
+                        value: Value::String(Rc::from("")),
+                    }),
+                },
+            ),
+        ]
+        .into_iter()
+        .collect();
 
         let actual_value = function.call(input_vars).expect("function execution");
 
@@ -169,6 +188,11 @@ mod tests {
                     Value::String(Rc::from("another extra")),
                 ])),
             ),
+        ])));
+
+        let expected_value = Value::Map(Wrap::wrap(HashMap::from([
+            (PrimitiveValue::String(Rc::from("key")), Value::String(key)),
+            (PrimitiveValue::String(Rc::from("value")), expected_value),
         ])));
 
         assert_eq!(actual_value, expected_value);

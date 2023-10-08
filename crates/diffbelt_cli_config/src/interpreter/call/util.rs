@@ -73,6 +73,60 @@ impl<'a> FunctionExecution<'a> {
             .ok_or_else(|| InterpreterError::custom_without_mark("Uninitialized value".to_string()))
     }
 
+    pub fn is_var_initialized_none(
+        &self,
+        ptr: &VarPointer,
+        mark: Option<&ConfigPositionMark>,
+    ) -> Result<bool, InterpreterError> {
+        let source = match ptr {
+            VarPointer::VarIndex(index) => self.read_var_by_index(*index)?,
+            VarPointer::LiteralStr(_) => {
+                return Ok(false);
+            }
+            VarPointer::LiteralUsize(_) => {
+                return Ok(false);
+            }
+        };
+
+        let value = source.as_initialized_none().ok_or_else(|| {
+            InterpreterError::custom(
+                "Var is not initialized".to_string(),
+                mark.map(|x| x.clone()),
+            )
+        })?;
+
+        Ok(value)
+    }
+
+    pub fn read_var_as_bool(
+        &self,
+        ptr: &VarPointer,
+        mark: Option<&ConfigPositionMark>,
+    ) -> Result<bool, InterpreterError> {
+        let source = match ptr {
+            VarPointer::VarIndex(index) => self.read_var_by_index(*index)?,
+            VarPointer::LiteralStr(_) => {
+                return Err(InterpreterError::custom(
+                    "Expected bool value, found lteral string".to_string(),
+                    mark.map(|x| x.clone()),
+                ));
+            }
+            VarPointer::LiteralUsize(_) => {
+                return Err(InterpreterError::custom(
+                    "Expected bool value, found lteral usize".to_string(),
+                    mark.map(|x| x.clone()),
+                ));
+            }
+        };
+
+        let value = source.as_bool().ok_or_else(|| {
+            println!("get bool check {ptr:#?}");
+            InterpreterError::custom("Expected bool value".to_string(), mark.map(|x| x.clone()))
+        })?;
+
+        Ok(value)
+    }
+
     pub fn read_var_as_str<'b>(
         &'b self,
         ptr: &'b VarPointer,

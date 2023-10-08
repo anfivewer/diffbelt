@@ -13,7 +13,7 @@ pub enum YamlValueConstructionError {
 
 lazy_static::lazy_static! {
     static ref U64: Regex = Regex::new("^\\d+$").unwrap();
-    static ref STR: Regex = Regex::new("^('?)(.*)('?)$").unwrap();
+    static ref STR: Regex = Regex::new("^('?)(.*?)('?)$").unwrap();
 }
 
 pub fn construct_value_from_yaml(node: &YamlNode) -> Result<Value, YamlValueConstructionError> {

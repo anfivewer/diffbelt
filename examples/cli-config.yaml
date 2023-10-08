@@ -56,8 +56,14 @@ transforms:
     to: parsed-log-lines
     reader_name: log-lines
     map_filter:
+      - if:
+          condition: (is_none map_filter_new_value)
+          then:
+            - return:
+                key: map_filter_key
+                value: (none)
       - regexp:
-          var: source
+          var: map_filter_key
           parts:
             log_level: '''(T|I|W|E|S)'''
             timestamp: '''(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{1,3}Z)\.(\d{1,3})'''
@@ -148,15 +154,20 @@ transforms:
             - update_list:
                 var: extra
                 push: extra_unescaped
+      - vars:
+          value:
+            map:
+              logLevel: log_level
+              timestampString: timestamp_string
+              timestampMilliseconds: timestamp_ms
+              timestampMicroseconds: microseconds
+              loggerKey: logger_key
+              logKey: log_key
+              props: props
+              extra: extra
       - return:
-          logLevel: log_level
-          timestampString: timestamp_string
-          timestampMilliseconds: timestamp_ms
-          timestampMicroseconds: microseconds
-          loggerKey: logger_key
-          logKey: log_key
-          props: props
-          extra: extra
+          key: map_filter_key
+          value: value
 
   - from: parsed-log-lines
     to: parsed-log-lines:1d
@@ -407,75 +418,91 @@ tests:
   transforms.parse_lines.map_filter:
     - name: with props and no extras
       vars:
-        source: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27'
+        map_filter_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27'
+        map_filter_new_value: ''
       return:
-        logLevel: S
-        timestampString: 2023-02-20T21:42:48.822Z.000
-        timestampMilliseconds: 1676929368822
-        timestampMicroseconds: 0
-        loggerKey: worker258688:middlewares
-        logKey: handleFull
-        props:
-          updateType: edited_message
-          ms: 27
+        key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27'
+        value:
+          logLevel: S
+          timestampString: 2023-02-20T21:42:48.822Z.000
+          timestampMilliseconds: 1676929368822
+          timestampMicroseconds: 0
+          loggerKey: worker258688:middlewares
+          logKey: handleFull
+          props:
+            updateType: edited_message
+            ms: '''27'''
+          extra: []
 
     - name: with props and one extra
       vars:
-        source: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra'
+        map_filter_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 1'
+        map_filter_new_value: ''
       return:
-        logLevel: S
-        timestampString: 2023-02-20T21:42:48.822Z.000
-        timestampMilliseconds: 1676929368822
-        timestampMicroseconds: 0
-        loggerKey: worker258688:middlewares
-        logKey: handleFull
-        props:
-          updateType: edited_message
-          ms: 27
-        extra:
-          - some extra
+        key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 1'
+        value:
+          logLevel: S
+          timestampString: 2023-02-20T21:42:48.822Z.000
+          timestampMilliseconds: 1676929368822
+          timestampMicroseconds: 0
+          loggerKey: worker258688:middlewares
+          logKey: handleFull
+          props:
+            updateType: edited_message
+            ms: '''27'''
+          extra:
+            - some extra 1
 
     - name: with props and two extras
       vars:
-        source: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra|another extra'
+        map_filter_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 2|another extra 2'
+        map_filter_new_value: ''
       return:
-        logLevel: S
-        timestampString: 2023-02-20T21:42:48.822Z.000
-        timestampMilliseconds: 1676929368822
-        timestampMicroseconds: 0
-        loggerKey: worker258688:middlewares
-        logKey: handleFull
-        props:
-          updateType: edited_message
-          ms: 27
-        extra:
-          - some extra
-          - another extra
+        key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 2|another extra 2'
+        value:
+          logLevel: S
+          timestampString: 2023-02-20T21:42:48.822Z.000
+          timestampMilliseconds: 1676929368822
+          timestampMicroseconds: 0
+          loggerKey: worker258688:middlewares
+          logKey: handleFull
+          props:
+            updateType: edited_message
+            ms: '''27'''
+          extra:
+            - some extra 2
+            - another extra 2
 
     - name: with no props and no extras
       vars:
-        source: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull'
+        map_filter_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull'
+        map_filter_new_value: ''
       return:
-        logLevel: S
-        timestampString: 2023-02-20T21:42:48.822Z.000
-        timestampMilliseconds: 1676929368822
-        timestampMicroseconds: 0
-        loggerKey: worker258688:middlewares
-        logKey: handleFull
-        props: {}
-        extra: []
+        key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull'
+        value:
+          logLevel: S
+          timestampString: 2023-02-20T21:42:48.822Z.000
+          timestampMilliseconds: 1676929368822
+          timestampMicroseconds: 0
+          loggerKey: worker258688:middlewares
+          logKey: handleFull
+          props: {}
+          extra: []
 
     - name: with no props and two extras
       vars:
-        source: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull |some extra|another extra'
+        map_filter_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull |some extra|another extra'
+        map_filter_new_value: ''
       return:
-        logLevel: S
-        timestampString: 2023-02-20T21:42:48.822Z.000
-        timestampMilliseconds: 1676929368822
-        timestampMicroseconds: 0
-        loggerKey: worker258688:middlewares
-        logKey: handleFull
-        props: {}
-        extra:
-          - some extra
-          - another extra
+        key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull |some extra|another extra'
+        value:
+          logLevel: S
+          timestampString: 2023-02-20T21:42:48.822Z.000
+          timestampMilliseconds: 1676929368822
+          timestampMicroseconds: 0
+          loggerKey: worker258688:middlewares
+          logKey: handleFull
+          props: {}
+          extra:
+            - some extra
+            - another extra

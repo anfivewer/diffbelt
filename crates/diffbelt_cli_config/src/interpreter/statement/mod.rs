@@ -1,4 +1,5 @@
 pub mod concat;
+pub mod condition;
 pub mod jump;
 pub mod parse_date;
 pub mod regexp;
@@ -8,6 +9,7 @@ pub mod update_map;
 pub mod vars;
 
 use crate::code;
+use crate::code::condition::ConditionInstruction;
 use crate::code::regexp::RegexpInstruction;
 use crate::code::update_list::UpdateListInstruction;
 use crate::code::update_map::UpdateMapInstruction;
@@ -32,6 +34,10 @@ pub enum Statement {
     },
     Set {
         value: Value,
+        destination: VarPointer,
+    },
+    SetDyn {
+        value: fn() -> Value,
         destination: VarPointer,
     },
     Jump {
@@ -63,6 +69,11 @@ pub enum Statement {
 
     Regexp(RegexpStatement),
     Concat(ConcatStatement),
+
+    IsNone {
+        ptr: VarPointer,
+        destination: VarPointer,
+    }
 }
 
 impl<'a> FunctionInitState<'a> {
@@ -97,11 +108,25 @@ impl<'a> FunctionInitState<'a> {
 
                 self.process_regexp(regexp)
             }
+            code::Instruction::Condition(cond) => {
+                let ConditionInstruction { value } = cond;
+
+                self.process_condition(value)
+            }
             code::Instruction::Return(ret) => self.process_return(&ret.value),
-            code::Instruction::Unknown(node) => Err(InterpreterError::Custom(ExpectError {
-                message: "unknown instruction".to_string(),
-                position: Some(node.into()),
-            })),
+            code::Instruction::Unknown(node) => {
+                let message = node
+                    .as_mapping()
+                    .and_then(|mapping| mapping.items.first())
+                    .and_then(|(key, _)| key.as_str())
+                    .map(|name| format!("unknown instruction: {name}"))
+                    .unwrap_or_else(|| "unknown instruction".to_string());
+
+                Err(InterpreterError::Custom(ExpectError {
+                    message,
+                    position: Some(node.into()),
+                }))
+            }
         }
     }
 }

@@ -14,6 +14,8 @@ pub enum PrimitiveValue {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    None,
+    Bool(bool),
     Map(Rc<RefCell<HashMap<PrimitiveValue, Value>>>),
     List(Rc<RefCell<Vec<Value>>>),
     String(Rc<str>),
