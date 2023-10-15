@@ -28,7 +28,10 @@ pub enum Value {
     Map(Rc<RefCell<HashMap<PrimitiveValue, Value>>>),
     List(Rc<RefCell<Vec<Value>>>),
     String(Rc<str>),
+    Bytes(Rc<[u8]>),
     U64(u64),
+    I64(i64),
+    F64(f64),
 }
 
 impl Value {

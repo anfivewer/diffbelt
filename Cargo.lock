@@ -397,6 +397,7 @@ dependencies = [
  "lexpr",
  "regex",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

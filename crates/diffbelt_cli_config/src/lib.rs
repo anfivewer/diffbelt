@@ -4,6 +4,7 @@ pub mod errors;
 pub mod interpreter;
 pub mod transforms;
 pub mod util;
+pub mod formats;
 
 use crate::code::Code;
 use crate::config_tests::TestSuite;

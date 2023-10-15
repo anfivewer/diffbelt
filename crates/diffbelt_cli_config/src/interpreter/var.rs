@@ -16,22 +16,20 @@ impl VarDef {
         }
     }
 
+    pub fn anonymous_bytes() -> Self {
+        Self::unknown()
+    }
+
     pub fn anonymous_bool() -> Self {
-        VarDef {
-            name: String::with_capacity(0),
-        }
+        Self::unknown()
     }
 
     pub fn anonymous_string() -> Self {
-        VarDef {
-            name: String::with_capacity(0),
-        }
+        Self::unknown()
     }
 
     pub fn anonymous_u64() -> Self {
-        VarDef {
-            name: String::with_capacity(0),
-        }
+        Self::unknown()
     }
 }
 
@@ -42,18 +40,36 @@ pub struct Var {
 }
 
 impl Var {
+    pub fn new_none() -> Self {
+        Var {
+            def: VarDef::unknown(),
+            value: Some(ValueHolder {
+                value: Value::None,
+            }),
+        }
+    }
+
     pub fn new_bool(value: bool) -> Self {
         Var {
-            def: VarDef::anonymous_bool(),
+            def: VarDef::unknown(),
             value: Some(ValueHolder {
                 value: Value::Bool(value),
             }),
         }
     }
 
+    pub fn new_bytes(value: Rc<[u8]>) -> Self {
+        Var {
+            def: VarDef::unknown(),
+            value: Some(ValueHolder {
+                value: Value::Bytes(value),
+            }),
+        }
+    }
+
     pub fn new_string(value: Rc<str>) -> Self {
         Var {
-            def: VarDef::anonymous_string(),
+            def: VarDef::unknown(),
             value: Some(ValueHolder {
                 value: Value::String(value),
             }),
@@ -62,9 +78,45 @@ impl Var {
 
     pub fn new_u64(value: u64) -> Self {
         Var {
-            def: VarDef::anonymous_string(),
+            def: VarDef::unknown(),
             value: Some(ValueHolder {
                 value: Value::U64(value),
+            }),
+        }
+    }
+
+    pub fn new_i64(value: i64) -> Self {
+        Var {
+            def: VarDef::unknown(),
+            value: Some(ValueHolder {
+                value: Value::I64(value),
+            }),
+        }
+    }
+
+    pub fn new_f64(value: f64) -> Self {
+        Var {
+            def: VarDef::unknown(),
+            value: Some(ValueHolder {
+                value: Value::F64(value),
+            }),
+        }
+    }
+
+    pub fn new_list(value: Rc<RefCell<Vec<Value>>>) -> Self {
+        Var {
+            def: VarDef::unknown(),
+            value: Some(ValueHolder {
+                value: Value::List(value),
+            }),
+        }
+    }
+
+    pub fn new_map(value: Rc<RefCell<HashMap<PrimitiveValue, Value>>>) -> Self {
+        Var {
+            def: VarDef::unknown(),
+            value: Some(ValueHolder {
+                value: Value::Map(value),
             }),
         }
     }
