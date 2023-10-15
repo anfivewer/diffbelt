@@ -236,11 +236,16 @@ impl MapFilterTransform {
 
     fn on_start_diff(&mut self, diff: DiffCollectionResponseJsonData) -> HandlerResult {
         let DiffCollectionResponseJsonData {
-            from_generation_id: _,
+            from_generation_id,
             to_generation_id,
             items,
             cursor_id,
         } = diff;
+
+        if from_generation_id == to_generation_id {
+            self.state = State::Invalid;
+            return Ok(ActionInputHandlerResult::Finish);
+        }
 
         self.state = State::AwaitingForGenerationStart(AwaitingForGenerationStartState {
             items,
@@ -310,6 +315,12 @@ impl MapFilterTransform {
         () = Self::diff_items_to_actions(&mut state, &mut actions, items)?;
 
         self.state = State::Processing(state);
+
+        if actions.is_empty() {
+            // If no actions added it means that we have no items,
+            // no cursor, so we can just commit generation
+            return self.post_handle();
+        }
 
         Ok(ActionInputHandlerResult::AddActions(actions))
     }
