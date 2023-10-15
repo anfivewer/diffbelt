@@ -49,7 +49,7 @@ impl<'a> FunctionExecution<'a> {
             }
 
             return Err(InterpreterError::custom_with_mark(
-                format!("Regexp not matched: \"{input_slice}\", /{regexp}/"),
+                format!("Regexp not matched (1): \"{input_slice}\", /{regexp}/"),
                 regexp_mark.clone(),
             ));
         }
@@ -60,13 +60,20 @@ impl<'a> FunctionExecution<'a> {
 
                 if let Some(index) = jump_statement_index_if_not_matches {
                     self.statement_index = *index;
+                } else {
+                    self.statement_index += 1;
                 }
 
                 return Ok(());
             }
 
+            if let Some(index) = jump_statement_index_if_not_matches {
+                self.statement_index = *index;
+                return Ok(());
+            }
+
             return Err(InterpreterError::custom_with_mark(
-                format!("Regexp not matched: \"{input}\", /{regexp}/"),
+                format!("Regexp not matched (2): \"{input}\", /{regexp}/"),
                 regexp_mark.clone(),
             ));
         };
@@ -76,6 +83,16 @@ impl<'a> FunctionExecution<'a> {
         if *start_pos_is_exact {
             let actual_start = full_match.start();
             if actual_start != start_pos {
+                if let Some(rest) = rest {
+                    self.set_var(rest, Var::new_string(Rc::from(input_slice)))?;
+
+                    if let Some(index) = jump_statement_index_if_not_matches {
+                        self.statement_index = *index;
+
+                        return Ok(());
+                    }
+                }
+
                 return Err(InterpreterError::custom_with_mark(
                     format!("Is not exact match: \"{input}\", /{regexp}/, expected pos {start_pos}, actual {actual_start}"),
                     regexp_mark.clone(),

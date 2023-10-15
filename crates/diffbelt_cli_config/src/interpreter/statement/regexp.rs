@@ -37,6 +37,7 @@ impl<'a> FunctionInitState<'a> {
             rest,
             groups,
             loop_code,
+            if_not_matches,
         } = regexp;
 
         let mut cleanups = Cleanups::new();
@@ -72,6 +73,7 @@ impl<'a> FunctionInitState<'a> {
             self.process_expression(&regexp.value, regexp_ptr.clone())
                 .map_err(add_position(&regexp.mark))?;
 
+            let regexp_statement_index = self.statements.len();
             self.statements.push(Statement::Regexp(RegexpStatement {
                 regexp: regexp_ptr,
                 regexp_mark: regexp.mark.clone(),
@@ -84,7 +86,39 @@ impl<'a> FunctionInitState<'a> {
                 last_index_output: None,
                 rest: None,
             }));
+
+            if let Some(if_not_matches) = if_not_matches {
+                // if matches, will jump over not-matches code
+                let jump_index = self.statements.len();
+                self.statements.push(Statement::Jump { statement_index: 0 });
+
+                () = self.process_code(&if_not_matches.value)?;
+
+                let noop_index = self.statements.len();
+                self.statements.push(Statement::Noop);
+
+                let Statement::Jump { statement_index } = &mut self.statements[jump_index] else {
+                    panic!("process_regexp:if_not_matches: no jump statement");
+                };
+                *statement_index = noop_index;
+
+                let Statement::Regexp(regexp_statement) =
+                    &mut self.statements[regexp_statement_index]
+                else {
+                    panic!("process_regexp:if_not_matches: no regexp statement");
+                };
+
+                // Skip one instruction to ignore jump
+                regexp_statement.jump_statement_index_if_not_matches = Some(jump_index + 1);
+            }
         } else if let Some(regexp_multi) = regexp_multi {
+            if let Some(if_not_matches) = if_not_matches {
+                return Err(InterpreterError::custom_with_mark(
+                    "regexp_multi does not supports if_not_matches".to_string(),
+                    if_not_matches.mark.clone(),
+                ));
+            }
+
             let regexp_ptr = self.temp_var(VarDef::anonymous_string(), &mut cleanups);
             self.process_expression(&regexp_multi.value, regexp_ptr.clone())
                 .map_err(add_position(&regexp_multi.mark))?;

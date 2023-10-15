@@ -80,7 +80,7 @@ struct ProcessingState {
     actions_left: usize,
     cursor_id: Option<Box<str>>,
 
-    total_items: u64,
+    total_items: usize,
     total_chunks: usize,
 }
 
@@ -376,7 +376,7 @@ impl MapFilterTransform {
             cursor_id,
         } = diff;
 
-        state.total_items += usize_to_u64(items.len());
+        state.total_items += items.len();
         state.total_chunks += 1;
 
         let mut actions = Vec::new();
@@ -395,6 +395,24 @@ impl MapFilterTransform {
         }
 
         () = Self::diff_items_to_actions(state, &mut actions, items)?;
+
+        let avg_items_per_chunk = state.total_items / state.total_chunks;
+        if self.puts_buffer.len() >= avg_items_per_chunk {
+            let new_capacity = self.puts_buffer.capacity();
+            Self::flush_puts(
+                self.to_collection_name.deref(),
+                state,
+                &mut self.puts_buffer,
+                &mut actions,
+                new_capacity,
+            );
+        }
+
+        if actions.is_empty() {
+            // If no actions added it means that we have no items,
+            // then check for cursor and maybe commit generation
+            return self.post_handle();
+        }
 
         Ok(ActionInputHandlerResult::AddActions(actions))
     }
@@ -445,12 +463,12 @@ impl MapFilterTransform {
         let state = self.state.as_mut_processing()?;
 
         if state.cursor_id.is_some() {
-            let avg_items_per_chunk = state.total_items / usize_to_u64(state.total_chunks);
+            let avg_items_per_chunk = state.total_items / state.total_chunks;
 
             let mut actions = Vec::with_capacity(1);
 
             // Fetch more items or send available
-            return if self.puts_buffer.len() < u64_to_usize(avg_items_per_chunk) {
+            return if self.puts_buffer.len() < avg_items_per_chunk {
                 let cursor_id = state.cursor_id.take().unwrap();
 
                 state.actions_left += 1;

@@ -2,6 +2,7 @@ use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use diffbelt_types::collection::get::GetCollectionResponseJsonData;
 use diffbelt_types::collection::put_many::PutManyResponseJsonData;
 
+#[derive(Debug)]
 pub struct DiffbeltCallInput<T> {
     pub body: T,
 }

@@ -20,4 +20,5 @@ pub struct RegexpInstructionBody {
     pub groups: Vec<Rc<str>>,
     #[serde(rename = "loop")]
     pub loop_code: Option<Code>,
+    pub if_not_matches: Option<WithMark<Code>>,
 }

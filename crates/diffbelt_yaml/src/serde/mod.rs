@@ -380,7 +380,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for Deserializer<'de> {
                 position: Some(self.input.start_mark.clone()),
             })),
             YamlNodeValue::Sequence(_) => Err(YamlDecodingError::Custom(ExpectError {
-                message: "unexpected seqence".to_string(),
+                message: "unexpected sequence".to_string(),
                 position: Some(self.input.start_mark.clone()),
             })),
             YamlNodeValue::Mapping(_) => Err(YamlDecodingError::Custom(ExpectError {

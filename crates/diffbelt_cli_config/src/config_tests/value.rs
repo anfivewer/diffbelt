@@ -12,8 +12,8 @@ pub enum YamlValueConstructionError {
 }
 
 lazy_static::lazy_static! {
-    static ref U64: Regex = Regex::new("^\\d+$").unwrap();
-    static ref STR: Regex = Regex::new("^('?)(.*?)('?)$").unwrap();
+    static ref U64: Regex = Regex::new(r"^\d+$").unwrap();
+    static ref STR: Regex = Regex::new(r"(?s)^('?)(.*?)('?)$").unwrap();
 }
 
 pub fn construct_value_from_yaml(node: &YamlNode) -> Result<Value, YamlValueConstructionError> {
@@ -34,6 +34,10 @@ pub fn construct_value_from_yaml(node: &YamlNode) -> Result<Value, YamlValueCons
                 });
             }
 
+            if scalar == "(none)" {
+                return Ok(Value::None);
+            }
+
             if let Some(captures) = STR.captures(scalar) {
                 let first_quote = captures.get(1).unwrap().as_str();
                 let value = captures.get(2).unwrap().as_str();
@@ -49,7 +53,7 @@ pub fn construct_value_from_yaml(node: &YamlNode) -> Result<Value, YamlValueCons
             }
 
             Err(YamlValueConstructionError::Unspecified(format!(
-                "Unknown \"{scalar}\" type"
+                "Unknown scalar \"{scalar}\" type"
             )))
         }
         YamlNodeValue::Sequence(seq) => {
