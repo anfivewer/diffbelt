@@ -134,7 +134,25 @@ impl MapFilterTransform {
     pub fn run(&mut self, inputs: Vec<Input>) -> Result<TransformRunResult, TransformError> {
         match self.state {
             State::Uninitialized => {
-                return self.run_init(inputs);
+                if !inputs.is_empty() {
+                    return Err(TransformError::Unspecified(
+                        "Unexpected inputs on init".to_string(),
+                    ));
+                }
+
+                let ActionInputHandlerResult::AddActions(new_actions) = self.run_init()? else {
+                    return Err(TransformError::Unspecified(
+                        "Impossible: run_init() is not AddActions".to_string(),
+                    ));
+                };
+
+                let mut actions = Vec::with_capacity(new_actions.len());
+
+                for (action, handler) in new_actions {
+                    self.push_action(&mut actions, action, handler);
+                }
+
+                return Ok(TransformRunResult::Actions(actions));
             }
             State::Invalid => {
                 return Err(TransformError::Unspecified("State is Invalid".to_string()));
@@ -195,19 +213,12 @@ impl MapFilterTransform {
         Ok(TransformRunResult::Actions(actions))
     }
 
-    fn run_init(&mut self, inputs: Vec<Input>) -> Result<TransformRunResult, TransformError> {
-        if !inputs.is_empty() {
-            return Err(TransformError::Unspecified(
-                "Unexpected inputs on init".to_string(),
-            ));
-        }
-
+    fn run_init(&mut self) -> HandlerResult {
         self.state = State::Initialization;
 
-        let mut actions = Vec::new();
+        let mut actions = Vec::<(_, ActionInputHandler)>::with_capacity(1);
 
-        self.push_action(
-            &mut actions,
+        actions.push((
             ActionType::DiffbeltCall(DiffbeltCallAction {
                 method: Method::Post,
                 path: Cow::Owned(format!(
@@ -229,9 +240,9 @@ impl MapFilterTransform {
 
                 this.on_start_diff(body)
             }),
-        );
+        ));
 
-        Ok(TransformRunResult::Actions(actions))
+        Ok(ActionInputHandlerResult::AddActions(actions))
     }
 
     fn on_start_diff(&mut self, diff: DiffCollectionResponseJsonData) -> HandlerResult {
@@ -553,9 +564,8 @@ impl MapFilterTransform {
 
                 () = this.state.as_commiting()?;
 
-                this.state = State::Invalid;
-
-                Ok(ActionInputHandlerResult::Finish)
+                // Not finishing, repeat cycle until we get diff result with from_generation = to_generation
+                this.run_init()
             }),
         ));
 
