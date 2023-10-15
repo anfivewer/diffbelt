@@ -36,7 +36,7 @@ pub struct InnerGenerationsCollectionId {
     pub counter: u64,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GenerationIdNextGenerationIdPair {
     pub generation_id: OwnedGenerationId,
     pub next_generation_id: Option<OwnedGenerationId>,
@@ -145,10 +145,14 @@ impl InnerGenerationsCollection {
         let raw_db = self.db.clone();
         let is_deleted = self.is_deleted.clone();
 
-        return async move {
+        async move {
             let mut lock = next_generation_locks.lock_exclusive_without_data().await;
 
             let pair = lock.value_mut();
+
+            if pair.generation_id >= new_next_generation_id {
+                return Err(StartManualGenerationIdError::OutdatedGeneration);
+            }
 
             let comparison = pair
                 .next_generation_id
@@ -212,7 +216,7 @@ impl InnerGenerationsCollection {
             pair.next_generation_id = Some(new_next_generation_id.clone());
 
             Ok(())
-        };
+        }
     }
 
     pub fn lock_next_generation(

@@ -39,6 +39,7 @@ pub struct RunSubcommand {
 }
 
 pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>) -> CommandResult {
+    let verbose = state.verbose;
     let client = state.client.clone();
     let config = state.require_config()?;
 
@@ -247,8 +248,6 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
     let (sender, mut receiver) = mpsc::channel::<Result<Input, CommandError>>(8);
 
     loop {
-        () = receive_inputs(&mut inputs, &mut receiver).await?;
-
         let mut prev_inputs = Vec::new();
         mem::swap(&mut prev_inputs, &mut inputs);
         let run_result = transform.run(prev_inputs)?;
@@ -266,11 +265,21 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                             let sender = sender.clone();
                             let client = client.clone();
                             tokio::spawn(async move {
+                                if verbose {
+                                    println!("> {action_id:?} {call:?}");
+                                }
+
                                 let message = match client.transform_call(call).await {
-                                    Ok(body) => Ok(Input {
-                                        id: action_id,
-                                        input: InputType::DiffbeltCall(DiffbeltCallInput { body }),
-                                    }),
+                                    Ok(body) => {
+                                        if verbose {
+                                            println!("< {action_id:?} {body:?}");
+                                        }
+
+                                        Ok(Input {
+                                            id: action_id,
+                                            input: InputType::DiffbeltCall(DiffbeltCallInput { body }),
+                                        })
+                                    },
                                     Err(err) => Err(err.into()),
                                 };
 
@@ -280,6 +289,7 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                         ActionType::FunctionEval(eval) => match eval {
                             FunctionEvalAction::MapFilter(action) => {
                                 () = MapFilterEvalOptions {
+                                    verbose,
                                     action,
                                     from_collection_format: *from_collection_format,
                                     to_collection_format,
@@ -300,6 +310,8 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                 break;
             }
         }
+
+        () = receive_inputs(&mut inputs, &mut receiver).await?;
     }
 
     println!("Finished");

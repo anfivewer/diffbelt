@@ -6,6 +6,7 @@ pub struct DiffbeltCallInput<T> {
     pub body: T,
 }
 
+#[derive(Debug)]
 pub enum DiffbeltResponseBody {
     Ok(()),
     GetCollection(GetCollectionResponseJsonData),

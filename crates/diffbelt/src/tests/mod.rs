@@ -6,6 +6,7 @@ mod get_keys_around;
 mod put_many;
 mod query;
 mod readers;
+mod start_same_generation;
 mod temp_database;
 mod temp_dir;
 mod util;

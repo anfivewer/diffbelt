@@ -101,7 +101,7 @@ fn map_filter_test() {
         action,
         ActionType::DiffbeltCall(DiffbeltCallAction {
             method: Method::Post,
-            path: Cow::Borrowed("/collections/from/generation/start"),
+            path: Cow::Borrowed("/collections/to/generation/start"),
             query: vec![],
             body: DiffbeltRequestBody::StartGeneration(StartGenerationRequestJsonData {
                 generation_id: EncodedGenerationIdJsonData::new_str("42".to_string()),

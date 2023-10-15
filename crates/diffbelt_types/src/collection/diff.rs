@@ -11,7 +11,7 @@ pub struct ReaderDiffFromDefJsonData {
 }
 
 #[skip_serializing_none]
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyValueDiffJsonData {
     pub key: EncodedKeyJsonData,
@@ -31,7 +31,7 @@ pub struct DiffCollectionRequestJsonData {
 }
 
 #[skip_serializing_none]
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DiffCollectionResponseJsonData {
     pub from_generation_id: EncodedGenerationIdJsonData,

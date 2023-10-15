@@ -22,6 +22,8 @@ type CommandResult = Result<(), CommandError>;
 #[derive(Parser, Debug)]
 #[command()]
 struct Args {
+    #[arg(long)]
+    verbose: bool,
     #[arg(short, long)]
     config: Option<String>,
     #[command(subcommand)]
@@ -30,6 +32,7 @@ struct Args {
 
 async fn run() {
     let pre_cli = Command::new("CLI")
+        .arg(Arg::new("verbose").long("verbose"))
         .arg(Arg::new("config").short('c').long("config"))
         .ignore_errors(true);
 
@@ -84,7 +87,7 @@ async fn run() {
         port: 3030,
     });
 
-    let state = Arc::new(CliState::new(client, config));
+    let state = Arc::new(CliState::new(client, config, args.verbose));
 
     let result = args.command.run(state.clone()).await;
 

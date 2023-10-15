@@ -99,8 +99,8 @@ impl OwnedGenerationKey {
             return Err(());
         }
 
-        let mut value = vec![0 as u8; 1 + 3 + key_bytes.len() + 1 + generation_id_bytes.len()]
-            .into_boxed_slice();
+        let mut value =
+            vec![0u8; 1 + 3 + key_bytes.len() + 1 + generation_id_bytes.len()].into_boxed_slice();
 
         // reserved for the future
         value[0] = 0;
@@ -132,7 +132,8 @@ impl OwnedGenerationKey {
 #[cfg(test)]
 mod tests {
     use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
-    use crate::common::{IsByteArray, OwnedCollectionKey, OwnedGenerationId};
+    use crate::common::{CollectionKey, IsByteArray, OwnedCollectionKey, OwnedGenerationId};
+    use std::ops::Deref;
 
     #[test]
     fn test_create_generation_key() {
@@ -158,5 +159,36 @@ mod tests {
 
         assert_eq!(actual_key, key.get_byte_array());
         assert_eq!(actual_generation_id, generation_id.get_byte_array());
+    }
+
+    #[test]
+    fn empty_key_generation_key_test() {
+        let generation_id =
+            OwnedGenerationId::from_boxed_slice(vec![1, 2, 3, 4, 5, 6, 7, 8].into_boxed_slice())
+                .unwrap();
+
+        let generation_key =
+            OwnedGenerationKey::new(generation_id.as_ref(), CollectionKey::empty()).unwrap();
+
+        assert_eq!(
+            generation_key.value.deref(),
+            &[0, 8, 1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 0]
+        );
+    }
+
+    #[test]
+    fn single_byte_key_generation_key_test() {
+        let key = OwnedCollectionKey::from_boxed_slice(vec![42].into_boxed_slice()).unwrap();
+
+        let generation_id =
+            OwnedGenerationId::from_boxed_slice(vec![1, 2, 3, 4, 5, 6, 7, 8].into_boxed_slice())
+                .unwrap();
+
+        let generation_key = OwnedGenerationKey::new(generation_id.as_ref(), key.as_ref()).unwrap();
+
+        assert_eq!(
+            generation_key.value.deref(),
+            &[0, 8, 1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 1, 42]
+        );
     }
 }

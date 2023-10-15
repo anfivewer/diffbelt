@@ -18,7 +18,7 @@ impl TransformBodyTrait for DiffbeltRequestBody {
                 return Ok((Body::empty(), ExpectedResponseType::Diff));
             }
             DiffbeltRequestBody::DiffCollectionStart(x) => {
-                (serde_json::to_string(&x), ExpectedResponseType::Ok)
+                (serde_json::to_string(&x), ExpectedResponseType::Diff)
             }
             DiffbeltRequestBody::StartGeneration(x) => {
                 (serde_json::to_string(&x), ExpectedResponseType::Ok)

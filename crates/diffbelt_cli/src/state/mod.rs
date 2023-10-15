@@ -10,14 +10,16 @@ use std::sync::Arc;
 pub struct CliState {
     pub client: Arc<DiffbeltClient>,
     pub config: Option<Rc<CliConfig>>,
+    pub verbose: bool,
     exit_code_atomic: AtomicUsize,
 }
 
 impl CliState {
-    pub fn new(client: DiffbeltClient, config: Option<Rc<CliConfig>>) -> Self {
+    pub fn new(client: DiffbeltClient, config: Option<Rc<CliConfig>>, verbose: bool) -> Self {
         Self {
             client: Arc::new(client),
             config,
+            verbose,
             exit_code_atomic: AtomicUsize::new(0),
         }
     }

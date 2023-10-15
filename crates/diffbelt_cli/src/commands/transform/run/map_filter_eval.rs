@@ -13,6 +13,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 pub struct MapFilterEvalOptions<'a> {
+    pub verbose: bool,
     pub action: MapFilterEvalAction,
     pub from_collection_format: CollectionValueFormat,
     pub to_collection_format: CollectionValueFormat,
@@ -26,6 +27,7 @@ pub struct MapFilterEvalOptions<'a> {
 impl MapFilterEvalOptions<'_> {
     pub fn call(self) -> Result<(), CommandError> {
         let MapFilterEvalOptions {
+            verbose,
             action,
             from_collection_format,
             to_collection_format,
@@ -54,6 +56,10 @@ impl MapFilterEvalOptions<'_> {
             Ok::<_, CommandError>(var)
         });
         let to_value = lift_result_from_option(to_value)?.unwrap_or_else(|| Var::new_none());
+
+        if verbose {
+            println!("!> map_filter {action_id:?} key:{key} new_value:{to_value:?}");
+        }
 
         let input_vars = vec![
             (
@@ -123,6 +129,10 @@ impl MapFilterEvalOptions<'_> {
                 "map_filter function did not returned value".to_string(),
             ));
         };
+
+        if verbose {
+            println!("!< map_filter {action_id:?} key:{target_key} value:{target_value:?}");
+        }
 
         if target_value.is_none() {
             inputs.push(Input {

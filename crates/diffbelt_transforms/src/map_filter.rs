@@ -255,7 +255,7 @@ impl MapFilterTransform {
                 method: Method::Post,
                 path: Cow::Owned(format!(
                     "/collections/{}/generation/start",
-                    urlencoding::encode(self.from_collection_name.deref())
+                    urlencoding::encode(self.to_collection_name.deref())
                 )),
                 query: Vec::with_capacity(0),
                 body: DiffbeltRequestBody::StartGeneration(StartGenerationRequestJsonData {

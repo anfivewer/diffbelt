@@ -13,7 +13,7 @@ pub struct PutManyRequestJsonData {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PutManyResponseJsonData {
     pub generation_id: EncodedGenerationIdJsonData,

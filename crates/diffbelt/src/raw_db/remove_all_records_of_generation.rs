@@ -28,16 +28,17 @@ impl RawDb {
             .cf_handle(COLLECTION_CF_GENERATIONS_SIZE)
             .ok_or(RawDbError::CfHandle)?;
 
+        let upper_generation_id = generation_id.incremented();
+
+        let upper_generation_key = OwnedGenerationKey::new(upper_generation_id.as_ref(), CollectionKey::empty())
+            .or(Err(RawDbError::InvalidGenerationKey))?;
+
         let generation_key = OwnedGenerationKey::new(generation_id, CollectionKey::empty())
             .or(Err(RawDbError::InvalidGenerationKey))?;
 
-        let mut upper_generation_key = generation_key.clone();
-        let upper_generation_key_bytes = upper_generation_key.get_byte_array_mut();
-        increment(upper_generation_key_bytes);
-
         let iterator_mode = IteratorMode::From(generation_key.get_byte_array(), Direction::Forward);
         let mut opts = ReadOptions::default();
-        opts.set_iterate_upper_bound(upper_generation_key_bytes);
+        opts.set_iterate_upper_bound(upper_generation_key.get_byte_array());
 
         let db = self.db.get_db();
 
