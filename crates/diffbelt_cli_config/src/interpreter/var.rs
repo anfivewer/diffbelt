@@ -43,9 +43,7 @@ impl Var {
     pub fn new_none() -> Self {
         Var {
             def: VarDef::unknown(),
-            value: Some(ValueHolder {
-                value: Value::None,
-            }),
+            value: Some(ValueHolder { value: Value::None }),
         }
     }
 

@@ -6,23 +6,23 @@ use std::sync::Arc;
 use clap::Args;
 use tokio::sync::mpsc;
 
-use diffbelt_cli_config::{Collection, CollectionValueFormat};
 use diffbelt_cli_config::interpreter::function::Function;
 use diffbelt_cli_config::interpreter::var::VarDef;
 use diffbelt_cli_config::transforms::{
     CollectionDef, CollectionWithFormat, CollectionWithReader, Transform, TransformCollectionDef,
 };
-use diffbelt_transforms::base::action::{Action, ActionType};
+use diffbelt_cli_config::{Collection, CollectionValueFormat};
 use diffbelt_transforms::base::action::function_eval::FunctionEvalAction;
-use diffbelt_transforms::base::input::{Input, InputType};
+use diffbelt_transforms::base::action::{Action, ActionType};
 use diffbelt_transforms::base::input::diffbelt_call::DiffbeltCallInput;
+use diffbelt_transforms::base::input::{Input, InputType};
 use diffbelt_transforms::map_filter::MapFilterTransform;
 use diffbelt_transforms::TransformRunResult;
 
-use crate::CommandResult;
 use crate::commands::errors::CommandError;
 use crate::commands::transform::run::map_filter_eval::MapFilterEvalOptions;
 use crate::state::CliState;
+use crate::CommandResult;
 
 mod map_filter_eval;
 mod parse;
@@ -277,9 +277,11 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
 
                                         Ok(Input {
                                             id: action_id,
-                                            input: InputType::DiffbeltCall(DiffbeltCallInput { body }),
+                                            input: InputType::DiffbeltCall(DiffbeltCallInput {
+                                                body,
+                                            }),
                                         })
-                                    },
+                                    }
                                     Err(err) => Err(err.into()),
                                 };
 

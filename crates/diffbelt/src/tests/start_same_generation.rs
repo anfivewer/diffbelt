@@ -3,7 +3,7 @@ use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::common::OwnedGenerationId;
 use crate::database::create_collection::CreateCollectionOptions;
-use crate::database::open::DatabaseOpenError::CollectionMethod;
+
 use crate::tests::temp_database::TempDatabase;
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
 

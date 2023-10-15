@@ -22,7 +22,9 @@ pub fn record_key_compare_u24_sized(
     if left.len() - left_offset - 3 < left_key_size
         || right.len() - right_offset - 3 < right_key_size
     {
-        panic!("record key has invalid user key size {left:?} {left_offset} {right:?} {right_offset}");
+        panic!(
+            "record key has invalid user key size {left:?} {left_offset} {right:?} {right_offset}"
+        );
     }
 
     let left_to = left_offset + 3 + left_key_size;

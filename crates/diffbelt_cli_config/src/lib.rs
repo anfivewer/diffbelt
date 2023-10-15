@@ -1,10 +1,10 @@
 pub mod code;
 pub mod config_tests;
 pub mod errors;
+pub mod formats;
 pub mod interpreter;
 pub mod transforms;
 pub mod util;
-pub mod formats;
 
 use crate::code::Code;
 use crate::config_tests::TestSuite;

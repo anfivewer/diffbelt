@@ -1,7 +1,7 @@
 use crate::commands::errors::CommandError;
 use diffbelt_cli_config::interpreter::function::Function;
-use diffbelt_cli_config::interpreter::value::{Value, ValueHolder};
-use diffbelt_cli_config::interpreter::var::{Var, VarDef};
+
+use diffbelt_cli_config::interpreter::var::Var;
 use diffbelt_cli_config::CollectionValueFormat;
 use diffbelt_transforms::base::action::function_eval::MapFilterEvalAction;
 use diffbelt_transforms::base::input::function_eval::{
@@ -62,14 +62,8 @@ impl MapFilterEvalOptions<'_> {
         }
 
         let input_vars = vec![
-            (
-                map_filter_key_var_name,
-                Var::new_string(key),
-            ),
-            (
-                map_filter_new_value_var_name,
-                to_value,
-            ),
+            (map_filter_key_var_name, Var::new_string(key)),
+            (map_filter_new_value_var_name, to_value),
         ]
         .into_iter()
         .collect();

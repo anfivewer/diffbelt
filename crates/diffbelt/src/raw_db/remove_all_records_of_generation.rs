@@ -1,9 +1,9 @@
 use crate::collection::constants::{COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE};
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
 use crate::collection::util::record_key::OwnedRecordKey;
-use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut, PhantomId};
+use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::raw_db::{RawDb, RawDbError};
-use crate::util::bytes::increment;
+
 use rocksdb::{Direction, IteratorMode, ReadOptions, WriteBatchWithTransaction};
 
 pub struct RemoveAllRecordsOfGenerationSyncOptions<'a> {
@@ -30,8 +30,9 @@ impl RawDb {
 
         let upper_generation_id = generation_id.incremented();
 
-        let upper_generation_key = OwnedGenerationKey::new(upper_generation_id.as_ref(), CollectionKey::empty())
-            .or(Err(RawDbError::InvalidGenerationKey))?;
+        let upper_generation_key =
+            OwnedGenerationKey::new(upper_generation_id.as_ref(), CollectionKey::empty())
+                .or(Err(RawDbError::InvalidGenerationKey))?;
 
         let generation_key = OwnedGenerationKey::new(generation_id, CollectionKey::empty())
             .or(Err(RawDbError::InvalidGenerationKey))?;

@@ -87,7 +87,7 @@ pub fn value_to_json_value(value: &Value) -> Result<JsonValue, ValueFormatError>
                 let mut values = Vec::with_capacity(list.len());
 
                 for value in list {
-                    let ptr = value as (*const Value);
+                    let ptr = value as *const Value;
                     if visited_values_set.contains(&ptr) {
                         return Err(ValueFormatError::CycleDetected);
                     }
