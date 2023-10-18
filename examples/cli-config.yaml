@@ -423,6 +423,10 @@ transforms:
         - return:
             count: target.count + count_diff
 
+wasm:
+  - name: example
+    wat_path: example.wat
+
 tests:
   transforms.parse_lines.map_filter:
     - name: with props and no extras

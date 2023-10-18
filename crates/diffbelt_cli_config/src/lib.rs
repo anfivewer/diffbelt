@@ -5,6 +5,7 @@ pub mod formats;
 pub mod interpreter;
 pub mod transforms;
 pub mod util;
+pub mod wasm;
 
 use crate::code::Code;
 use crate::config_tests::TestSuite;
@@ -15,12 +16,14 @@ use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
+use crate::wasm::Wasm;
 
 #[derive(Debug)]
 pub struct CliConfig {
     collections: Vec<Collection>,
     transforms: Vec<Transform>,
     functions: HashMap<String, Code>,
+    wasm: HashMap<Rc<str>, Wasm>,
     tests: HashMap<Rc<str>, TestSuite>,
 }
 
@@ -37,6 +40,7 @@ impl CliConfig {
         let mut collections = Vec::new();
         let mut functions = HashMap::new();
         let mut transforms = None;
+        let mut wasm = HashMap::new();
         let mut tests = None;
 
         for (key_node, value) in &root.items {
@@ -64,6 +68,14 @@ impl CliConfig {
                         functions.insert(name.to_string(), code);
                     }
                 }
+                "wasm" => {
+                    let wasm_node = expect_seq(&value)?;
+
+                    for node in wasm_node.items.deref() {
+                        let wasm_item: Wasm = decode_yaml(node)?;
+                        wasm.insert(wasm_item.name.clone(), wasm_item);
+                    }
+                }
                 "tests" => {
                     let parsed_tests = decode_yaml(value)?;
                     tests = Some(parsed_tests);
@@ -81,6 +93,7 @@ impl CliConfig {
             collections,
             functions,
             transforms: transforms.unwrap_or_else(|| Vec::new()),
+            wasm,
             tests: tests.unwrap_or_else(|| HashMap::new()),
         })
     }

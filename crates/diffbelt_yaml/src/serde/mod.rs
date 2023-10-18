@@ -26,7 +26,7 @@ pub fn decode_yaml<'de, T: Deserialize<'de>>(
 ) -> Result<T, YamlDecodingError> {
     let de = Deserializer::from_yaml_node(input);
 
-    serde::de::Deserialize::deserialize(de)
+    Deserialize::deserialize(de)
 }
 
 pub struct Deserializer<'de> {
