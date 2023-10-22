@@ -620,6 +620,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "wasmer",
+ "wasmer-types",
 ]
 
 [[package]]

@@ -5,6 +5,19 @@ pub fn usize_to_u64(value: usize) -> u64 {
 }
 
 #[inline(always)]
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+pub fn unchecked_usize_to_u32(value: usize) -> u32 {
+    value as u32
+}
+
+#[inline(always)]
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+pub fn unchecked_usize_to_i32(value: usize) -> i32 {
+    value as i32
+}
+
+
+#[inline(always)]
 #[cfg(target_pointer_width = "64")]
 pub fn u64_to_usize(value: u64) -> usize {
     value as usize
@@ -36,6 +49,34 @@ pub fn checked_positive_i64_to_u64(value: i64) -> u64 {
     value as u64
 }
 
+#[inline(always)]
+pub fn try_positive_i32_to_u32(value: i32) -> Option<u32> {
+    if value < 0 {
+        return None;
+    }
+
+    Some(value as u32)
+}
+
+#[inline(always)]
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+pub fn try_positive_i32_to_usize(value: i32) -> Option<usize> {
+    if value < 0 {
+        return None;
+    }
+
+    Some(value as usize)
+}
+
+#[inline(always)]
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+pub fn try_usize_to_i32(value: usize) -> Option<i32> {
+    if value >= i32::MAX as usize {
+        return None;
+    }
+
+    Some(value as i32)
+}
 #[inline(always)]
 #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
 pub fn checked_positive_i32_to_usize(value: i32) -> usize {

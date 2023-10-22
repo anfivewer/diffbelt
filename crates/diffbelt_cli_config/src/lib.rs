@@ -12,14 +12,16 @@ use crate::config_tests::TestSuite;
 use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
+use crate::wasm::Wasm;
 use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
-use crate::wasm::Wasm;
 
 #[derive(Debug)]
 pub struct CliConfig {
+    self_path: Rc<str>,
+
     collections: Vec<Collection>,
     transforms: Vec<Transform>,
     functions: HashMap<String, Code>,
@@ -34,7 +36,7 @@ pub enum ParseConfigError {
 }
 
 impl CliConfig {
-    fn from_yaml(yaml: &YamlNode) -> Result<Self, ConfigParsingError> {
+    fn from_yaml(self_path: Rc<str>, yaml: &YamlNode) -> Result<Self, ConfigParsingError> {
         let root = expect_map(yaml)?;
 
         let mut collections = Vec::new();
@@ -90,6 +92,7 @@ impl CliConfig {
         }
 
         Ok(Self {
+            self_path,
             collections,
             functions,
             transforms: transforms.unwrap_or_else(|| Vec::new()),
@@ -98,10 +101,11 @@ impl CliConfig {
         })
     }
 
-    pub fn from_str(config_str: &str) -> Result<Self, ParseConfigError> {
+    pub fn from_str(self_path: Rc<str>, config_str: &str) -> Result<Self, ParseConfigError> {
         let docs = parse_yaml(config_str).map_err(ParseConfigError::YamlParsing)?;
         let doc = &docs[0];
-        let config = CliConfig::from_yaml(doc).map_err(ParseConfigError::ConfigParsing)?;
+        let config =
+            CliConfig::from_yaml(self_path, doc).map_err(ParseConfigError::ConfigParsing)?;
 
         Ok(config)
     }
@@ -223,6 +227,7 @@ impl Collection {
 mod tests {
     use crate::CliConfig;
     use diffbelt_yaml::parse_yaml;
+    use std::rc::Rc;
 
     #[test]
     fn read_config() {
@@ -234,7 +239,7 @@ mod tests {
 
         let doc = &docs[0];
 
-        let config = CliConfig::from_yaml(doc).expect("reading");
+        let config = CliConfig::from_yaml(Rc::from("."), doc).expect("reading");
 
         let _ = config;
     }

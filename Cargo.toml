@@ -13,4 +13,6 @@ members = [
 
 	"crates/diffbelt_yaml",
 ]
-
+exclude = [
+	"crates/diffbelt_example_wasm",
+]

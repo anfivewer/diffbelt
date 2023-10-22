@@ -9,8 +9,8 @@ pub enum RunTestsError {
     ConfigParsing(ConfigParsingError),
 }
 
-pub fn run_tests(config: &CliConfig) -> Result<bool, RunTestsError> {
-    let results = config.run_tests();
+pub async fn run_tests(config: &CliConfig) -> Result<bool, RunTestsError> {
+    let results = config.run_tests().await;
 
     let mut is_ok = true;
 

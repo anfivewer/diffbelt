@@ -99,7 +99,7 @@ mod tests {
 
         let docs = parse_yaml(config_str).expect("parsing");
         let doc = &docs[0];
-        let config = CliConfig::from_yaml(doc).expect("reading");
+        let config = CliConfig::from_yaml(Rc::from("examples"), doc).expect("reading");
 
         let code = &config.transforms[0];
         let code = code

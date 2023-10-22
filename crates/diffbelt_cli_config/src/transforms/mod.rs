@@ -1,6 +1,6 @@
 use crate::code::Code;
 use crate::transforms::aggregate::Aggregate;
-use crate::transforms::map_filter::MapFilterYaml;
+use crate::transforms::map_filter::{MapFilterWasm, MapFilterYaml};
 use crate::transforms::percentiles::Percentiles;
 use crate::transforms::unique_count::UniqueCount;
 use diffbelt_yaml::{decode_yaml, YamlNode};
@@ -19,6 +19,7 @@ pub struct Transform {
     pub intermediate: Option<TransformCollectionDef>,
     pub to: TransformCollectionDef,
     pub reader_name: Option<Rc<str>>,
+    pub map_filter_wasm: Option<MapFilterWasm>,
     pub map_filter: Option<MapFilterYaml>,
     pub aggregate: Option<Aggregate>,
     pub percentiles: Option<Percentiles>,

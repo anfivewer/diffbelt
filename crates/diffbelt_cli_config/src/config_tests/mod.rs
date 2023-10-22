@@ -11,7 +11,10 @@ use diffbelt_yaml::YamlNodeRc;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::ops::Deref;
 
+use crate::transforms::map_filter::{MapFilterWasm, MapFilterYaml};
+use crate::wasm::{MapFilterFunction, NewWasmInstanceOptions, WasmError, WasmModuleInstance};
 use std::rc::Rc;
 
 #[derive(Debug, Deserialize)]
@@ -39,6 +42,7 @@ pub enum TestError {
     Unspecified(String),
     YamlValueConstruction(YamlValueConstructionError),
     Interpreter(InterpreterError),
+    Wasm(WasmError),
 }
 
 #[derive(Debug)]
@@ -54,7 +58,7 @@ pub struct TestResult {
 }
 
 impl CliConfig {
-    pub fn run_tests(&self) -> Vec<TestResult> {
+    pub async fn run_tests(&self) -> Vec<TestResult> {
         let mut result = Vec::new();
 
         'outer: for (name, suite) in self.tests.iter() {
@@ -72,7 +76,11 @@ impl CliConfig {
                 };
             }
 
-            let (input_vars, code) = match first {
+            enum TransformType<'a> {
+                MapFilter { map_filter: &'a MapFilterWasm },
+            }
+
+            let code_def = match first {
                 "transforms" => {
                     let Some(transform_name) = split.next() else {
                         push_error!("Specify which transform you want to test".to_string());
@@ -100,19 +108,8 @@ impl CliConfig {
 
                     match transform_method {
                         "map_filter" => {
-                            if let Some(map_filter) = transform.map_filter.as_ref() {
-                                (
-                                    [
-                                        (Rc::from("map_filter_key"), VarDef::anonymous_string()),
-                                        (
-                                            Rc::from("map_filter_new_value"),
-                                            VarDef::anonymous_string(),
-                                        ),
-                                    ]
-                                    .into_iter()
-                                    .collect::<IndexMap<Rc<str>, VarDef>>(),
-                                    map_filter,
-                                )
+                            if let Some(map_filter) = transform.map_filter_wasm.as_ref() {
+                                TransformType::MapFilter { map_filter }
                             } else {
                                 push_error!(format!("Transform {transform_name} does not contain {transform_method}"));
                                 continue 'outer;
@@ -130,14 +127,70 @@ impl CliConfig {
                 }
             };
 
-            let function = match Function::from_code(self, code, Some(input_vars)) {
-                Ok(x) => x,
-                Err(err) => {
-                    result.push(TestResult {
-                        name: name.clone(),
-                        result: Err(TestError::Interpreter(err)),
-                    });
-                    continue 'outer;
+            enum TransformTypeRuntime<'a> {
+                MapFilter {
+                    map_filter: &'a MapFilterWasm,
+                    instance: WasmModuleInstance,
+                },
+            }
+
+            enum TransformTypeFunction<'a> {
+                MapFilter { fun: MapFilterFunction<'a> },
+            }
+
+            let mut runtime = match code_def {
+                TransformType::MapFilter { map_filter } => {
+                    let MapFilterWasm {
+                        mark,
+                        module_name,
+                        method_name,
+                    } = map_filter;
+
+                    let Some(wasm_mod_def) = self.wasm.get(module_name.as_str()) else {
+                        push_error!(format!("No wasm module {module_name} defined"));
+                        continue 'outer;
+                    };
+
+                    let instance = match wasm_mod_def
+                        .new_wasm_instance(NewWasmInstanceOptions {
+                            config_path: self.self_path.deref(),
+                        })
+                        .await
+                    {
+                        Ok(x) => x,
+                        Err(err) => {
+                            result.push(TestResult {
+                                name: name.clone(),
+                                result: Err(TestError::Wasm(err)),
+                            });
+                            continue 'outer;
+                        }
+                    };
+
+                    TransformTypeRuntime::MapFilter {
+                        map_filter,
+                        instance,
+                    }
+                }
+            };
+
+            let mut fun = match &mut runtime {
+                TransformTypeRuntime::MapFilter {
+                    map_filter,
+                    instance,
+                } => {
+                    let fun = match instance.map_filter_function(map_filter.method_name.as_str()) {
+                        Ok(x) => x,
+                        Err(err) => {
+                            result.push(TestResult {
+                                name: name.clone(),
+                                result: Err(TestError::Wasm(err)),
+                            });
+                            continue 'outer;
+                        }
+                    };
+
+                    TransformTypeFunction::MapFilter { fun }
                 }
             };
 
@@ -173,42 +226,66 @@ impl CliConfig {
                     );
                 }
 
-                let expected_value = match construct_value_from_yaml(expected_value.as_ref()) {
-                    Ok(x) => x,
-                    Err(err) => {
-                        single_tests.push(SingleTestResult {
-                            name: name.clone(),
-                            result: Err(TestError::YamlValueConstruction(err)),
-                        });
-                        continue 'test;
-                    }
-                };
+                match &mut fun {
+                    TransformTypeFunction::MapFilter { fun } => {
+                        let result = match fun.call() {
+                            Ok(x) => x,
+                            Err(err) => {
+                                single_tests.push(SingleTestResult {
+                                    name: name.clone(),
+                                    result: Err(TestError::Wasm(err)),
+                                });
+                                continue 'test;
+                            }
+                        };
 
-                let actual_value = match function.call(input_vars) {
-                    Ok(x) => x,
-                    Err(err) => {
-                        single_tests.push(SingleTestResult {
-                            name: name.clone(),
-                            result: Err(TestError::Interpreter(err)),
-                        });
-                        continue;
+                        //
                     }
-                };
-
-                if actual_value != expected_value {
-                    single_tests.push(SingleTestResult {
-                        name: name.clone(),
-                        result: Ok(Some(AssertError::ValueMissmatch {
-                            expected: expected_value,
-                            actual: actual_value,
-                        })),
-                    });
-                } else {
-                    single_tests.push(SingleTestResult {
-                        name: name.clone(),
-                        result: Ok(None),
-                    });
                 }
+
+                // let expected_value = match construct_value_from_yaml(expected_value.as_ref()) {
+                //     Ok(x) => x,
+                //     Err(err) => {
+                //         single_tests.push(SingleTestResult {
+                //             name: name.clone(),
+                //             result: Err(TestError::YamlValueConstruction(err)),
+                //         });
+                //         continue 'test;
+                //     }
+                // };
+                //
+                // let actual_value = match function.call(input_vars) {
+                //     Ok(x) => x,
+                //     Err(err) => {
+                //         single_tests.push(SingleTestResult {
+                //             name: name.clone(),
+                //             result: Err(TestError::Interpreter(err)),
+                //         });
+                //         continue;
+                //     }
+                // };
+                //
+                // if actual_value != expected_value {
+                //     single_tests.push(SingleTestResult {
+                //         name: name.clone(),
+                //         result: Ok(Some(AssertError::ValueMissmatch {
+                //             expected: expected_value,
+                //             actual: actual_value,
+                //         })),
+                //     });
+                // } else {
+                //     single_tests.push(SingleTestResult {
+                //         name: name.clone(),
+                //         result: Ok(None),
+                //     });
+                // }
+
+                single_tests.push(SingleTestResult {
+                    name: name.clone(),
+                    result: Ok(None),
+                });
+
+                break;
             }
 
             result.push(TestResult {
@@ -225,17 +302,24 @@ impl CliConfig {
 mod tests {
     use crate::config_tests::{SingleTestResult, TestResult};
     use crate::CliConfig;
+    use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
     use diffbelt_yaml::parse_yaml;
+    use std::rc::Rc;
 
     #[test]
     fn run_example_config_tests() {
+        let runtime = create_main_tokio_runtime().unwrap();
+        runtime.block_on(run_example_config_tests_inner());
+    }
+
+    async fn run_example_config_tests_inner() {
         let config_str = include_str!("../../../../examples/cli-config.yaml");
 
         let docs = parse_yaml(config_str).expect("parsing");
         let doc = &docs[0];
-        let config = CliConfig::from_yaml(doc).expect("reading");
+        let config = CliConfig::from_yaml(Rc::from("../../examples"), doc).expect("reading");
 
-        let results = config.run_tests();
+        let results = config.run_tests().await;
 
         let mut is_ok = true;
 

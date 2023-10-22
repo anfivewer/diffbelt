@@ -55,128 +55,129 @@ transforms:
     from: log-lines
     to: parsed-log-lines
     reader_name: log-lines
-    map_filter:
-      - if:
-          condition: (is_none map_filter_new_value)
-          then:
-            - return:
-                key: map_filter_key
-                value: (none)
-      - regexp:
-          var: map_filter_key
-          parts:
-            log_level: '''(T|I|W|E|S)'''
-            timestamp: '''(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{1,3}Z)\.(\d{1,3})'''
-            start: '"^(?:${log_level} ${timestamp}|${timestamp} ${log_level})"'
-            end: '''((?:\\ |[^\s])+) ((?:\\ |[^\s])+)(.*)$'''
-          regexp: '"${start} ${end}"'
-          groups:
-            - log_level_a
-            - date_a
-            - microseconds_a
-            - date_b
-            - microseconds_b
-            - log_level_b
-            - logger_key_escaped
-            - log_key_escaped
-            - rest
-          if_not_matches:
-            - return:
-                key: map_filter_key
-                value: (none)
-      - vars:
-          log_level:
-            non_empty_string: [log_level_a, log_level_b]
-          date:
-            non_empty_string: [date_a, date_b]
-          microseconds_str:
-            non_empty_string: [microseconds_a, microseconds_b]
-          timestamp_ms:
-            parse_date_to_ms: date
-          microseconds:
-            parse_uint: microseconds_str
-          timestamp_string: '"${date}.${microseconds_str}"'
-          logger_key:
-            regexp_replace:
-              var: logger_key_escaped
-              from: \\(\\|\s)
-              to: $1
-          logger_key_start:
-            regexp_replace:
-              var: logger_key
-              from: :.*$
-              to: ''
-          log_key:
-            regexp_replace:
-              var: log_key_escaped
-              from: \\(\\|\s)
-              to: $1
-          props: (map)
-          extra: (list)
-      - regexp:
-          var: rest
-          regexp_multi: '''\s((?:\\ |\\:|[^\s:])+):((?:\\ |[^\s])+)'''
-          fail_on_non_continuous: yes
-          rest: rest
-          groups:
-            - key_escaped
-            - value_escaped
-          loop:
-            - vars:
-                key:
-                  regexp_replace:
-                    var: key_escaped
-                    from: \\(\\|\s|:)
-                    to: $1
-                value:
-                  regexp_replace:
-                    var: value_escaped
-                    from: \\(\\|\s)
-                    to: $1
-            - update_map:
-                var: props
-                key: key
-                value: value
-      - regexp:
-          var: rest
-          regexp_multi: '''\s*\|((?:\\\||[^|])+)'''
-          fail_on_non_continuous: yes
-          groups:
-            - extra_escaped
-          loop:
-            - vars:
-                extra_escaped_1:
-                  regexp_replace:
-                    var: extra_escaped
-                    from: \\r
-                    to: "\r"
-                extra_escaped_2:
-                  regexp_replace:
-                    var: extra_escaped_1
-                    from: \\n
-                    to: "\n"
-                extra_unescaped:
-                  regexp_replace:
-                    var: extra_escaped_2
-                    from: \\(\\|\|)
-                    to: $1
-            - update_list:
-                var: extra
-                push: extra_unescaped
-      - vars:
-          value:
-            map:
-              logLevel: log_level
-              timestampString: timestamp_string
-              timestampMilliseconds: timestamp_ms
-              timestampMicroseconds: microseconds
-              loggerKey: logger_key
-              logKey: log_key
-              props: props
-              extra: extra
-      - return:
-          key: '"${timestamp_string} ${logger_key_start}"'
-          value: value
+    map_filter_wasm: example.mapFilter
+#    map_filter:
+#      - if:
+#          condition: (is_none map_filter_new_value)
+#          then:
+#            - return:
+#                key: map_filter_key
+#                value: (none)
+#      - regexp:
+#          var: map_filter_key
+#          parts:
+#            log_level: '''(T|I|W|E|S)'''
+#            timestamp: '''(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{1,3}Z)\.(\d{1,3})'''
+#            start: '"^(?:${log_level} ${timestamp}|${timestamp} ${log_level})"'
+#            end: '''((?:\\ |[^\s])+) ((?:\\ |[^\s])+)(.*)$'''
+#          regexp: '"${start} ${end}"'
+#          groups:
+#            - log_level_a
+#            - date_a
+#            - microseconds_a
+#            - date_b
+#            - microseconds_b
+#            - log_level_b
+#            - logger_key_escaped
+#            - log_key_escaped
+#            - rest
+#          if_not_matches:
+#            - return:
+#                key: map_filter_key
+#                value: (none)
+#      - vars:
+#          log_level:
+#            non_empty_string: [log_level_a, log_level_b]
+#          date:
+#            non_empty_string: [date_a, date_b]
+#          microseconds_str:
+#            non_empty_string: [microseconds_a, microseconds_b]
+#          timestamp_ms:
+#            parse_date_to_ms: date
+#          microseconds:
+#            parse_uint: microseconds_str
+#          timestamp_string: '"${date}.${microseconds_str}"'
+#          logger_key:
+#            regexp_replace:
+#              var: logger_key_escaped
+#              from: \\(\\|\s)
+#              to: $1
+#          logger_key_start:
+#            regexp_replace:
+#              var: logger_key
+#              from: :.*$
+#              to: ''
+#          log_key:
+#            regexp_replace:
+#              var: log_key_escaped
+#              from: \\(\\|\s)
+#              to: $1
+#          props: (map)
+#          extra: (list)
+#      - regexp:
+#          var: rest
+#          regexp_multi: '''\s((?:\\ |\\:|[^\s:])+):((?:\\ |[^\s])+)'''
+#          fail_on_non_continuous: yes
+#          rest: rest
+#          groups:
+#            - key_escaped
+#            - value_escaped
+#          loop:
+#            - vars:
+#                key:
+#                  regexp_replace:
+#                    var: key_escaped
+#                    from: \\(\\|\s|:)
+#                    to: $1
+#                value:
+#                  regexp_replace:
+#                    var: value_escaped
+#                    from: \\(\\|\s)
+#                    to: $1
+#            - update_map:
+#                var: props
+#                key: key
+#                value: value
+#      - regexp:
+#          var: rest
+#          regexp_multi: '''\s*\|((?:\\\||[^|])+)'''
+#          fail_on_non_continuous: yes
+#          groups:
+#            - extra_escaped
+#          loop:
+#            - vars:
+#                extra_escaped_1:
+#                  regexp_replace:
+#                    var: extra_escaped
+#                    from: \\r
+#                    to: "\r"
+#                extra_escaped_2:
+#                  regexp_replace:
+#                    var: extra_escaped_1
+#                    from: \\n
+#                    to: "\n"
+#                extra_unescaped:
+#                  regexp_replace:
+#                    var: extra_escaped_2
+#                    from: \\(\\|\|)
+#                    to: $1
+#            - update_list:
+#                var: extra
+#                push: extra_unescaped
+#      - vars:
+#          value:
+#            map:
+#              logLevel: log_level
+#              timestampString: timestamp_string
+#              timestampMilliseconds: timestamp_ms
+#              timestampMicroseconds: microseconds
+#              loggerKey: logger_key
+#              logKey: log_key
+#              props: props
+#              extra: extra
+#      - return:
+#          key: '"${timestamp_string} ${logger_key_start}"'
+#          value: value
 
   - from: parsed-log-lines
     to: parsed-log-lines:1d
@@ -425,7 +426,7 @@ transforms:
 
 wasm:
   - name: example
-    wat_path: example.wat
+    wasm_path: ../crates/diffbelt_example_wasm/target/wasm32-unknown-unknown/release/diffbelt_example_wasm.wasm
 
 tests:
   transforms.parse_lines.map_filter:
