@@ -12,3 +12,6 @@ lto = true
 
 [dependencies]
 dlmalloc = { version = "0.2.4", features = ["global"] }
+
+[dependencies.diffbelt_protos]
+path = "../diffbelt_protos"

@@ -1,3 +1,8 @@
+#![no_std]
+
+extern crate alloc;
+
+use alloc::vec::Vec;
 use flatbuffers::{
     FlatBufferBuilder, Follow, InvalidFlatbuffer, Push, Vector, Verifiable, WIPOffset,
 };

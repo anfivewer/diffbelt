@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-flatbuffers = "23.5.26"
+flatbuffers = { version = "23.5.26", default-features = false, features = [] }
