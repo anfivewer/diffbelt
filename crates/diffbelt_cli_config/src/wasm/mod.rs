@@ -5,8 +5,14 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::Utf8Error;
 
+use diffbelt_util::cast::{try_usize_to_i32, unchecked_i32_to_u32, unchecked_usize_to_u32};
 use serde::Deserialize;
-use wasmer::{CompileError, ExportError, Function, Imports, Instance, InstantiationError, Memory, MemoryAccessError, MemoryError, MemoryType, Module, RuntimeError, Store, Value};
+use thiserror::Error;
+use wasmer::{
+    CompileError, ExportError, Function, Imports, Instance, InstantiationError, Memory,
+    MemoryAccessError, MemoryError, MemoryType, Module, RuntimeError, Store, TypedFunction, Value,
+    WasmPtr, WasmTypeList,
+};
 
 use crate::errors::WithMark;
 use crate::wasm::wasm_env::WasmEnv;
@@ -19,21 +25,41 @@ pub struct Wasm {
     pub wasm_path: WithMark<String>,
 }
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum WasmError {
+    #[error("AlreadyErrored")]
     AlreadyErrored,
+    #[error("{0:?}")]
     Io(std::io::Error),
+    #[error("{0:?}")]
     Compile(CompileError),
+    #[error("{0:?}")]
     Instantiation(InstantiationError),
+    #[error("{0:?}")]
     Memory(MemoryError),
-    Export(ExportError),
-    Runtime(RuntimeError),
+    #[error("{original:?}: {context}")]
+    Export {
+        original: ExportError,
+        context: String,
+    },
+    #[error(transparent)]
+    Runtime(#[from] RuntimeError),
+    #[error("{0:?}")]
     MemoryAccess(MemoryAccessError),
+    #[error("{0:?}")]
     Utf8(Utf8Error),
+    #[error("MutexPoisoned")]
     MutexPoisoned,
+    #[error("NoMemory")]
     NoMemory,
+    #[error("{0:?}")]
     Regex(regex::Error),
+    #[error("{0:?}")]
     Unspecified(String),
+}
+
+pub fn map_export_error(context: String) -> impl FnOnce(ExportError) -> WasmError {
+    |original| WasmError::Export { original, context }
 }
 
 impl From<MemoryAccessError> for WasmError {
@@ -49,11 +75,18 @@ pub struct NewWasmInstanceOptions<'a> {
 pub struct WasmModuleInstance {
     store: RefCell<Store>,
     instance: Instance,
+    allocation: Allocation,
 }
 
 pub struct MapFilterFunction<'a> {
     instance: &'a WasmModuleInstance,
-    fun: &'a Function,
+    fun: TypedFunction<(WasmPtr<u8>, i32), ()>,
+}
+
+pub struct Allocation {
+    alloc: TypedFunction<i32, WasmPtr<u8>>,
+    free: TypedFunction<(WasmPtr<u8>, i32), ()>,
+    memory: Memory,
 }
 
 impl Wasm {
@@ -107,24 +140,42 @@ impl Wasm {
         let memory = instance
             .exports
             .get_memory(memory.name())
-            .map_err(WasmError::Export)?;
+            .map_err(map_export_error("memory".to_string()))?;
 
         env.set_memory(memory.clone());
+
+        let alloc = instance
+            .exports
+            .get_typed_function(&store, "alloc")
+            .map_err(map_export_error("alloc()".to_string()))?;
+        let free = instance
+            .exports
+            .get_typed_function(&store, "free")
+            .map_err(map_export_error("free()".to_string()))?;
+
+        let allocation = Allocation {
+            alloc,
+            free,
+            memory: memory.clone(),
+        };
 
         Ok(WasmModuleInstance {
             store: RefCell::new(store),
             instance,
+            allocation,
         })
     }
 }
 
 impl WasmModuleInstance {
     pub fn map_filter_function(&self, name: &str) -> Result<MapFilterFunction<'_>, WasmError> {
+        let store = self.store.borrow();
+
         let fun = self
             .instance
             .exports
-            .get_function(name)
-            .map_err(WasmError::Export)?;
+            .get_typed_function(&store, name)
+            .map_err(map_export_error(format!("map_filter {name}")))?;
 
         Ok(MapFilterFunction {
             instance: self,
@@ -134,11 +185,22 @@ impl WasmModuleInstance {
 }
 
 impl MapFilterFunction<'_> {
-    pub fn call(&self) -> Result<(), WasmError> {
-        let mut instance = self.instance.store.borrow_mut();
-        let store = instance.deref_mut();
+    /// `inputs` should be encoded by [`diffbelt_protos::protos::transform::map_filter::MapFilterMultiInput`]
+    pub fn call(&self, inputs: &[u8]) -> Result<(), WasmError> {
+        let mut store = self.instance.store.borrow_mut();
+        let store = store.deref_mut();
 
-        let result = self.fun.call(store, &[]).map_err(WasmError::Runtime)?;
+        let inputs_len_i32 = try_usize_to_i32(inputs.len()).ok_or_else(|| {
+            WasmError::Unspecified(format!("Input length too big: {}", inputs.len()))
+        })?;
+
+        let ptr = self.instance.allocation.alloc.call(store, inputs_len_i32)?;
+
+        let view = self.instance.allocation.memory.view(store);
+        let slice = ptr.slice(&view, unchecked_i32_to_u32(inputs_len_i32))?;
+        () = slice.write_slice(inputs)?;
+
+        let result = self.fun.call(store, ptr, inputs_len_i32)?;
 
         println!("result {result:?}");
 

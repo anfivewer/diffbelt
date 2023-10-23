@@ -59,6 +59,11 @@ pub fn try_positive_i32_to_u32(value: i32) -> Option<u32> {
 }
 
 #[inline(always)]
+pub fn unchecked_i32_to_u32(value: i32) -> u32 {
+    value as u32
+}
+
+#[inline(always)]
 #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
 pub fn try_positive_i32_to_usize(value: i32) -> Option<usize> {
     if value < 0 {

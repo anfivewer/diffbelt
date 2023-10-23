@@ -432,11 +432,12 @@ tests:
   transforms.parse_lines.map_filter:
     - name: with props and no extras
       vars:
-        map_filter_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27'
-        map_filter_new_value: ''
+        source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27'
+        source_old_value: (none)
+        source_new_value: ''
       return:
-        key: '2023-02-20T21:42:48.822Z.000 worker258688'
-        value:
+        target_key: '2023-02-20T21:42:48.822Z.000 worker258688'
+        target_value:
           logLevel: S
           timestampString: 2023-02-20T21:42:48.822Z.000
           timestampMilliseconds: 1676929368822
@@ -450,11 +451,11 @@ tests:
 
     - name: with props and one extra
       vars:
-        map_filter_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 1'
-        map_filter_new_value: ''
+        source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 1'
+        source_new_value: ''
       return:
-        key: '2023-02-20T21:42:48.822Z.000 worker258688'
-        value:
+        target_key: '2023-02-20T21:42:48.822Z.000 worker258688'
+        target_value:
           logLevel: S
           timestampString: 2023-02-20T21:42:48.822Z.000
           timestampMilliseconds: 1676929368822
@@ -469,11 +470,12 @@ tests:
 
     - name: with props and two extras
       vars:
-        map_filter_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 2|another extra 2'
-        map_filter_new_value: ''
+        source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 2|another extra 2'
+        source_old_value: (none)
+        source_new_value: ''
       return:
-        key: '2023-02-20T21:42:48.822Z.000 worker258688'
-        value:
+        target_key: '2023-02-20T21:42:48.822Z.000 worker258688'
+        target_value:
           logLevel: S
           timestampString: 2023-02-20T21:42:48.822Z.000
           timestampMilliseconds: 1676929368822
@@ -489,11 +491,12 @@ tests:
 
     - name: with no props and no extras
       vars:
-        map_filter_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull'
-        map_filter_new_value: ''
+        source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull'
+        source_old_value: (none)
+        source_new_value: ''
       return:
-        key: '2023-02-20T21:42:48.822Z.000 worker258688'
-        value:
+        target_key: '2023-02-20T21:42:48.822Z.000 worker258688'
+        target_value:
           logLevel: S
           timestampString: 2023-02-20T21:42:48.822Z.000
           timestampMilliseconds: 1676929368822
@@ -505,11 +508,12 @@ tests:
 
     - name: with no props and two extras
       vars:
-        map_filter_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull |some extra|another extra'
-        map_filter_new_value: ''
+        source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull |some extra|another extra'
+        source_old_value: (none)
+        source_new_value: ''
       return:
-        key: '2023-02-20T21:42:48.822Z.000 worker258688'
-        value:
+        target_key: '2023-02-20T21:42:48.822Z.000 worker258688'
+        target_value:
           logLevel: S
           timestampString: 2023-02-20T21:42:48.822Z.000
           timestampMilliseconds: 1676929368822
@@ -523,19 +527,21 @@ tests:
 
     - name: not matches start
       vars:
-        map_filter_key: 'S ------- worker258688:middlewares handleFull |some extra|another extra'
-        map_filter_new_value: ''
+        source_key: 'S ------- worker258688:middlewares handleFull |some extra|another extra'
+        source_old_value: (none)
+        source_new_value: ''
       return:
-        key: 'S ------- worker258688:middlewares handleFull |some extra|another extra'
-        value: (none)
+        target_key: 'S ------- worker258688:middlewares handleFull |some extra|another extra'
+        target_value: (none)
 
     - name: with stack extra
       vars:
-        map_filter_key: 'E 2022-10-31T10:18:35.254Z.000 main:report report reason:undefined |FetchError: request to https://api.telegram.org/bot1841007248:AAGEKkrD3kFEHNOnjyCCWudL9kbZ5vpHUMQ/getChatMember failed, reason: connect ETIMEDOUT 149.154.167.220:443\n    at ClientRequest.<anonymous> (/home/shieldy/shieldy/node_modules/node-fetch/lib/index.js:1461:11)\n    at ClientRequest.emit (events.js:375:28)\n    at TLSSocket.socketErrorListener (_http_client.js:475:9)\n    at TLSSocket.emit (events.js:375:28)\n    at emitErrorNT (internal/streams/destroy.js:106:8)\n    at emitErrorCloseNT (internal/streams/destroy.js:74:3)\n    at processTicksAndRejections (internal/process/task_queues.js:82:21)'
-        map_filter_new_value: ''
+        source_key: 'E 2022-10-31T10:18:35.254Z.000 main:report report reason:undefined |FetchError: request to https://api.telegram.org/bot1841007248:AAGEKkrD3kFEHNOnjyCCWudL9kbZ5vpHUMQ/getChatMember failed, reason: connect ETIMEDOUT 149.154.167.220:443\n    at ClientRequest.<anonymous> (/home/shieldy/shieldy/node_modules/node-fetch/lib/index.js:1461:11)\n    at ClientRequest.emit (events.js:375:28)\n    at TLSSocket.socketErrorListener (_http_client.js:475:9)\n    at TLSSocket.emit (events.js:375:28)\n    at emitErrorNT (internal/streams/destroy.js:106:8)\n    at emitErrorCloseNT (internal/streams/destroy.js:74:3)\n    at processTicksAndRejections (internal/process/task_queues.js:82:21)'
+        source_old_value: (none)
+        source_new_value: ''
       return:
-        key: '2022-10-31T10:18:35.254Z.000 main'
-        value:
+        target_key: '2022-10-31T10:18:35.254Z.000 main'
+        target_value:
           logLevel: E
           timestampString: 2022-10-31T10:18:35.254Z.000
           timestampMilliseconds: 1667211515254

@@ -16,4 +16,3 @@ table RecordUpdate {
 table MapFilterMultiOutput {
   target_update_records: [RecordUpdate];
 }
-

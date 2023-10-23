@@ -6,16 +6,19 @@ use crate::interpreter::error::InterpreterError;
 use crate::interpreter::function::Function;
 use crate::interpreter::value::{Value, ValueHolder};
 use crate::interpreter::var::{Var, VarDef};
-use crate::CliConfig;
+use crate::{CliConfig, CollectionValueFormat};
 use diffbelt_yaml::YamlNodeRc;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::ops::Deref;
 
+use crate::formats::yaml_map_filter::YamlTestVarsError;
 use crate::transforms::map_filter::{MapFilterWasm, MapFilterYaml};
 use crate::wasm::{MapFilterFunction, NewWasmInstanceOptions, WasmError, WasmModuleInstance};
+use diffbelt_protos::OwnedSerialized;
 use std::rc::Rc;
+use thiserror::Error;
 
 #[derive(Debug, Deserialize)]
 #[serde(transparent)]
@@ -26,7 +29,7 @@ pub struct TestSuite {
 #[derive(Debug, Deserialize)]
 pub struct SingleTest {
     pub name: Rc<str>,
-    pub vars: HashMap<Rc<str>, YamlNodeRc>,
+    pub vars: YamlNodeRc,
     #[serde(rename = "return")]
     pub value: YamlNodeRc,
 }
@@ -36,13 +39,20 @@ pub enum AssertError {
     ValueMissmatch { expected: Value, actual: Value },
 }
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum TestError {
+    #[error("InvalidName")]
     InvalidName,
+    #[error("{0}")]
     Unspecified(String),
+    #[error("{0:?}")]
     YamlValueConstruction(YamlValueConstructionError),
+    #[error("{0:?}")]
     Interpreter(InterpreterError),
-    Wasm(WasmError),
+    #[error(transparent)]
+    Wasm(#[from] WasmError),
+    #[error(transparent)]
+    YamlTestVars(#[from] YamlTestVarsError),
 }
 
 #[derive(Debug)]
@@ -77,7 +87,10 @@ impl CliConfig {
             }
 
             enum TransformType<'a> {
-                MapFilter { map_filter: &'a MapFilterWasm },
+                MapFilter {
+                    source_format: CollectionValueFormat,
+                    map_filter: &'a MapFilterWasm,
+                },
             }
 
             let code_def = match first {
@@ -91,6 +104,12 @@ impl CliConfig {
                         push_error!(format!(
                             "Transform {transform_name} not found, add name to it's declaration"
                         ));
+                        continue 'outer;
+                    };
+
+                    let Some(from_collection) = self.collection_by_name(transform.from.deref())
+                    else {
+                        push_error!(format!("Collection {} not found", transform.from));
                         continue 'outer;
                     };
 
@@ -109,7 +128,10 @@ impl CliConfig {
                     match transform_method {
                         "map_filter" => {
                             if let Some(map_filter) = transform.map_filter_wasm.as_ref() {
-                                TransformType::MapFilter { map_filter }
+                                TransformType::MapFilter {
+                                    source_format: from_collection.format,
+                                    map_filter,
+                                }
                             } else {
                                 push_error!(format!("Transform {transform_name} does not contain {transform_method}"));
                                 continue 'outer;
@@ -129,6 +151,7 @@ impl CliConfig {
 
             enum TransformTypeRuntime<'a> {
                 MapFilter {
+                    source_format: CollectionValueFormat,
                     map_filter: &'a MapFilterWasm,
                     instance: WasmModuleInstance,
                 },
@@ -139,7 +162,10 @@ impl CliConfig {
             }
 
             let mut runtime = match code_def {
-                TransformType::MapFilter { map_filter } => {
+                TransformType::MapFilter {
+                    source_format,
+                    map_filter,
+                } => {
                     let MapFilterWasm {
                         mark,
                         module_name,
@@ -168,14 +194,16 @@ impl CliConfig {
                     };
 
                     TransformTypeRuntime::MapFilter {
+                        source_format,
                         map_filter,
                         instance,
                     }
                 }
             };
 
-            let mut fun = match &mut runtime {
+            let (source_format, mut fun) = match &mut runtime {
                 TransformTypeRuntime::MapFilter {
+                    source_format,
                     map_filter,
                     instance,
                 } => {
@@ -190,54 +218,39 @@ impl CliConfig {
                         }
                     };
 
-                    TransformTypeFunction::MapFilter { fun }
+                    (*source_format, TransformTypeFunction::MapFilter { fun })
                 }
             };
 
             let mut single_tests = Vec::with_capacity(tests.len());
 
             'test: for test in tests {
+                macro_rules! match_ok {
+                    ( $expr:expr ) => {
+                        match $expr {
+                            Ok(x) => x,
+                            Err(err) => {
+                                single_tests.push(SingleTestResult {
+                                    name: name.clone(),
+                                    result: Err(err.into()),
+                                });
+                                continue 'test;
+                            }
+                        }
+                    };
+                }
+
                 let SingleTest {
                     name,
                     vars,
                     value: expected_value,
                 } = test;
 
-                let mut input_vars = HashMap::with_capacity(vars.len());
-
-                for (key, value) in vars {
-                    let value = match construct_value_from_yaml(value.as_ref()) {
-                        Ok(x) => x,
-                        Err(err) => {
-                            single_tests.push(SingleTestResult {
-                                name: name.clone(),
-                                result: Err(TestError::YamlValueConstruction(err)),
-                            });
-                            continue 'test;
-                        }
-                    };
-
-                    input_vars.insert(
-                        key.clone(),
-                        Var {
-                            def: VarDef::unknown(),
-                            value: Some(ValueHolder { value }),
-                        },
-                    );
-                }
+                let input = match_ok!(source_format.yaml_test_vars_to_map_filter_input(vars.as_ref()));
 
                 match &mut fun {
                     TransformTypeFunction::MapFilter { fun } => {
-                        let result = match fun.call() {
-                            Ok(x) => x,
-                            Err(err) => {
-                                single_tests.push(SingleTestResult {
-                                    name: name.clone(),
-                                    result: Err(TestError::Wasm(err)),
-                                });
-                                continue 'test;
-                            }
-                        };
+                        let result = match_ok!(fun.call(input.data()));
 
                         //
                     }

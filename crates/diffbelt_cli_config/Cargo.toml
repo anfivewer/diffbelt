@@ -16,9 +16,13 @@ chrono = "0.4.31"
 wasmer = { version = "4.2.2", features = ["wat"] }
 wasmer-types = "4.2.2"
 tokio = "1.22.0"
+thiserror = "1.0.50"
 
 [dependencies.diffbelt_util]
 path = "../diffbelt_util"
 
 [dependencies.diffbelt_yaml]
 path = "../diffbelt_yaml"
+
+[dependencies.diffbelt_protos]
+path = "../diffbelt_protos"

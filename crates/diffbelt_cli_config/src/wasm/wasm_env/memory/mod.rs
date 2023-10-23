@@ -1,5 +1,5 @@
-use wasmer::{Extern, Imports, Memory};
 use crate::wasm::wasm_env::WasmEnv;
+use wasmer::Memory;
 
 impl WasmEnv {
     pub fn set_memory(&self, memory: Memory) {

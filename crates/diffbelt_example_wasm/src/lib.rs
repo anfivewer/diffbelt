@@ -12,7 +12,7 @@ mod panic;
 mod regex;
 
 #[export_name = "mapFilter"]
-pub extern "C" fn map_filter() -> () {
+pub extern "C" fn map_filter(input_ptr: *const u8, input_len: i32) -> () {
     let regex = Regex::new(r"^test-(\d+)$");
     let mut mem = Regex::alloc_captures::<2>();
     let Some(captures) = regex.captures("test-42", &mut mem) else {
