@@ -5,14 +5,14 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::Utf8Error;
 
-use diffbelt_util::cast::{try_usize_to_i32, unchecked_i32_to_u32, unchecked_usize_to_u32};
 use serde::Deserialize;
 use thiserror::Error;
 use wasmer::{
-    CompileError, ExportError, Function, Imports, Instance, InstantiationError, Memory,
-    MemoryAccessError, MemoryError, MemoryType, Module, RuntimeError, Store, TypedFunction, Value,
-    WasmPtr, WasmTypeList,
+    CompileError, ExportError, Imports, Instance, InstantiationError, Memory, MemoryAccessError,
+    MemoryError, Module, RuntimeError, Store, TypedFunction, WasmPtr, WasmTypeList,
 };
+
+use diffbelt_util::cast::{try_usize_to_i32, unchecked_i32_to_u32};
 
 use crate::errors::WithMark;
 use crate::wasm::wasm_env::WasmEnv;
@@ -58,8 +58,13 @@ pub enum WasmError {
     Unspecified(String),
 }
 
-pub fn map_export_error(context: String) -> impl FnOnce(ExportError) -> WasmError {
-    |original| WasmError::Export { original, context }
+pub fn export_error_context<F: FnOnce() -> String>(
+    context: F,
+) -> impl FnOnce(ExportError) -> WasmError {
+    |original| WasmError::Export {
+        original,
+        context: context(),
+    }
 }
 
 impl From<MemoryAccessError> for WasmError {
@@ -140,18 +145,18 @@ impl Wasm {
         let memory = instance
             .exports
             .get_memory(memory.name())
-            .map_err(map_export_error("memory".to_string()))?;
+            .map_err(export_error_context(|| "memory".to_string()))?;
 
         env.set_memory(memory.clone());
 
         let alloc = instance
             .exports
             .get_typed_function(&store, "alloc")
-            .map_err(map_export_error("alloc()".to_string()))?;
+            .map_err(export_error_context(|| "alloc()".to_string()))?;
         let free = instance
             .exports
             .get_typed_function(&store, "free")
-            .map_err(map_export_error("free()".to_string()))?;
+            .map_err(export_error_context(|| "free()".to_string()))?;
 
         let allocation = Allocation {
             alloc,
@@ -175,7 +180,7 @@ impl WasmModuleInstance {
             .instance
             .exports
             .get_typed_function(&store, name)
-            .map_err(map_export_error(format!("map_filter {name}")))?;
+            .map_err(export_error_context(|| format!("map_filter {name}")))?;
 
         Ok(MapFilterFunction {
             instance: self,
