@@ -6,6 +6,7 @@ members = [
 
 	"crates/diffbelt_cli_config",
 	"crates/diffbelt_types",
+	"crates/diffbelt_protos",
 	"crates/diffbelt_util",
 	"crates/diffbelt_http_client",
 	"crates/diffbelt_macro",

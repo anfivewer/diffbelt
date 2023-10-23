@@ -1,0 +1,19 @@
+table MapFilterInput {
+  source_key: [ubyte];
+  source_old_value: [ubyte]; // optional
+  source_new_value: [ubyte]; // optional
+}
+
+table MapFilterMultiInput {
+  items: [MapFilterInput];
+}
+
+table RecordUpdate {
+  key: [ubyte];
+  value: [ubyte]; // optional
+}
+
+table MapFilterMultiOutput {
+  target_update_records: [RecordUpdate];
+}
+
