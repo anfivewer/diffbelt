@@ -12,6 +12,10 @@ lto = true
 
 [dependencies]
 dlmalloc = { version = "0.2.4", features = ["global"] }
+const_format = "0.2.32"
+chrono = { version = "0.4.31", default-features = false }
+lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
+thiserror-no-std = { version = "2.0.2", default-features = false }
 
 [dependencies.diffbelt_protos]
 path = "../diffbelt_protos"
