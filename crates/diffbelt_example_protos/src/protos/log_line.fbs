@@ -1,0 +1,15 @@
+table Prop {
+    key: string;
+    value: string;
+}
+
+table ParsedLogLine {
+    log_level: ubyte;
+    timestamp_string: string;
+    timestamp_milliseconds: uint64;
+    timestamp_microseconds: uint16;
+    logger_key: string;
+    log_key: string;
+    props: [Prop];
+    extra: [string];
+}

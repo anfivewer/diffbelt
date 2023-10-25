@@ -19,3 +19,6 @@ thiserror-no-std = { version = "2.0.2", default-features = false }
 
 [dependencies.diffbelt_protos]
 path = "../diffbelt_protos"
+
+[dependencies.diffbelt_example_protos]
+path = "../diffbelt_example_protos"

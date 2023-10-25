@@ -7,10 +7,7 @@ use std::str::Utf8Error;
 
 use serde::Deserialize;
 use thiserror::Error;
-use wasmer::{
-    CompileError, ExportError, Imports, Instance, InstantiationError, Memory, MemoryAccessError,
-    MemoryError, Module, RuntimeError, Store, TypedFunction, WasmPtr, WasmTypeList,
-};
+use wasmer::{CompileError, ExportError, FromToNativeWasmType, Imports, Instance, InstantiationError, Memory, MemoryAccessError, MemoryError, Module, RuntimeError, Store, TypedFunction, WasmPtr, WasmTypeList};
 
 use diffbelt_util::cast::{try_usize_to_i32, unchecked_i32_to_u32};
 
@@ -52,6 +49,8 @@ pub enum WasmError {
     MutexPoisoned,
     #[error("NoMemory")]
     NoMemory,
+    #[error("NoAllocation")]
+    NoAllocation,
     #[error("{0:?}")]
     Regex(regex::Error),
     #[error("{0:?}")]
@@ -85,12 +84,13 @@ pub struct WasmModuleInstance {
 
 pub struct MapFilterFunction<'a> {
     instance: &'a WasmModuleInstance,
-    fun: TypedFunction<(WasmPtr<u8>, i32), ()>,
+    fun: TypedFunction<(WasmPtr<u8>, i32), (WasmPtr<u8>, i32, WasmPtr<u8>, i32)>,
 }
 
+#[derive(Clone)]
 pub struct Allocation {
     alloc: TypedFunction<i32, WasmPtr<u8>>,
-    free: TypedFunction<(WasmPtr<u8>, i32), ()>,
+    dealloc: TypedFunction<(WasmPtr<u8>, i32), ()>,
     memory: Memory,
 }
 
@@ -153,16 +153,18 @@ impl Wasm {
             .exports
             .get_typed_function(&store, "alloc")
             .map_err(export_error_context(|| "alloc()".to_string()))?;
-        let free = instance
+        let dealloc = instance
             .exports
-            .get_typed_function(&store, "free")
-            .map_err(export_error_context(|| "free()".to_string()))?;
+            .get_typed_function(&store, "dealloc")
+            .map_err(export_error_context(|| "dealloc()".to_string()))?;
 
         let allocation = Allocation {
             alloc,
-            free,
+            dealloc,
             memory: memory.clone(),
         };
+
+        env.set_allocation(allocation.clone());
 
         Ok(WasmModuleInstance {
             store: RefCell::new(store),
@@ -180,7 +182,26 @@ impl WasmModuleInstance {
             .instance
             .exports
             .get_typed_function(&store, name)
-            .map_err(export_error_context(|| format!("map_filter {name}")))?;
+            .map_err(|original| {
+                let actual_type = if let ExportError::IncompatibleType = original {
+                    self.instance
+                        .exports
+                        .get_function(name)
+                        .map(|fun| fun.ty(&store))
+                        .map(|ty| ty.to_string())
+                        .ok()
+                } else {
+                    None
+                };
+
+                let context = if let Some(actual_type) = actual_type {
+                    format!("map_filter {name}, actual type: {actual_type}")
+                } else {
+                    format!("map_filter {name}")
+                };
+
+                WasmError::Export { original, context }
+            })?;
 
         Ok(MapFilterFunction {
             instance: self,

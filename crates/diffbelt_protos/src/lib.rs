@@ -3,9 +3,8 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use flatbuffers::{
-    FlatBufferBuilder, Follow, InvalidFlatbuffer, Push, Vector, Verifiable, WIPOffset,
-};
+pub use flatbuffers::WIPOffset;
+use flatbuffers::{FlatBufferBuilder, Follow, InvalidFlatbuffer, Push, Vector, Verifiable};
 
 pub mod protos;
 
@@ -28,6 +27,10 @@ impl<'fbb> Serializer<'fbb> {
 
     pub fn buffer_builder(&mut self) -> &mut FlatBufferBuilder<'fbb> {
         &mut self.buffer_builder_
+    }
+
+    pub fn create_string(&mut self, value: &str) -> WIPOffset<&'fbb str> {
+        self.buffer_builder_.create_string(value)
     }
 
     pub fn create_vector<'b, T: Push + 'b>(
@@ -70,5 +73,9 @@ pub struct OwnedSerialized {
 impl OwnedSerialized {
     pub fn data(&self) -> &[u8] {
         &self.data_[self.head..]
+    }
+
+    pub fn into_raw(self) -> (Vec<u8>, usize) {
+        (self.data_, self.head)
     }
 }

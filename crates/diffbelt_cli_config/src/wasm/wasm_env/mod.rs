@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use wasmer::{AsStoreRef, Imports, Memory, MemoryView, Store};
 
-use crate::wasm::WasmError;
+use crate::wasm::{Allocation, WasmError};
 use diffbelt_util::Wrap;
 
 pub mod debug;
@@ -13,6 +13,7 @@ mod util;
 pub struct WasmEnv {
     error: Arc<Mutex<Option<WasmError>>>,
     memory: Arc<Mutex<Option<Memory>>>,
+    allocation: Arc<Mutex<Option<Allocation>>>,
 }
 
 impl WasmEnv {
@@ -20,6 +21,7 @@ impl WasmEnv {
         Self {
             error: Wrap::wrap(None),
             memory: Wrap::wrap(None),
+            allocation: Wrap::wrap(None),
         }
     }
 
@@ -29,7 +31,7 @@ impl WasmEnv {
     }
 
     pub fn memory_view<'a>(
-        memory: &'a Arc<Mutex<Option<Memory>>>,
+        memory: &Arc<Mutex<Option<Memory>>>,
         store: &'a (impl AsStoreRef + ?Sized),
     ) -> Result<MemoryView<'a>, WasmError> {
         let lock = memory.lock().map_err(|_| WasmError::MutexPoisoned)?;

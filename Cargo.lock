@@ -626,6 +626,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "diffbelt_example_protos"
+version = "0.1.0"
+dependencies = [
+ "flatbuffers",
+]
+
+[[package]]
 name = "diffbelt_http_client"
 version = "0.0.1"
 dependencies = [

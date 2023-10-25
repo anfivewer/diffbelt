@@ -1,22 +1,20 @@
+use std::borrow::Cow;
 use std::cmp::min;
 use std::collections::VecDeque;
+use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
 use regex::Regex;
-use wasmer::{
-    AsStoreRef, Function, FunctionEnv, FunctionEnvMut, Imports, Memory, MemoryView, Store,
-    ValueType, WasmPtr,
-};
+use wasmer::{Function, FunctionEnv, FunctionEnvMut, Imports, Memory, Store, ValueType, WasmPtr};
 
 use diffbelt_util::cast::{
-    try_positive_i32_to_u32, try_positive_i32_to_usize, try_usize_to_i32, unchecked_usize_to_i32,
-    unchecked_usize_to_u32, usize_to_u64,
+    try_positive_i32_to_usize, try_usize_to_i32, unchecked_usize_to_i32, unchecked_usize_to_u32,
+    usize_to_u64,
 };
-use diffbelt_util::Wrap;
 
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
-use crate::wasm::WasmError;
+use crate::wasm::{Allocation, WasmError};
 
 pub struct WasmRegex {
     regex: Regex,
@@ -27,6 +25,7 @@ impl WasmEnv {
         struct RegexEnv {
             error: Arc<Mutex<Option<WasmError>>>,
             memory: Arc<Mutex<Option<Memory>>>,
+            allocation: Arc<Mutex<Option<Allocation>>>,
             regexps: Vec<WasmRegex>,
             free_regexps: VecDeque<i32>,
         }
@@ -36,6 +35,7 @@ impl WasmEnv {
             RegexEnv {
                 error: self.error.clone(),
                 memory: self.memory.clone(),
+                allocation: self.allocation.clone(),
                 regexps: Vec::new(),
                 free_regexps: VecDeque::new(),
             },
@@ -123,8 +123,8 @@ impl WasmEnv {
                     ))
                 })?;
 
-                let s = ptr_to_utf8(&view, s_ptr, s_size).unwrap();
-                let s = s.as_str().unwrap();
+                let s = ptr_to_utf8(&view, s_ptr, s_size)?;
+                let s = s.as_str()?;
 
                 let Some(captures) = regex.regex.captures(s) else {
                     return Ok(0);
@@ -177,6 +177,102 @@ impl WasmEnv {
             captures_count
         }
 
+        struct ReplaceOneImpl;
+        struct ReplaceAllImpl;
+
+        trait ReplaceImpl {
+            fn do_replace<'a>(regex: &Regex, source: &'a str, target: &str) -> Cow<'a, str>;
+        }
+
+        impl ReplaceImpl for ReplaceOneImpl {
+            fn do_replace<'a>(regex: &Regex, source: &'a str, target: &str) -> Cow<'a, str> {
+                regex.replace(source, target)
+            }
+        }
+
+        impl ReplaceImpl for ReplaceAllImpl {
+            fn do_replace<'a>(regex: &Regex, source: &'a str, target: &str) -> Cow<'a, str> {
+                regex.replace_all(source, target)
+            }
+        }
+
+        fn regex_replace<Mode: ReplaceImpl>(
+            mut env: FunctionEnvMut<RegexEnv>,
+            ptr: i32,
+            source_ptr: WasmPtr<u8>,
+            source_len: i32,
+            target_ptr: WasmPtr<u8>,
+            target_len: i32,
+        ) -> (i32, i32, i32, i32) {
+            let (env, mut store) = env.data_and_store_mut();
+            let RegexEnv {
+                error,
+                memory,
+                allocation,
+                regexps,
+                ..
+            } = env;
+
+            let result = (|| {
+                let result = {
+                    let view = WasmEnv::memory_view(memory, &store)?;
+
+                    let ptr = try_positive_i32_to_usize(ptr).ok_or_else(|| {
+                        WasmError::Unspecified(format!("Tried to get regexp at {ptr}"))
+                    })?;
+
+                    let regex = regexps.get(ptr).ok_or_else(|| {
+                        WasmError::Unspecified(format!(
+                            "Tried to get regexp at {ptr}, there is only {} of them",
+                            regexps.len()
+                        ))
+                    })?;
+
+                    let source = ptr_to_utf8(&view, source_ptr, source_len)?;
+                    let source = source.as_str()?;
+
+                    let target = ptr_to_utf8(&view, target_ptr, target_len)?;
+                    let target = target.as_str()?;
+
+                    let result = Mode::do_replace(&regex.regex, source, target);
+
+                    // TODO: check that `result` is Borrowed and that it has same address as `source`,
+                    //       calculate start/end offsets and return partial
+                    if result.as_ref() == source {
+                        return Ok::<_, WasmError>((1, 0, 0, 0));
+                    }
+
+                    result.into_owned()
+                };
+
+                let allocation = allocation.lock().map_err(|_| WasmError::MutexPoisoned)?;
+                let allocation = allocation.as_ref().ok_or_else(|| WasmError::NoMemory)?;
+
+                println!("res {result}");
+
+                let result = result.as_bytes();
+
+                let result_bytes_len_i32 = try_usize_to_i32(result.len()).ok_or_else(|| {
+                    WasmError::Unspecified(format!(
+                        "regex_replace result too big: {}",
+                        result.len()
+                    ))
+                })?;
+
+                println!("I wanna alloc {result_bytes_len_i32}");
+
+                let vec_ptr = allocation.alloc.call(&mut store, result_bytes_len_i32)?;
+
+                Ok((0, vec_ptr.offset() as i32, result_bytes_len_i32, result_bytes_len_i32))
+            })();
+
+            let Some(result) = WasmEnv::handle_error(error, result) else {
+                return (0, 0, -1, -1);
+            };
+
+            result
+        }
+
         imports.define(
             "Regex",
             "new",
@@ -191,6 +287,16 @@ impl WasmEnv {
             "Regex",
             "captures",
             Function::new_typed_with_env(store, &env, regex_captures),
+        );
+        imports.define(
+            "Regex",
+            "replace_one",
+            Function::new_typed_with_env(store, &env, regex_replace::<ReplaceOneImpl>),
+        );
+        imports.define(
+            "Regex",
+            "replace_all",
+            Function::new_typed_with_env(store, &env, regex_replace::<ReplaceAllImpl>),
         );
     }
 }

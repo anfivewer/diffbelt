@@ -2,29 +2,37 @@
 
 extern crate alloc;
 
-use crate::debug_print::debug_print_string;
-use crate::regex::Regex;
-use alloc::format;
 use alloc::vec::Vec;
-use core::ptr::slice_from_raw_parts;
 use core::slice;
 use core::str::from_utf8;
+
 use diffbelt_protos::protos::transform::map_filter::{
-    MapFilterMultiInput, RecordUpdate, RecordUpdateArgs,
+    MapFilterMultiInput, MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate,
+    RecordUpdateArgs,
 };
 use diffbelt_protos::{deserialize, Serializer};
-use crate::log_lines::parse_log_line;
 
+use crate::global_allocator::leak_vec;
+use crate::log_lines::parse_log_line_header;
+
+mod date;
 mod debug_print;
 mod global_allocator;
+mod log_lines;
 mod panic;
 mod regex;
-mod log_lines;
-mod date;
 mod util;
 
+#[repr(C)]
+pub struct MapFilterResult {
+    result_ptr: *const u8,
+    result_len: i32,
+    dealloc_ptr: *mut u8,
+    dealloc_len: i32,
+}
+
 #[export_name = "mapFilter"]
-pub extern "C" fn map_filter(input_ptr: *const u8, input_len: i32) -> () {
+pub extern "C" fn map_filter(input_ptr: *const u8, input_len: i32) -> MapFilterResult {
     let input = unsafe { slice::from_raw_parts(input_ptr, input_len as usize) };
 
     let result = deserialize::<MapFilterMultiInput>(input).unwrap();
@@ -32,7 +40,7 @@ pub extern "C" fn map_filter(input_ptr: *const u8, input_len: i32) -> () {
     let items = result.items().expect("no inputs");
 
     let mut serializer = Serializer::new();
-    // let mut record_offsets = Vec::with_capacity(items.len());
+    let mut records = Vec::with_capacity(items.len());
 
     for item in items {
         let is_deleted = item.source_new_value().is_none();
@@ -40,40 +48,66 @@ pub extern "C" fn map_filter(input_ptr: *const u8, input_len: i32) -> () {
         let source_key = item.source_key().expect("no source key");
         let source_key = from_utf8(source_key.bytes()).expect("source_key is not utf8");
 
-        let parsed = parse_log_line(source_key);
+        let Some(parsed) = parse_log_line_header(source_key).expect("invalid log line") else {
+            continue;
+        };
 
-        // if is_deleted {
-        //     let key = serializer.create_vector(key.bytes());
-        //
-        //     // Delete
-        //     let record_offset = RecordUpdate::create(
-        //         serializer.buffer_builder(),
-        //         &RecordUpdateArgs {
-        //             key: Some(key),
-        //             value: None,
-        //         },
-        //     );
-        //
-        //     record_offsets.push(record_offset);
-        //
-        //     continue;
-        // }
+        let key = serializer.create_vector(parsed.log_line_key.as_bytes());
 
-        // let source_key = item.source_key().map(|x| x.bytes()).unwrap_or(&[]);
-        // let source_key = from_utf8(source_key).unwrap();
+        if is_deleted {
+            // Delete
+            let record = RecordUpdate::create(
+                serializer.buffer_builder(),
+                &RecordUpdateArgs {
+                    key: Some(key),
+                    value: None,
+                },
+            );
 
-        debug_print_string(format!("source_key: {source_key}"));
+            records.push(record);
+
+            continue;
+        }
+
+        let value = parsed.serialize().expect("invalid log line in rest");
+        let value = serializer.create_vector(value.data());
+
+        let record = RecordUpdate::create(
+            serializer.buffer_builder(),
+            &RecordUpdateArgs {
+                key: Some(key),
+                value: Some(value),
+            },
+        );
+
+        records.push(record);
     }
 
-    let regex = Regex::new(r"^test-(\d+)$");
-    let mut mem = Regex::alloc_captures::<2>();
-    let Some(captures) = regex.captures("test-42", &mut mem) else {
-        return;
+    let records = serializer.create_vector(&records);
+
+    let result = MapFilterMultiOutput::create(
+        serializer.buffer_builder(),
+        &MapFilterMultiOutputArgs {
+            target_update_records: Some(records),
+        },
+    );
+
+    let result = serializer.finish(result).into_owned();
+    let data = result.data();
+
+    let result_ptr = data.as_ptr();
+    let result_len = data.len() as i32;
+
+    let (vec, _) = result.into_raw();
+
+    let (dealloc_ptr, dealloc_len) = leak_vec(vec);
+
+    let result = MapFilterResult {
+        result_ptr,
+        result_len,
+        dealloc_ptr,
+        dealloc_len,
     };
 
-    debug_print_string(format!(
-        "Captures: {:?}, {:?}",
-        captures.get(0),
-        captures.get(1)
-    ))
+    result
 }
