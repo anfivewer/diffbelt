@@ -58,6 +58,7 @@ dependencies = [
  "const_format",
  "diffbelt_example_protos",
  "diffbelt_protos",
+ "diffbelt_wasm_binding",
  "dlmalloc",
  "lazy_static",
  "thiserror-no-std",
@@ -68,6 +69,18 @@ name = "diffbelt_protos"
 version = "0.1.0"
 dependencies = [
  "flatbuffers",
+]
+
+[[package]]
+name = "diffbelt_util_no_std"
+version = "0.1.0"
+
+[[package]]
+name = "diffbelt_wasm_binding"
+version = "0.1.0"
+dependencies = [
+ "diffbelt_util_no_std",
+ "thiserror-no-std",
 ]
 
 [[package]]

@@ -1,4 +1,4 @@
-pub mod cast;
+pub use diffbelt_util_no_std::cast;
 pub mod debug_print;
 pub mod http;
 pub mod option;

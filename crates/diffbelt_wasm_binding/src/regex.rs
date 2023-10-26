@@ -1,14 +1,14 @@
-use crate::debug_print::debug_print_string;
-use crate::global_allocator::from_raw_parts;
 use alloc::borrow::Cow;
 use alloc::format;
 use alloc::string::String;
-use alloc::vec::Vec;
-use core::marker::PhantomData;
-use core::ptr::slice_from_raw_parts;
-use core::str::from_utf8_unchecked;
 use core::{ptr, slice};
+use core::marker::PhantomData;
+use core::str::from_utf8_unchecked;
+
 use thiserror_no_std::Error;
+
+use crate::{BytesVecFull, debug_print_string};
+use crate::ptr::{NativePtrImpl, PtrImpl};
 
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -17,7 +17,12 @@ pub struct RegexCapture {
     capture_len: i32,
 }
 
-type ReplaceResult = (i32, i32, i32, i32);
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct ReplaceResult<P: PtrImpl = NativePtrImpl> {
+    pub is_same: i32,
+    pub s: BytesVecFull<P>,
+}
 
 #[link(wasm_import_module = "Regex")]
 extern "C" {
@@ -36,14 +41,16 @@ extern "C" {
         source_len: i32,
         target: *const u8,
         target_len: i32,
-    ) -> ReplaceResult;
+        replace_result: *mut ReplaceResult,
+    ) -> ();
     fn replace_all(
         ptr: i32,
         source: *const u8,
         source_len: i32,
         target: *const u8,
         target_len: i32,
-    ) -> ReplaceResult;
+        replace_result: *mut ReplaceResult,
+    ) -> ();
 }
 
 struct ReplaceOneImpl;
@@ -56,17 +63,30 @@ trait ReplaceMode {
         source_len: i32,
         target: *const u8,
         target_len: i32,
-    ) -> ReplaceResult;
+        replace_result: *mut ReplaceResult,
+    ) -> ();
 }
 
 impl ReplaceMode for ReplaceOneImpl {
-    const REPLACE_FN: unsafe extern "C" fn(i32, *const u8, i32, *const u8, i32) -> ReplaceResult =
-        replace_one;
+    const REPLACE_FN: unsafe extern "C" fn(
+        ptr: i32,
+        source: *const u8,
+        source_len: i32,
+        target: *const u8,
+        target_len: i32,
+        replace_result: *mut ReplaceResult,
+    ) -> () = replace_one;
 }
 
 impl ReplaceMode for ReplaceAllImpl {
-    const REPLACE_FN: unsafe extern "C" fn(i32, *const u8, i32, *const u8, i32) -> ReplaceResult =
-        replace_all;
+    const REPLACE_FN: unsafe extern "C" fn(
+        ptr: i32,
+        source: *const u8,
+        source_len: i32,
+        target: *const u8,
+        target_len: i32,
+        replace_result: *mut ReplaceResult,
+    ) -> () = replace_all;
 }
 
 pub struct Regex {
@@ -136,29 +156,29 @@ impl Regex {
         let target_ptr = target.as_ptr();
         let target_len = target.len();
 
-        let (is_same, s, s_len, s_capacity) = unsafe {
+        let mut replace_result = ReplaceResult {
+            is_same: 0,
+            s: BytesVecFull::null(),
+        };
+
+        unsafe {
             Mode::REPLACE_FN(
                 self.ptr,
                 source_ptr,
                 source_len as i32,
                 target_ptr,
                 target_len as i32,
+                &mut replace_result as *mut ReplaceResult,
             )
         };
 
-        let s = s as *mut u8;
-
-        debug_print_string(format!("--- {is_same} {s:p} {s_len} {s_capacity}"));
+        let ReplaceResult { is_same, s } = replace_result;
 
         if is_same == 1 {
             return Ok(Cow::Borrowed(source));
         }
 
-        if s_len < 0 || s_capacity < 0 {
-            return Err(RegexError::ReplaceUnknown);
-        }
-
-        let data = unsafe { from_raw_parts(s, s_len, s_capacity) };
+        let data = unsafe { s.into_vec() };
         let data = unsafe { String::from_utf8_unchecked(data) };
 
         Ok(Cow::Owned(data))

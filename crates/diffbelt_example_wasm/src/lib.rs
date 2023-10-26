@@ -3,8 +3,8 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::slice;
 use core::str::from_utf8;
+use core::{ptr, slice};
 
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterMultiInput, MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate,
@@ -14,100 +14,103 @@ use diffbelt_protos::{deserialize, Serializer};
 
 use crate::global_allocator::leak_vec;
 use crate::log_lines::parse_log_line_header;
+use diffbelt_wasm_binding::transform::map_filter::{MapFilter, MapFilterResult};
 
 mod date;
-mod debug_print;
 mod global_allocator;
 mod log_lines;
-mod panic;
-mod regex;
 mod util;
 
-#[repr(C)]
-pub struct MapFilterResult {
-    result_ptr: *const u8,
-    result_len: i32,
-    dealloc_ptr: *mut u8,
-    dealloc_len: i32,
-}
+struct LogLinesMapFilter;
 
-#[export_name = "mapFilter"]
-pub extern "C" fn map_filter(input_ptr: *const u8, input_len: i32) -> MapFilterResult {
-    let input = unsafe { slice::from_raw_parts(input_ptr, input_len as usize) };
+impl MapFilter for LogLinesMapFilter {
+    #[export_name = "mapFilter"]
+    extern "C" fn map_filter(input_ptr: *const u8, input_len: i32) -> *mut MapFilterResult {
+        let input = unsafe { slice::from_raw_parts(input_ptr, input_len as usize) };
 
-    let result = deserialize::<MapFilterMultiInput>(input).unwrap();
+        let result = deserialize::<MapFilterMultiInput>(input).unwrap();
 
-    let items = result.items().expect("no inputs");
+        let items = result.items().expect("no inputs");
 
-    let mut serializer = Serializer::new();
-    let mut records = Vec::with_capacity(items.len());
+        let mut serializer = Serializer::new();
+        let mut records = Vec::with_capacity(items.len());
 
-    for item in items {
-        let is_deleted = item.source_new_value().is_none();
+        for item in items {
+            let is_deleted = item.source_new_value().is_none();
 
-        let source_key = item.source_key().expect("no source key");
-        let source_key = from_utf8(source_key.bytes()).expect("source_key is not utf8");
+            let source_key = item.source_key().expect("no source key");
+            let source_key = from_utf8(source_key.bytes()).expect("source_key is not utf8");
 
-        let Some(parsed) = parse_log_line_header(source_key).expect("invalid log line") else {
-            continue;
-        };
+            let Some(parsed) = parse_log_line_header(source_key).expect("invalid log line") else {
+                continue;
+            };
 
-        let key = serializer.create_vector(parsed.log_line_key.as_bytes());
+            let key = serializer.create_vector(parsed.log_line_key.as_bytes());
 
-        if is_deleted {
-            // Delete
+            if is_deleted {
+                // Delete
+                let record = RecordUpdate::create(
+                    serializer.buffer_builder(),
+                    &RecordUpdateArgs {
+                        key: Some(key),
+                        value: None,
+                    },
+                );
+
+                records.push(record);
+
+                continue;
+            }
+
+            let value = parsed.serialize().expect("invalid log line in rest");
+            let value = serializer.create_vector(value.data());
+
             let record = RecordUpdate::create(
                 serializer.buffer_builder(),
                 &RecordUpdateArgs {
                     key: Some(key),
-                    value: None,
+                    value: Some(value),
                 },
             );
 
             records.push(record);
-
-            continue;
         }
 
-        let value = parsed.serialize().expect("invalid log line in rest");
-        let value = serializer.create_vector(value.data());
+        let records = serializer.create_vector(&records);
 
-        let record = RecordUpdate::create(
+        let result = MapFilterMultiOutput::create(
             serializer.buffer_builder(),
-            &RecordUpdateArgs {
-                key: Some(key),
-                value: Some(value),
+            &MapFilterMultiOutputArgs {
+                target_update_records: Some(records),
             },
         );
 
-        records.push(record);
+        let result = serializer.finish(result).into_owned();
+        let data = result.data();
+
+        let result_ptr = data.as_ptr();
+        let result_len = data.len() as i32;
+
+        let (vec, _) = result.into_raw();
+
+        let (dealloc_ptr, dealloc_len) = leak_vec(vec);
+
+        static mut STATIC_RESULT: MapFilterResult = MapFilterResult {
+            result_ptr: ptr::null(),
+            result_len: 0,
+            dealloc_ptr: ptr::null_mut(),
+            dealloc_len: 0,
+        };
+
+        unsafe {
+            STATIC_RESULT = MapFilterResult {
+                result_ptr,
+                result_len,
+                dealloc_ptr,
+                dealloc_len,
+            };
+
+            &mut STATIC_RESULT as *mut MapFilterResult
+        }
     }
-
-    let records = serializer.create_vector(&records);
-
-    let result = MapFilterMultiOutput::create(
-        serializer.buffer_builder(),
-        &MapFilterMultiOutputArgs {
-            target_update_records: Some(records),
-        },
-    );
-
-    let result = serializer.finish(result).into_owned();
-    let data = result.data();
-
-    let result_ptr = data.as_ptr();
-    let result_len = data.len() as i32;
-
-    let (vec, _) = result.into_raw();
-
-    let (dealloc_ptr, dealloc_len) = leak_vec(vec);
-
-    let result = MapFilterResult {
-        result_ptr,
-        result_len,
-        dealloc_ptr,
-        dealloc_len,
-    };
-
-    result
 }

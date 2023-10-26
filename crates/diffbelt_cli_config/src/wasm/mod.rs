@@ -7,14 +7,18 @@ use std::str::Utf8Error;
 
 use serde::Deserialize;
 use thiserror::Error;
-use wasmer::{CompileError, ExportError, FromToNativeWasmType, Imports, Instance, InstantiationError, Memory, MemoryAccessError, MemoryError, Module, RuntimeError, Store, TypedFunction, WasmPtr, WasmTypeList};
+use wasmer::{CompileError, Cranelift, ExportError, FromToNativeWasmType, Imports, Instance, InstantiationError, Memory, MemoryAccessError, MemoryError, Module, RuntimeError, Store, TypedFunction, WasmPtr, WasmTypeList};
+use wasmer_types::Features;
 
 use diffbelt_util::cast::{try_usize_to_i32, unchecked_i32_to_u32};
+use diffbelt_wasm_binding::transform::map_filter::MapFilterResult;
 
 use crate::errors::WithMark;
+use crate::wasm::types::MapFilterResultWrap;
 use crate::wasm::wasm_env::WasmEnv;
 
 mod wasm_env;
+mod types;
 
 #[derive(Deserialize, Debug)]
 pub struct Wasm {
@@ -84,7 +88,7 @@ pub struct WasmModuleInstance {
 
 pub struct MapFilterFunction<'a> {
     instance: &'a WasmModuleInstance,
-    fun: TypedFunction<(WasmPtr<u8>, i32), (WasmPtr<u8>, i32, WasmPtr<u8>, i32)>,
+    fun: TypedFunction<(WasmPtr<u8>, i32), WasmPtr<MapFilterResultWrap>>,
 }
 
 #[derive(Clone)]

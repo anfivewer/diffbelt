@@ -1,0 +1,14 @@
+[package]
+name = "diffbelt_wasm_binding"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+panic = []
+
+[dependencies]
+thiserror-no-std = { version = "2.0.2", default-features = false }
+
+[dependencies.diffbelt_util_no_std]
+path = "../diffbelt_util_no_std"

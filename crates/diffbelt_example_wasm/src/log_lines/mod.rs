@@ -1,6 +1,5 @@
 use alloc::borrow::Cow;
 use crate::date::{parse_date_to_timestamp_ms, ParseDateError};
-use crate::regex::{Regex, RegexError};
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -8,6 +7,7 @@ use const_format::concatcp;
 use core::num::ParseIntError;
 use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineArgs, Prop, PropArgs};
 use diffbelt_protos::{OwnedSerialized, Serializer, WIPOffset};
+use diffbelt_wasm_binding::{Regex, RegexError};
 use thiserror_no_std::Error;
 
 const LOG_LEVEL_RE: &'static str = r"(T|I|W|E|S)";

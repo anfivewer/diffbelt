@@ -612,6 +612,7 @@ dependencies = [
  "chrono",
  "diffbelt_protos",
  "diffbelt_util",
+ "diffbelt_wasm_binding",
  "diffbelt_yaml",
  "indexmap 2.0.0",
  "lazy_static",
@@ -681,12 +682,25 @@ dependencies = [
 name = "diffbelt_util"
 version = "0.0.1"
 dependencies = [
+ "diffbelt_util_no_std",
  "futures",
  "hyper",
  "serde",
  "serde_json",
  "serde_with",
  "tokio",
+]
+
+[[package]]
+name = "diffbelt_util_no_std"
+version = "0.1.0"
+
+[[package]]
+name = "diffbelt_wasm_binding"
+version = "0.1.0"
+dependencies = [
+ "diffbelt_util_no_std",
+ "thiserror-no-std",
 ]
 
 [[package]]
@@ -2074,6 +2088,26 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.29",
+]
+
+[[package]]
+name = "thiserror-impl-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58e6318948b519ba6dc2b442a6d0b904ebfb8d411a3ad3e07843615a72249758"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "thiserror-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3ad459d94dd517257cc96add8a43190ee620011bb6e6cdc82dafd97dfafafea"
+dependencies = [
+ "thiserror-impl-no-std",
 ]
 
 [[package]]

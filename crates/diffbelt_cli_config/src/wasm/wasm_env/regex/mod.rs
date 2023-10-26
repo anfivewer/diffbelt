@@ -1,17 +1,24 @@
 use std::borrow::Cow;
 use std::cmp::min;
 use std::collections::VecDeque;
+use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
 use regex::Regex;
-use wasmer::{Function, FunctionEnv, FunctionEnvMut, Imports, Memory, Store, ValueType, WasmPtr};
+use wasmer::{
+    Function, FunctionEnv, FunctionEnvMut, Imports, Memory, RuntimeError, Store, Value, ValueType,
+    WasmPtr,
+};
+use wasmer_types::{FunctionType, Type};
 
 use diffbelt_util::cast::{
-    try_positive_i32_to_usize, try_usize_to_i32, unchecked_usize_to_i32, unchecked_usize_to_u32,
-    usize_to_u64,
+    try_positive_i32_to_usize, try_usize_to_i32, unchecked_i32_to_u32, unchecked_usize_to_i32,
+    unchecked_usize_to_u32, usize_to_u64,
 };
+use diffbelt_wasm_binding::{BytesVecFull, ReplaceResult};
 
+use crate::wasm::types::{BytesVecFullTrait, ReplaceResultWrap, WasmPtrImpl};
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::{Allocation, WasmError};
@@ -203,7 +210,8 @@ impl WasmEnv {
             source_len: i32,
             target_ptr: WasmPtr<u8>,
             target_len: i32,
-        ) -> (i32, i32, i32, i32) {
+            replace_result_ptr: WasmPtr<ReplaceResultWrap>,
+        ) -> () {
             let (env, mut store) = env.data_and_store_mut();
             let RegexEnv {
                 error,
@@ -239,7 +247,10 @@ impl WasmEnv {
                     // TODO: check that `result` is Borrowed and that it has same address as `source`,
                     //       calculate start/end offsets and return partial
                     if result.as_ref() == source {
-                        return Ok::<_, WasmError>((1, 0, 0, 0));
+                        return Ok::<_, WasmError>(ReplaceResult::<WasmPtrImpl> {
+                            is_same: 1,
+                            s: BytesVecFullTrait::null(),
+                        });
                     }
 
                     result.into_owned()
@@ -247,8 +258,6 @@ impl WasmEnv {
 
                 let allocation = allocation.lock().map_err(|_| WasmError::MutexPoisoned)?;
                 let allocation = allocation.as_ref().ok_or_else(|| WasmError::NoMemory)?;
-
-                println!("res {result}");
 
                 let result = result.as_bytes();
 
@@ -259,18 +268,39 @@ impl WasmEnv {
                     ))
                 })?;
 
-                println!("I wanna alloc {result_bytes_len_i32}");
-
                 let vec_ptr = allocation.alloc.call(&mut store, result_bytes_len_i32)?;
 
-                Ok((0, vec_ptr.offset() as i32, result_bytes_len_i32, result_bytes_len_i32))
+                {
+                    let view = WasmEnv::memory_view(memory, &store)?;
+
+                    let vec_slice =
+                        vec_ptr.slice(&view, unchecked_i32_to_u32(result_bytes_len_i32))?;
+                    () = vec_slice.write_slice(result)?;
+                }
+
+                Ok(ReplaceResult::<WasmPtrImpl> {
+                    is_same: 0,
+                    s: BytesVecFull {
+                        ptr: vec_ptr.into(),
+                        len: result_bytes_len_i32,
+                        capacity: result_bytes_len_i32,
+                    },
+                })
             })();
 
             let Some(result) = WasmEnv::handle_error(error, result) else {
-                return (0, 0, -1, -1);
+                return ();
             };
 
-            result
+            let result = (|| {
+                let view = WasmEnv::memory_view(memory, &store)?;
+
+                () = replace_result_ptr.write(&view, ReplaceResultWrap(result))?;
+
+                Ok::<(), WasmError>(())
+            })();
+
+            () = WasmEnv::handle_error(error, result).unwrap_or(());
         }
 
         imports.define(
