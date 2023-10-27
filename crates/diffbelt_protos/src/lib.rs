@@ -3,8 +3,8 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-pub use flatbuffers::WIPOffset;
-use flatbuffers::{FlatBufferBuilder, Follow, InvalidFlatbuffer, Push, Vector, Verifiable};
+use flatbuffers::{FlatBufferBuilder, Follow, Push, Vector, Verifiable};
+pub use flatbuffers::{InvalidFlatbuffer, WIPOffset};
 
 pub mod protos;
 

@@ -28,5 +28,8 @@ path = "../diffbelt_yaml"
 [dependencies.diffbelt_protos]
 path = "../diffbelt_protos"
 
+[dependencies.diffbelt_example_protos]
+path = "../diffbelt_example_protos"
+
 [dependencies.diffbelt_wasm_binding]
 path = "../diffbelt_wasm_binding"

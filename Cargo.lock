@@ -610,6 +610,7 @@ name = "diffbelt_cli_config"
 version = "0.0.1"
 dependencies = [
  "chrono",
+ "diffbelt_example_protos",
  "diffbelt_protos",
  "diffbelt_util",
  "diffbelt_wasm_binding",
