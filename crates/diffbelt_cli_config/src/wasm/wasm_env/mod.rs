@@ -17,9 +17,9 @@ pub struct WasmEnv {
 }
 
 impl WasmEnv {
-    pub fn new() -> Self {
+    pub fn new(error: Arc<Mutex<Option<WasmError>>>) -> Self {
         Self {
-            error: Wrap::wrap(None),
+            error,
             memory: Wrap::wrap(None),
             allocation: Wrap::wrap(None),
         }

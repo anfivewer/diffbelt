@@ -1,9 +1,11 @@
+use crate::ptr::{NativePtrImpl, PtrImpl};
+
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct MapFilterResult {
-    pub result_ptr: *const u8,
+pub struct MapFilterResult<P: PtrImpl = NativePtrImpl> {
+    pub result_ptr: P::Ptr<u8>,
     pub result_len: i32,
-    pub dealloc_ptr: *mut u8,
+    pub dealloc_ptr: P::Ptr<u8>,
     pub dealloc_len: i32,
 }
 

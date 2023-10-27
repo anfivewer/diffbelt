@@ -614,6 +614,7 @@ dependencies = [
  "diffbelt_util",
  "diffbelt_wasm_binding",
  "diffbelt_yaml",
+ "either",
  "indexmap 2.0.0",
  "lazy_static",
  "lexpr",

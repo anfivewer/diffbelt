@@ -1,24 +1,32 @@
-use std::cell::RefCell;
+use std::cell::{BorrowMutError, RefCell};
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::Utf8Error;
+use std::sync::{Arc, Mutex};
 
 use serde::Deserialize;
 use thiserror::Error;
-use wasmer::{CompileError, Cranelift, ExportError, FromToNativeWasmType, Imports, Instance, InstantiationError, Memory, MemoryAccessError, MemoryError, Module, RuntimeError, Store, TypedFunction, WasmPtr, WasmTypeList};
+use wasmer::{
+    CompileError, Cranelift, ExportError, FromToNativeWasmType, Imports, Instance,
+    InstantiationError, Memory, MemoryAccessError, MemoryError, Module, RuntimeError, Store,
+    TypedFunction, WasmPtr, WasmTypeList,
+};
 use wasmer_types::Features;
 
-use diffbelt_util::cast::{try_usize_to_i32, unchecked_i32_to_u32};
+use diffbelt_util::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
+use diffbelt_util::Wrap;
 use diffbelt_wasm_binding::transform::map_filter::MapFilterResult;
 
 use crate::errors::WithMark;
+use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::MapFilterResultWrap;
 use crate::wasm::wasm_env::WasmEnv;
 
-mod wasm_env;
+pub mod result;
 mod types;
+mod wasm_env;
 
 #[derive(Deserialize, Debug)]
 pub struct Wasm {
@@ -58,6 +66,8 @@ pub enum WasmError {
     #[error("{0:?}")]
     Regex(regex::Error),
     #[error("{0:?}")]
+    BorrowMut(#[from] BorrowMutError),
+    #[error("{0:?}")]
     Unspecified(String),
 }
 
@@ -81,6 +91,7 @@ pub struct NewWasmInstanceOptions<'a> {
 }
 
 pub struct WasmModuleInstance {
+    error: Arc<Mutex<Option<WasmError>>>,
     store: RefCell<Store>,
     instance: Instance,
     allocation: Allocation,
@@ -139,7 +150,9 @@ impl Wasm {
 
         let mut import_object = Imports::new();
 
-        let env = WasmEnv::new();
+        let error: Arc<Mutex<Option<WasmError>>> = Wrap::wrap(None);
+
+        let env = WasmEnv::new(error.clone());
 
         env.register_imports(&mut store, &mut import_object);
 
@@ -171,6 +184,7 @@ impl Wasm {
         env.set_allocation(allocation.clone());
 
         Ok(WasmModuleInstance {
+            error,
             store: RefCell::new(store),
             instance,
             allocation,
@@ -216,7 +230,7 @@ impl WasmModuleInstance {
 
 impl MapFilterFunction<'_> {
     /// `inputs` should be encoded by [`diffbelt_protos::protos::transform::map_filter::MapFilterMultiInput`]
-    pub fn call(&self, inputs: &[u8]) -> Result<(), WasmError> {
+    pub fn call(&self, inputs: &[u8]) -> Result<WasmBytesSliceResult, WasmError> {
         let mut store = self.instance.store.borrow_mut();
         let store = store.deref_mut();
 
@@ -226,14 +240,33 @@ impl MapFilterFunction<'_> {
 
         let ptr = self.instance.allocation.alloc.call(store, inputs_len_i32)?;
 
-        let view = self.instance.allocation.memory.view(store);
-        let slice = ptr.slice(&view, unchecked_i32_to_u32(inputs_len_i32))?;
-        () = slice.write_slice(inputs)?;
+        {
+            let view = self.instance.allocation.memory.view(store);
+            let slice = ptr.slice(&view, unchecked_i32_to_u32(inputs_len_i32))?;
+            () = slice.write_slice(inputs)?;
+        }
 
-        let result = self.fun.call(store, ptr, inputs_len_i32)?;
+        let result = { self.fun.call(store, ptr, inputs_len_i32)? };
+
+        let view = self.instance.allocation.memory.view(store);
+        let MapFilterResultWrap(MapFilterResult {
+            result_ptr,
+            result_len,
+            dealloc_ptr,
+            dealloc_len,
+        }) = result.read(&view)?;
 
         println!("result {result:?}");
 
-        Ok(())
+        let result_len = try_positive_i32_to_u32(result_len).ok_or_else(|| {
+            WasmError::Unspecified(format!("map_filter call result len: {result_len}"))
+        })?;
+
+        Ok(WasmBytesSliceResult {
+            instance: self.instance,
+            ptr: WasmPtr::from(result_ptr),
+            len: result_len,
+            on_drop_dealloc: Some((dealloc_ptr.into(), dealloc_len)),
+        })
     }
 }

@@ -18,6 +18,7 @@ use crate::transforms::map_filter::{MapFilterWasm, MapFilterYaml};
 use crate::wasm::{MapFilterFunction, NewWasmInstanceOptions, WasmError, WasmModuleInstance};
 use diffbelt_protos::OwnedSerialized;
 use std::rc::Rc;
+use either::Either;
 use thiserror::Error;
 
 #[derive(Debug, Deserialize)]
@@ -53,6 +54,15 @@ pub enum TestError {
     Wasm(#[from] WasmError),
     #[error(transparent)]
     YamlTestVars(#[from] YamlTestVarsError),
+}
+
+impl From<Either<TestError, WasmError>> for TestError {
+    fn from(value: Either<TestError, WasmError>) -> Self {
+        match value {
+            Either::Left(err) => err,
+            Either::Right(err) => err.into(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -251,8 +261,11 @@ impl CliConfig {
                 match &mut fun {
                     TransformTypeFunction::MapFilter { fun } => {
                         let result = match_ok!(fun.call(input.data()));
+                        let result = match_ok!(result.observe_bytes(|bytes| {
+                            println!("result {bytes:?}");
 
-                        //
+                            Ok::<(), TestError>(())
+                        }));
                     }
                 }
 

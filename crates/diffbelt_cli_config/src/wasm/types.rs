@@ -26,6 +26,12 @@ impl<T> From<WasmPtr<T>> for WasmPtrCopy<T> {
     }
 }
 
+impl<T> From<WasmPtrCopy<T>> for WasmPtr<T> {
+    fn from(value: WasmPtrCopy<T>) -> Self {
+        Self::new(<Memory32 as MemorySize>::native_to_offset(value.native))
+    }
+}
+
 impl PtrImpl for WasmPtrImpl {
     type Ptr<T: Copy> = WasmPtrCopy<T>;
 }
@@ -62,7 +68,7 @@ pub struct ReplaceResultWrap(pub ReplaceResult<WasmPtrImpl>);
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct MapFilterResultWrap(pub MapFilterResult);
+pub struct MapFilterResultWrap(pub MapFilterResult<WasmPtrImpl>);
 
 impl_value_type!(ReplaceResultWrap);
 impl_value_type!(MapFilterResultWrap);
