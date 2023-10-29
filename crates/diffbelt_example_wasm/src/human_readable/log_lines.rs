@@ -1,3 +1,4 @@
+use crate::human_readable::noop;
 use crate::util::run_error_coded::run_error_coded;
 use alloc::format;
 use alloc::string::FromUtf8Error;
@@ -27,7 +28,8 @@ impl HumanReadable for LogLinesKv {
         key: BytesSlice,
         result_bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        todo!()
+        () = noop(key, result_bytes);
+        ErrorCode::Ok
     }
 
     #[export_name = "logLinesBytesToKey"]
@@ -35,13 +37,8 @@ impl HumanReadable for LogLinesKv {
         bytes: BytesSlice,
         key: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        run_error_coded(|| {
-            let mut vec = unsafe { (&*key).into_empty_vec() };
-            vec.extend_from_slice(unsafe { bytes.as_slice() });
-            unsafe { *key = vec.into() };
-
-            Ok::<_, LogLinesError>(ErrorCode::Ok)
-        })
+        () = noop(bytes, key);
+        ErrorCode::Ok
     }
 
     #[export_name = "logLinesValueToBytes"]
@@ -49,7 +46,8 @@ impl HumanReadable for LogLinesKv {
         key: BytesSlice,
         bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        todo!()
+        () = noop(key, bytes);
+        ErrorCode::Ok
     }
 
     #[export_name = "logLinesBytesToValue"]
@@ -57,6 +55,7 @@ impl HumanReadable for LogLinesKv {
         bytes: BytesSlice,
         key: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        todo!()
+        () = noop(bytes, key);
+        ErrorCode::Ok
     }
 }

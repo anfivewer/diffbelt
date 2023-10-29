@@ -25,6 +25,7 @@ use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
 use diffbelt_protos::{deserialize, InvalidFlatbuffer, OwnedSerialized};
 use diffbelt_util::cast::checked_usize_to_i32;
 use diffbelt_util::errors::NoStdErrorWrap;
+use diffbelt_util::option::lift_result_from_option;
 use diffbelt_util::slice::{get_slice_offset_in_other_slice, SliceOffsetError};
 use diffbelt_wasm_binding::bytes::BytesSlice;
 use diffbelt_wasm_binding::human_readable;
@@ -135,7 +136,6 @@ impl CliConfig {
                 MapFilter {
                     source_collection: &'a Collection,
                     target_collection: &'a Collection,
-                    source_format: CollectionValueFormat,
                     map_filter: &'a MapFilterWasm,
                 },
             }
@@ -187,7 +187,6 @@ impl CliConfig {
                                 TransformType::MapFilter {
                                     source_collection,
                                     target_collection,
-                                    source_format: source_collection.format,
                                     map_filter,
                                 }
                             } else {
@@ -211,7 +210,6 @@ impl CliConfig {
                 MapFilter {
                     source_collection: &'a Collection,
                     target_collection: &'a Collection,
-                    source_format: CollectionValueFormat,
                     map_filter: &'a MapFilterWasm,
                     instance: WasmModuleInstance,
                     wasm_module_name: &'a str,
@@ -226,7 +224,6 @@ impl CliConfig {
                 TransformType::MapFilter {
                     source_collection,
                     target_collection,
-                    source_format,
                     map_filter,
                 } => {
                     let MapFilterWasm {
@@ -259,7 +256,6 @@ impl CliConfig {
                     TransformTypeRuntime::MapFilter {
                         source_collection,
                         target_collection,
-                        source_format,
                         map_filter,
                         instance,
                         wasm_module_name: module_name.as_str(),
@@ -267,12 +263,11 @@ impl CliConfig {
                 }
             };
 
-            let (source_format, instance, mut fun, source_human_readable, target_human_readable) =
+            let (instance, mut fun, source_human_readable, target_human_readable) =
                 match &mut runtime {
                     TransformTypeRuntime::MapFilter {
                         source_collection,
                         target_collection,
-                        source_format,
                         map_filter,
                         instance,
                         wasm_module_name,
@@ -301,7 +296,6 @@ impl CliConfig {
                             };
 
                         (
-                            *source_format,
                             instance as &WasmModuleInstance,
                             TransformTypeFunction::MapFilter { fun },
                             source_human_readable,
@@ -334,7 +328,10 @@ impl CliConfig {
                     value: expected_value,
                 } = test;
 
-                let input = match_ok!(yaml_test_vars_to_map_filter_input(instance, vars.as_ref()));
+                let input = match_ok!(yaml_test_vars_to_map_filter_input(
+                    &source_human_readable,
+                    vars.as_ref()
+                ));
 
                 match &mut fun {
                     TransformTypeFunction::MapFilter { fun } => {
@@ -348,31 +345,49 @@ impl CliConfig {
 
                             if let Some(records) = multi_output.target_update_records() {
                                 for update_record in records {
-                                    let key = update_record.key().unwrap_or(Default::default());
+                                    let key = update_record.key().ok_or_else(|| {
+                                        TestError::Unspecified("RecordUpdate: no key".to_string())
+                                    })?;
                                     let key = key.bytes();
 
-                                    let value = update_record.value().unwrap_or(Default::default());
-                                    let value = value.bytes();
+                                    let value = update_record.value();
+                                    let value = value.map(|x| x.bytes());
 
                                     let key_offset = get_slice_offset_in_other_slice(bytes, key)
                                         .map_err(NoStdErrorWrap::from)?;
-                                    let value_offset =
+
+                                    let value_offset = value.map(|value| {
                                         get_slice_offset_in_other_slice(bytes, value)
-                                            .map_err(NoStdErrorWrap::from)?;
+                                            .map_err(NoStdErrorWrap::from)
+                                    });
+                                    let value_offset = lift_result_from_option(value_offset)?;
 
                                     let key_ptr = bytes_result.bytes_offset_to_ptr(key_offset)?;
-                                    let value_ptr =
-                                        bytes_result.bytes_offset_to_ptr(value_offset)?;
+
+                                    let value_ptr = value_offset.map(|value_offset| {
+                                        bytes_result.bytes_offset_to_ptr(value_offset)
+                                    });
+                                    let value_ptr = lift_result_from_option(value_ptr)?;
+
+                                    let value_slice = value_ptr.map(|value_ptr| BytesSlice::<
+                                        WasmPtrImpl,
+                                    > {
+                                        ptr: value_ptr.into(),
+                                        len: checked_usize_to_i32(
+                                            value
+                                                .expect(
+                                                    "value should be present if value_ptr present",
+                                                )
+                                                .len(),
+                                        ),
+                                    });
 
                                     key_values_slices.push((
                                         BytesSlice::<WasmPtrImpl> {
                                             ptr: key_ptr.into(),
                                             len: checked_usize_to_i32(key.len()),
                                         },
-                                        BytesSlice::<WasmPtrImpl> {
-                                            ptr: value_ptr.into(),
-                                            len: checked_usize_to_i32(value.len()),
-                                        },
+                                        value_slice,
                                     ));
                                 }
                             }
@@ -386,35 +401,51 @@ impl CliConfig {
 
                         for (key, value) in key_values_slices {
                             let key_vec_holder = match_ok!(instance.alloc_vec_holder());
-                            let value_vec_holder = match_ok!(instance.alloc_vec_holder());
 
                             () = match_ok!(
                                 target_human_readable.call_bytes_to_key(&key, &key_vec_holder)
                             );
-                            () = match_ok!(target_human_readable
-                                .call_bytes_to_value(&value, &value_vec_holder));
+
+                            let value_vec_holder = value.map(|value| {
+                                let value_vec_holder = instance.alloc_vec_holder()?;
+
+                                () = target_human_readable
+                                    .call_bytes_to_value(&value, &value_vec_holder)?;
+
+                                Ok::<_, TestError>(value_vec_holder)
+                            });
+                            let value_vec_holder =
+                                match_ok!(lift_result_from_option(value_vec_holder));
 
                             key_values_holders.push((key_vec_holder, value_vec_holder));
                         }
+
+                        let mut result_key_values = Vec::with_capacity(key_values_holders.len());
 
                         for (key_holder, value_holder) in key_values_holders {
                             let key_view = match_ok!(WasmBytesSliceResult::view_to_vec_holder(
                                 &instance,
                                 &key_holder
                             ));
-                            let value_view = match_ok!(WasmBytesSliceResult::view_to_vec_holder(
-                                &instance,
-                                &value_holder
-                            ));
 
-                            let q = match_ok!(key_view.observe_bytes(|bytes| {
+                            let value_view = value_holder.map(|value_holder| {
+                                WasmBytesSliceResult::view_to_vec_holder(&instance, &value_holder)
+                            });
+                            let value_view = match_ok!(lift_result_from_option(value_view));
+
+                            () = match_ok!(key_view.observe_bytes(|bytes| {
                                 let key = from_utf8(bytes)?;
 
+                                let Some(value_view) = value_view else {
+                                    result_key_values.push((key.to_string(), None));
+                                    return Ok::<_, TestError>(());
+                                };
+
                                 () = value_view.observe_bytes(|bytes| {
-                                    println!("bytes {bytes:?}");
                                     let value = from_utf8(bytes)?;
 
-                                    println!("key: {key}\nvalue: {value}");
+                                    result_key_values
+                                        .push((key.to_string(), Some(value.to_string())));
 
                                     Ok::<_, TestError>(())
                                 })?;
@@ -422,6 +453,8 @@ impl CliConfig {
                                 Ok::<_, TestError>(())
                             }));
                         }
+
+                        println!("results:\n{result_key_values:#?}");
 
                         drop(manual_dealloc);
                     }

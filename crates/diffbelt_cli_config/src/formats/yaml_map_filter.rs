@@ -1,26 +1,37 @@
-use diffbelt_protos::protos::transform::map_filter::{
-    MapFilterInput, MapFilterInputArgs, MapFilterInputBuilder, MapFilterMultiInput,
-    MapFilterMultiInputArgs, MapFilterMultiInputBuilder,
-};
-use diffbelt_protos::{OwnedSerialized, Serializer};
+use either::Either;
 use thiserror::Error;
 
+use diffbelt_protos::protos::transform::map_filter::{
+    MapFilterInput, MapFilterInputArgs, MapFilterMultiInput, MapFilterMultiInputArgs,
+};
+use diffbelt_protos::{OwnedSerialized, Serializer};
 use diffbelt_yaml::YamlNode;
 
 use crate::config_tests::value::{parse_scalar, ScalarParseError};
-use crate::wasm::WasmModuleInstance;
-use crate::CollectionValueFormat;
+use crate::wasm::human_readable::HumanReadableFunctions;
+use crate::wasm::WasmError;
 
 #[derive(Error, Debug)]
 pub enum YamlTestVarsError {
     #[error(transparent)]
     ScalarParse(#[from] ScalarParseError),
+    #[error(transparent)]
+    Wasm(#[from] WasmError),
     #[error("{0}")]
     Unspecified(String),
 }
 
+impl From<Either<YamlTestVarsError, WasmError>> for YamlTestVarsError {
+    fn from(value: Either<YamlTestVarsError, WasmError>) -> Self {
+        match value {
+            Either::Left(err) => err,
+            Either::Right(err) => err.into(),
+        }
+    }
+}
+
 pub fn yaml_test_vars_to_map_filter_input(
-    instance: &WasmModuleInstance,
+    human_readable_functions: &HumanReadableFunctions,
     node: &YamlNode,
 ) -> Result<OwnedSerialized, YamlTestVarsError> {
     let mut serializer = Serializer::new();
@@ -33,6 +44,11 @@ pub fn yaml_test_vars_to_map_filter_input(
     let mut source_old_value_offset = None;
     let mut source_new_value_offset = None;
 
+    let instance = human_readable_functions.instance;
+
+    let input_vec_holder = instance.alloc_vec_holder()?;
+    let output_vec_holder = instance.alloc_vec_holder()?;
+
     for (key, value) in map {
         let key = key.as_str().ok_or_else(|| {
             YamlTestVarsError::Unspecified("vars key should be string".to_string())
@@ -43,16 +59,51 @@ pub fn yaml_test_vars_to_map_filter_input(
 
         match key {
             "source_key" => {
-                source_key_offset = Some(serializer.create_vector(value.as_bytes()));
+                if let Some(s) = parse_scalar(value)?.as_str() {
+                    () = instance.replace_vec_with_slice(&input_vec_holder, s.as_bytes())?;
+                    let slice = instance.vec_to_bytes_slice(&input_vec_holder)?;
+
+                    () =
+                        human_readable_functions.call_bytes_to_key(&slice.0, &output_vec_holder)?;
+
+                    let result = instance.access_vec(&output_vec_holder)?;
+                    () = result.observe_bytes(|bytes| {
+                        source_key_offset = Some(serializer.create_vector(bytes));
+
+                        Ok::<_, YamlTestVarsError>(())
+                    })?;
+                }
             }
             "source_old_value" => {
                 if let Some(s) = parse_scalar(value)?.as_str() {
-                    source_old_value_offset = Some(serializer.create_vector(s.as_bytes()));
+                    () = instance.replace_vec_with_slice(&input_vec_holder, s.as_bytes())?;
+                    let slice = instance.vec_to_bytes_slice(&input_vec_holder)?;
+
+                    () = human_readable_functions
+                        .call_value_to_bytes(&slice.0, &output_vec_holder)?;
+
+                    let result = instance.access_vec(&output_vec_holder)?;
+                    () = result.observe_bytes(|bytes| {
+                        source_old_value_offset = Some(serializer.create_vector(bytes));
+
+                        Ok::<_, YamlTestVarsError>(())
+                    })?;
                 }
             }
             "source_new_value" => {
                 if let Some(s) = parse_scalar(value)?.as_str() {
-                    source_new_value_offset = Some(serializer.create_vector(s.as_bytes()));
+                    () = instance.replace_vec_with_slice(&input_vec_holder, s.as_bytes())?;
+                    let slice = instance.vec_to_bytes_slice(&input_vec_holder)?;
+
+                    () = human_readable_functions
+                        .call_value_to_bytes(&slice.0, &output_vec_holder)?;
+
+                    let result = instance.access_vec(&output_vec_holder)?;
+                    () = result.observe_bytes(|bytes| {
+                        source_new_value_offset = Some(serializer.create_vector(bytes));
+
+                        Ok::<_, YamlTestVarsError>(())
+                    })?;
                 }
             }
             _ => {

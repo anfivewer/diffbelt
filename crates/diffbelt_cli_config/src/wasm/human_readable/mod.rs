@@ -8,7 +8,7 @@ use crate::wasm::types::WasmBytesVecRawParts;
 use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
 
 pub struct HumanReadableFunctions<'a> {
-    instance: &'a WasmModuleInstance,
+    pub instance: &'a WasmModuleInstance,
     key_to_bytes: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
     bytes_to_key: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
     value_to_bytes: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,

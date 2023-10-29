@@ -1,7 +1,7 @@
 use crate::ptr::{NativePtrImpl, PtrImpl};
 use alloc::string::{FromUtf8Error, String};
 use alloc::vec::Vec;
-use core::ptr;
+use core::{mem, ptr};
 use core::ptr::slice_from_raw_parts;
 use core::str::{from_utf8, Utf8Error};
 use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32};
@@ -103,4 +103,17 @@ impl BytesVecRawParts {
         let vec = self.into_vec();
         String::from_utf8(vec)
     }
+}
+
+#[no_mangle]
+unsafe extern "C" fn ensure_vec_capacity(parts: *mut BytesVecRawParts, len: i32) {
+    let mut vec = (&*parts).into_empty_vec();
+
+    let len = checked_positive_i32_to_usize(len);
+
+    if vec.capacity() < len {
+        vec.reserve(len - vec.capacity());
+    }
+
+    unsafe { *parts = vec.into() };
 }
