@@ -51,7 +51,7 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
 
     let Transform {
         name: _,
-        from: from_collection_name,
+        source: from_collection_name,
         intermediate,
         to,
         reader_name,

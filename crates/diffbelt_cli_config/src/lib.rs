@@ -17,6 +17,7 @@ use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
+use crate::formats::collection_human_readable_config::CollectionHumanReadableConfig;
 
 #[cfg(not(target_endian = "little"))]
 compile_error!("Only LE targets are supported because we are copying data to WASM");
@@ -124,7 +125,7 @@ impl CliConfig {
     pub fn collection_by_name(&self, collection_name: &str) -> Option<&Collection> {
         self.collections
             .iter()
-            .find(|collection| collection.name.as_str() == collection_name)
+            .find(|collection| collection.name.deref() == collection_name)
     }
 
     pub fn transform_by_name(&self, required_name: &str) -> Option<&Transform> {
@@ -140,9 +141,10 @@ impl CliConfig {
 
 #[derive(Debug)]
 pub struct Collection {
-    pub name: String,
+    pub name: Rc<str>,
     pub manual: bool,
     pub format: CollectionValueFormat,
+    pub human_readable: Option<CollectionHumanReadableConfig>,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -178,6 +180,7 @@ impl Collection {
         let mut name = None;
         let mut manual = true;
         let mut format = CollectionValueFormat::Bytes;
+        let mut human_readable = None;
 
         for (key_node, value) in &map.items {
             let key = expect_str(&key_node)?;
@@ -185,7 +188,7 @@ impl Collection {
             match key {
                 "name" => {
                     let value = expect_str(&value)?;
-                    name = Some(value.to_string());
+                    name = Some(Rc::from(value));
                 }
                 "manual" => {
                     manual = expect_bool(&value)?;
@@ -201,6 +204,9 @@ impl Collection {
                     };
 
                     format = fmt
+                }
+                "human_readable" => {
+                    human_readable = Some(decode_yaml(value)?);
                 }
                 other => {
                     return Err(ConfigParsingError::UnknownKey(ExpectedError {
@@ -222,6 +228,7 @@ impl Collection {
             name,
             manual,
             format,
+            human_readable,
         })
     }
 }

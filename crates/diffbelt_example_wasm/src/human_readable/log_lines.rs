@@ -27,13 +27,7 @@ impl HumanReadable for LogLinesKv {
         key: BytesSlice,
         result_bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        run_error_coded(|| {
-            let key = unsafe { key.as_str() }?;
-
-            debug_print_string(format!("to bytes: {key}"));
-
-            Ok::<_, LogLinesError>(ErrorCode::Ok)
-        })
+        todo!()
     }
 
     #[export_name = "logLinesBytesToKey"]
@@ -41,7 +35,13 @@ impl HumanReadable for LogLinesKv {
         bytes: BytesSlice,
         key: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        todo!()
+        run_error_coded(|| {
+            let mut vec = unsafe { (&*key).into_empty_vec() };
+            vec.extend_from_slice(unsafe { bytes.as_slice() });
+            unsafe { *key = vec.into() };
+
+            Ok::<_, LogLinesError>(ErrorCode::Ok)
+        })
     }
 
     #[export_name = "logLinesValueToBytes"]

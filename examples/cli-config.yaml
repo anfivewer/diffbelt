@@ -2,9 +2,21 @@ collections:
   - name: log-lines
     manual: no
     format: utf8
+    human_readable:
+      wasm: example
+      key_to_bytes: logLinesKeyToBytes
+      bytes_to_key: logLinesBytesToKey
+      value_to_bytes: logLinesValueToBytes
+      bytes_to_value: logLinesBytesToValue
 
   - name: parsed-log-lines
     format: json
+    human_readable:
+      wasm: example
+      key_to_bytes: parsedLogLinesKeyToBytes
+      bytes_to_key: parsedLogLinesBytesToKey
+      value_to_bytes: parsedLogLinesValueToBytes
+      bytes_to_value: parsedLogLinesBytesToValue
 
   - name: parsed-log-lines:1d
     format: json
@@ -52,8 +64,8 @@ functions:
 
 transforms:
   - name: parse_lines
-    from: log-lines
-    to: parsed-log-lines
+    source: log-lines
+    target: parsed-log-lines
     reader_name: log-lines
     map_filter_wasm: example.mapFilter
 #    map_filter:
@@ -179,8 +191,8 @@ transforms:
 #          key: '"${timestamp_string} ${logger_key_start}"'
 #          value: value
 
-  - from: parsed-log-lines
-    to: parsed-log-lines:1d
+  - source: parsed-log-lines
+    target: parsed-log-lines:1d
     reader_name: parsed-log-lines
     aggregate:
       key:
@@ -263,15 +275,14 @@ transforms:
       apply:
         - return: accumulator
 
-  - from: parsed-log-lines
+  - source: parsed-log-lines
     intermediate:
       collection:
         name: updateMs:1d:intermediate
         format: json
       reader_name: parsed-log-lines
-    to:
-      collection: updateMs:1d:p
-      reader_name: updateMs:1d:intermediate
+    target: updateMs:1d:p
+    reader_name: updateMs:1d:intermediate
     percentiles:
       percentiles: [0, 50, 75, 90, 95, 100]
       target_key:
@@ -372,15 +383,14 @@ transforms:
             msByType: accumulator.ms_by_type
             percentilesData: percentiles_data
 
-  - from: parsed-log-lines
+  - source: parsed-log-lines
     intermediate:
       collection:
         name: uniqueChats:1d:intermediate
         format: empty
       reader_name: parsed-log-lines
-    to:
-      collection: uniqueChats:1d
-      reader_name: uniqueChats:1d:intermediate
+    target: uniqueChats:1d
+    reader_name: uniqueChats:1d:intermediate
     unique_count:
       target_key:
         source:
@@ -437,17 +447,16 @@ tests:
         source_new_value: ''
       return:
         target_key: '2023-02-20T21:42:48.822Z.000 worker258688'
-        target_value:
-          logLevel: S
-          timestampString: 2023-02-20T21:42:48.822Z.000
-          timestampMilliseconds: 1676929368822
-          timestampMicroseconds: 0
+        target_value: |
+          'logLevel: S (83)
+          tsStr: 2023-02-20T21:42:48.822Z.000
+          tsMs: 1676929368822
+          tsMicro: 0
           loggerKey: worker258688:middlewares
           logKey: handleFull
           props:
             updateType: edited_message
-            ms: '''27'''
-          extra: []
+            ms: 27'
 
     - name: with props and one extra
       vars:

@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 
 use either::Either;
 use wasmer::WasmPtr;
@@ -69,12 +69,12 @@ impl<'a> WasmBytesSliceResult<'a> {
         &self,
         fun: F,
     ) -> Result<T, Either<E, WasmError>> {
-        let mut store = self
+        let store = self
             .instance
             .store
-            .try_borrow_mut()
+            .try_borrow()
             .map_err(|err| Either::Right(err.into()))?;
-        let store = store.deref_mut();
+        let store = store.deref();
 
         let view = self.instance.allocation.memory.view(store);
 

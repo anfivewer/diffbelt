@@ -6,14 +6,15 @@ use crate::interpreter::error::InterpreterError;
 use crate::interpreter::function::Function;
 use crate::interpreter::value::{Value, ValueHolder};
 use crate::interpreter::var::{Var, VarDef};
-use crate::{CliConfig, CollectionValueFormat};
+use crate::{CliConfig, Collection, CollectionValueFormat};
 use diffbelt_yaml::YamlNodeRc;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use crate::formats::yaml_map_filter::YamlTestVarsError;
+use crate::formats::human_readable::{get_collection_human_readable, HumanReadableError};
+use crate::formats::yaml_map_filter::{yaml_test_vars_to_map_filter_input, YamlTestVarsError};
 use crate::transforms::map_filter::{MapFilterWasm, MapFilterYaml};
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::{
@@ -70,6 +71,8 @@ pub enum TestError {
     #[error(transparent)]
     Utf8(#[from] Utf8Error),
     #[error(transparent)]
+    HumanReadable(#[from] HumanReadableError),
+    #[error(transparent)]
     YamlTestVars(#[from] YamlTestVarsError),
 }
 
@@ -113,8 +116,25 @@ impl CliConfig {
                 };
             }
 
+            macro_rules! match_ok {
+                ( $expr:expr ) => {
+                    match $expr {
+                        Ok(x) => x,
+                        Err(err) => {
+                            result.push(TestResult {
+                                name: name.clone(),
+                                result: Err(err.into()),
+                            });
+                            continue 'outer;
+                        }
+                    }
+                };
+            }
+
             enum TransformType<'a> {
                 MapFilter {
+                    source_collection: &'a Collection,
+                    target_collection: &'a Collection,
                     source_format: CollectionValueFormat,
                     map_filter: &'a MapFilterWasm,
                 },
@@ -134,9 +154,18 @@ impl CliConfig {
                         continue 'outer;
                     };
 
-                    let Some(from_collection) = self.collection_by_name(transform.from.deref())
+                    let Some(source_collection) = self.collection_by_name(transform.source.deref())
                     else {
-                        push_error!(format!("Collection {} not found", transform.from));
+                        push_error!(format!("Source collection {} not found", transform.source));
+                        continue 'outer;
+                    };
+
+                    let Some(target_collection) = self.collection_by_name(transform.target.deref())
+                    else {
+                        push_error!(format!(
+                            "Target collection {} not found",
+                            transform.target.deref()
+                        ));
                         continue 'outer;
                     };
 
@@ -156,7 +185,9 @@ impl CliConfig {
                         "map_filter" => {
                             if let Some(map_filter) = transform.map_filter_wasm.as_ref() {
                                 TransformType::MapFilter {
-                                    source_format: from_collection.format,
+                                    source_collection,
+                                    target_collection,
+                                    source_format: source_collection.format,
                                     map_filter,
                                 }
                             } else {
@@ -178,9 +209,12 @@ impl CliConfig {
 
             enum TransformTypeRuntime<'a> {
                 MapFilter {
+                    source_collection: &'a Collection,
+                    target_collection: &'a Collection,
                     source_format: CollectionValueFormat,
                     map_filter: &'a MapFilterWasm,
                     instance: WasmModuleInstance,
+                    wasm_module_name: &'a str,
                 },
             }
 
@@ -190,6 +224,8 @@ impl CliConfig {
 
             let mut runtime = match code_def {
                 TransformType::MapFilter {
+                    source_collection,
+                    target_collection,
                     source_format,
                     map_filter,
                 } => {
@@ -221,57 +257,58 @@ impl CliConfig {
                     };
 
                     TransformTypeRuntime::MapFilter {
+                        source_collection,
+                        target_collection,
                         source_format,
                         map_filter,
                         instance,
+                        wasm_module_name: module_name.as_str(),
                     }
                 }
             };
 
-            let (source_format, instance, mut fun, human_readable) = match &mut runtime {
-                TransformTypeRuntime::MapFilter {
-                    source_format,
-                    map_filter,
-                    instance,
-                } => {
-                    let fun = match instance.map_filter_function(map_filter.method_name.as_str()) {
-                        Ok(x) => x,
-                        Err(err) => {
-                            result.push(TestResult {
-                                name: name.clone(),
-                                result: Err(TestError::Wasm(err)),
-                            });
-                            continue 'outer;
-                        }
-                    };
+            let (source_format, instance, mut fun, source_human_readable, target_human_readable) =
+                match &mut runtime {
+                    TransformTypeRuntime::MapFilter {
+                        source_collection,
+                        target_collection,
+                        source_format,
+                        map_filter,
+                        instance,
+                        wasm_module_name,
+                    } => {
+                        let source_human_readable = match_ok!(get_collection_human_readable(
+                            instance,
+                            wasm_module_name,
+                            source_collection,
+                        ));
+                        let target_human_readable = match_ok!(get_collection_human_readable(
+                            instance,
+                            wasm_module_name,
+                            target_collection,
+                        ));
 
-                    //push_error!(format!("No wasm module {module_name} defined"));
+                        let fun =
+                            match instance.map_filter_function(map_filter.method_name.as_str()) {
+                                Ok(x) => x,
+                                Err(err) => {
+                                    result.push(TestResult {
+                                        name: name.clone(),
+                                        result: Err(TestError::Wasm(err)),
+                                    });
+                                    continue 'outer;
+                                }
+                            };
 
-                    let human_readable = instance.human_readable_functions(
-                        "logLinesKeyToBytes",
-                        "logLinesBytesToKey",
-                        "logLinesValueToBytes",
-                        "logLinesBytesToKey",
-                    );
-                    let human_readable = match human_readable {
-                        Ok(x) => x,
-                        Err(err) => {
-                            result.push(TestResult {
-                                name: name.clone(),
-                                result: Err(TestError::Wasm(err)),
-                            });
-                            continue 'outer;
-                        }
-                    };
-
-                    (
-                        *source_format,
-                        instance as &WasmModuleInstance,
-                        TransformTypeFunction::MapFilter { fun },
-                        human_readable,
-                    )
-                }
-            };
+                        (
+                            *source_format,
+                            instance as &WasmModuleInstance,
+                            TransformTypeFunction::MapFilter { fun },
+                            source_human_readable,
+                            target_human_readable,
+                        )
+                    }
+                };
 
             let mut single_tests = Vec::with_capacity(tests.len());
 
@@ -297,8 +334,7 @@ impl CliConfig {
                     value: expected_value,
                 } = test;
 
-                let input =
-                    match_ok!(source_format.yaml_test_vars_to_map_filter_input(vars.as_ref()));
+                let input = match_ok!(yaml_test_vars_to_map_filter_input(instance, vars.as_ref()));
 
                 match &mut fun {
                     TransformTypeFunction::MapFilter { fun } => {
@@ -328,9 +364,6 @@ impl CliConfig {
                                     let value_ptr =
                                         bytes_result.bytes_offset_to_ptr(value_offset)?;
 
-                                    let key_vec_holder = instance.alloc_vec_holder()?;
-                                    let value_vec_holder = instance.alloc_vec_holder()?;
-
                                     key_values_slices.push((
                                         BytesSlice::<WasmPtrImpl> {
                                             ptr: key_ptr.into(),
@@ -340,8 +373,6 @@ impl CliConfig {
                                             ptr: value_ptr.into(),
                                             len: checked_usize_to_i32(value.len()),
                                         },
-                                        key_vec_holder,
-                                        value_vec_holder,
                                     ));
                                 }
                             }
@@ -353,24 +384,40 @@ impl CliConfig {
 
                         let mut key_values_holders = Vec::with_capacity(key_values_slices.len());
 
-                        for (key, value, key_vec_holder, value_vec_holder) in key_values_slices {
-                            () = match_ok!(human_readable.call_bytes_to_key(&key, &key_vec_holder));
+                        for (key, value) in key_values_slices {
+                            let key_vec_holder = match_ok!(instance.alloc_vec_holder());
+                            let value_vec_holder = match_ok!(instance.alloc_vec_holder());
+
+                            () = match_ok!(
+                                target_human_readable.call_bytes_to_key(&key, &key_vec_holder)
+                            );
+                            () = match_ok!(target_human_readable
+                                .call_bytes_to_value(&value, &value_vec_holder));
+
                             key_values_holders.push((key_vec_holder, value_vec_holder));
                         }
 
-                        println!("here");
-
                         for (key_holder, value_holder) in key_values_holders {
-                            let view = match_ok!(WasmBytesSliceResult::view_to_vec_holder(
+                            let key_view = match_ok!(WasmBytesSliceResult::view_to_vec_holder(
                                 &instance,
                                 &key_holder
                             ));
+                            let value_view = match_ok!(WasmBytesSliceResult::view_to_vec_holder(
+                                &instance,
+                                &value_holder
+                            ));
 
-                            println!("here2");
+                            let q = match_ok!(key_view.observe_bytes(|bytes| {
+                                let key = from_utf8(bytes)?;
 
-                            let q = match_ok!(view.observe_bytes(|bytes| {
-                                let s = from_utf8(bytes)?;
-                                println!("key {s}");
+                                () = value_view.observe_bytes(|bytes| {
+                                    println!("bytes {bytes:?}");
+                                    let value = from_utf8(bytes)?;
+
+                                    println!("key: {key}\nvalue: {value}");
+
+                                    Ok::<_, TestError>(())
+                                })?;
 
                                 Ok::<_, TestError>(())
                             }));

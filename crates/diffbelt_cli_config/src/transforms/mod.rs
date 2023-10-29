@@ -15,9 +15,9 @@ pub mod unique_count;
 #[derive(Debug, Deserialize)]
 pub struct Transform {
     pub name: Option<Rc<str>>,
-    pub from: Rc<str>,
+    pub source: Rc<str>,
+    pub target: Rc<str>,
     pub intermediate: Option<TransformCollectionDef>,
-    pub to: TransformCollectionDef,
     pub reader_name: Option<Rc<str>>,
     pub map_filter_wasm: Option<MapFilterWasm>,
     pub map_filter: Option<MapFilterYaml>,

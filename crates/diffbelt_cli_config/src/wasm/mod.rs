@@ -1,10 +1,10 @@
-use std::cell::{BorrowError, BorrowMutError, RefCell};
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::Utf8Error;
 use std::sync::{Arc, Mutex};
+use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
 
 use serde::Deserialize;
 use thiserror::Error;
@@ -26,7 +26,7 @@ use crate::wasm::types::WasmFilterResult;
 use crate::wasm::wasm_env::WasmEnv;
 use memory::Allocation;
 
-mod human_readable;
+pub mod human_readable;
 mod memory;
 pub mod result;
 mod types;
