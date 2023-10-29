@@ -1,3 +1,4 @@
+#[derive(Debug)]
 #[repr(i32)]
 pub enum ErrorCode {
     Ok = 0,

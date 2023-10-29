@@ -5,6 +5,7 @@ use diffbelt_wasm_binding::bytes::BytesVecRawParts;
 use std::mem;
 use std::ops::DerefMut;
 use wasmer::{AsStoreRef, Instance, Memory, TypedFunction, WasmPtr};
+use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::wasm_env::WasmEnv;
 
 #[derive(Clone)]
@@ -55,19 +56,25 @@ impl Allocation {
 
 pub struct WasmVecHolder<'a> {
     pub instance: &'a WasmModuleInstance,
-    pub holder: WasmPtr<WasmBytesVecRawParts>,
+    pub ptr: WasmPtr<WasmBytesVecRawParts>,
 }
 
 impl WasmModuleInstance {
     pub fn alloc_vec_holder(&self) -> Result<WasmVecHolder<'_>, WasmError> {
         let mut store = self.store.try_borrow_mut()?;
 
-        let holder = self.allocation.alloc_bytes_vec_raw_parts.call(&mut store)?;
+        let ptr = self.allocation.alloc_bytes_vec_raw_parts.call(&mut store)?;
 
         Ok(WasmVecHolder {
             instance: self,
-            holder,
+            ptr,
         })
+    }
+
+    pub fn access_slice(&self) -> Result<WasmBytesSliceResult, WasmError> {
+        //
+
+        todo!()
     }
 }
 
@@ -81,7 +88,7 @@ impl Drop for WasmVecHolder<'_> {
                 .instance
                 .allocation
                 .dealloc_bytes_vec_raw_parts
-                .call(store, self.holder)?;
+                .call(store, self.ptr)?;
 
             Ok::<(), WasmError>(())
         })();

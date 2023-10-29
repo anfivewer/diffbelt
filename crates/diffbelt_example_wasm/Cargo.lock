@@ -74,6 +74,9 @@ dependencies = [
 [[package]]
 name = "diffbelt_util_no_std"
 version = "0.1.0"
+dependencies = [
+ "thiserror-no-std",
+]
 
 [[package]]
 name = "diffbelt_wasm_binding"

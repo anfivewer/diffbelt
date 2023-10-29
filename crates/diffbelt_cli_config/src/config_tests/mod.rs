@@ -15,14 +15,21 @@ use std::ops::Deref;
 
 use crate::formats::yaml_map_filter::YamlTestVarsError;
 use crate::transforms::map_filter::{MapFilterWasm, MapFilterYaml};
-use crate::wasm::{MapFilterFunction, NewWasmInstanceOptions, WasmError, WasmModuleInstance};
+use crate::wasm::result::WasmBytesSliceResult;
+use crate::wasm::{
+    MapFilterFunction, NewWasmInstanceOptions, WasmError, WasmModuleInstance, WasmPtrImpl,
+};
 use diffbelt_example_protos::protos::log_line::ParsedLogLine;
 use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
 use diffbelt_protos::{deserialize, InvalidFlatbuffer, OwnedSerialized};
+use diffbelt_util::cast::checked_usize_to_i32;
+use diffbelt_util::errors::NoStdErrorWrap;
+use diffbelt_util::slice::{get_slice_offset_in_other_slice, SliceOffsetError};
+use diffbelt_wasm_binding::bytes::BytesSlice;
 use diffbelt_wasm_binding::human_readable;
 use either::Either;
 use std::rc::Rc;
-use std::str::from_utf8;
+use std::str::{from_utf8, Utf8Error};
 use thiserror::Error;
 
 #[derive(Debug, Deserialize)]
@@ -56,8 +63,12 @@ pub enum TestError {
     Interpreter(InterpreterError),
     #[error(transparent)]
     Wasm(#[from] WasmError),
+    #[error(transparent)]
+    SliceOffset(#[from] NoStdErrorWrap<SliceOffsetError>),
     #[error("{0:?}")]
     InvalidFlatbuffer(InvalidFlatbuffer),
+    #[error(transparent)]
+    Utf8(#[from] Utf8Error),
     #[error(transparent)]
     YamlTestVars(#[from] YamlTestVarsError),
 }
@@ -217,7 +228,7 @@ impl CliConfig {
                 }
             };
 
-            let (source_format, mut fun, human_readable) = match &mut runtime {
+            let (source_format, instance, mut fun, human_readable) = match &mut runtime {
                 TransformTypeRuntime::MapFilter {
                     source_format,
                     map_filter,
@@ -255,6 +266,7 @@ impl CliConfig {
 
                     (
                         *source_format,
+                        instance as &WasmModuleInstance,
                         TransformTypeFunction::MapFilter { fun },
                         human_readable,
                     )
@@ -290,28 +302,81 @@ impl CliConfig {
 
                 match &mut fun {
                     TransformTypeFunction::MapFilter { fun } => {
-                        let result = match_ok!(fun.call(input.data()));
-                        let result = match_ok!(result.observe_bytes(|bytes| {
-                            //
+                        let mut bytes_result = match_ok!(fun.call(input.data()));
 
-                            let result = deserialize::<MapFilterMultiOutput>(bytes)
+                        let mut key_values_slices = Vec::new();
+
+                        () = match_ok!(bytes_result.observe_bytes(|bytes| {
+                            let multi_output = deserialize::<MapFilterMultiOutput>(bytes)
                                 .map_err(TestError::InvalidFlatbuffer)?;
 
-                            if let Some(records) = result.target_update_records() {
+                            if let Some(records) = multi_output.target_update_records() {
                                 for update_record in records {
                                     let key = update_record.key().unwrap_or(Default::default());
-                                    let key = from_utf8(key.bytes()).unwrap_or("?!");
+                                    let key = key.bytes();
 
                                     let value = update_record.value().unwrap_or(Default::default());
-                                    let value = deserialize::<ParsedLogLine>(value.bytes())
-                                        .map_err(TestError::InvalidFlatbuffer)?;
+                                    let value = value.bytes();
 
-                                    println!("update {key}\nvalue: {value:?}");
+                                    let key_offset = get_slice_offset_in_other_slice(bytes, key)
+                                        .map_err(NoStdErrorWrap::from)?;
+                                    let value_offset =
+                                        get_slice_offset_in_other_slice(bytes, value)
+                                            .map_err(NoStdErrorWrap::from)?;
+
+                                    let key_ptr = bytes_result.bytes_offset_to_ptr(key_offset)?;
+                                    let value_ptr =
+                                        bytes_result.bytes_offset_to_ptr(value_offset)?;
+
+                                    let key_vec_holder = instance.alloc_vec_holder()?;
+                                    let value_vec_holder = instance.alloc_vec_holder()?;
+
+                                    key_values_slices.push((
+                                        BytesSlice::<WasmPtrImpl> {
+                                            ptr: key_ptr.into(),
+                                            len: checked_usize_to_i32(key.len()),
+                                        },
+                                        BytesSlice::<WasmPtrImpl> {
+                                            ptr: value_ptr.into(),
+                                            len: checked_usize_to_i32(value.len()),
+                                        },
+                                        key_vec_holder,
+                                        value_vec_holder,
+                                    ));
                                 }
                             }
 
                             Ok::<(), TestError>(())
                         }));
+
+                        let manual_dealloc = bytes_result.manually_dealloced();
+
+                        let mut key_values_holders = Vec::with_capacity(key_values_slices.len());
+
+                        for (key, value, key_vec_holder, value_vec_holder) in key_values_slices {
+                            () = match_ok!(human_readable.call_bytes_to_key(&key, &key_vec_holder));
+                            key_values_holders.push((key_vec_holder, value_vec_holder));
+                        }
+
+                        println!("here");
+
+                        for (key_holder, value_holder) in key_values_holders {
+                            let view = match_ok!(WasmBytesSliceResult::view_to_vec_holder(
+                                &instance,
+                                &key_holder
+                            ));
+
+                            println!("here2");
+
+                            let q = match_ok!(view.observe_bytes(|bytes| {
+                                let s = from_utf8(bytes)?;
+                                println!("key {s}");
+
+                                Ok::<_, TestError>(())
+                            }));
+                        }
+
+                        drop(manual_dealloc);
                     }
                 }
 

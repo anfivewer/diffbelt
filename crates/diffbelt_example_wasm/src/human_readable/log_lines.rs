@@ -22,6 +22,7 @@ impl From<FromUtf8Error> for LogLinesError {
 }
 
 impl HumanReadable for LogLinesKv {
+    #[export_name = "logLinesKeyToBytes"]
     extern "C" fn human_readable_key_to_bytes(
         key: BytesSlice,
         result_bytes: *mut BytesVecRawParts,
@@ -35,6 +36,7 @@ impl HumanReadable for LogLinesKv {
         })
     }
 
+    #[export_name = "logLinesBytesToKey"]
     extern "C" fn bytes_to_human_readable_key(
         bytes: BytesSlice,
         key: *mut BytesVecRawParts,
@@ -42,6 +44,7 @@ impl HumanReadable for LogLinesKv {
         todo!()
     }
 
+    #[export_name = "logLinesValueToBytes"]
     extern "C" fn human_readable_value_to_bytes(
         key: BytesSlice,
         bytes: *mut BytesVecRawParts,
@@ -49,6 +52,7 @@ impl HumanReadable for LogLinesKv {
         todo!()
     }
 
+    #[export_name = "logLinesBytesToValue"]
     extern "C" fn bytes_to_human_readable_value(
         bytes: BytesSlice,
         key: *mut BytesVecRawParts,

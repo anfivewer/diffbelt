@@ -23,14 +23,17 @@ use crate::errors::WithMark;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::WasmFilterResult;
-use memory::Allocation;
 use crate::wasm::wasm_env::WasmEnv;
+use memory::Allocation;
 
 mod human_readable;
 mod memory;
 pub mod result;
 mod types;
+pub mod util;
 mod wasm_env;
+
+pub use types::WasmPtrImpl;
 
 #[derive(Deserialize, Debug)]
 pub struct Wasm {
@@ -243,7 +246,7 @@ impl WasmModuleInstance {
 impl MapFilterFunction<'_> {
     /// `inputs` should be encoded by [`diffbelt_protos::protos::transform::map_filter::MapFilterMultiInput`]
     pub fn call(&self, inputs: &[u8]) -> Result<WasmBytesSliceResult, WasmError> {
-        let mut store = self.instance.store.borrow_mut();
+        let mut store = self.instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
 
         let inputs_len_i32 = try_usize_to_i32(inputs.len()).ok_or_else(|| {
@@ -267,8 +270,6 @@ impl MapFilterFunction<'_> {
             dealloc_ptr,
             dealloc_len,
         }) = result.read(&view)?;
-
-        println!("result {result:?}");
 
         let result_len = try_positive_i32_to_u32(result_len).ok_or_else(|| {
             WasmError::Unspecified(format!("map_filter call result len: {result_len}"))
