@@ -11,16 +11,16 @@ use diffbelt_protos::protos::transform::map_filter::{
     RecordUpdateArgs,
 };
 use diffbelt_protos::{deserialize, Serializer};
+use diffbelt_wasm_binding::bytes::BytesVecWidePtr;
 
-use crate::global_allocator::leak_vec;
 use crate::log_lines::parse_log_line_header;
 use diffbelt_wasm_binding::transform::map_filter::{MapFilter, MapFilterResult};
 
 mod date;
 mod global_allocator;
+mod human_readable;
 mod log_lines;
 mod util;
-mod human_readable;
 
 struct LogLinesMapFilter;
 
@@ -94,7 +94,10 @@ impl MapFilter for LogLinesMapFilter {
 
         let (vec, _) = result.into_raw();
 
-        let (dealloc_ptr, dealloc_len) = leak_vec(vec);
+        let BytesVecWidePtr {
+            ptr: dealloc_ptr,
+            capacity: dealloc_len,
+        } = BytesVecWidePtr::from(vec);
 
         static mut STATIC_RESULT: MapFilterResult = MapFilterResult {
             result_ptr: ptr::null_mut(),

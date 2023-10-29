@@ -1,14 +1,14 @@
 use wasmer::{TypedFunction, WasmPtr};
 
 use crate::wasm::{WasmError, WasmModuleInstance};
-use crate::wasm::types::WasmBytesVecFull;
+use crate::wasm::types::WasmBytesVecRawParts;
 
 pub struct HumanReadableFunctions<'a> {
     instance: &'a WasmModuleInstance,
-    key_to_bytes: TypedFunction<(WasmPtr<u8>, i32, i32, WasmPtr<WasmBytesVecFull>), i32>,
-    bytes_to_key: TypedFunction<(WasmPtr<u8>, i32, i32, WasmPtr<WasmBytesVecFull>), i32>,
-    value_to_bytes: TypedFunction<(WasmPtr<u8>, i32, i32, WasmPtr<WasmBytesVecFull>), i32>,
-    bytes_to_value: TypedFunction<(WasmPtr<u8>, i32, i32, WasmPtr<WasmBytesVecFull>), i32>,
+    key_to_bytes: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    bytes_to_key: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    value_to_bytes: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    bytes_to_value: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
 }
 
 impl<'a> HumanReadableFunctions<'a> {

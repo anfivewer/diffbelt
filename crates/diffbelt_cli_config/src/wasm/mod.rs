@@ -23,7 +23,7 @@ use crate::errors::WithMark;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::WasmFilterResult;
-use crate::wasm::wasm_env::memory::Allocation;
+use memory::Allocation;
 use crate::wasm::wasm_env::WasmEnv;
 
 mod human_readable;

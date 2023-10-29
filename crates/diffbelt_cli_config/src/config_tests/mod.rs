@@ -292,7 +292,7 @@ impl CliConfig {
                     TransformTypeFunction::MapFilter { fun } => {
                         let result = match_ok!(fun.call(input.data()));
                         let result = match_ok!(result.observe_bytes(|bytes| {
-                            human_readable
+                            //
 
                             let result = deserialize::<MapFilterMultiOutput>(bytes)
                                 .map_err(TestError::InvalidFlatbuffer)?;

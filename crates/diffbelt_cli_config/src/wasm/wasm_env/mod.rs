@@ -4,7 +4,7 @@ use wasmer::{AsStoreRef, Imports, Memory, MemoryView, Store};
 
 use diffbelt_util::Wrap;
 
-use crate::wasm::wasm_env::memory::Allocation;
+use crate::wasm::memory::Allocation;
 use crate::wasm::WasmError;
 
 pub mod debug;

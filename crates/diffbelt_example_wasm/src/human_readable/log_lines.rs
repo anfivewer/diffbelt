@@ -2,9 +2,10 @@ use crate::util::run_error_coded::run_error_coded;
 use alloc::format;
 use alloc::string::FromUtf8Error;
 use core::str::Utf8Error;
+use diffbelt_wasm_binding::bytes::{BytesSlice, BytesVecRawParts};
+use diffbelt_wasm_binding::debug_print_string;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;
-use diffbelt_wasm_binding::{debug_print_string, BytesVecFull};
 use thiserror_no_std::Error;
 
 struct LogLinesKv;
@@ -22,11 +23,11 @@ impl From<FromUtf8Error> for LogLinesError {
 
 impl HumanReadable for LogLinesKv {
     extern "C" fn human_readable_key_to_bytes(
-        key: BytesVecFull,
-        result_bytes: *mut BytesVecFull,
+        key: BytesSlice,
+        result_bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
         run_error_coded(|| {
-            let key = unsafe { key.into_string() }?;
+            let key = unsafe { key.as_str() }?;
 
             debug_print_string(format!("to bytes: {key}"));
 
@@ -35,22 +36,22 @@ impl HumanReadable for LogLinesKv {
     }
 
     extern "C" fn bytes_to_human_readable_key(
-        bytes: BytesVecFull,
-        key: *mut BytesVecFull,
+        bytes: BytesSlice,
+        key: *mut BytesVecRawParts,
     ) -> ErrorCode {
         todo!()
     }
 
     extern "C" fn human_readable_value_to_bytes(
-        key: BytesVecFull,
-        bytes: *mut BytesVecFull,
+        key: BytesSlice,
+        bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
         todo!()
     }
 
     extern "C" fn bytes_to_human_readable_value(
-        bytes: BytesVecFull,
-        key: *mut BytesVecFull,
+        bytes: BytesSlice,
+        key: *mut BytesVecRawParts,
     ) -> ErrorCode {
         todo!()
     }

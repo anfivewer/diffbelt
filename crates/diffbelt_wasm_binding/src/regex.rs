@@ -1,5 +1,4 @@
 use alloc::borrow::Cow;
-use alloc::format;
 use alloc::string::String;
 use core::{ptr, slice};
 use core::marker::PhantomData;
@@ -7,7 +6,7 @@ use core::str::from_utf8_unchecked;
 
 use thiserror_no_std::Error;
 
-use crate::{BytesVecFull, debug_print_string};
+use crate::bytes::BytesVecRawParts;
 use crate::ptr::{NativePtrImpl, PtrImpl};
 
 #[derive(Copy, Clone)]
@@ -21,7 +20,7 @@ pub struct RegexCapture {
 #[repr(C)]
 pub struct ReplaceResult<P: PtrImpl = NativePtrImpl> {
     pub is_same: i32,
-    pub s: BytesVecFull<P>,
+    pub s: BytesVecRawParts<P>,
 }
 
 #[link(wasm_import_module = "Regex")]
@@ -158,7 +157,7 @@ impl Regex {
 
         let mut replace_result = ReplaceResult {
             is_same: 0,
-            s: BytesVecFull::null(),
+            s: BytesVecRawParts::null(),
         };
 
         unsafe {

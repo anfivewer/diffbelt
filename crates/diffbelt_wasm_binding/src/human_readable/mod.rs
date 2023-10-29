@@ -1,22 +1,22 @@
 use crate::error_code::ErrorCode;
-use crate::BytesVecFull;
+use crate::bytes::{BytesSlice, BytesVecRawParts};
 
 pub trait HumanReadable {
     extern "C" fn human_readable_key_to_bytes(
-        key: BytesVecFull,
-        bytes: *mut BytesVecFull,
+        key: BytesSlice,
+        bytes: *mut BytesVecRawParts,
     ) -> ErrorCode;
     extern "C" fn bytes_to_human_readable_key(
-        bytes: BytesVecFull,
-        key: *mut BytesVecFull,
+        bytes: BytesSlice,
+        key: *mut BytesVecRawParts,
     ) -> ErrorCode;
 
     extern "C" fn human_readable_value_to_bytes(
-        value: BytesVecFull,
-        bytes: *mut BytesVecFull,
+        value: BytesSlice,
+        bytes: *mut BytesVecRawParts,
     ) -> ErrorCode;
     extern "C" fn bytes_to_human_readable_value(
-        bytes: BytesVecFull,
-        value: *mut BytesVecFull,
+        bytes: BytesSlice,
+        value: *mut BytesVecRawParts,
     ) -> ErrorCode;
 }

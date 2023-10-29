@@ -1,27 +1,25 @@
 use std::borrow::Cow;
 use std::cmp::min;
 use std::collections::VecDeque;
-use std::mem::MaybeUninit;
-use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
 use regex::Regex;
 use wasmer::{
-    Function, FunctionEnv, FunctionEnvMut, Imports, Memory, RuntimeError, Store, Value, ValueType,
+    Function, FunctionEnv, FunctionEnvMut, Imports, Memory, Store, ValueType,
     WasmPtr,
 };
-use wasmer_types::{FunctionType, Type};
-
 use diffbelt_util::cast::{
     try_positive_i32_to_usize, try_usize_to_i32, unchecked_i32_to_u32, unchecked_usize_to_i32,
     unchecked_usize_to_u32, usize_to_u64,
 };
-use diffbelt_wasm_binding::{BytesVecFull, ReplaceResult};
+use diffbelt_wasm_binding::ReplaceResult;
+use diffbelt_wasm_binding::bytes::BytesVecRawParts;
 
-use crate::wasm::types::{BytesVecFullTrait, WasmReplaceResult, WasmPtrImpl};
+use crate::wasm::types::{BytesVecFullTrait, WasmPtrImpl, WasmReplaceResult};
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
-use crate::wasm::{Allocation, WasmError};
+use crate::wasm::WasmError;
+use crate::wasm::memory::Allocation;
 
 pub struct WasmRegex {
     regex: Regex,
@@ -280,7 +278,7 @@ impl WasmEnv {
 
                 Ok(ReplaceResult::<WasmPtrImpl> {
                     is_same: 0,
-                    s: BytesVecFull {
+                    s: BytesVecRawParts {
                         ptr: vec_ptr.into(),
                         len: result_bytes_len_i32,
                         capacity: result_bytes_len_i32,
