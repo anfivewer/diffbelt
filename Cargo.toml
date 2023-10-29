@@ -14,6 +14,7 @@ members = [
 	"crates/diffbelt_http_client",
 	"crates/diffbelt_macro",
 	"crates/diffbelt_transforms",
+	"crates/diffbelt_callstack",
 
 	"crates/diffbelt_yaml",
 ]

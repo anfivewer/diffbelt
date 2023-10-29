@@ -592,6 +592,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "diffbelt_callstack"
+version = "0.1.0"
+
+[[package]]
 name = "diffbelt_cli"
 version = "0.0.1"
 dependencies = [
