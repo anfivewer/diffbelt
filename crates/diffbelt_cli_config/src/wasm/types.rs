@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
-use wasmer::{AsStoreRef, FromToNativeWasmType, WasmPtr};
+use wasmer::{AsStoreMut, AsStoreRef, FromToNativeWasmType, NativeWasmTypeInto, WasmPtr};
 
 use diffbelt_wasm_binding::ptr::PtrImpl;
-use wasmer_types::{Memory32, MemorySize, ValueType};
+use wasmer_types::{Memory32, MemorySize, NativeWasmType, RawValue, Type, ValueType};
 
 use diffbelt_wasm_binding::transform::map_filter::MapFilterResult;
 use diffbelt_wasm_binding::{BytesVecFull, ReplaceResult};
@@ -11,11 +11,13 @@ use diffbelt_wasm_binding::{BytesVecFull, ReplaceResult};
 #[derive(Copy, Clone, Debug)]
 pub struct WasmPtrImpl;
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Debug)]
 pub struct WasmPtrCopy<T> {
     native: <Memory32 as MemorySize>::Native,
     _phantom: PhantomData<T>,
 }
+
+impl<T: Clone> Copy for WasmPtrCopy<T> {}
 
 impl<T> From<WasmPtr<T>> for WasmPtrCopy<T> {
     fn from(value: WasmPtr<T>) -> Self {
@@ -33,7 +35,7 @@ impl<T> From<WasmPtrCopy<T>> for WasmPtr<T> {
 }
 
 impl PtrImpl for WasmPtrImpl {
-    type Ptr<T: Copy> = WasmPtrCopy<T>;
+    type Ptr<T: Clone> = WasmPtrCopy<T>;
 }
 
 pub trait BytesVecFullTrait {
@@ -64,11 +66,16 @@ macro_rules! impl_value_type {
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct ReplaceResultWrap(pub ReplaceResult<WasmPtrImpl>);
+pub struct WasmReplaceResult(pub ReplaceResult<WasmPtrImpl>);
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct MapFilterResultWrap(pub MapFilterResult<WasmPtrImpl>);
+pub struct WasmFilterResult(pub MapFilterResult<WasmPtrImpl>);
 
-impl_value_type!(ReplaceResultWrap);
-impl_value_type!(MapFilterResultWrap);
+#[derive(Copy, Clone, Debug)]
+#[repr(transparent)]
+pub struct WasmBytesVecFull(pub BytesVecFull<WasmPtrImpl>);
+
+impl_value_type!(WasmReplaceResult);
+impl_value_type!(WasmFilterResult);
+impl_value_type!(WasmBytesVecFull);

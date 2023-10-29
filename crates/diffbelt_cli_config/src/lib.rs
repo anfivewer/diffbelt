@@ -18,6 +18,9 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
 
+#[cfg(not(target_endian = "little"))]
+compile_error!("Only LE targets are supported because we are copying data to WASM");
+
 #[derive(Debug)]
 pub struct CliConfig {
     self_path: Rc<str>,

@@ -20,6 +20,7 @@ mod date;
 mod global_allocator;
 mod log_lines;
 mod util;
+mod human_readable;
 
 struct LogLinesMapFilter;
 
@@ -96,7 +97,7 @@ impl MapFilter for LogLinesMapFilter {
         let (dealloc_ptr, dealloc_len) = leak_vec(vec);
 
         static mut STATIC_RESULT: MapFilterResult = MapFilterResult {
-            result_ptr: ptr::null(),
+            result_ptr: ptr::null_mut(),
             result_len: 0,
             dealloc_ptr: ptr::null_mut(),
             dealloc_len: 0,
@@ -104,7 +105,7 @@ impl MapFilter for LogLinesMapFilter {
 
         unsafe {
             STATIC_RESULT = MapFilterResult {
-                result_ptr,
+                result_ptr: result_ptr as *mut u8,
                 result_len,
                 dealloc_ptr,
                 dealloc_len,

@@ -1,4 +1,4 @@
-use std::cell::{BorrowMutError, RefCell};
+use std::cell::{BorrowError, BorrowMutError, RefCell};
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use serde::Deserialize;
 use thiserror::Error;
 use wasmer::{
-    CompileError, Cranelift, ExportError, FromToNativeWasmType, Imports, Instance,
+    AsStoreRef, CompileError, Cranelift, ExportError, FromToNativeWasmType, Imports, Instance,
     InstantiationError, Memory, MemoryAccessError, MemoryError, Module, RuntimeError, Store,
     TypedFunction, WasmPtr, WasmTypeList,
 };
@@ -20,10 +20,14 @@ use diffbelt_util::Wrap;
 use diffbelt_wasm_binding::transform::map_filter::MapFilterResult;
 
 use crate::errors::WithMark;
+use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::result::WasmBytesSliceResult;
-use crate::wasm::types::MapFilterResultWrap;
+use crate::wasm::types::WasmFilterResult;
+use crate::wasm::wasm_env::memory::Allocation;
 use crate::wasm::wasm_env::WasmEnv;
 
+mod human_readable;
+mod memory;
 pub mod result;
 mod types;
 mod wasm_env;
@@ -66,6 +70,8 @@ pub enum WasmError {
     #[error("{0:?}")]
     Regex(regex::Error),
     #[error("{0:?}")]
+    Borrow(#[from] BorrowError),
+    #[error("{0:?}")]
     BorrowMut(#[from] BorrowMutError),
     #[error("{0:?}")]
     Unspecified(String),
@@ -99,14 +105,7 @@ pub struct WasmModuleInstance {
 
 pub struct MapFilterFunction<'a> {
     instance: &'a WasmModuleInstance,
-    fun: TypedFunction<(WasmPtr<u8>, i32), WasmPtr<MapFilterResultWrap>>,
-}
-
-#[derive(Clone)]
-pub struct Allocation {
-    alloc: TypedFunction<i32, WasmPtr<u8>>,
-    dealloc: TypedFunction<(WasmPtr<u8>, i32), ()>,
-    memory: Memory,
+    fun: TypedFunction<(WasmPtr<u8>, i32), WasmPtr<WasmFilterResult>>,
 }
 
 impl Wasm {
@@ -166,20 +165,7 @@ impl Wasm {
 
         env.set_memory(memory.clone());
 
-        let alloc = instance
-            .exports
-            .get_typed_function(&store, "alloc")
-            .map_err(export_error_context(|| "alloc()".to_string()))?;
-        let dealloc = instance
-            .exports
-            .get_typed_function(&store, "dealloc")
-            .map_err(export_error_context(|| "dealloc()".to_string()))?;
-
-        let allocation = Allocation {
-            alloc,
-            dealloc,
-            memory: memory.clone(),
-        };
+        let allocation = Allocation::new(&store, &instance, memory.clone())?;
 
         env.set_allocation(allocation.clone());
 
@@ -193,9 +179,11 @@ impl Wasm {
 }
 
 impl WasmModuleInstance {
-    pub fn map_filter_function(&self, name: &str) -> Result<MapFilterFunction<'_>, WasmError> {
-        let store = self.store.borrow();
-
+    pub fn typed_function_with_store<Args: WasmTypeList, Rets: WasmTypeList>(
+        &self,
+        store: &(impl AsStoreRef + ?Sized),
+        name: &str,
+    ) -> Result<TypedFunction<Args, Rets>, WasmError> {
         let fun = self
             .instance
             .exports
@@ -213,18 +201,42 @@ impl WasmModuleInstance {
                 };
 
                 let context = if let Some(actual_type) = actual_type {
-                    format!("map_filter {name}, actual type: {actual_type}")
+                    format!("function {name}(), actual type: {actual_type}")
                 } else {
-                    format!("map_filter {name}")
+                    format!("function {name}()")
                 };
 
                 WasmError::Export { original, context }
             })?;
 
+        Ok(fun)
+    }
+
+    pub fn map_filter_function(&self, name: &str) -> Result<MapFilterFunction<'_>, WasmError> {
+        let store = self.store.borrow();
+
+        let fun = self.typed_function_with_store(&store, name)?;
+
         Ok(MapFilterFunction {
             instance: self,
             fun,
         })
+    }
+
+    pub fn human_readable_functions(
+        &self,
+        key_to_bytes: &str,
+        bytes_to_key: &str,
+        value_to_bytes: &str,
+        bytes_to_value: &str,
+    ) -> Result<HumanReadableFunctions, WasmError> {
+        HumanReadableFunctions::new(
+            self,
+            key_to_bytes,
+            bytes_to_key,
+            value_to_bytes,
+            bytes_to_value,
+        )
     }
 }
 
@@ -249,7 +261,7 @@ impl MapFilterFunction<'_> {
         let result = { self.fun.call(store, ptr, inputs_len_i32)? };
 
         let view = self.instance.allocation.memory.view(store);
-        let MapFilterResultWrap(MapFilterResult {
+        let WasmFilterResult(MapFilterResult {
             result_ptr,
             result_len,
             dealloc_ptr,

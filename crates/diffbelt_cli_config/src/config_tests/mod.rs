@@ -19,6 +19,7 @@ use crate::wasm::{MapFilterFunction, NewWasmInstanceOptions, WasmError, WasmModu
 use diffbelt_example_protos::protos::log_line::ParsedLogLine;
 use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
 use diffbelt_protos::{deserialize, InvalidFlatbuffer, OwnedSerialized};
+use diffbelt_wasm_binding::human_readable;
 use either::Either;
 use std::rc::Rc;
 use std::str::from_utf8;
@@ -216,7 +217,7 @@ impl CliConfig {
                 }
             };
 
-            let (source_format, mut fun) = match &mut runtime {
+            let (source_format, mut fun, human_readable) = match &mut runtime {
                 TransformTypeRuntime::MapFilter {
                     source_format,
                     map_filter,
@@ -233,7 +234,30 @@ impl CliConfig {
                         }
                     };
 
-                    (*source_format, TransformTypeFunction::MapFilter { fun })
+                    //push_error!(format!("No wasm module {module_name} defined"));
+
+                    let human_readable = instance.human_readable_functions(
+                        "logLinesKeyToBytes",
+                        "logLinesBytesToKey",
+                        "logLinesValueToBytes",
+                        "logLinesBytesToKey",
+                    );
+                    let human_readable = match human_readable {
+                        Ok(x) => x,
+                        Err(err) => {
+                            result.push(TestResult {
+                                name: name.clone(),
+                                result: Err(TestError::Wasm(err)),
+                            });
+                            continue 'outer;
+                        }
+                    };
+
+                    (
+                        *source_format,
+                        TransformTypeFunction::MapFilter { fun },
+                        human_readable,
+                    )
                 }
             };
 
@@ -268,6 +292,8 @@ impl CliConfig {
                     TransformTypeFunction::MapFilter { fun } => {
                         let result = match_ok!(fun.call(input.data()));
                         let result = match_ok!(result.observe_bytes(|bytes| {
+                            human_readable
+
                             let result = deserialize::<MapFilterMultiOutput>(bytes)
                                 .map_err(TestError::InvalidFlatbuffer)?;
 

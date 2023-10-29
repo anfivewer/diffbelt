@@ -2,9 +2,9 @@
 pub struct NativePtrImpl;
 
 pub trait PtrImpl {
-    type Ptr<T: Copy>: Copy;
+    type Ptr<T: Clone>: Copy;
 }
 
 impl PtrImpl for NativePtrImpl {
-    type Ptr<T: Copy> = *mut T;
+    type Ptr<T: Clone> = *mut T;
 }

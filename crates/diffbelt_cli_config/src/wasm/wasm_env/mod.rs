@@ -2,8 +2,10 @@ use std::sync::{Arc, Mutex};
 
 use wasmer::{AsStoreRef, Imports, Memory, MemoryView, Store};
 
-use crate::wasm::{Allocation, WasmError};
 use diffbelt_util::Wrap;
+
+use crate::wasm::wasm_env::memory::Allocation;
+use crate::wasm::WasmError;
 
 pub mod debug;
 pub mod memory;

@@ -18,7 +18,7 @@ use diffbelt_util::cast::{
 };
 use diffbelt_wasm_binding::{BytesVecFull, ReplaceResult};
 
-use crate::wasm::types::{BytesVecFullTrait, ReplaceResultWrap, WasmPtrImpl};
+use crate::wasm::types::{BytesVecFullTrait, WasmReplaceResult, WasmPtrImpl};
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::{Allocation, WasmError};
@@ -210,7 +210,7 @@ impl WasmEnv {
             source_len: i32,
             target_ptr: WasmPtr<u8>,
             target_len: i32,
-            replace_result_ptr: WasmPtr<ReplaceResultWrap>,
+            replace_result_ptr: WasmPtr<WasmReplaceResult>,
         ) -> () {
             let (env, mut store) = env.data_and_store_mut();
             let RegexEnv {
@@ -295,7 +295,7 @@ impl WasmEnv {
             let result = (|| {
                 let view = WasmEnv::memory_view(memory, &store)?;
 
-                () = replace_result_ptr.write(&view, ReplaceResultWrap(result))?;
+                () = replace_result_ptr.write(&view, WasmReplaceResult(result))?;
 
                 Ok::<(), WasmError>(())
             })();
