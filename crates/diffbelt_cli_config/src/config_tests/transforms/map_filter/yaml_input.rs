@@ -1,7 +1,7 @@
-use diffbelt_protos::{OwnedSerialized, Serializer};
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterInput, MapFilterInputArgs, MapFilterMultiInput, MapFilterMultiInputArgs,
 };
+use diffbelt_protos::{OwnedSerialized, Serializer};
 use diffbelt_yaml::YamlNode;
 
 use crate::config_tests::error::YamlTestVarsError;
@@ -30,9 +30,6 @@ pub fn yaml_test_vars_to_map_filter_input(
     for (key, value) in map {
         let key = key.as_str().ok_or_else(|| {
             YamlTestVarsError::Unspecified("vars key should be string".to_string())
-        })?;
-        let value = value.as_str().ok_or_else(|| {
-            YamlTestVarsError::Unspecified("vars value should be a string".to_string())
         })?;
 
         match key {

@@ -1,19 +1,21 @@
+use std::borrow::Cow;
+use std::str::Utf8Error;
+
 use thiserror::Error;
+
 use diffbelt_protos::InvalidFlatbuffer;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::slice::SliceOffsetError;
-use std::str::Utf8Error;
-use either::Either;
+
 use crate::config_tests::value::{ScalarParseError, YamlValueConstructionError};
 use crate::formats::human_readable::HumanReadableError;
 use crate::impl_from_either;
 use crate::interpreter::error::InterpreterError;
-use crate::interpreter::value::Value;
 use crate::wasm::WasmError;
 
 #[derive(Debug)]
 pub enum AssertError {
-    ValueMissmatch { expected: Value, actual: Value },
+    ValueMissmatch { message: Cow<'static, str>, expected: Option<String>, actual: Option<String> },
 }
 
 #[derive(Error, Debug)]

@@ -1,32 +1,56 @@
+use crate::wasm::memory::WasmVecHolder;
 use crate::wasm::{WasmError, WasmModuleInstance};
+use diffbelt_util::cast::{try_positive_i32_to_u32, unchecked_i32_to_u32};
 use either::Either;
 use std::ops::Deref;
-use wasmer::{MemoryView, WasmPtr};
+use wasmer::{MemoryView, WasmPtr, WasmSliceAccess};
+use wasmer_types::ValueType;
 
 pub struct WasmMemoryObserver<'a> {
     view: MemoryView<'a>,
 }
 
+pub struct WasmSliceView<'a, T: ValueType> {
+    slice: WasmSliceAccess<'a, T>,
+}
+
+impl<T: ValueType> WasmSliceView<'_, T> {
+    pub fn as_ref(&self) -> &[T] {
+        self.slice.as_ref()
+    }
+}
+
 impl WasmMemoryObserver<'_> {
-    pub fn observe_byte_slice<T, E, F: FnOnce(&[u8]) -> Result<T, E>>(
+    pub fn slice_view<T: ValueType>(
         &self,
-        ptr: WasmPtr<u8>,
+        ptr: WasmPtr<T>,
         len: u32,
-        fun: F,
-    ) -> Result<T, Either<E, WasmError>> {
-        let slice = ptr
-            .slice(&self.view, len)
-            .map_err(|err| Either::Right(err.into()))?;
+    ) -> Result<WasmSliceView<'_, T>, WasmError> {
+        let slice = ptr.slice(&self.view, len)?;
+        let slice = slice.access()?;
 
-        let slice = slice.access().map_err(|err| Either::Right(err.into()))?;
-        let slice = slice.as_ref();
+        Ok(WasmSliceView { slice })
+    }
 
-        fun(slice).map_err(Either::Left)
+    pub fn vec_view(&self, holder: &WasmVecHolder) -> Result<WasmSliceView<'_, u8>, WasmError> {
+        let holder = holder.ptr.access(&self.view)?;
+        let holder = holder.as_ref();
+
+        let ptr = WasmPtr::from(holder.0.ptr);
+        let len = try_positive_i32_to_u32(holder.0.len).ok_or_else(|| {
+            WasmError::Unspecified(format!("WasmMemoryObserver::vec_view len {}", holder.0.len))
+        })?;
+
+        self.slice_view(ptr, len)
     }
 }
 
 impl WasmModuleInstance {
-    pub fn enter_memory_observe_context<T, E, F: FnOnce(&'_ WasmMemoryObserver<'_>) -> Result<T, E>>(
+    pub fn enter_memory_observe_context<
+        T,
+        E,
+        F: FnOnce(&'_ WasmMemoryObserver<'_>) -> Result<T, E>,
+    >(
         &self,
         fun: F,
     ) -> Result<T, Either<E, WasmError>> {

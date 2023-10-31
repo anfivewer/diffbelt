@@ -22,7 +22,7 @@ pub fn yaml_test_output_to_map_filter_expected_output(
         let mut record_value = None;
 
         for (key, value) in map {
-            let (Some(key), Some(value)) = (key.as_str(), value.as_str()) else {
+            let Some(key) = key.as_str() else {
                 return Err(YamlTestVarsError::Unspecified(
                     "yaml test output should be sequence of mappings of key-values which are should be a strings".to_string(),
                 ));

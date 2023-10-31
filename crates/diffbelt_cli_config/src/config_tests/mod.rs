@@ -292,8 +292,6 @@ impl CliConfig {
                     name: name.clone(),
                     result: Ok(comparison),
                 });
-
-                break;
             }
 
             result.push(TestResult {

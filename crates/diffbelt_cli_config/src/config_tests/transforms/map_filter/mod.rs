@@ -1,9 +1,10 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::str::from_utf8;
 
-use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
+use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_util::cast::checked_usize_to_i32;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::lift_result_from_option;
@@ -12,15 +13,15 @@ use diffbelt_wasm_binding::bytes::BytesSlice;
 use diffbelt_yaml::YamlNode;
 use yaml_input::yaml_test_vars_to_map_filter_input;
 
-use crate::config_tests::{TransformTest, TransformTestPreCreateOptions};
 use crate::config_tests::error::{AssertError, TestError};
 use crate::config_tests::transforms::map_filter::yaml_output::yaml_test_output_to_map_filter_expected_output;
+use crate::config_tests::{TransformTest, TransformTestPreCreateOptions};
 use crate::transforms::map_filter::MapFilterWasm;
-use crate::wasm::{MapFilterFunction, WasmModuleInstance};
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::WasmVecHolder;
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::WasmPtrImpl;
+use crate::wasm::{MapFilterFunction, WasmModuleInstance};
 
 mod yaml_input;
 mod yaml_output;
@@ -241,8 +242,67 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
         actual: &Self::ActualOutput,
         expected: &Self::ExpectedOutput,
     ) -> Result<Option<AssertError>, TestError> {
-        println!("Expected: {expected:?}");
+        let result = self.target_human_readable
+            .instance
+            .enter_memory_observe_context(|memory| {
+                let mut expected_iter = expected.iter();
 
-        todo!()
+                for (key, value) in actual {
+                    let key = memory.vec_view(key)?;
+                    let value = value.as_ref().map(|x| memory.vec_view(x));
+                    let value = lift_result_from_option(value)?;
+
+                    let key = from_utf8(key.as_ref())?;
+                    let key = key.trim();
+                    let value = value.as_ref().map(|x| from_utf8(x.as_ref()));
+                    let value = lift_result_from_option(value)?;
+                    let value = value.map(|x| x.trim());
+
+                    let Some((expected_key, expected_value)) = expected_iter.next() else {
+                        return Ok(Some(AssertError::ValueMissmatch {
+                            message: Cow::Borrowed("Extra actual key"),
+                            actual: Some(key.to_string()),
+                            expected: None,
+                        }))
+                    };
+
+                    let expected_key = *expected_key;
+                    let expected_value = *expected_value;
+
+                    if key != expected_key {
+                        return Ok(Some(AssertError::ValueMissmatch {
+                            message: Cow::Borrowed("Key diff"),
+                            actual: Some(key.to_string()),
+                            expected: Some(expected_key.to_string()),
+                        }))
+                    }
+
+                    if let (Some(actual_value), Some(expected_value)) = (value, expected_value) {
+                        if actual_value == expected_value {
+                            continue;
+                        }
+
+                        return Ok(Some(AssertError::ValueMissmatch {
+                            message: Cow::Borrowed("Value diff"),
+                            actual: Some(actual_value.to_string()),
+                            expected: Some(expected_value.to_string()),
+                        }))
+                    }
+
+                    if let (None, None) = (value, expected_value) {
+                        continue;
+                    }
+
+                    return Ok(Some(AssertError::ValueMissmatch {
+                        message: Cow::Borrowed("Value diff"),
+                        actual: value.map(|x| x.to_string()),
+                        expected: expected_value.map(|x| x.to_string()),
+                    }))
+                }
+
+                Ok::<_, TestError>(None)
+            })?;
+
+        Ok(result)
     }
 }

@@ -77,14 +77,9 @@ impl<'a> WasmBytesSliceResult<'a> {
         fun: F,
     ) -> Result<T, Either<E, WasmError>> {
         self.instance.enter_memory_observe_context(|observer| {
-            let result = observer
-                .observe_byte_slice(self.ptr, self.len, |bytes| fun(bytes))
-                .map_err(|either| match either {
-                    Either::Left(err) => err,
-                    Either::Right(err) => err.into(),
-                })?;
+            let slice = observer.slice_view(self.ptr, self.len)?;
 
-            Ok(result)
+            fun(slice.as_ref())
         })
     }
 
