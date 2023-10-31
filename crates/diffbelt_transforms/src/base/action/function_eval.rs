@@ -5,7 +5,7 @@ pub enum FunctionEvalAction {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct MapFilterEvalAction {
-    pub key: Box<[u8]>,
-    pub from_value: Option<Box<[u8]>>,
-    pub to_value: Option<Box<[u8]>>,
+    pub source_key: Box<[u8]>,
+    pub source_old_value: Option<Box<[u8]>>,
+    pub source_new_value: Option<Box<[u8]>>,
 }

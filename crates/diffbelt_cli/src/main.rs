@@ -11,6 +11,7 @@ use clap::{Arg, Command, Parser};
 use diffbelt_cli_config::CliConfig;
 use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::rc::Rc;
 use std::str::from_utf8;
@@ -46,6 +47,21 @@ async fn run() {
                     break 'outer None;
                 };
 
+                let config_path = PathBuf::from(config_path);
+
+                let Some(self_path) = config_path.parent() else {
+                    eprintln!(
+                        "Config path has no parent: {}",
+                        config_path.as_os_str().to_string_lossy()
+                    );
+                    exit(1);
+                };
+                let Some(self_path) = self_path.to_str() else {
+                    eprintln!("Cannot transform self_path to str");
+                    exit(1);
+                };
+                let self_path = Rc::from(self_path);
+
                 let bytes = match tokio::fs::read(config_path).await {
                     Ok(x) => x,
                     Err(err) => {
@@ -62,7 +78,7 @@ async fn run() {
                     }
                 };
 
-                let config = match CliConfig::from_str(content) {
+                let config = match CliConfig::from_str(self_path, content) {
                     Ok(x) => x,
                     Err(err) => {
                         eprintln!("Error when parsing config: {err:?}");

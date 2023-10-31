@@ -1,7 +1,6 @@
 collections:
   - name: log-lines
     manual: no
-    format: utf8
     human_readable:
       wasm: example
       key_to_bytes: logLinesKeyToBytes
@@ -10,7 +9,6 @@ collections:
       bytes_to_value: logLinesBytesToValue
 
   - name: parsed-log-lines
-    format: json
     human_readable:
       wasm: example
       key_to_bytes: parsedLogLinesKeyToBytes
@@ -19,17 +17,14 @@ collections:
       bytes_to_value: parsedLogLinesBytesToValue
 
   - name: parsed-log-lines:1d
-    format: json
 
   - name: kicks
   - name: kicks:1h
   - name: kicks:1d
 
   - name: updateMs:1d:p
-    format: json
 
   - name: uniqueChats:1d
-    format: json
 
   - name: uniqueUsers:1d
 
@@ -279,7 +274,6 @@ transforms:
     intermediate:
       collection:
         name: updateMs:1d:intermediate
-        format: json
       reader_name: parsed-log-lines
     target: updateMs:1d:p
     reader_name: updateMs:1d:intermediate

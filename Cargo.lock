@@ -602,10 +602,13 @@ dependencies = [
  "clap",
  "diffbelt_cli_config",
  "diffbelt_http_client",
+ "diffbelt_protos",
  "diffbelt_transforms",
  "diffbelt_types",
  "diffbelt_util",
+ "diffbelt_util_no_std",
  "hyper",
+ "thiserror",
  "tokio",
 ]
 
@@ -702,6 +705,7 @@ dependencies = [
 name = "diffbelt_util_no_std"
 version = "0.1.0"
 dependencies = [
+ "either",
  "thiserror-no-std",
 ]
 

@@ -143,34 +143,7 @@ impl CliConfig {
 pub struct Collection {
     pub name: Rc<str>,
     pub manual: bool,
-    pub format: CollectionValueFormat,
     pub human_readable: Option<CollectionHumanReadableConfig>,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum CollectionValueFormat {
-    Bytes,
-    Utf8,
-    Json,
-}
-
-impl CollectionValueFormat {
-    pub fn from_str(format: &str) -> Option<Self> {
-        match format {
-            "bytes" => Some(Self::Bytes),
-            "utf8" => Some(Self::Utf8),
-            "json" => Some(Self::Json),
-            _ => None,
-        }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            CollectionValueFormat::Bytes => "bytes",
-            CollectionValueFormat::Utf8 => "utf8",
-            CollectionValueFormat::Json => "json",
-        }
-    }
 }
 
 impl Collection {
@@ -179,7 +152,6 @@ impl Collection {
 
         let mut name = None;
         let mut manual = true;
-        let mut format = CollectionValueFormat::Bytes;
         let mut human_readable = None;
 
         for (key_node, value) in &map.items {
@@ -192,18 +164,6 @@ impl Collection {
                 }
                 "manual" => {
                     manual = expect_bool(&value)?;
-                }
-                "format" => {
-                    let format_str = expect_str(&value)?;
-
-                    let Some(fmt) = CollectionValueFormat::from_str(format_str) else {
-                        return Err(ConfigParsingError::Custom(ExpectedError {
-                            message: format!("unknown format: \"{}\"", format_str),
-                            position: Some((&value.start_mark).into()),
-                        }));
-                    };
-
-                    format = fmt
                 }
                 "human_readable" => {
                     human_readable = Some(decode_yaml(value)?);
@@ -227,7 +187,6 @@ impl Collection {
         Ok(Self {
             name,
             manual,
-            format,
             human_readable,
         })
     }

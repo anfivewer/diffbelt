@@ -360,9 +360,9 @@ impl MapFilterTransform {
             state.actions_left += 1;
             actions.push((
                 ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
-                    key,
-                    from_value,
-                    to_value,
+                    source_key: key,
+                    source_old_value: from_value,
+                    source_new_value: to_value,
                 })),
                 input_handler!(this, input, {
                     let FunctionEvalInput { body } = input.into_eval_map_filter()?;

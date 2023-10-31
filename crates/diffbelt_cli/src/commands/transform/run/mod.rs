@@ -11,7 +11,7 @@ use diffbelt_cli_config::interpreter::var::VarDef;
 use diffbelt_cli_config::transforms::{
     CollectionDef, CollectionWithFormat, CollectionWithReader, Transform, TransformCollectionDef,
 };
-use diffbelt_cli_config::{Collection, CollectionValueFormat};
+use diffbelt_cli_config::{Collection};
 use diffbelt_transforms::base::action::function_eval::FunctionEvalAction;
 use diffbelt_transforms::base::action::{Action, ActionType};
 use diffbelt_transforms::base::input::diffbelt_call::DiffbeltCallInput;
@@ -53,8 +53,9 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
         name: _,
         source: from_collection_name,
         intermediate,
-        to,
+        target,
         reader_name,
+        map_filter_wasm: _,
         map_filter,
         aggregate,
         percentiles,
@@ -85,78 +86,10 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
     struct CollectionInfoFromTransform<'a> {
         name: &'a str,
         reader_name: Option<&'a str>,
-        format: Option<CollectionValueFormat>,
     }
 
-    let CollectionInfoFromTransform {
-        name: to_collection_name,
-        reader_name: to_collection_reader_name,
-        format: mut to_collection_format,
-    } = match to {
-        TransformCollectionDef::Named(name) => CollectionInfoFromTransform {
-            name: name.as_str(),
-            reader_name: None,
-            format: None,
-        },
-        TransformCollectionDef::WithReader(with_reader) => {
-            let CollectionWithReader {
-                collection,
-                reader_name,
-            } = with_reader;
-            match collection {
-                CollectionDef::Named(name) => CollectionInfoFromTransform {
-                    name: name.as_str(),
-                    reader_name: Some(reader_name.as_str()),
-                    format: None,
-                },
-                CollectionDef::WithFormat(with_format) => {
-                    let CollectionWithFormat { name, format } = with_format;
-
-                    let Some(format) = CollectionValueFormat::from_str(format.as_str()) else {
-                        return Err(CommandError::Message(format!(
-                            "Unknown collection values format \"{format}\""
-                        )));
-                    };
-
-                    CollectionInfoFromTransform {
-                        name: name.as_str(),
-                        reader_name: Some(reader_name.as_str()),
-                        format: Some(format),
-                    }
-                }
-                CollectionDef::Unknown(node) => {
-                    let mark = &node.start_mark;
-                    let line = mark.line;
-                    let column = mark.column;
-
-                    return Err(CommandError::Message(format!(
-                        "Unknown \"to.collection\" definition, line {line}:{column}"
-                    )));
-                }
-            }
-        }
-        TransformCollectionDef::Unknown(node) => {
-            let mark = &node.start_mark;
-            let line = mark.line;
-            let column = mark.column;
-
-            return Err(CommandError::Message(format!(
-                "Unknown \"to\" collection definition, line {line}:{column}"
-            )));
-        }
-    };
-
-    if let (Some(reader_name_a), Some(reader_name_b)) = (to_collection_reader_name, reader_name) {
-        let reader_name_b = reader_name_b.deref();
-        if reader_name_a != reader_name_b {
-            return Err(CommandError::Message(format!(
-                "Conflicting reader name, \"{reader_name_a}\" vs \"{reader_name_b}\""
-            )));
-        }
-    }
-
-    let reader_name =
-        to_collection_reader_name.or_else(|| reader_name.as_ref().map(|name| name.deref()));
+    let to_collection_name = target.deref();
+    let reader_name = reader_name.map(|x| x.as_ref());
 
     let Some(reader_name) = reader_name else {
         return Err(CommandError::Message("No reader_name present".to_string()));
@@ -166,7 +99,7 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
         let Collection {
             name: _,
             manual,
-            format,
+            human_readable: _,
         } = to_collection_from_collections;
 
         if !manual {
@@ -174,25 +107,7 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                 "Collection \"{to_collection_name}\" is not manual"
             )));
         }
-
-        if let Some(to_collection_format) = &to_collection_format {
-            if to_collection_format != format {
-                let to_collection_format = to_collection_format.as_str();
-                let format = format.as_str();
-                return Err(CommandError::Message(format!(
-                    "Conflicting collection format, \"{to_collection_format}\" vs \"{format}\""
-                )));
-            }
-        } else {
-            to_collection_format.replace(format.clone());
-        }
     }
-
-    let Some(to_collection_format) = to_collection_format else {
-        return Err(CommandError::Message(
-            "No target collection format present".to_string(),
-        ));
-    };
 
     let from_collection_name = from_collection_name.deref();
 
@@ -202,18 +117,6 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
             "No collection \"{from_collection_name}\" definition present"
         )));
     };
-
-    let Collection {
-        name: _,
-        manual: _,
-        format: from_collection_format,
-    } = from_collection;
-
-    if from_collection_format != &CollectionValueFormat::Utf8 {
-        return Err(CommandError::Message(
-            "Only utf8 source collection format supported yet".to_string(),
-        ));
-    }
 
     let Some(map_filter) = map_filter else {
         return Err(CommandError::Message("Unknown transform type".to_string()));
@@ -293,8 +196,6 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                                 () = MapFilterEvalOptions {
                                     verbose,
                                     action,
-                                    from_collection_format: *from_collection_format,
-                                    to_collection_format,
                                     map_filter: &map_filter,
                                     inputs: &mut inputs,
                                     action_id,

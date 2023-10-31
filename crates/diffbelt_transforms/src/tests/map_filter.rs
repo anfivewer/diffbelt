@@ -154,27 +154,27 @@ fn map_filter_test() {
     assert_eq!(
         action2,
         ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
-            key: Box::from("k1".as_bytes()),
-            from_value: None,
-            to_value: Some(Box::from("v1".as_bytes())),
+            source_key: Box::from("k1".as_bytes()),
+            source_old_value: None,
+            source_new_value: Some(Box::from("v1".as_bytes())),
         }))
     );
 
     assert_eq!(
         action3,
         ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
-            key: Box::from("k2".as_bytes()),
-            from_value: Some(Box::from("v2".as_bytes())),
-            to_value: Some(Box::from("v2-2".as_bytes())),
+            source_key: Box::from("k2".as_bytes()),
+            source_old_value: Some(Box::from("v2".as_bytes())),
+            source_new_value: Some(Box::from("v2-2".as_bytes())),
         }))
     );
 
     assert_eq!(
         action4,
         ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
-            key: Box::from("k3".as_bytes()),
-            from_value: Some(Box::from("v3".as_bytes())),
-            to_value: None,
+            source_key: Box::from("k3".as_bytes()),
+            source_old_value: Some(Box::from("v3".as_bytes())),
+            source_new_value: None,
         }))
     );
 
@@ -242,9 +242,9 @@ fn map_filter_test() {
     assert_eq!(
         action6,
         ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
-            key: Box::from("k4".as_bytes()),
-            from_value: Some(Box::from("v4".as_bytes())),
-            to_value: Some(Box::from("v4-2".as_bytes())),
+            source_key: Box::from("k4".as_bytes()),
+            source_old_value: Some(Box::from("v4".as_bytes())),
+            source_new_value: Some(Box::from("v4-2".as_bytes())),
         }))
     );
 

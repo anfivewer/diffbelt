@@ -25,6 +25,14 @@ impl<'fbb> Serializer<'fbb> {
         }
     }
 
+    pub fn from_vec(mut buffer: Vec<u8>) -> Self {
+        buffer.clear();
+
+        Self {
+            buffer_builder_: FlatBufferBuilder::from_vec(buffer),
+        }
+    }
+
     pub fn buffer_builder(&mut self) -> &mut FlatBufferBuilder<'fbb> {
         &mut self.buffer_builder_
     }
@@ -62,6 +70,11 @@ impl Serialized<'_> {
         let (data, head) = self.buffer_builder_.collapse();
 
         OwnedSerialized { data_: data, head }
+    }
+
+    pub fn into_empty_vec(self) -> Vec<u8> {
+        let (buffer, _) = self.buffer_builder_.collapse();
+        buffer
     }
 }
 

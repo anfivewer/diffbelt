@@ -9,12 +9,16 @@ edition = "2021"
 clap = { version = "4.3.21", features = ["derive", "string"] }
 tokio = { version = "1.22.0", features = ["full"] }
 hyper = { version = "0.14.23", features = ["full"] }
+thiserror = "1.0.50"
 
 [dependencies.diffbelt_types]
 path = "../diffbelt_types"
 
 [dependencies.diffbelt_util]
 path = "../diffbelt_util"
+
+[dependencies.diffbelt_util_no_std]
+path = "../diffbelt_util_no_std"
 
 [dependencies.diffbelt_http_client]
 path = "../diffbelt_http_client"
@@ -24,3 +28,6 @@ path = "../diffbelt_cli_config"
 
 [dependencies.diffbelt_transforms]
 path = "../diffbelt_transforms"
+
+[dependencies.diffbelt_protos]
+path = "../diffbelt_protos"
