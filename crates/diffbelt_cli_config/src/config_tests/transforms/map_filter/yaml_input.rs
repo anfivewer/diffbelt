@@ -1,34 +1,12 @@
-use either::Either;
-use thiserror::Error;
-
+use diffbelt_protos::{OwnedSerialized, Serializer};
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterInput, MapFilterInputArgs, MapFilterMultiInput, MapFilterMultiInputArgs,
 };
-use diffbelt_protos::{OwnedSerialized, Serializer};
 use diffbelt_yaml::YamlNode;
 
-use crate::config_tests::value::{parse_scalar, ScalarParseError};
+use crate::config_tests::error::YamlTestVarsError;
+use crate::config_tests::value::parse_scalar;
 use crate::wasm::human_readable::HumanReadableFunctions;
-use crate::wasm::WasmError;
-
-#[derive(Error, Debug)]
-pub enum YamlTestVarsError {
-    #[error(transparent)]
-    ScalarParse(#[from] ScalarParseError),
-    #[error(transparent)]
-    Wasm(#[from] WasmError),
-    #[error("{0}")]
-    Unspecified(String),
-}
-
-impl From<Either<YamlTestVarsError, WasmError>> for YamlTestVarsError {
-    fn from(value: Either<YamlTestVarsError, WasmError>) -> Self {
-        match value {
-            Either::Left(err) => err,
-            Either::Right(err) => err.into(),
-        }
-    }
-}
 
 pub fn yaml_test_vars_to_map_filter_input(
     human_readable_functions: &HumanReadableFunctions,

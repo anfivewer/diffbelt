@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use either::Either;
-use wasmer::WasmPtr;
+use wasmer::{MemoryView, WasmPtr};
 
 use diffbelt_util::cast::{try_positive_i32_to_u32, try_usize_to_u32, u32_to_usize};
 use diffbelt_wasm_binding::bytes::BytesVecRawParts;
@@ -18,6 +18,13 @@ pub struct WasmManualDealloc<'a> {
 
 pub struct WasmBytesSliceResult<'a> {
     pub instance: &'a WasmModuleInstance,
+    pub ptr: WasmPtr<u8>,
+    pub len: u32,
+
+    pub on_drop_dealloc: Option<(WasmPtr<u8>, i32)>,
+}
+
+pub struct WasmBytesSliceOwnedUnsafe {
     pub ptr: WasmPtr<u8>,
     pub len: u32,
 
@@ -65,28 +72,20 @@ impl<'a> WasmBytesSliceResult<'a> {
         Ok(ptr)
     }
 
-    pub fn observe_bytes<T, E, F: FnOnce(&[u8]) -> Result<T, E>>(
+    pub fn observe_bytes<T, E: From<WasmError>, F: FnOnce(&[u8]) -> Result<T, E>>(
         &self,
         fun: F,
     ) -> Result<T, Either<E, WasmError>> {
-        let store = self
-            .instance
-            .store
-            .try_borrow()
-            .map_err(|err| Either::Right(err.into()))?;
-        let store = store.deref();
+        self.instance.enter_memory_observe_context(|observer| {
+            let result = observer
+                .observe_byte_slice(self.ptr, self.len, |bytes| fun(bytes))
+                .map_err(|either| match either {
+                    Either::Left(err) => err,
+                    Either::Right(err) => err.into(),
+                })?;
 
-        let view = self.instance.allocation.memory.view(store);
-
-        let slice = self
-            .ptr
-            .slice(&view, self.len)
-            .map_err(|err| Either::Right(err.into()))?;
-
-        let slice = slice.access().map_err(|err| Either::Right(err.into()))?;
-        let slice = slice.as_ref();
-
-        fun(slice).map_err(Either::Left)
+            Ok(result)
+        })
     }
 
     pub fn manually_dealloced(&mut self) -> Option<WasmManualDealloc<'_>> {
@@ -97,6 +96,14 @@ impl<'a> WasmBytesSliceResult<'a> {
                 ptr,
                 capacity,
             })
+    }
+
+    pub fn into_owned_unsafe(self) -> WasmBytesSliceOwnedUnsafe {
+        WasmBytesSliceOwnedUnsafe {
+            ptr: self.ptr,
+            len: self.len,
+            on_drop_dealloc: self.on_drop_dealloc,
+        }
     }
 }
 

@@ -23,8 +23,8 @@ pub enum Scalar<'a> {
     None,
 }
 
-impl Scalar<'_> {
-    pub fn as_str(&self) -> Option<&str> {
+impl <'a> Scalar<'a> {
+    pub fn as_str(&'_ self) -> Option<&'a str> {
         match self {
             Scalar::U64((_, s)) => Some(s),
             Scalar::String(s) => Some(s),

@@ -4,36 +4,34 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::Utf8Error;
 use std::sync::{Arc, Mutex};
-use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
 
+use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
 use serde::Deserialize;
 use thiserror::Error;
 use wasmer::{
-    AsStoreRef, CompileError, Cranelift, ExportError, FromToNativeWasmType, Imports, Instance,
-    InstantiationError, Memory, MemoryAccessError, MemoryError, Module, RuntimeError, Store,
+    AsStoreRef, CompileError, ExportError, FromToNativeWasmType, Imports, Instance,
+    InstantiationError, MemoryAccessError, MemoryError, Module, RuntimeError, Store,
     TypedFunction, WasmPtr, WasmTypeList,
 };
-use wasmer_types::Features;
 
 use diffbelt_util::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
 use diffbelt_util::Wrap;
 use diffbelt_wasm_binding::transform::map_filter::MapFilterResult;
+use memory::Allocation;
+pub use types::WasmPtrImpl;
 
 use crate::errors::WithMark;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::WasmFilterResult;
 use crate::wasm::wasm_env::WasmEnv;
-use memory::Allocation;
 
 pub mod human_readable;
-mod memory;
+pub mod memory;
 pub mod result;
-mod types;
+pub mod types;
 pub mod util;
 mod wasm_env;
-
-pub use types::WasmPtrImpl;
 
 #[derive(Deserialize, Debug)]
 pub struct Wasm {

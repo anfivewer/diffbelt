@@ -1,6 +1,8 @@
+pub mod observe_context;
+
 use std::ops::DerefMut;
 
-use wasmer::{AsStoreRef, Instance, Memory, TypedFunction, WasmPtr};
+use wasmer::{AsStoreRef, Instance, Memory, MemoryView, TypedFunction, WasmPtr};
 
 use diffbelt_util::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
 use diffbelt_wasm_binding::bytes::BytesSlice;

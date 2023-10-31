@@ -8,10 +8,9 @@ use crate::interpreter::value::Value;
 use crate::interpreter::var::Var;
 use crate::CollectionValueFormat;
 
-mod json;
-pub mod yaml_map_filter;
 pub mod collection_human_readable_config;
 pub mod human_readable;
+mod json;
 
 #[derive(Debug)]
 pub enum ValueFormatError {
