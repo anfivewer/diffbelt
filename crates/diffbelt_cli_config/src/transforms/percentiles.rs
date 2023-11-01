@@ -1,15 +1,15 @@
-use crate::code::Code;
 use crate::transforms::TranformTargetKey;
 use serde::Deserialize;
+use crate::transforms::wasm::WasmMethodDef;
 
 #[derive(Debug, Deserialize)]
 pub struct Percentiles {
     pub percentiles: Vec<String>,
     pub target_key: TranformTargetKey,
-    pub intermediate: Code,
-    pub empty_accumulator: Code,
-    pub initial_accumulator: Code,
-    pub reduce: Code,
-    pub percentiles_data: Code,
-    pub apply: Code,
+    pub intermediate: WasmMethodDef,
+    pub empty_accumulator: WasmMethodDef,
+    pub initial_accumulator: WasmMethodDef,
+    pub reduce: WasmMethodDef,
+    pub percentiles_data: WasmMethodDef,
+    pub apply: WasmMethodDef,
 }

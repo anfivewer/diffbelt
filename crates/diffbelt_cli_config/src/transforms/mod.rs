@@ -1,95 +1,32 @@
-use crate::code::Code;
-use crate::transforms::aggregate::Aggregate;
-use crate::transforms::map_filter::{MapFilterWasm, MapFilterYaml};
-use crate::transforms::percentiles::Percentiles;
-use crate::transforms::unique_count::UniqueCount;
-use diffbelt_yaml::{decode_yaml, YamlNode};
-use serde::{Deserialize, Deserializer};
 use std::rc::Rc;
 
+use serde::Deserialize;
+
+use crate::transforms::aggregate::Aggregate;
+use crate::transforms::percentiles::Percentiles;
+use crate::transforms::unique_count::UniqueCount;
+use crate::transforms::wasm::WasmMethodDef;
+
 pub mod aggregate;
-pub mod map_filter;
 pub mod percentiles;
 pub mod unique_count;
+pub mod wasm;
 
 #[derive(Debug, Deserialize)]
 pub struct Transform {
     pub name: Option<Rc<str>>,
     pub source: Rc<str>,
     pub target: Rc<str>,
-    pub intermediate: Option<TransformCollectionDef>,
+    pub intermediate: Option<Rc<str>>,
     pub reader_name: Option<Rc<str>>,
-    pub map_filter_wasm: Option<MapFilterWasm>,
-    pub map_filter: Option<MapFilterYaml>,
+    pub map_filter: Option<WasmMethodDef>,
     pub aggregate: Option<Aggregate>,
     pub percentiles: Option<Percentiles>,
     pub unique_count: Option<UniqueCount>,
 }
 
-#[derive(Debug)]
-pub enum TransformCollectionDef {
-    Named(String),
-    WithReader(CollectionWithReader),
-    Unknown(Rc<YamlNode>),
-}
-
-#[derive(Debug)]
-pub enum CollectionDef {
-    Named(String),
-    WithFormat(CollectionWithFormat),
-    Unknown(Rc<YamlNode>),
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CollectionWithReader {
-    pub collection: CollectionDef,
-    pub reader_name: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CollectionWithFormat {
-    pub name: String,
-    pub format: String,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct TranformTargetKey {
-    pub source: Code,
-    pub intermediate: Code,
-}
-
-impl<'de> Deserialize<'de> for TransformCollectionDef {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let raw = YamlNode::deserialize(deserializer)?;
-
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(TransformCollectionDef::Named(value));
-        }
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(TransformCollectionDef::WithReader(value));
-        }
-
-        Ok(TransformCollectionDef::Unknown(raw))
-    }
-}
-
-impl<'de> Deserialize<'de> for CollectionDef {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let raw = YamlNode::deserialize(deserializer)?;
-
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(CollectionDef::Named(value));
-        }
-        if let Ok(value) = decode_yaml(&raw) {
-            return Ok(CollectionDef::WithFormat(value));
-        }
-
-        Ok(CollectionDef::Unknown(raw))
-    }
+    pub source: WasmMethodDef,
+    pub intermediate: WasmMethodDef,
 }

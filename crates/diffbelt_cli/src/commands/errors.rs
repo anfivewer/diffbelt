@@ -1,7 +1,6 @@
 use thiserror::Error;
 
 use diffbelt_cli_config::config_tests::run::RunTestsError;
-use diffbelt_cli_config::interpreter::error::InterpreterError;
 use diffbelt_cli_config::wasm::WasmError;
 use diffbelt_http_client::errors::DiffbeltClientError;
 use diffbelt_protos::InvalidFlatbuffer;
@@ -19,8 +18,6 @@ pub enum CommandError {
     Transform(TransformError),
     #[error(transparent)]
     DiffbeltClient(DiffbeltClientError),
-    #[error("{0}")]
-    Interpreter(String),
     #[error(transparent)]
     Wasm(#[from] WasmError),
     #[error(transparent)]
@@ -36,12 +33,6 @@ impl From<TransformError> for CommandError {
 impl From<DiffbeltClientError> for CommandError {
     fn from(value: DiffbeltClientError) -> Self {
         Self::DiffbeltClient(value)
-    }
-}
-
-impl From<InterpreterError> for CommandError {
-    fn from(value: InterpreterError) -> Self {
-        Self::Interpreter(format!("{value:?}"))
     }
 }
 

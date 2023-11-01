@@ -174,7 +174,7 @@ impl CliConfig {
 
                     match transform_method {
                         "map_filter" => {
-                            if let Some(map_filter) = transform.map_filter_wasm.as_ref() {
+                            if let Some(map_filter) = transform.map_filter.as_ref() {
                                 match_ok!(<MapFilterTransformTest as TransformTest>::pre_create(
                                     TransformTestPreCreateOptions {
                                         source_collection,

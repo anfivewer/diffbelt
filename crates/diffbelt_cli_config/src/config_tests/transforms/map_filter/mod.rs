@@ -16,7 +16,7 @@ use yaml_input::yaml_test_vars_to_map_filter_input;
 use crate::config_tests::error::{AssertError, TestError};
 use crate::config_tests::transforms::map_filter::yaml_output::yaml_test_output_to_map_filter_expected_output;
 use crate::config_tests::{TransformTest, TransformTestPreCreateOptions};
-use crate::transforms::map_filter::MapFilterWasm;
+use crate::transforms::wasm::WasmMethodDef;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::WasmVecHolder;
 use crate::wasm::result::WasmBytesSliceResult;
@@ -33,12 +33,12 @@ pub struct MapFilterTransformTest<'a> {
 }
 
 impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
-    type ConstructorData = &'a MapFilterWasm;
+    type ConstructorData = &'a WasmMethodDef;
     type InitialData = TransformTestPreCreateOptions<'a, Self::ConstructorData>;
 
     fn pre_create(
         options: TransformTestPreCreateOptions<'a, Self::ConstructorData>,
-    ) -> Result<TransformTestPreCreateOptions<'a, &'a MapFilterWasm>, TestError> {
+    ) -> Result<TransformTestPreCreateOptions<'a, &'a WasmMethodDef>, TestError> {
         Ok(options)
     }
 

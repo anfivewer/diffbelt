@@ -11,11 +11,9 @@ use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
 use crate::wasm::{NewWasmInstanceOptions, Wasm, WasmError, WasmModuleInstance};
 
-pub mod code;
 pub mod config_tests;
 pub mod errors;
 pub mod formats;
-pub mod interpreter;
 pub mod transforms;
 pub mod util;
 pub mod wasm;

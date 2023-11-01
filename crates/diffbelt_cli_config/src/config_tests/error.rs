@@ -10,7 +10,6 @@ use diffbelt_util_no_std::slice::SliceOffsetError;
 
 use crate::config_tests::value::{ScalarParseError, YamlValueConstructionError};
 use crate::formats::human_readable::HumanReadableError;
-use crate::interpreter::error::InterpreterError;
 use crate::wasm::WasmError;
 
 #[derive(Debug)]
@@ -36,8 +35,6 @@ pub enum TestError {
     Panic(String),
     #[error("{0:?}")]
     YamlValueConstruction(YamlValueConstructionError),
-    #[error("{0:?}")]
-    Interpreter(InterpreterError),
     #[error(transparent)]
     Wasm(#[from] WasmError),
     #[error(transparent)]

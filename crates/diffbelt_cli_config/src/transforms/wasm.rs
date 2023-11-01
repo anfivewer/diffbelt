@@ -1,22 +1,19 @@
-use serde::{Deserialize, Deserializer};
 use serde::de::Error;
+use serde::{Deserialize, Deserializer};
 
-use crate::code::Code;
 use crate::errors::{ConfigPositionMark, WithMark};
 
-pub type MapFilterYaml = Code;
-
 #[derive(Debug)]
-pub struct MapFilterWasm {
+pub struct WasmMethodDef {
     pub mark: ConfigPositionMark,
     pub module_name: String,
     pub method_name: String,
 }
 
-impl<'de> Deserialize<'de> for MapFilterWasm {
+impl<'de> Deserialize<'de> for WasmMethodDef {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
+        where
+            D: Deserializer<'de>,
     {
         let s: WithMark<&str> = Deserialize::deserialize(deserializer)?;
         let WithMark { value, mark } = s;
