@@ -1,4 +1,3 @@
-use std::str::from_utf8;
 #[macro_export]
 macro_rules! value_encoding_into_bytes {
     ( $original:ident ) => {

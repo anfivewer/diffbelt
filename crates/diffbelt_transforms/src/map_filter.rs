@@ -497,6 +497,8 @@ impl MapFilterTransform {
             outputs_buffer,
         } = input;
 
+        self.free_buffers_for_eval_inputs.push(outputs_buffer);
+
         let bytes = &inputs_buffer[inputs_head..(inputs_head + inputs_len)];
         let map_filter_multi_output =
             deserialize::<MapFilterMultiOutput>(bytes).map_err(NoStdErrorWrap)?;
@@ -524,6 +526,8 @@ impl MapFilterTransform {
                 value: value.map(|x| EncodedValueJsonData::from_bytes_slice(x)),
             });
         }
+
+        self.free_buffers_for_eval_outputs.push(inputs_buffer);
 
         self.post_handle()
     }

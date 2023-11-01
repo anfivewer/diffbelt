@@ -1,7 +1,10 @@
-use crate::collection::methods::put::CollectionPutManyOptions;
-use diffbelt_macro::fn_box_pin_async;
 use regex::Regex;
 
+use diffbelt_macro::fn_box_pin_async;
+use diffbelt_types::collection::put_many::{PutManyRequestJsonData, PutManyResponseJsonData};
+use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
+
+use crate::collection::methods::put::CollectionPutManyOptions;
 use crate::context::Context;
 use crate::http::constants::PUT_MANY_REQUEST_MAX_BYTES;
 use crate::http::data::encoded_generation_id::{
@@ -19,9 +22,6 @@ use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 use crate::util::str_serialization::StrSerializationType;
-use diffbelt_types::collection::put_many::{PutManyRequestJsonData, PutManyResponseJsonData};
-use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
-use serde::Deserialize;
 
 #[fn_box_pin_async]
 async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult {
