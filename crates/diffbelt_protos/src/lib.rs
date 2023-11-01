@@ -4,7 +4,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use flatbuffers::{FlatBufferBuilder, Follow, Push, Verifiable};
-pub use flatbuffers::{InvalidFlatbuffer, WIPOffset, Vector};
+pub use flatbuffers::{InvalidFlatbuffer, Vector, WIPOffset};
 
 pub mod protos;
 pub mod util;

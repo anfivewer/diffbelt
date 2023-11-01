@@ -5,9 +5,9 @@ use std::str::from_utf8;
 
 use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
 use diffbelt_protos::{deserialize, OwnedSerialized};
-use diffbelt_util_no_std::cast::checked_usize_to_i32;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::lift_result_from_option;
+use diffbelt_util_no_std::cast::checked_usize_to_i32;
 use diffbelt_util_no_std::slice::get_slice_offset_in_other_slice;
 use diffbelt_wasm_binding::bytes::BytesSlice;
 use diffbelt_yaml::YamlNode;
@@ -242,7 +242,8 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
         actual: &Self::ActualOutput,
         expected: &Self::ExpectedOutput,
     ) -> Result<Option<AssertError>, TestError> {
-        let result = self.target_human_readable
+        let result = self
+            .target_human_readable
             .instance
             .enter_memory_observe_context(|memory| {
                 let mut expected_iter = expected.iter();
@@ -263,7 +264,7 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
                             message: Cow::Borrowed("Extra actual key"),
                             actual: Some(key.to_string()),
                             expected: None,
-                        }))
+                        }));
                     };
 
                     let expected_key = *expected_key;
@@ -274,7 +275,7 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
                             message: Cow::Borrowed("Key diff"),
                             actual: Some(key.to_string()),
                             expected: Some(expected_key.to_string()),
-                        }))
+                        }));
                     }
 
                     if let (Some(actual_value), Some(expected_value)) = (value, expected_value) {
@@ -286,7 +287,7 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
                             message: Cow::Borrowed("Value diff"),
                             actual: Some(actual_value.to_string()),
                             expected: Some(expected_value.to_string()),
-                        }))
+                        }));
                     }
 
                     if let (None, None) = (value, expected_value) {
@@ -297,7 +298,7 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
                         message: Cow::Borrowed("Value diff"),
                         actual: value.map(|x| x.to_string()),
                         expected: expected_value.map(|x| x.to_string()),
-                    }))
+                    }));
                 }
 
                 Ok::<_, TestError>(None)

@@ -6,8 +6,8 @@ use wasmer_types::{Memory32, MemorySize, ValueType};
 
 use diffbelt_wasm_binding::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::PtrImpl;
-use diffbelt_wasm_binding::ReplaceResult;
 use diffbelt_wasm_binding::transform::map_filter::MapFilterResult;
+use diffbelt_wasm_binding::ReplaceResult;
 
 #[derive(Copy, Clone, Debug)]
 pub struct WasmPtrImpl;

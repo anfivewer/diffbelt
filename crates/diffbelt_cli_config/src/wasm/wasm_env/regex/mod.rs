@@ -3,23 +3,20 @@ use std::cmp::min;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-use regex::Regex;
-use wasmer::{
-    Function, FunctionEnv, FunctionEnvMut, Imports, Memory, Store, ValueType,
-    WasmPtr,
-};
 use diffbelt_util_no_std::cast::{
     try_positive_i32_to_usize, try_usize_to_i32, unchecked_i32_to_u32, unchecked_usize_to_i32,
     unchecked_usize_to_u32, usize_to_u64,
 };
-use diffbelt_wasm_binding::ReplaceResult;
 use diffbelt_wasm_binding::bytes::BytesVecRawParts;
+use diffbelt_wasm_binding::ReplaceResult;
+use regex::Regex;
+use wasmer::{Function, FunctionEnv, FunctionEnvMut, Imports, Memory, Store, ValueType, WasmPtr};
 
+use crate::wasm::memory::Allocation;
 use crate::wasm::types::{BytesVecFullTrait, WasmPtrImpl, WasmReplaceResult};
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::WasmError;
-use crate::wasm::memory::Allocation;
 
 pub struct WasmRegex {
     regex: Regex,

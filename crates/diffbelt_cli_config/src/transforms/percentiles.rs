@@ -1,6 +1,6 @@
+use crate::transforms::wasm::WasmMethodDef;
 use crate::transforms::TranformTargetKey;
 use serde::Deserialize;
-use crate::transforms::wasm::WasmMethodDef;
 
 #[derive(Debug, Deserialize)]
 pub struct Percentiles {

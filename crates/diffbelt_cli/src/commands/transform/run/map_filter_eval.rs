@@ -2,10 +2,10 @@ use diffbelt_cli_config::wasm::MapFilterFunction;
 use diffbelt_protos::deserialize;
 use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFilterMultiOutput};
 use diffbelt_transforms::base::action::function_eval::MapFilterEvalAction;
-use diffbelt_transforms::base::input::{Input, InputType};
 use diffbelt_transforms::base::input::function_eval::{
     FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput,
 };
+use diffbelt_transforms::base::input::{Input, InputType};
 use diffbelt_util::errors::NoStdErrorWrap;
 
 use crate::commands::errors::MapFilterEvalError;
@@ -36,7 +36,8 @@ impl MapFilterEvalOptions<'_> {
         } = action;
 
         let inputs_slice = &inputs_buffer[inputs_head..(inputs_head + inputs_len)];
-        let map_filter_multi_input = deserialize::<MapFilterMultiInput>(inputs_slice).map_err(NoStdErrorWrap)?;
+        let map_filter_multi_input =
+            deserialize::<MapFilterMultiInput>(inputs_slice).map_err(NoStdErrorWrap)?;
 
         if verbose {
             println!(

@@ -2,7 +2,9 @@ use alloc::string::String;
 use core::fmt::{Formatter, Write};
 use core::str::from_utf8;
 
-const HEX_TABLE: [char; 16] = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'];
+const HEX_TABLE: [char; 16] = [
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+];
 
 #[allow(dead_code)]
 pub fn bytes_as_hex(bytes: &[u8]) -> String {

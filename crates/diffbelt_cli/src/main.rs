@@ -10,8 +10,8 @@ use diffbelt_cli_config::CliConfig;
 use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
 
-use crate::commands::Commands;
 use crate::commands::errors::CommandError;
+use crate::commands::Commands;
 use crate::global::set_global_config;
 use crate::state::CliState;
 

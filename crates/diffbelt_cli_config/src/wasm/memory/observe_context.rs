@@ -6,8 +6,8 @@ use wasmer_types::ValueType;
 
 use diffbelt_util_no_std::cast::try_positive_i32_to_u32;
 
-use crate::wasm::{WasmError, WasmModuleInstance};
 use crate::wasm::memory::WasmVecHolder;
+use crate::wasm::{WasmError, WasmModuleInstance};
 
 pub struct WasmMemoryObserver<'a> {
     view: MemoryView<'a>,

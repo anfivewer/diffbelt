@@ -18,26 +18,31 @@ pub struct HumanReadableFunctions<'a> {
 macro_rules! impl_call {
     ($fn_name:ident, $field:ident, $fn_name_str:literal) => {
         pub fn $fn_name(
-        &self,
-        slice: &BytesSlice<WasmPtrImpl>,
-        holder: &WasmVecHolder,
-    ) -> Result<(), WasmError> {
-        let mut store = self.instance.store.try_borrow_mut()?;
-        let store = store.deref_mut();
+            &self,
+            slice: &BytesSlice<WasmPtrImpl>,
+            holder: &WasmVecHolder,
+        ) -> Result<(), WasmError> {
+            let mut store = self.instance.store.try_borrow_mut()?;
+            let store = store.deref_mut();
 
-        let error_code = self
-            .$field
-            .call(store, slice.ptr.into(), slice.len, holder.ptr)?;
-        let error_code = ErrorCode::from_repr(error_code);
+            let error_code = self
+                .$field
+                .call(store, slice.ptr.into(), slice.len, holder.ptr)?;
+            let error_code = ErrorCode::from_repr(error_code);
 
-        let ErrorCode::Ok = error_code else {
-            return Err(WasmError::Unspecified(format!(
-                concat!("HumanReadableFunctions::", $fn_name_str, "() error code {:?}"), error_code
-            )));
-        };
+            let ErrorCode::Ok = error_code else {
+                return Err(WasmError::Unspecified(format!(
+                    concat!(
+                        "HumanReadableFunctions::",
+                        $fn_name_str,
+                        "() error code {:?}"
+                    ),
+                    error_code
+                )));
+            };
 
-        Ok(())
-    }
+            Ok(())
+        }
     };
 }
 

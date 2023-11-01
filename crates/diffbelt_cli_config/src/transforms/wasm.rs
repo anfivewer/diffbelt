@@ -12,8 +12,8 @@ pub struct WasmMethodDef {
 
 impl<'de> Deserialize<'de> for WasmMethodDef {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         let s: WithMark<&str> = Deserialize::deserialize(deserializer)?;
         let WithMark { value, mark } = s;

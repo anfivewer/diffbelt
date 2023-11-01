@@ -5,10 +5,10 @@ use wasmer::{AsStoreRef, Instance, Memory, TypedFunction, WasmPtr};
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
 use diffbelt_wasm_binding::bytes::BytesSlice;
 
-use crate::wasm::{export_error_context, WasmError, WasmModuleInstance};
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
 use crate::wasm::wasm_env::WasmEnv;
+use crate::wasm::{export_error_context, WasmError, WasmModuleInstance};
 
 pub mod observe_context;
 

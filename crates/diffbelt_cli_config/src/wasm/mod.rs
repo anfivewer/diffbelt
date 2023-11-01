@@ -1,5 +1,5 @@
 use std::io::ErrorKind;
-use std::ops::{DerefMut};
+use std::ops::DerefMut;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::Utf8Error;
@@ -9,9 +9,9 @@ use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
 use serde::Deserialize;
 use thiserror::Error;
 use wasmer::{
-    AsStoreRef, CompileError, ExportError, Imports, Instance,
-    InstantiationError, MemoryAccessError, MemoryError, Module, RuntimeError, Store,
-    TypedFunction, WasmPtr, WasmTypeList,
+    AsStoreRef, CompileError, ExportError, Imports, Instance, InstantiationError,
+    MemoryAccessError, MemoryError, Module, RuntimeError, Store, TypedFunction, WasmPtr,
+    WasmTypeList,
 };
 
 use diffbelt_util::Wrap;

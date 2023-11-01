@@ -1,8 +1,8 @@
 use alloc::borrow::Cow;
 use alloc::string::String;
-use core::{ptr, slice};
 use core::marker::PhantomData;
 use core::str::from_utf8_unchecked;
+use core::{ptr, slice};
 
 use thiserror_no_std::Error;
 

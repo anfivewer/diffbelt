@@ -115,7 +115,8 @@ impl CliConfig {
     pub async fn new_wasm_instance(&self, wasm: &Wasm) -> Result<WasmModuleInstance, WasmError> {
         wasm.new_wasm_instance(NewWasmInstanceOptions {
             config_path: self.self_path.deref(),
-        }).await
+        })
+        .await
     }
 
     pub fn collection_by_name(&self, collection_name: &str) -> Option<&Collection> {

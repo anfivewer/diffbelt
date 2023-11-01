@@ -7,11 +7,9 @@ use serde::Deserialize;
 use diffbelt_yaml::{YamlNode, YamlNodeRc};
 use error::{AssertError, TestError};
 
-use crate::{CliConfig, Collection};
 use crate::config_tests::transforms::map_filter::MapFilterTransformTest;
-use crate::wasm::{
-    NewWasmInstanceOptions, WasmModuleInstance,
-};
+use crate::wasm::{NewWasmInstanceOptions, WasmModuleInstance};
+use crate::{CliConfig, Collection};
 
 pub mod error;
 pub mod run;
@@ -67,16 +65,10 @@ pub trait TransformTest<'a>: Sized {
     ) -> Result<Self, TestError>;
 
     type Input;
-    fn input_from_test_vars(
-        &self,
-        vars: &Rc<YamlNode>,
-    ) -> Result<Self::Input, TestError>;
+    fn input_from_test_vars(&self, vars: &Rc<YamlNode>) -> Result<Self::Input, TestError>;
 
     type Output;
-    fn input_to_output(
-        &'a self,
-        input: Self::Input,
-    ) -> Result<Self::Output, TestError>;
+    fn input_to_output(&'a self, input: Self::Input) -> Result<Self::Output, TestError>;
 
     type ActualOutput;
     fn output_to_actual_output(

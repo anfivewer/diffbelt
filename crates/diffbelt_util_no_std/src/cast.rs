@@ -16,7 +16,6 @@ pub fn unchecked_usize_to_i32(value: usize) -> i32 {
     value as i32
 }
 
-
 #[inline(always)]
 #[cfg(target_pointer_width = "64")]
 pub fn u64_to_usize(value: u64) -> usize {
