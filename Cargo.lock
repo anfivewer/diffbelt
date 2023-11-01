@@ -572,6 +572,7 @@ dependencies = [
  "diffbelt_macro",
  "diffbelt_types",
  "diffbelt_util",
+ "diffbelt_util_no_std",
  "futures",
  "hashbrown 0.13.2",
  "hyper",
@@ -620,6 +621,7 @@ dependencies = [
  "diffbelt_example_protos",
  "diffbelt_protos",
  "diffbelt_util",
+ "diffbelt_util_no_std",
  "diffbelt_wasm_binding",
  "diffbelt_yaml",
  "dioxus-hooks",
@@ -653,6 +655,7 @@ dependencies = [
  "hyper",
  "serde",
  "serde_json",
+ "thiserror",
  "tokio",
 ]
 
@@ -671,9 +674,12 @@ dependencies = [
 name = "diffbelt_transforms"
 version = "0.1.0"
 dependencies = [
+ "diffbelt_protos",
  "diffbelt_types",
  "diffbelt_util",
+ "diffbelt_util_no_std",
  "generational-arena",
+ "thiserror",
  "urlencoding",
 ]
 
@@ -686,6 +692,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "thiserror",
 ]
 
 [[package]]
@@ -722,7 +729,9 @@ name = "diffbelt_yaml"
 version = "0.1.0"
 dependencies = [
  "diffbelt_util",
+ "diffbelt_util_no_std",
  "serde",
+ "thiserror",
  "unsafe-libyaml",
 ]
 

@@ -1,6 +1,6 @@
 use crate::wasm::memory::WasmVecHolder;
 use crate::wasm::{WasmError, WasmModuleInstance};
-use diffbelt_util::cast::{try_positive_i32_to_u32, unchecked_i32_to_u32};
+use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, unchecked_i32_to_u32};
 use either::Either;
 use std::ops::Deref;
 use wasmer::{MemoryView, WasmPtr, WasmSliceAccess};

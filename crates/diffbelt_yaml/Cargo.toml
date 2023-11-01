@@ -8,6 +8,10 @@ edition = "2021"
 [dependencies]
 unsafe-libyaml = "0.2.9"
 serde = { version = "1.0.188", features = ["derive"] }
+thiserror = "1.0.50"
 
 [dependencies.diffbelt_util]
 path = "../diffbelt_util"
+
+[dependencies.diffbelt_util_no_std]
+path = "../diffbelt_util_no_std"

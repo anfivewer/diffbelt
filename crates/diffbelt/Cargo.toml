@@ -33,6 +33,9 @@ path = "../diffbelt_types"
 [dependencies.diffbelt_util]
 path = "../diffbelt_util"
 
+[dependencies.diffbelt_util_no_std]
+path = "../diffbelt_util_no_std"
+
 [dependencies.diffbelt_macro]
 path = "../diffbelt_macro"
 

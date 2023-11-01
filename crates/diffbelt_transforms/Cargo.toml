@@ -8,9 +8,16 @@ edition = "2021"
 [dependencies]
 generational-arena = "0.2.9"
 urlencoding = "2.1.2"
+thiserror = "1.0.50"
 
 [dependencies.diffbelt_types]
 path = "../diffbelt_types"
 
 [dependencies.diffbelt_util]
 path = "../diffbelt_util"
+
+[dependencies.diffbelt_util_no_std]
+path = "../diffbelt_util_no_std"
+
+[dependencies.diffbelt_protos]
+path = "../diffbelt_protos"

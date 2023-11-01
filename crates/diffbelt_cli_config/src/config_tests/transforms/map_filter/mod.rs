@@ -5,10 +5,10 @@ use std::str::from_utf8;
 
 use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
 use diffbelt_protos::{deserialize, OwnedSerialized};
-use diffbelt_util::cast::checked_usize_to_i32;
+use diffbelt_util_no_std::cast::checked_usize_to_i32;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::lift_result_from_option;
-use diffbelt_util::slice::get_slice_offset_in_other_slice;
+use diffbelt_util_no_std::slice::get_slice_offset_in_other_slice;
 use diffbelt_wasm_binding::bytes::BytesSlice;
 use diffbelt_yaml::YamlNode;
 use yaml_input::yaml_test_vars_to_map_filter_input;
@@ -129,7 +129,7 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
     );
 
     fn input_to_output(&'a self, input: Self::Input) -> Result<Self::Output, TestError> {
-        let bytes_result = self.map_filter.call(input.data())?;
+        let bytes_result = self.map_filter.call(input.as_bytes())?;
 
         let update_record_slices = bytes_result.observe_bytes(|bytes| {
             let multi_output =

@@ -2,6 +2,11 @@ use std::borrow::Cow;
 use std::mem;
 use std::ops::Deref;
 
+use diffbelt_protos::protos::transform::map_filter::{
+    MapFilterInput, MapFilterInputArgs, MapFilterMultiInput, MapFilterMultiInputArgs,
+    MapFilterMultiOutput,
+};
+use diffbelt_protos::{deserialize, OwnedSerialized, Serializer};
 use generational_arena::{Arena, Index};
 
 use diffbelt_types::collection::diff::{
@@ -16,8 +21,9 @@ use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
 use diffbelt_types::common::key_value::{EncodedKeyJsonData, EncodedValueJsonData};
 use diffbelt_types::common::key_value_update::KeyValueUpdateJsonData;
 use diffbelt_types::common::reader::UpdateReaderJsonData;
-use diffbelt_util::cast::{u64_to_usize, usize_to_u64};
+use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::{cut_layer, lift_result_from_option};
+use diffbelt_util_no_std::cast::{u64_to_usize, usize_to_u64};
 
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{FunctionEvalAction, MapFilterEvalAction};
@@ -111,6 +117,10 @@ pub struct MapFilterTransform {
     state: State,
 
     puts_buffer: Vec<KeyValueUpdateJsonData>,
+    /// for `MapFilterMultiOutput`
+    free_buffers_for_eval_inputs: Vec<Vec<u8>>,
+    /// for `MapFilterMultiInput`
+    free_buffers_for_eval_outputs: Vec<Vec<u8>>,
 
     action_input_handlers: Arena<ActionInputHandler>,
 }
@@ -127,6 +137,8 @@ impl MapFilterTransform {
             reader_name,
             state: State::Uninitialized,
             puts_buffer: Vec::new(),
+            free_buffers_for_eval_inputs: Vec::with_capacity(4),
+            free_buffers_for_eval_outputs: Vec::with_capacity(4),
             action_input_handlers: Arena::new(),
         }
     }
@@ -323,7 +335,13 @@ impl MapFilterTransform {
             ));
         }
 
-        () = Self::diff_items_to_actions(&mut state, &mut actions, items)?;
+        () = Self::diff_items_to_actions(
+            self.take_buffer_for_eval_inputs(),
+            self.take_buffer_for_eval_outputs(),
+            &mut state,
+            &mut actions,
+            items,
+        )?;
 
         self.state = State::Processing(state);
 
@@ -337,10 +355,16 @@ impl MapFilterTransform {
     }
 
     fn diff_items_to_actions(
+        buffer_for_eval_inputs: Vec<u8>,
+        buffer_for_eval_outputs: Vec<u8>,
         state: &mut ProcessingState,
         actions: &mut Vec<(ActionType, ActionInputHandler)>,
         items: Vec<KeyValueDiffJsonData>,
     ) -> Result<(), TransformError> {
+        let mut serializer = Serializer::from_vec(buffer_for_eval_inputs);
+
+        let mut records = Vec::with_capacity(items.len());
+
         for item in items {
             let KeyValueDiffJsonData {
                 key,
@@ -357,25 +381,52 @@ impl MapFilterTransform {
             let to_value = cut_layer(to_value).map(|x| x.into_bytes());
             let to_value = lift_result_from_option(to_value)?;
 
-            state.actions_left += 1;
-            actions.push((
-                ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
-                    source_key: key,
-                    source_old_value: from_value,
-                    source_new_value: to_value,
-                })),
-                input_handler!(this, input, {
-                    let FunctionEvalInput { body } = input.into_eval_map_filter()?;
+            let source_key = serializer.create_vector(&key);
+            let source_old_value = from_value.map(|x| serializer.create_vector(&x));
+            let source_new_value = to_value.map(|x| serializer.create_vector(&x));
 
-                    this.on_map_filter_eval_received(body)
-                }),
+            records.push(MapFilterInput::create(
+                serializer.buffer_builder(),
+                &MapFilterInputArgs {
+                    source_key: Some(source_key),
+                    source_old_value,
+                    source_new_value,
+                },
             ));
         }
+
+        let records = serializer.create_vector(&records);
+        let map_filter_multi_input = MapFilterMultiInput::create(
+            serializer.buffer_builder(),
+            &MapFilterMultiInputArgs {
+                items: Some(records),
+            },
+        );
+
+        let OwnedSerialized { buffer, head, len } =
+            serializer.finish(map_filter_multi_input).into_owned();
+
+        state.actions_left += 1;
+        actions.push((
+            ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
+                inputs_buffer: buffer,
+                inputs_head: head,
+                inputs_len: len,
+                outputs_buffer: buffer_for_eval_outputs,
+            })),
+            input_handler!(this, input, {
+                let FunctionEvalInput { body } = input.into_eval_map_filter()?;
+                this.on_map_filter_eval_received(body)
+            }),
+        ));
 
         Ok(())
     }
 
     fn on_next_diff_received(&mut self, diff: DiffCollectionResponseJsonData) -> HandlerResult {
+        let buffer_for_eval_inputs = self.take_buffer_for_eval_inputs();
+        let buffer_for_eval_outputs = self.take_buffer_for_eval_outputs();
+
         let state = self.state.as_mut_processing()?;
 
         state.actions_left -= 1;
@@ -405,7 +456,13 @@ impl MapFilterTransform {
             state.cursor_id = cursor_id;
         }
 
-        () = Self::diff_items_to_actions(state, &mut actions, items)?;
+        () = Self::diff_items_to_actions(
+            buffer_for_eval_inputs,
+            buffer_for_eval_outputs,
+            state,
+            &mut actions,
+            items,
+        )?;
 
         let avg_items_per_chunk = state.total_items / state.total_chunks;
         if self.puts_buffer.len() >= avg_items_per_chunk {
@@ -434,38 +491,39 @@ impl MapFilterTransform {
         state.actions_left -= 1;
 
         let MapFilterEvalInput {
-            old_key,
-            new_key,
-            value,
+            inputs_buffer,
+            inputs_head,
+            inputs_len,
+            outputs_buffer,
         } = input;
 
-        let (Some(new_key), Some(value)) = (new_key, value) else {
-            if let Some(old_key) = old_key {
-                self.puts_buffer.push(KeyValueUpdateJsonData {
-                    key: EncodedKeyJsonData::from_boxed_bytes(old_key),
-                    if_not_present: None,
-                    value: None,
-                });
-            }
+        let bytes = &inputs_buffer[inputs_head..(inputs_head + inputs_len)];
+        let map_filter_multi_output =
+            deserialize::<MapFilterMultiOutput>(bytes).map_err(NoStdErrorWrap)?;
 
-            return self.post_handle();
+        let Some(records) = map_filter_multi_output.target_update_records() else {
+            return Err(TransformError::Unspecified(
+                "map_filter eval output has None records".to_string(),
+            ));
         };
 
-        if let Some(old_key) = old_key {
-            if old_key != new_key {
-                self.puts_buffer.push(KeyValueUpdateJsonData {
-                    key: EncodedKeyJsonData::from_boxed_bytes(old_key),
-                    if_not_present: None,
-                    value: None,
-                });
-            }
-        }
+        for record in records {
+            let key = record
+                .key()
+                .ok_or_else(|| {
+                    TransformError::Unspecified(
+                        "map_filter eval output has record with None key".to_string(),
+                    )
+                })?
+                .bytes();
+            let value = record.value().map(|x| x.bytes());
 
-        self.puts_buffer.push(KeyValueUpdateJsonData {
-            key: EncodedKeyJsonData::from_boxed_bytes(new_key),
-            if_not_present: None,
-            value: Some(EncodedValueJsonData::from_boxed_bytes(value)),
-        });
+            self.puts_buffer.push(KeyValueUpdateJsonData {
+                key: EncodedKeyJsonData::from_bytes_slice(key),
+                if_not_present: None,
+                value: value.map(|x| EncodedValueJsonData::from_bytes_slice(x)),
+            });
+        }
 
         self.post_handle()
     }
@@ -650,5 +708,23 @@ impl MapFilterTransform {
             id: (usize_to_u64(a), b),
             action,
         });
+    }
+
+    fn take_buffer_for_eval_inputs(&mut self) -> Vec<u8> {
+        if let Some(mut buffer) = self.free_buffers_for_eval_inputs.pop() {
+            buffer.clear();
+            return buffer;
+        }
+
+        return Vec::new();
+    }
+
+    fn take_buffer_for_eval_outputs(&mut self) -> Vec<u8> {
+        if let Some(mut buffer) = self.free_buffers_for_eval_outputs.pop() {
+            buffer.clear();
+            return buffer;
+        }
+
+        return Vec::new();
     }
 }

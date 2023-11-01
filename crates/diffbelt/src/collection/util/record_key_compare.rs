@@ -1,5 +1,5 @@
 use crate::util::bytes::read_u24;
-use diffbelt_util::cast::{u32_to_usize, u8_to_usize};
+use diffbelt_util_no_std::cast::{u32_to_usize, u8_to_usize};
 use std::cmp::Ordering;
 
 /*

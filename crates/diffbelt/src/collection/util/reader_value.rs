@@ -1,5 +1,5 @@
 use crate::common::{GenerationId, IsByteArray};
-use diffbelt_util::cast::u8_to_usize;
+use diffbelt_util_no_std::cast::u8_to_usize;
 use std::str::from_utf8;
 
 #[derive(Debug, Eq, PartialEq)]

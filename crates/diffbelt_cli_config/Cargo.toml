@@ -23,6 +23,9 @@ dioxus-hooks = "0.4.0"
 [dependencies.diffbelt_util]
 path = "../diffbelt_util"
 
+[dependencies.diffbelt_util_no_std]
+path = "../diffbelt_util_no_std"
+
 [dependencies.diffbelt_yaml]
 path = "../diffbelt_yaml"
 

@@ -2,7 +2,7 @@ pub mod node_helpers;
 pub mod serde;
 
 pub use crate::serde::decode_yaml;
-use diffbelt_util::cast::{
+use diffbelt_util_no_std::cast::{
     checked_positive_i32_to_usize, checked_positive_isize_to_usize, usize_to_u64,
 };
 use std::ffi::CStr;
@@ -12,6 +12,7 @@ use std::pin::Pin;
 use std::rc::Rc;
 use std::slice::from_raw_parts;
 use std::str::from_utf8;
+use thiserror::Error;
 use unsafe_libyaml::{
     yaml_document_delete, yaml_document_t, yaml_encoding_t, yaml_mark_t, yaml_node_item_t,
     yaml_node_pair_t, yaml_node_t, yaml_node_type_t, yaml_parser_delete, yaml_parser_initialize,
@@ -19,13 +20,18 @@ use unsafe_libyaml::{
     yaml_stack_t,
 };
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum YamlParsingError {
+    #[error("InitializationFailed")]
     InitializationFailed,
+    #[error("Unknown node type at line {}:{}", .0.line, .0.column)]
     UnknownNodeTypeAt(YamlMark),
+    #[error("Not UTF8 at line {}:{}", .0.line, .0.column)]
     NotUtf8At(YamlMark),
+    #[error("LoopDetected")]
     LoopDetected,
     // TODO: use streaming parsed variant, show error position
+    #[error("Parsing")]
     Parsing,
 }
 

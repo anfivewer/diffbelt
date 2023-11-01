@@ -1,3 +1,4 @@
+use std::str::from_utf8;
 #[macro_export]
 macro_rules! value_encoding_into_bytes {
     ( $original:ident ) => {
@@ -15,6 +16,23 @@ macro_rules! value_encoding_into_bytes {
                         Ok(bytes.into_boxed_slice())
                     }
                     _ => Err(crate::errors::IntoBytesError::UnknownEncoding(self)),
+                }
+            }
+
+            pub fn from_bytes_slice(bytes: &[u8]) -> Self {
+                match ::std::str::from_utf8(bytes) {
+                    Ok(value) => Self {
+                        value: value.to_string(),
+                        encoding: None,
+                    },
+                    Err(_) => {
+                        let value = base64::encode(bytes);
+
+                        Self {
+                            value,
+                            encoding: Some(String::from("base64")),
+                        }
+                    }
                 }
             }
 

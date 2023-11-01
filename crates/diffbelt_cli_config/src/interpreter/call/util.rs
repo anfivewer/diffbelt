@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use crate::interpreter::value::{PrimitiveValue, Value};
 use crate::interpreter::var::Var;
-use diffbelt_util::cast::{u64_to_usize, usize_to_u64};
+use diffbelt_util_no_std::cast::{u64_to_usize, usize_to_u64};
 use std::ops::Deref;
 use std::rc::Rc;
 

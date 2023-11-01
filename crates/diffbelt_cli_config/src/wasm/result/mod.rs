@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use either::Either;
 use wasmer::{MemoryView, WasmPtr};
 
-use diffbelt_util::cast::{try_positive_i32_to_u32, try_usize_to_u32, u32_to_usize};
+use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_u32, u32_to_usize};
 use diffbelt_wasm_binding::bytes::BytesVecRawParts;
 
 use crate::wasm::memory::WasmVecHolder;

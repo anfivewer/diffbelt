@@ -3,7 +3,7 @@ use crate::interpreter::error::InterpreterError;
 
 use crate::interpreter::statement::regexp::RegexpStatement;
 use crate::interpreter::var::Var;
-use diffbelt_util::cast::usize_to_u64;
+use diffbelt_util_no_std::cast::usize_to_u64;
 
 use regex::Regex;
 use std::ops::Deref;

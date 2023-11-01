@@ -5,17 +5,21 @@ use thiserror::Error;
 
 use diffbelt_protos::InvalidFlatbuffer;
 use diffbelt_util::errors::NoStdErrorWrap;
-use diffbelt_util::slice::SliceOffsetError;
+use diffbelt_util_no_std::impl_from_either;
+use diffbelt_util_no_std::slice::SliceOffsetError;
 
 use crate::config_tests::value::{ScalarParseError, YamlValueConstructionError};
 use crate::formats::human_readable::HumanReadableError;
-use crate::impl_from_either;
 use crate::interpreter::error::InterpreterError;
 use crate::wasm::WasmError;
 
 #[derive(Debug)]
 pub enum AssertError {
-    ValueMissmatch { message: Cow<'static, str>, expected: Option<String>, actual: Option<String> },
+    ValueMissmatch {
+        message: Cow<'static, str>,
+        expected: Option<String>,
+        actual: Option<String>,
+    },
 }
 
 #[derive(Error, Debug)]

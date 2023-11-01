@@ -67,9 +67,14 @@ impl Serialized<'_> {
     }
 
     pub fn into_owned(self) -> OwnedSerialized {
+        let len = self.buffer_builder_.finished_data().len();
         let (data, head) = self.buffer_builder_.collapse();
 
-        OwnedSerialized { data_: data, head }
+        OwnedSerialized {
+            buffer: data,
+            head,
+            len,
+        }
     }
 
     pub fn into_empty_vec(self) -> Vec<u8> {
@@ -79,16 +84,13 @@ impl Serialized<'_> {
 }
 
 pub struct OwnedSerialized {
-    data_: Vec<u8>,
-    head: usize,
+    pub buffer: Vec<u8>,
+    pub head: usize,
+    pub len: usize,
 }
 
 impl OwnedSerialized {
-    pub fn data(&self) -> &[u8] {
-        &self.data_[self.head..]
-    }
-
-    pub fn into_raw(self) -> (Vec<u8>, usize) {
-        (self.data_, self.head)
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.buffer[self.head..(self.head + self.len)]
     }
 }

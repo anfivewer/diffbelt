@@ -10,14 +10,14 @@ pub mod wasm;
 use crate::code::Code;
 use crate::config_tests::TestSuite;
 use crate::errors::{ConfigParsingError, ExpectedError};
+use crate::formats::collection_human_readable_config::CollectionHumanReadableConfig;
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
-use crate::wasm::Wasm;
+use crate::wasm::{NewWasmInstanceOptions, Wasm, WasmError, WasmModuleInstance};
 use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
-use crate::formats::collection_human_readable_config::CollectionHumanReadableConfig;
 
 #[cfg(not(target_endian = "little"))]
 compile_error!("Only LE targets are supported because we are copying data to WASM");
@@ -120,6 +120,16 @@ impl CliConfig {
             .map(|transform| transform.name.as_ref())
             .filter_map(|name| name)
             .map(|name| name.deref())
+    }
+
+    pub fn wasm_module_def_by_name(&self, name: &str) -> Option<&Wasm> {
+        self.wasm.get(name)
+    }
+
+    pub async fn new_wasm_instance(&self, wasm: &Wasm) -> Result<WasmModuleInstance, WasmError> {
+        wasm.new_wasm_instance(NewWasmInstanceOptions {
+            config_path: self.self_path.deref(),
+        }).await
     }
 
     pub fn collection_by_name(&self, collection_name: &str) -> Option<&Collection> {

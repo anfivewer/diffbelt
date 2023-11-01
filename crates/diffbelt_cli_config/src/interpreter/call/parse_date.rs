@@ -4,7 +4,7 @@ use crate::interpreter::error::InterpreterError;
 use crate::interpreter::statement::parse_date::ParseDateToMsStatement;
 use crate::interpreter::var::Var;
 use chrono::{NaiveDate, NaiveTime};
-use diffbelt_util::cast::checked_positive_i64_to_u64;
+use diffbelt_util_no_std::cast::checked_positive_i64_to_u64;
 use regex::Regex;
 
 lazy_static::lazy_static! {

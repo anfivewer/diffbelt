@@ -5,7 +5,10 @@ pub enum FunctionEvalAction {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct MapFilterEvalAction {
-    pub source_key: Box<[u8]>,
-    pub source_old_value: Option<Box<[u8]>>,
-    pub source_new_value: Option<Box<[u8]>>,
+    pub inputs_buffer: Vec<u8>,
+    /// start in `outputs_buffer` of `MapFilterMultiOutput`
+    pub inputs_head: usize,
+    pub inputs_len: usize,
+    /// returned back `inputs_buffer` from [`crate::base::input::function_eval::MapFilterEvalInput`]
+    pub outputs_buffer: Vec<u8>,
 }

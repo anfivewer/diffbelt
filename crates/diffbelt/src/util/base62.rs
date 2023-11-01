@@ -1,4 +1,4 @@
-use diffbelt_util::cast::{u64_to_usize, u8_to_u64};
+use diffbelt_util_no_std::cast::{u64_to_usize, u8_to_u64};
 
 const CHARS: [char; 62] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',

@@ -14,7 +14,7 @@ use wasmer::{
     TypedFunction, WasmPtr, WasmTypeList,
 };
 
-use diffbelt_util::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
+use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
 use diffbelt_util::Wrap;
 use diffbelt_wasm_binding::transform::map_filter::MapFilterResult;
 use memory::Allocation;

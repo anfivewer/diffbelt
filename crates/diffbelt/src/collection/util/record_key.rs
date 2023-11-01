@@ -3,7 +3,7 @@ use crate::common::constants::{
 };
 use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::util::bytes::{read_u24, write_u24};
-use diffbelt_util::cast::{u32_to_usize, u8_to_usize};
+use diffbelt_util_no_std::cast::{u32_to_usize, u8_to_usize};
 use std::ops::Range;
 
 #[derive(Clone, Eq, PartialEq, Debug)]

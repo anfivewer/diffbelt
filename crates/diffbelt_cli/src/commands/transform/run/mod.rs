@@ -11,7 +11,8 @@ use diffbelt_cli_config::interpreter::var::VarDef;
 use diffbelt_cli_config::transforms::{
     CollectionDef, CollectionWithFormat, CollectionWithReader, Transform, TransformCollectionDef,
 };
-use diffbelt_cli_config::{Collection};
+use diffbelt_cli_config::wasm::NewWasmInstanceOptions;
+use diffbelt_cli_config::Collection;
 use diffbelt_transforms::base::action::function_eval::FunctionEvalAction;
 use diffbelt_transforms::base::action::{Action, ActionType};
 use diffbelt_transforms::base::input::diffbelt_call::DiffbeltCallInput;
@@ -55,8 +56,8 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
         intermediate,
         target,
         reader_name,
-        map_filter_wasm: _,
-        map_filter,
+        map_filter_wasm,
+        map_filter: _,
         aggregate,
         percentiles,
         unique_count,
@@ -89,7 +90,7 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
     }
 
     let to_collection_name = target.deref();
-    let reader_name = reader_name.map(|x| x.as_ref());
+    let reader_name = reader_name.as_ref().map(|x| x.deref());
 
     let Some(reader_name) = reader_name else {
         return Err(CommandError::Message("No reader_name present".to_string()));
@@ -118,25 +119,19 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
         )));
     };
 
-    let Some(map_filter) = map_filter else {
+    let Some(map_filter_wasm) = map_filter_wasm else {
         return Err(CommandError::Message("Unknown transform type".to_string()));
     };
 
-    let map_filter_key_var_name = Rc::<str>::from("map_filter_key");
-    let map_filter_new_value_var_name = Rc::<str>::from("map_filter_new_value");
+    let wasm_module_name = map_filter_wasm.module_name.as_str();
+    let Some(wasm_def) = config.wasm_module_def_by_name(wasm_module_name) else {
+        return Err(CommandError::Message(format!(
+            "WASM module {wasm_module_name} not defined in config"
+        )));
+    };
 
-    // TODO: extract this, currently present in multiple files
-    let map_filter_input_vars = [
-        (map_filter_key_var_name.clone(), VarDef::anonymous_string()),
-        (
-            map_filter_new_value_var_name.clone(),
-            VarDef::anonymous_string(),
-        ),
-    ]
-    .into_iter()
-    .collect();
-
-    let map_filter = Function::from_code(config, map_filter, Some(map_filter_input_vars))?;
+    let wasm_instance = config.new_wasm_instance(wasm_def).await?;
+    let map_filter = wasm_instance.map_filter_function(map_filter_wasm.method_name.as_str())?;
 
     let mut transform = MapFilterTransform::new(
         Box::from(from_collection_name),
@@ -199,9 +194,6 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                                     map_filter: &map_filter,
                                     inputs: &mut inputs,
                                     action_id,
-                                    map_filter_key_var_name: map_filter_key_var_name.clone(),
-                                    map_filter_new_value_var_name: map_filter_new_value_var_name
-                                        .clone(),
                                 }
                                 .call()?;
                             }

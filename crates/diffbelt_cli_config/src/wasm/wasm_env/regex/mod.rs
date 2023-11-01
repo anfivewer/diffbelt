@@ -8,7 +8,7 @@ use wasmer::{
     Function, FunctionEnv, FunctionEnvMut, Imports, Memory, Store, ValueType,
     WasmPtr,
 };
-use diffbelt_util::cast::{
+use diffbelt_util_no_std::cast::{
     try_positive_i32_to_usize, try_usize_to_i32, unchecked_i32_to_u32, unchecked_usize_to_i32,
     unchecked_usize_to_u32, usize_to_u64,
 };
