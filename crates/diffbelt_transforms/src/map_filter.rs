@@ -336,8 +336,8 @@ impl MapFilterTransform {
         }
 
         () = Self::diff_items_to_actions(
-            self.take_buffer_for_eval_inputs(),
-            self.take_buffer_for_eval_outputs(),
+            &mut self.free_buffers_for_eval_inputs,
+            &mut self.free_buffers_for_eval_outputs,
             &mut state,
             &mut actions,
             items,
@@ -355,13 +355,70 @@ impl MapFilterTransform {
     }
 
     fn diff_items_to_actions(
-        buffer_for_eval_inputs: Vec<u8>,
-        buffer_for_eval_outputs: Vec<u8>,
+        free_buffers_for_eval_inputs: &mut Vec<Vec<u8>>,
+        free_buffers_for_eval_outputs: &mut Vec<Vec<u8>>,
         state: &mut ProcessingState,
         actions: &mut Vec<(ActionType, ActionInputHandler)>,
         items: Vec<KeyValueDiffJsonData>,
     ) -> Result<(), TransformError> {
-        let mut serializer = Serializer::from_vec(buffer_for_eval_inputs);
+        if items.is_empty() {
+            return Ok(());
+        }
+
+        let mut buffer_for_eval_inputs = free_buffers_for_eval_inputs.pop().map(|mut x| {
+            x.clear();
+            x
+        });
+        let mut buffer_for_eval_outputs = free_buffers_for_eval_outputs.pop().map(|mut x| {
+            x.clear();
+            x
+        });
+
+        let result = Self::diff_items_to_actions_inner(
+            &mut buffer_for_eval_inputs,
+            &mut buffer_for_eval_outputs,
+            state,
+            actions,
+            items,
+        );
+
+        match result {
+            Ok(x) => Ok(x),
+            Err(err) => {
+                if let Some(buffer) = buffer_for_eval_inputs {
+                    free_buffers_for_eval_inputs.push(buffer);
+                }
+                if let Some(buffer) = buffer_for_eval_outputs {
+                    free_buffers_for_eval_outputs.push(buffer);
+                }
+
+                Err(err)
+            }
+        }
+    }
+
+    fn diff_items_to_actions_inner(
+        buffer_for_eval_inputs: &mut Option<Vec<u8>>,
+        buffer_for_eval_outputs: &mut Option<Vec<u8>>,
+        state: &mut ProcessingState,
+        actions: &mut Vec<(ActionType, ActionInputHandler)>,
+        items: Vec<KeyValueDiffJsonData>,
+    ) -> Result<(), TransformError> {
+        let mut serializer =
+            Serializer::from_vec(buffer_for_eval_inputs.take().unwrap_or_else(|| Vec::new()));
+
+        macro_rules! ok {
+            ($expr:expr) => {
+                match $expr {
+                    Ok(x) => x,
+                    Err(err) => {
+                        let buffer = serializer.into_vec();
+                        buffer_for_eval_inputs.replace(buffer);
+                        return Err(err.into());
+                    }
+                }
+            };
+        }
 
         let mut records = Vec::with_capacity(items.len());
 
@@ -373,13 +430,13 @@ impl MapFilterTransform {
                 to_value,
             } = item;
 
-            let key = key.into_bytes()?;
+            let key = ok!(key.into_bytes());
 
             let from_value = cut_layer(from_value).map(|x| x.into_bytes());
-            let from_value = lift_result_from_option(from_value)?;
+            let from_value = ok!(lift_result_from_option(from_value));
 
             let to_value = cut_layer(to_value).map(|x| x.into_bytes());
-            let to_value = lift_result_from_option(to_value)?;
+            let to_value = ok!(lift_result_from_option(to_value));
 
             let source_key = serializer.create_vector(&key);
             let source_old_value = from_value.map(|x| serializer.create_vector(&x));
@@ -412,7 +469,7 @@ impl MapFilterTransform {
                 inputs_buffer: buffer,
                 inputs_head: head,
                 inputs_len: len,
-                outputs_buffer: buffer_for_eval_outputs,
+                outputs_buffer: buffer_for_eval_outputs.take().unwrap_or_else(|| Vec::new()),
             })),
             input_handler!(this, input, {
                 let FunctionEvalInput { body } = input.into_eval_map_filter()?;
@@ -424,9 +481,6 @@ impl MapFilterTransform {
     }
 
     fn on_next_diff_received(&mut self, diff: DiffCollectionResponseJsonData) -> HandlerResult {
-        let buffer_for_eval_inputs = self.take_buffer_for_eval_inputs();
-        let buffer_for_eval_outputs = self.take_buffer_for_eval_outputs();
-
         let state = self.state.as_mut_processing()?;
 
         state.actions_left -= 1;
@@ -457,8 +511,8 @@ impl MapFilterTransform {
         }
 
         () = Self::diff_items_to_actions(
-            buffer_for_eval_inputs,
-            buffer_for_eval_outputs,
+            &mut self.free_buffers_for_eval_inputs,
+            &mut self.free_buffers_for_eval_outputs,
             state,
             &mut actions,
             items,
@@ -712,23 +766,5 @@ impl MapFilterTransform {
             id: (usize_to_u64(a), b),
             action,
         });
-    }
-
-    fn take_buffer_for_eval_inputs(&mut self) -> Vec<u8> {
-        if let Some(mut buffer) = self.free_buffers_for_eval_inputs.pop() {
-            buffer.clear();
-            return buffer;
-        }
-
-        return Vec::new();
-    }
-
-    fn take_buffer_for_eval_outputs(&mut self) -> Vec<u8> {
-        if let Some(mut buffer) = self.free_buffers_for_eval_outputs.pop() {
-            buffer.clear();
-            return buffer;
-        }
-
-        return Vec::new();
     }
 }

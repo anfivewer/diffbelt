@@ -1,14 +1,11 @@
-/*
-use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
-use crate::base::action::function_eval::{FunctionEvalAction, MapFilterEvalAction};
-use crate::base::action::{Action, ActionType};
-use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
-use crate::base::input::function_eval::{
-    FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput,
+use diffbelt_protos::protos::transform::map_filter::{
+    MapFilterMultiInput, MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate,
+    RecordUpdateArgs,
 };
-use crate::base::input::{Input, InputType};
-use crate::map_filter::MapFilterTransform;
-use crate::TransformRunResult;
+use diffbelt_protos::{deserialize, OwnedSerialized, Serializer, Vector};
+use std::borrow::Cow;
+use std::str::from_utf8;
+
 use diffbelt_types::collection::diff::{
     DiffCollectionRequestJsonData, DiffCollectionResponseJsonData, KeyValueDiffJsonData,
     ReaderDiffFromDefJsonData,
@@ -21,7 +18,18 @@ use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
 use diffbelt_types::common::key_value::{EncodedKeyJsonData, EncodedValueJsonData};
 use diffbelt_types::common::key_value_update::KeyValueUpdateJsonData;
 use diffbelt_types::common::reader::UpdateReaderJsonData;
-use std::borrow::Cow;
+use diffbelt_util::option::lift_result_from_option;
+
+use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
+use crate::base::action::function_eval::{FunctionEvalAction, MapFilterEvalAction};
+use crate::base::action::{Action, ActionType};
+use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
+use crate::base::input::function_eval::{
+    FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput,
+};
+use crate::base::input::{Input, InputType};
+use crate::map_filter::MapFilterTransform;
+use crate::TransformRunResult;
 
 #[test]
 fn map_filter_test() {
@@ -131,14 +139,6 @@ fn map_filter_test() {
         id: id2,
         action: action2,
     } = actions.next().unwrap();
-    let Action {
-        id: id3,
-        action: action3,
-    } = actions.next().unwrap();
-    let Action {
-        id: id4,
-        action: action4,
-    } = actions.next().unwrap();
 
     assert_eq!(actions.next(), None);
 
@@ -152,42 +152,51 @@ fn map_filter_test() {
         })
     );
 
-    assert_eq!(
-        action2,
-        ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
-            source_key: Box::from("k1".as_bytes()),
-            source_old_value: None,
-            source_new_value: Some(Box::from("v1".as_bytes())),
-        }))
+    let ActionType::FunctionEval(FunctionEvalAction::MapFilter(action)) = action2 else {
+        panic!("unexpected action {action2:?}");
+    };
+
+    assert_map_filter_eval_action(
+        action,
+        vec![
+            ExpectedMapFilterActionRecord {
+                source_key: "k1",
+                source_old_value: None,
+                source_new_value: Some("v1"),
+            },
+            ExpectedMapFilterActionRecord {
+                source_key: "k2",
+                source_old_value: Some("v2"),
+                source_new_value: Some("v2-2"),
+            },
+            ExpectedMapFilterActionRecord {
+                source_key: "k3",
+                source_old_value: Some("v3"),
+                source_new_value: None,
+            },
+        ],
     );
 
-    assert_eq!(
-        action3,
-        ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
-            source_key: Box::from("k2".as_bytes()),
-            source_old_value: Some(Box::from("v2".as_bytes())),
-            source_new_value: Some(Box::from("v2-2".as_bytes())),
-        }))
-    );
-
-    assert_eq!(
-        action4,
-        ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
-            source_key: Box::from("k3".as_bytes()),
-            source_old_value: Some(Box::from("v3".as_bytes())),
-            source_new_value: None,
-        }))
-    );
+    let map_filter_input = make_map_filter_eval_input(vec![
+        MapFilterEvalInputRecord {
+            key: "k1-map",
+            value: Some("v1-map"),
+        },
+        MapFilterEvalInputRecord {
+            key: "k2-map",
+            value: Some("v2-2-map"),
+        },
+        MapFilterEvalInputRecord {
+            key: "k3-map",
+            value: None,
+        },
+    ]);
 
     let mut actions = transform
         .run(vec![Input {
             id: id2,
             input: InputType::FunctionEval(FunctionEvalInput {
-                body: FunctionEvalInputBody::MapFilter(MapFilterEvalInput {
-                    old_key: None,
-                    new_key: Some(Box::from("k1-map".as_bytes())),
-                    value: Some(Box::from("v1-map".as_bytes())),
-                }),
+                body: FunctionEvalInputBody::MapFilter(map_filter_input),
             }),
         }])
         .unwrap()
@@ -204,114 +213,8 @@ fn map_filter_test() {
                 body: DiffbeltResponseBody::Diff(DiffCollectionResponseJsonData {
                     from_generation_id: EncodedGenerationIdJsonData::new_str("10".to_string()),
                     to_generation_id: EncodedGenerationIdJsonData::new_str("42".to_string()),
-                    items: vec![KeyValueDiffJsonData {
-                        key: EncodedKeyJsonData::new_str("k4".to_string()),
-                        from_value: Some(Some(EncodedValueJsonData::new_str("v4".to_string()))),
-                        intermediate_values: vec![],
-                        to_value: Some(Some(EncodedValueJsonData::new_str("v4-2".to_string()))),
-                    }],
-                    cursor_id: Some(Box::from("second_cursor")),
-                }),
-            }),
-        }])
-        .unwrap()
-        .into_actions()
-        .unwrap()
-        .into_iter();
-
-    let Action {
-        id: second_cursor_id,
-        action,
-    } = actions.next().unwrap();
-    assert_eq!(
-        action,
-        ActionType::DiffbeltCall(DiffbeltCallAction {
-            method: Method::Get,
-            path: Cow::Borrowed("/collections/from/diff/second_cursor"),
-            query: vec![],
-            body: DiffbeltRequestBody::ReadDiffCursorNone,
-        })
-    );
-
-    let Action {
-        id: id6,
-        action: action6,
-    } = actions.next().unwrap();
-
-    assert_eq!(actions.next(), None);
-
-    assert_eq!(
-        action6,
-        ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
-            source_key: Box::from("k4".as_bytes()),
-            source_old_value: Some(Box::from("v4".as_bytes())),
-            source_new_value: Some(Box::from("v4-2".as_bytes())),
-        }))
-    );
-
-    let mut actions = transform
-        .run(vec![Input {
-            id: second_cursor_id,
-            input: InputType::DiffbeltCall(DiffbeltCallInput {
-                body: DiffbeltResponseBody::Diff(DiffCollectionResponseJsonData {
-                    from_generation_id: EncodedGenerationIdJsonData::new_str("10".to_string()),
-                    to_generation_id: EncodedGenerationIdJsonData::new_str("42".to_string()),
                     items: vec![],
                     cursor_id: None,
-                }),
-            }),
-        }])
-        .unwrap()
-        .into_actions()
-        .unwrap()
-        .into_iter();
-
-    assert_eq!(actions.next(), None);
-
-    let mut actions = transform
-        .run(vec![Input {
-            id: id3,
-            input: InputType::FunctionEval(FunctionEvalInput {
-                body: FunctionEvalInputBody::MapFilter(MapFilterEvalInput {
-                    old_key: Some(Box::from("k2-map-1".as_bytes())),
-                    new_key: Some(Box::from("k2-map".as_bytes())),
-                    value: Some(Box::from("v2-2-map".as_bytes())),
-                }),
-            }),
-        }])
-        .unwrap()
-        .into_actions()
-        .unwrap()
-        .into_iter();
-
-    assert_eq!(actions.next(), None);
-
-    let mut actions = transform
-        .run(vec![Input {
-            id: id4,
-            input: InputType::FunctionEval(FunctionEvalInput {
-                body: FunctionEvalInputBody::MapFilter(MapFilterEvalInput {
-                    old_key: Some(Box::from("k3-map".as_bytes())),
-                    new_key: None,
-                    value: None,
-                }),
-            }),
-        }])
-        .unwrap()
-        .into_actions()
-        .unwrap()
-        .into_iter();
-
-    assert_eq!(actions.next(), None);
-
-    let mut actions = transform
-        .run(vec![Input {
-            id: id6,
-            input: InputType::FunctionEval(FunctionEvalInput {
-                body: FunctionEvalInputBody::MapFilter(MapFilterEvalInput {
-                    old_key: Some(Box::from("k4-map".as_bytes())),
-                    new_key: Some(Box::from("k4-map".as_bytes())),
-                    value: Some(Box::from("v4-map".as_bytes())),
                 }),
             }),
         }])
@@ -338,11 +241,6 @@ fn map_filter_test() {
                         value: Some(EncodedValueJsonData::new_str("v1-map".to_string()))
                     },
                     KeyValueUpdateJsonData {
-                        key: EncodedKeyJsonData::new_str("k2-map-1".to_string()),
-                        if_not_present: None,
-                        value: None
-                    },
-                    KeyValueUpdateJsonData {
                         key: EncodedKeyJsonData::new_str("k2-map".to_string()),
                         if_not_present: None,
                         value: Some(EncodedValueJsonData::new_str("v2-2-map".to_string()))
@@ -352,11 +250,6 @@ fn map_filter_test() {
                         if_not_present: None,
                         value: None
                     },
-                    KeyValueUpdateJsonData {
-                        key: EncodedKeyJsonData::new_str("k4-map".to_string()),
-                        if_not_present: None,
-                        value: Some(EncodedValueJsonData::new_str("v4-map".to_string()))
-                    }
                 ],
                 generation_id: Some(EncodedGenerationIdJsonData::new_str("42".to_string())),
                 phantom_id: None,
@@ -402,15 +295,168 @@ fn map_filter_test() {
 
     assert_eq!(actions.next(), None);
 
-    let finish = transform
+    let mut actions = transform
         .run(vec![Input {
             id: commit_id,
             input: InputType::DiffbeltCall(DiffbeltCallInput {
                 body: DiffbeltResponseBody::Ok(()),
             }),
         }])
+        .unwrap()
+        .into_actions()
+        .unwrap()
+        .into_iter();
+
+    let Action {
+        id: second_diff,
+        action,
+    } = actions.next().unwrap();
+
+    assert_eq!(actions.next(), None);
+
+    assert_eq!(
+        action,
+        ActionType::DiffbeltCall(DiffbeltCallAction {
+            method: Method::Post,
+            path: Cow::Borrowed("/collections/from/diff/"),
+            query: vec![],
+            body: DiffbeltRequestBody::DiffCollectionStart(DiffCollectionRequestJsonData {
+                from_generation_id: None,
+                to_generation_id: None,
+                from_reader: Some(ReaderDiffFromDefJsonData {
+                    reader_name: "reader".to_string(),
+                    collection_name: Some("to".to_string()),
+                }),
+            }),
+        })
+    );
+
+    let result = transform
+        .run(vec![Input {
+            id: second_diff,
+            input: InputType::DiffbeltCall(DiffbeltCallInput {
+                body: DiffbeltResponseBody::Diff(DiffCollectionResponseJsonData {
+                    from_generation_id: EncodedGenerationIdJsonData::new_str("42".to_string()),
+                    to_generation_id: EncodedGenerationIdJsonData::new_str("42".to_string()),
+                    items: vec![],
+                    cursor_id: None,
+                }),
+            }),
+        }])
         .unwrap();
 
-    assert_eq!(finish, TransformRunResult::Finish);
+    assert_eq!(result, TransformRunResult::Finish);
 }
-*/
+
+#[derive(Debug)]
+struct ExpectedMapFilterActionRecord {
+    source_key: &'static str,
+    source_old_value: Option<&'static str>,
+    source_new_value: Option<&'static str>,
+}
+
+fn assert_map_filter_eval_action(
+    action: MapFilterEvalAction,
+    expected: Vec<ExpectedMapFilterActionRecord>,
+) {
+    let MapFilterEvalAction {
+        inputs_buffer,
+        inputs_head,
+        inputs_len,
+        outputs_buffer: _,
+    } = action;
+
+    let bytes = &inputs_buffer[inputs_head..(inputs_head + inputs_len)];
+    let map_filter_multi_input = deserialize::<MapFilterMultiInput>(bytes).expect("test");
+    let records = map_filter_multi_input.items().expect("test");
+
+    let mut records_iter = records.into_iter();
+    let mut expected_iter = expected.into_iter();
+
+    loop {
+        let actual = records_iter.next();
+        let expected = expected_iter.next();
+
+        if let (None, None) = (&actual, &expected) {
+            break;
+        }
+
+        let Some(actual) = actual else {
+            panic!("No more actual records, but expected {expected:?}");
+        };
+        let Some(expected) = expected else {
+            panic!("No more expected records, but got:\n{}", actual);
+        };
+
+        fn compare(key: &'static str, actual: Option<Vector<u8>>, expected: Option<&'static str>) {
+            let actual = actual.map(|x| x.bytes()).map(|x| from_utf8(x));
+            let actual = lift_result_from_option(actual).expect("test");
+
+            if actual == expected {
+                return;
+            }
+
+            panic!("Comparing {key}:\n  actual: {actual:?}\n  expected: {expected:?}");
+        }
+
+        compare("source_key", actual.source_key(), Some(expected.source_key));
+        compare(
+            "source_old_value",
+            actual.source_old_value(),
+            expected.source_old_value,
+        );
+        compare(
+            "source_new_value",
+            actual.source_new_value(),
+            expected.source_new_value,
+        );
+    }
+}
+
+struct MapFilterEvalInputRecord {
+    key: &'static str,
+    value: Option<&'static str>,
+}
+
+fn make_map_filter_eval_input(records: Vec<MapFilterEvalInputRecord>) -> MapFilterEvalInput {
+    let mut serializer = Serializer::new();
+
+    let records = records
+        .into_iter()
+        .map(|record| {
+            let MapFilterEvalInputRecord { key, value } = record;
+
+            let key = serializer.create_vector(key.as_bytes());
+            let value = value.map(|x| serializer.create_vector(x.as_bytes()));
+
+            let update_record = RecordUpdate::create(
+                serializer.buffer_builder(),
+                &RecordUpdateArgs {
+                    key: Some(key),
+                    value,
+                },
+            );
+
+            update_record
+        })
+        .collect::<Vec<_>>();
+
+    let records = serializer.create_vector(&records);
+
+    let multi_output = MapFilterMultiOutput::create(
+        serializer.buffer_builder(),
+        &MapFilterMultiOutputArgs {
+            target_update_records: Some(records),
+        },
+    );
+
+    let multi_output = serializer.finish(multi_output).into_owned();
+    let OwnedSerialized { buffer, head, len } = multi_output;
+
+    MapFilterEvalInput {
+        inputs_buffer: buffer,
+        inputs_head: head,
+        inputs_len: len,
+        outputs_buffer: vec![],
+    }
+}

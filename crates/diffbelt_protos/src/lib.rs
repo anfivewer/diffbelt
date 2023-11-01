@@ -3,10 +3,11 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use flatbuffers::{FlatBufferBuilder, Follow, Push, Vector, Verifiable};
-pub use flatbuffers::{InvalidFlatbuffer, WIPOffset};
+use flatbuffers::{FlatBufferBuilder, Follow, Push, Verifiable};
+pub use flatbuffers::{InvalidFlatbuffer, WIPOffset, Vector};
 
 pub mod protos;
+pub mod util;
 
 pub fn deserialize<'buf, T: 'buf + Follow<'buf> + Verifiable>(
     bytes: &'buf [u8],
@@ -54,6 +55,11 @@ impl<'fbb> Serializer<'fbb> {
         Serialized {
             buffer_builder_: self.buffer_builder_,
         }
+    }
+
+    pub fn into_vec(self) -> Vec<u8> {
+        let (buffer, _) = self.buffer_builder_.collapse();
+        buffer
     }
 }
 

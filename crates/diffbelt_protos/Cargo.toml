@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 flatbuffers = { version = "23.5.26", default-features = false, features = [] }
+
+[dependencies.diffbelt_util_no_std]
+path = "../diffbelt_util_no_std"
