@@ -1,29 +1,23 @@
 use std::mem;
 use std::ops::Deref;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::Args;
 use tokio::sync::mpsc;
 
-use diffbelt_cli_config::interpreter::function::Function;
-use diffbelt_cli_config::interpreter::var::VarDef;
-use diffbelt_cli_config::transforms::{
-    CollectionDef, CollectionWithFormat, CollectionWithReader, Transform, TransformCollectionDef,
-};
-use diffbelt_cli_config::wasm::NewWasmInstanceOptions;
 use diffbelt_cli_config::Collection;
-use diffbelt_transforms::base::action::function_eval::FunctionEvalAction;
+use diffbelt_cli_config::transforms::Transform;
 use diffbelt_transforms::base::action::{Action, ActionType};
-use diffbelt_transforms::base::input::diffbelt_call::DiffbeltCallInput;
+use diffbelt_transforms::base::action::function_eval::FunctionEvalAction;
 use diffbelt_transforms::base::input::{Input, InputType};
+use diffbelt_transforms::base::input::diffbelt_call::DiffbeltCallInput;
 use diffbelt_transforms::map_filter::MapFilterTransform;
 use diffbelt_transforms::TransformRunResult;
 
+use crate::CommandResult;
 use crate::commands::errors::CommandError;
 use crate::commands::transform::run::map_filter_eval::MapFilterEvalOptions;
 use crate::state::CliState;
-use crate::CommandResult;
 
 mod map_filter_eval;
 mod parse;
@@ -84,11 +78,6 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
         ));
     }
 
-    struct CollectionInfoFromTransform<'a> {
-        name: &'a str,
-        reader_name: Option<&'a str>,
-    }
-
     let to_collection_name = target.deref();
     let reader_name = reader_name.as_ref().map(|x| x.deref());
 
@@ -111,13 +100,6 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
     }
 
     let from_collection_name = from_collection_name.deref();
-
-    let Some(from_collection) = config.collection_by_name(from_collection_name) else {
-        // TODO: collect all collections definitions around all config, not only from "collections" block
-        return Err(CommandError::Message(format!(
-            "No collection \"{from_collection_name}\" definition present"
-        )));
-    };
 
     let Some(map_filter_wasm) = map_filter_wasm else {
         return Err(CommandError::Message("Unknown transform type".to_string()));

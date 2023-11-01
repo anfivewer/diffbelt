@@ -1,20 +1,14 @@
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 
 use either::Either;
-use wasmer::{MemoryView, WasmPtr};
+use wasmer::WasmPtr;
 
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_u32, u32_to_usize};
 use diffbelt_wasm_binding::bytes::BytesVecRawParts;
 
+use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
 use crate::wasm::memory::WasmVecHolder;
 use crate::wasm::wasm_env::WasmEnv;
-use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
-
-pub struct WasmManualDealloc<'a> {
-    instance: &'a WasmModuleInstance,
-    ptr: WasmPtr<u8>,
-    capacity: i32,
-}
 
 pub struct WasmBytesSliceResult<'a> {
     pub instance: &'a WasmModuleInstance,
@@ -81,16 +75,6 @@ impl<'a> WasmBytesSliceResult<'a> {
 
             fun(slice.as_ref())
         })
-    }
-
-    pub fn manually_dealloced(&mut self) -> Option<WasmManualDealloc<'_>> {
-        self.on_drop_dealloc
-            .take()
-            .map(|(ptr, capacity)| WasmManualDealloc {
-                instance: self.instance,
-                ptr,
-                capacity,
-            })
     }
 
     pub fn into_owned_unsafe(self) -> WasmBytesSliceOwnedUnsafe {

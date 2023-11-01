@@ -1,3 +1,16 @@
+use std::collections::HashMap;
+use std::ops::Deref;
+use std::rc::Rc;
+
+use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
+
+use crate::config_tests::TestSuite;
+use crate::errors::{ConfigParsingError, ExpectedError};
+use crate::formats::collection_human_readable_config::CollectionHumanReadableConfig;
+use crate::transforms::Transform;
+use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
+use crate::wasm::{NewWasmInstanceOptions, Wasm, WasmError, WasmModuleInstance};
+
 pub mod code;
 pub mod config_tests;
 pub mod errors;
@@ -6,18 +19,6 @@ pub mod interpreter;
 pub mod transforms;
 pub mod util;
 pub mod wasm;
-
-use crate::code::Code;
-use crate::config_tests::TestSuite;
-use crate::errors::{ConfigParsingError, ExpectedError};
-use crate::formats::collection_human_readable_config::CollectionHumanReadableConfig;
-use crate::transforms::Transform;
-use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
-use crate::wasm::{NewWasmInstanceOptions, Wasm, WasmError, WasmModuleInstance};
-use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::rc::Rc;
 
 #[cfg(not(target_endian = "little"))]
 compile_error!("Only LE targets are supported because we are copying data to WASM");
@@ -28,7 +29,6 @@ pub struct CliConfig {
 
     collections: Vec<Collection>,
     transforms: Vec<Transform>,
-    functions: HashMap<String, Code>,
     wasm: HashMap<Rc<str>, Wasm>,
     tests: HashMap<Rc<str>, TestSuite>,
 }
@@ -44,7 +44,6 @@ impl CliConfig {
         let root = expect_map(yaml)?;
 
         let mut collections = Vec::new();
-        let mut functions = HashMap::new();
         let mut transforms = None;
         let mut wasm = HashMap::new();
         let mut tests = None;
@@ -63,16 +62,6 @@ impl CliConfig {
                 }
                 "transforms" => {
                     transforms = Some(decode_yaml(value)?);
-                }
-                "functions" => {
-                    let functions_node = expect_map(&value)?;
-
-                    for (name, code) in &functions_node.items {
-                        let name = expect_str(name)?;
-                        let code = decode_yaml(code)?;
-
-                        functions.insert(name.to_string(), code);
-                    }
                 }
                 "wasm" => {
                     let wasm_node = expect_seq(&value)?;
@@ -98,7 +87,6 @@ impl CliConfig {
         Ok(Self {
             self_path,
             collections,
-            functions,
             transforms: transforms.unwrap_or_else(|| Vec::new()),
             wasm,
             tests: tests.unwrap_or_else(|| HashMap::new()),
@@ -204,9 +192,11 @@ impl Collection {
 
 #[cfg(test)]
 mod tests {
-    use crate::CliConfig;
-    use diffbelt_yaml::parse_yaml;
     use std::rc::Rc;
+
+    use diffbelt_yaml::parse_yaml;
+
+    use crate::CliConfig;
 
     #[test]
     fn read_config() {

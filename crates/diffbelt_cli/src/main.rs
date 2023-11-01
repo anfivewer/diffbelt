@@ -1,22 +1,24 @@
+use std::path::PathBuf;
+use std::process::exit;
+use std::rc::Rc;
+use std::str::from_utf8;
+use std::sync::Arc;
+
+use clap::{Arg, Command, Parser};
+
+use diffbelt_cli_config::CliConfig;
+use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
+use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
+
+use crate::commands::Commands;
+use crate::commands::errors::CommandError;
+use crate::global::set_global_config;
+use crate::state::CliState;
+
 mod commands;
 pub mod format;
 mod global;
 mod state;
-
-use crate::commands::errors::CommandError;
-use crate::commands::Commands;
-use crate::global::set_global_config;
-use crate::state::CliState;
-use clap::{Arg, Command, Parser};
-use diffbelt_cli_config::CliConfig;
-use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
-use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
-use std::path::{Path, PathBuf};
-use std::process::exit;
-use std::rc::Rc;
-use std::str::from_utf8;
-
-use std::sync::Arc;
 
 type CommandResult = Result<(), CommandError>;
 

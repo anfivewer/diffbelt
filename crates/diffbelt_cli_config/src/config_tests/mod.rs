@@ -238,7 +238,7 @@ impl CliConfig {
             let wasm_modules: Vec<&WasmModuleInstance> =
                 wasm_modules.iter().map(|(_, wasm)| wasm.deref()).collect();
 
-            let mut transform_test = match_ok!(<MapFilterTransformTest as TransformTest>::create(
+            let transform_test = match_ok!(<MapFilterTransformTest as TransformTest>::create(
                 &initial_data,
                 wasm_modules
             ));

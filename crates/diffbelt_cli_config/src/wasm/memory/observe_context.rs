@@ -1,10 +1,13 @@
-use crate::wasm::memory::WasmVecHolder;
-use crate::wasm::{WasmError, WasmModuleInstance};
-use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, unchecked_i32_to_u32};
-use either::Either;
 use std::ops::Deref;
+
+use either::Either;
 use wasmer::{MemoryView, WasmPtr, WasmSliceAccess};
 use wasmer_types::ValueType;
+
+use diffbelt_util_no_std::cast::try_positive_i32_to_u32;
+
+use crate::wasm::{WasmError, WasmModuleInstance};
+use crate::wasm::memory::WasmVecHolder;
 
 pub struct WasmMemoryObserver<'a> {
     view: MemoryView<'a>,

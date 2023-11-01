@@ -1,5 +1,5 @@
 use std::io::ErrorKind;
-use std::ops::{Deref, DerefMut};
+use std::ops::{DerefMut};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::Utf8Error;
@@ -9,13 +9,13 @@ use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
 use serde::Deserialize;
 use thiserror::Error;
 use wasmer::{
-    AsStoreRef, CompileError, ExportError, FromToNativeWasmType, Imports, Instance,
+    AsStoreRef, CompileError, ExportError, Imports, Instance,
     InstantiationError, MemoryAccessError, MemoryError, Module, RuntimeError, Store,
     TypedFunction, WasmPtr, WasmTypeList,
 };
 
-use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
 use diffbelt_util::Wrap;
+use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
 use diffbelt_wasm_binding::transform::map_filter::MapFilterResult;
 use memory::Allocation;
 pub use types::WasmPtrImpl;

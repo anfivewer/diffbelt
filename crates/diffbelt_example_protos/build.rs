@@ -3,6 +3,7 @@ use std::process::Command;
 
 enum SubPath {
     File(&'static str),
+    #[allow(dead_code)]
     Folder((&'static str, Vec<SubPath>)),
 }
 

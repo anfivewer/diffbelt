@@ -28,34 +28,34 @@ collections:
 
   - name: uniqueUsers:1d
 
-functions:
-  parsed_log_lines_day_date_as_key: &parsed_log_lines_day_date_as_key
-    - vars:
-        date:
-          date_from_unix_ms: source.timestampMilliseconds
-        key: ${date.year}-${(padLeft date.month '0' 2)}-${(padLeft date.day '0', 2)}
-    - return: key
-  parsed_log_lines_aggregate_increment_log_keys: &parsed_log_lines_aggregate_increment_log_keys
-    - vars:
-        count: accumulator.log_keys.get_or_default(key, 0)
-    - update_map:
-        var: accumulator.log_keys
-        key: key
-        value: count + value
-  take_str_before_space: &take_str_before_space
-    - regexp:
-        var: str
-        regexp: ^([^\s]+)\s
-        groups:
-          - str
-    - return: str
-  update_ms_percentiles_increment_ms_by_type: &update_ms_percentiles_increment_ms_by_type
-    - vars:
-        count: accumulator.ms_by_type.get_or_default(key, 0)
-    - update_map:
-        var: accumulator.ms_by_type
-        key: key
-        value: count + value
+#functions:
+#  parsed_log_lines_day_date_as_key: &parsed_log_lines_day_date_as_key
+#    - vars:
+#        date:
+#          date_from_unix_ms: source.timestampMilliseconds
+#        key: ${date.year}-${(padLeft date.month '0' 2)}-${(padLeft date.day '0', 2)}
+#    - return: key
+#  parsed_log_lines_aggregate_increment_log_keys: &parsed_log_lines_aggregate_increment_log_keys
+#    - vars:
+#        count: accumulator.log_keys.get_or_default(key, 0)
+#    - update_map:
+#        var: accumulator.log_keys
+#        key: key
+#        value: count + value
+#  take_str_before_space: &take_str_before_space
+#    - regexp:
+#        var: str
+#        regexp: ^([^\s]+)\s
+#        groups:
+#          - str
+#    - return: str
+#  update_ms_percentiles_increment_ms_by_type: &update_ms_percentiles_increment_ms_by_type
+#    - vars:
+#        count: accumulator.ms_by_type.get_or_default(key, 0)
+#    - update_map:
+#        var: accumulator.ms_by_type
+#        key: key
+#        value: count + value
 
 transforms:
   - name: parse_lines
@@ -63,128 +63,6 @@ transforms:
     target: parsed-log-lines
     reader_name: log-lines
     map_filter_wasm: example.mapFilter
-#    map_filter:
-#      - if:
-#          condition: (is_none map_filter_new_value)
-#          then:
-#            - return:
-#                key: map_filter_key
-#                value: (none)
-#      - regexp:
-#          var: map_filter_key
-#          parts:
-#            log_level: '''(T|I|W|E|S)'''
-#            timestamp: '''(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{1,3}Z)\.(\d{1,3})'''
-#            start: '"^(?:${log_level} ${timestamp}|${timestamp} ${log_level})"'
-#            end: '''((?:\\ |[^\s])+) ((?:\\ |[^\s])+)(.*)$'''
-#          regexp: '"${start} ${end}"'
-#          groups:
-#            - log_level_a
-#            - date_a
-#            - microseconds_a
-#            - date_b
-#            - microseconds_b
-#            - log_level_b
-#            - logger_key_escaped
-#            - log_key_escaped
-#            - rest
-#          if_not_matches:
-#            - return:
-#                key: map_filter_key
-#                value: (none)
-#      - vars:
-#          log_level:
-#            non_empty_string: [log_level_a, log_level_b]
-#          date:
-#            non_empty_string: [date_a, date_b]
-#          microseconds_str:
-#            non_empty_string: [microseconds_a, microseconds_b]
-#          timestamp_ms:
-#            parse_date_to_ms: date
-#          microseconds:
-#            parse_uint: microseconds_str
-#          timestamp_string: '"${date}.${microseconds_str}"'
-#          logger_key:
-#            regexp_replace:
-#              var: logger_key_escaped
-#              from: \\(\\|\s)
-#              to: $1
-#          logger_key_start:
-#            regexp_replace:
-#              var: logger_key
-#              from: :.*$
-#              to: ''
-#          log_key:
-#            regexp_replace:
-#              var: log_key_escaped
-#              from: \\(\\|\s)
-#              to: $1
-#          props: (map)
-#          extra: (list)
-#      - regexp:
-#          var: rest
-#          regexp_multi: '''\s((?:\\ |\\:|[^\s:])+):((?:\\ |[^\s])+)'''
-#          fail_on_non_continuous: yes
-#          rest: rest
-#          groups:
-#            - key_escaped
-#            - value_escaped
-#          loop:
-#            - vars:
-#                key:
-#                  regexp_replace:
-#                    var: key_escaped
-#                    from: \\(\\|\s|:)
-#                    to: $1
-#                value:
-#                  regexp_replace:
-#                    var: value_escaped
-#                    from: \\(\\|\s)
-#                    to: $1
-#            - update_map:
-#                var: props
-#                key: key
-#                value: value
-#      - regexp:
-#          var: rest
-#          regexp_multi: '''\s*\|((?:\\\||[^|])+)'''
-#          fail_on_non_continuous: yes
-#          groups:
-#            - extra_escaped
-#          loop:
-#            - vars:
-#                extra_escaped_1:
-#                  regexp_replace:
-#                    var: extra_escaped
-#                    from: \\r
-#                    to: "\r"
-#                extra_escaped_2:
-#                  regexp_replace:
-#                    var: extra_escaped_1
-#                    from: \\n
-#                    to: "\n"
-#                extra_unescaped:
-#                  regexp_replace:
-#                    var: extra_escaped_2
-#                    from: \\(\\|\|)
-#                    to: $1
-#            - update_list:
-#                var: extra
-#                push: extra_unescaped
-#      - vars:
-#          value:
-#            map:
-#              logLevel: log_level
-#              timestampString: timestamp_string
-#              timestampMilliseconds: timestamp_ms
-#              timestampMicroseconds: microseconds
-#              loggerKey: logger_key
-#              logKey: log_key
-#              props: props
-#              extra: extra
-#      - return:
-#          key: '"${timestamp_string} ${logger_key_start}"'
-#          value: value
 
   - source: parsed-log-lines
     target: parsed-log-lines:1d
@@ -192,7 +70,7 @@ transforms:
     aggregate:
       key:
         - call:
-            fn: *parsed_log_lines_day_date_as_key
+            fn: parsed_log_lines_day_date_as_key
             vars:
               source: source
             result: key
@@ -227,7 +105,7 @@ transforms:
                   var: accumulator.count
                   value: accumulator.count + value
               - call:
-                  fn: *parsed_log_lines_aggregate_increment_log_keys
+                  fn: parsed_log_lines_aggregate_increment_log_keys
                   vars:
                     accumulator: accumulator
                     count: count
@@ -243,7 +121,7 @@ transforms:
                   var: accumulator.count
                   value: accumulator.count + value
               - call:
-                  fn: *parsed_log_lines_aggregate_increment_log_keys
+                  fn: parsed_log_lines_aggregate_increment_log_keys
                   vars:
                     accumulator: accumulator
                     count: count
@@ -261,7 +139,7 @@ transforms:
                   key: item.key
                   value: item.value
               - call:
-                  fn: *parsed_log_lines_aggregate_increment_log_keys
+                  fn: parsed_log_lines_aggregate_increment_log_keys
                   vars:
                     accumulator: accumulator
                     count: count
@@ -282,14 +160,14 @@ transforms:
       target_key:
         source:
           - call:
-              fn: *parsed_log_lines_day_date_as_key
+              fn: parsed_log_lines_day_date_as_key
               vars:
                 source: source
               result: key
           - return: key
         intermediate:
           - call:
-              fn: *take_str_before_space
+              fn: take_str_before_space
               vars:
                 str: intermediate_key
               result: key
@@ -317,7 +195,7 @@ transforms:
                 fractional_digits: 1
                 overflow_as_max: yes
         - call:
-            fn: *parsed_log_lines_day_date_as_key
+            fn: parsed_log_lines_day_date_as_key
             vars:
               source: source
             result: key
@@ -347,7 +225,7 @@ transforms:
                   key: intermediate_old.updateType
                   value: -1
               - call:
-                  fn: *update_ms_percentiles_increment_ms_by_type
+                  fn: update_ms_percentiles_increment_ms_by_type
                   vars:
                     accumulator: accumulator
                     key: key
@@ -363,7 +241,7 @@ transforms:
                   key: intermediate_old.updateType
                   value: 1
               - call:
-                  fn: *update_ms_percentiles_increment_ms_by_type
+                  fn: update_ms_percentiles_increment_ms_by_type
                   vars:
                     accumulator: accumulator
                     key: key
@@ -389,14 +267,14 @@ transforms:
       target_key:
         source:
           - call:
-              fn: *parsed_log_lines_day_date_as_key
+              fn: parsed_log_lines_day_date_as_key
               vars:
                 source: source
               result: key
           - return: key
         intermediate:
           - call:
-              fn: *take_str_before_space
+              fn: take_str_before_space
               vars:
                 str: intermediate_key
               result: key
@@ -415,7 +293,7 @@ transforms:
             then: noop
             else: return
         - call:
-            fn: *parsed_log_lines_day_date_as_key
+            fn: parsed_log_lines_day_date_as_key
             vars:
               source: source
             result: key
