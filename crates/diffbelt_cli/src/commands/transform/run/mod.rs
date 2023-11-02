@@ -144,14 +144,23 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                             let sender = sender.clone();
                             let client = client.clone();
                             tokio::spawn(async move {
-                                if verbose {
-                                    println!("> {action_id:?} {call:?}");
-                                }
+                                let verbose_call_path = if verbose {
+                                    println!("> {action_id:?} db call {}", call.path);
+                                    Some(call.path.clone())
+                                } else {
+                                    None
+                                };
 
                                 let message = match client.transform_call(call).await {
                                     Ok(body) => {
                                         if verbose {
-                                            println!("< {action_id:?} {body:?}");
+                                            println!(
+                                                "< {action_id:?} db call {}",
+                                                verbose_call_path
+                                                    .as_ref()
+                                                    .map(|x| x.as_ref())
+                                                    .unwrap_or("?")
+                                            );
                                         }
 
                                         Ok(Input {
