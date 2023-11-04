@@ -360,14 +360,11 @@ fn assert_map_filter_eval_action(
     expected: Vec<ExpectedMapFilterActionRecord>,
 ) {
     let MapFilterEvalAction {
-        inputs_buffer,
-        inputs_head,
-        inputs_len,
-        outputs_buffer: _,
+        input,
+        output_buffer: _,
     } = action;
 
-    let bytes = &inputs_buffer[inputs_head..(inputs_head + inputs_len)];
-    let map_filter_multi_input = deserialize::<MapFilterMultiInput>(bytes).expect("test");
+    let map_filter_multi_input = input.data();
     let records = map_filter_multi_input.items().expect("test");
 
     let mut records_iter = records.into_iter();
@@ -451,12 +448,9 @@ fn make_map_filter_eval_input(records: Vec<MapFilterEvalInputRecord>) -> MapFilt
     );
 
     let multi_output = serializer.finish(multi_output).into_owned();
-    let SerializedRawParts { buffer, head, len } = multi_output.into_raw_parts();
 
     MapFilterEvalInput {
-        inputs_buffer: buffer,
-        inputs_head: head,
-        inputs_len: len,
-        outputs_buffer: vec![],
+        input: multi_output,
+        output_buffer: vec![],
     }
 }

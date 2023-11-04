@@ -460,16 +460,14 @@ impl MapFilterTransform {
             },
         );
 
-        let SerializedRawParts { buffer, head, len } =
-            serializer.finish(map_filter_multi_input).into_owned().into_raw_parts();
+        let input =
+            serializer.finish(map_filter_multi_input).into_owned();
 
         state.actions_left += 1;
         actions.push((
             ActionType::FunctionEval(FunctionEvalAction::MapFilter(MapFilterEvalAction {
-                inputs_buffer: buffer,
-                inputs_head: head,
-                inputs_len: len,
-                outputs_buffer: buffer_for_eval_outputs.take().unwrap_or_else(|| Vec::new()),
+                input,
+                output_buffer: buffer_for_eval_outputs.take().unwrap_or_else(|| Vec::new()),
             })),
             input_handler!(this, input, {
                 let FunctionEvalInput { body } = input.into_eval_map_filter()?;
@@ -545,17 +543,13 @@ impl MapFilterTransform {
         state.actions_left -= 1;
 
         let MapFilterEvalInput {
-            inputs_buffer,
-            inputs_head,
-            inputs_len,
-            outputs_buffer,
+            input,
+            output_buffer: outputs_buffer,
         } = input;
 
         self.free_buffers_for_eval_inputs.push(outputs_buffer);
 
-        let bytes = &inputs_buffer[inputs_head..(inputs_head + inputs_len)];
-        let map_filter_multi_output =
-            deserialize::<MapFilterMultiOutput>(bytes).map_err(NoStdErrorWrap)?;
+        let map_filter_multi_output = input.data();
 
         let Some(records) = map_filter_multi_output.target_update_records() else {
             return Err(TransformError::Unspecified(
@@ -581,7 +575,7 @@ impl MapFilterTransform {
             });
         }
 
-        self.free_buffers_for_eval_outputs.push(inputs_buffer);
+        self.free_buffers_for_eval_outputs.push(input.into_vec());
 
         self.post_handle()
     }

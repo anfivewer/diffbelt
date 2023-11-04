@@ -4,14 +4,15 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use core::marker::PhantomData;
-use flatbuffers::{FlatBufferBuilder, Follow, Push, Verifiable};
+use flatbuffers::{FlatBufferBuilder, Follow, ForwardsUOffset, Push, Verifiable, Verifier, VerifierOptions};
 pub use flatbuffers::{InvalidFlatbuffer, Vector, WIPOffset};
 
 pub mod protos;
 pub mod util;
 
 pub trait FlatbuffersType<'fbb>: Follow<'fbb> + Verifiable + 'fbb {}
-impl <'fbb, T: Follow<'fbb> + Verifiable + 'fbb> FlatbuffersType<'fbb> for T {}
+
+impl<'fbb, T: Follow<'fbb> + Verifiable + 'fbb> FlatbuffersType<'fbb> for T {}
 
 pub fn deserialize<'fbb, T: FlatbuffersType<'fbb>>(
     bytes: &'fbb [u8],
@@ -76,7 +77,7 @@ pub struct Serialized<'fbb, F: FlatbuffersType<'fbb>> {
     phantom: PhantomData<F>,
 }
 
-impl <'fbb, F: FlatbuffersType<'fbb>> Serialized<'fbb, F> {
+impl<'fbb, F: FlatbuffersType<'fbb>> Serialized<'fbb, F> {
     pub fn as_bytes(&self) -> &[u8] {
         self.buffer_builder_.finished_data()
     }
@@ -103,6 +104,7 @@ impl <'fbb, F: FlatbuffersType<'fbb>> Serialized<'fbb, F> {
     }
 }
 
+#[derive(Debug)]
 pub struct OwnedSerialized<'fbb, T: FlatbuffersType<'fbb>> {
     buffer: Vec<u8>,
     head: usize,
@@ -110,13 +112,38 @@ pub struct OwnedSerialized<'fbb, T: FlatbuffersType<'fbb>> {
     phantom: PhantomData<&'fbb T>,
 }
 
-impl <'fbb, F: FlatbuffersType<'fbb>> OwnedSerialized<'fbb, F> {
+impl<'fbb, T: FlatbuffersType<'fbb>> PartialEq for OwnedSerialized<'fbb, T> {
+    fn eq(&self, other: &Self) -> bool {
+        &self.buffer[self.head..(self.head + self.len)] == &other.buffer[other.head..(other.head + other.len)]
+    }
+}
+
+impl<'fbb, T: FlatbuffersType<'fbb>> Eq for OwnedSerialized<'fbb, T> {}
+
+impl<'fbb, F: FlatbuffersType<'fbb>> OwnedSerialized<'fbb, F> {
+    pub fn from_vec(buffer: Vec<u8>) -> Result<Self, InvalidFlatbuffer> {
+        let opts = VerifierOptions::default();
+        let mut v = Verifier::new(&opts, &buffer);
+        <ForwardsUOffset<F>>::run_verifier(&mut v, 0)?;
+        let len = buffer.len();
+        Ok(Self {
+            buffer,
+            head: 0,
+            len,
+            phantom: PhantomData::default(),
+        })
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         &self.buffer[self.head..(self.head + self.len)]
     }
 
     pub fn data(&'fbb self) -> F::Inner {
         unsafe { flatbuffers::root_unchecked::<F>(self.as_bytes()) }
+    }
+
+    pub fn into_vec(self) -> Vec<u8> {
+        self.buffer
     }
 
     pub fn into_raw_parts(self) -> SerializedRawParts {

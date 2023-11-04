@@ -1,6 +1,6 @@
 use diffbelt_cli_config::wasm::MapFilterFunction;
-use diffbelt_protos::deserialize;
 use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFilterMultiOutput};
+use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_transforms::base::action::function_eval::MapFilterEvalAction;
 use diffbelt_transforms::base::input::function_eval::{
     FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput,
@@ -29,15 +29,11 @@ impl MapFilterEvalOptions<'_> {
         } = self;
 
         let MapFilterEvalAction {
-            inputs_buffer,
-            inputs_head,
-            inputs_len,
-            mut outputs_buffer,
+            input,
+            output_buffer: mut outputs_buffer,
         } = action;
 
-        let inputs_slice = &inputs_buffer[inputs_head..(inputs_head + inputs_len)];
-        let map_filter_multi_input =
-            deserialize::<MapFilterMultiInput>(inputs_slice).map_err(NoStdErrorWrap)?;
+        let map_filter_multi_input = input.data();
 
         if verbose {
             println!(
@@ -46,7 +42,7 @@ impl MapFilterEvalOptions<'_> {
             );
         }
 
-        let output = map_filter.call(inputs_slice)?;
+        let output = map_filter.call(input.as_bytes())?;
 
         () = output.observe_bytes(|bytes| {
             let output = deserialize::<MapFilterMultiOutput>(bytes).map_err(NoStdErrorWrap)?;
@@ -67,16 +63,15 @@ impl MapFilterEvalOptions<'_> {
             Ok::<_, MapFilterEvalError>(())
         })?;
 
-        let output_len = outputs_buffer.len();
+        let output = OwnedSerialized::<MapFilterMultiOutput<'static>>::from_vec(outputs_buffer)
+            .map_err(NoStdErrorWrap)?;
 
         inputs.push(Input {
             id: action_id,
             input: InputType::FunctionEval(FunctionEvalInput {
                 body: FunctionEvalInputBody::MapFilter(MapFilterEvalInput {
-                    inputs_buffer: outputs_buffer,
-                    inputs_head: 0,
-                    inputs_len: output_len,
-                    outputs_buffer: inputs_buffer,
+                    input: output,
+                    output_buffer: input.into_vec(),
                 }),
             }),
         });

@@ -68,6 +68,7 @@ dependencies = [
 name = "diffbelt_protos"
 version = "0.1.0"
 dependencies = [
+ "diffbelt_util_no_std",
  "flatbuffers",
 ]
 
@@ -75,6 +76,7 @@ dependencies = [
 name = "diffbelt_util_no_std"
 version = "0.1.0"
 dependencies = [
+ "either",
  "thiserror-no-std",
 ]
 
@@ -94,6 +96,12 @@ checksum = "203540e710bfadb90e5e29930baf5d10270cec1f43ab34f46f78b147b2de715a"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "either"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
 name = "flatbuffers"
