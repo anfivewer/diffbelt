@@ -1,4 +1,4 @@
-use diffbelt_wasm_binding::bytes::{BytesSlice, BytesVecRawParts};
+use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 
 mod log_lines;
 mod parsed_log_lines;

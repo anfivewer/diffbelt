@@ -4,7 +4,7 @@ use std::mem::MaybeUninit;
 use wasmer::WasmPtr;
 use wasmer_types::{Memory32, MemorySize, ValueType};
 
-use diffbelt_wasm_binding::bytes::{BytesSlice, BytesVecRawParts};
+use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::PtrImpl;
 use diffbelt_wasm_binding::ReplaceResult;
 

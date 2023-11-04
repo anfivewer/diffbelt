@@ -11,8 +11,8 @@ use diffbelt_protos::protos::transform::map_filter::{
 };
 use diffbelt_util_no_std::comments::Annotated;
 use diffbelt_wasm_binding::annotations::serializer::{AsSerializerAnnotated, InputAnnotated, OwnedOutputAnnotated, RefOutputAnnotated};
-use diffbelt_wasm_binding::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::error_code::ErrorCode;
+use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::transform::map_filter::MapFilter;
 
 use crate::log_lines::parse_log_line_header;

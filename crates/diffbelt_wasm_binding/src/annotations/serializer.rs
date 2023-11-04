@@ -1,6 +1,6 @@
-use crate::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_protos::{deserialize_unchecked, FlatbuffersType, OwnedSerialized, Serializer};
 use diffbelt_util_no_std::comments::Annotated;
+use crate::ptr::bytes::{BytesSlice, BytesVecRawParts};
 
 pub trait AsSerializerAnnotated<'fbb, F: FlatbuffersType<'fbb>> {
     unsafe fn as_serializer(&self) -> Serializer<'fbb, F>;

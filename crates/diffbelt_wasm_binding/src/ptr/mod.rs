@@ -1,3 +1,6 @@
+pub mod bytes;
+pub mod slice;
+
 #[derive(Copy, Clone, Debug)]
 pub struct NativePtrImpl;
 

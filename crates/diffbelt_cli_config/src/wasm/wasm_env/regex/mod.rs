@@ -7,7 +7,7 @@ use diffbelt_util_no_std::cast::{
     try_positive_i32_to_usize, try_usize_to_i32, unchecked_i32_to_u32, unchecked_usize_to_i32,
     unchecked_usize_to_u32, usize_to_u64,
 };
-use diffbelt_wasm_binding::bytes::BytesVecRawParts;
+use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 use diffbelt_wasm_binding::ReplaceResult;
 use regex::Regex;
 use wasmer::{Function, FunctionEnv, FunctionEnvMut, Imports, Memory, Store, ValueType, WasmPtr};

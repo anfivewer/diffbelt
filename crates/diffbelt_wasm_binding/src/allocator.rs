@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::ptr;
 
-use crate::bytes::{BytesSlice, BytesVecPtr, BytesVecRawParts, BytesVecWidePtr};
+use crate::ptr::bytes::{BytesSlice, BytesVecPtr, BytesVecRawParts, BytesVecWidePtr};
 
 #[no_mangle]
 extern "C" fn alloc(capacity: i32) -> BytesVecPtr {

@@ -8,11 +8,13 @@ enum SubPath {
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=src/protos/transform/map_filter.fbs");
 
     let paths = [SubPath::Folder((
         "transform",
-        vec![SubPath::File("map_filter.fbs")],
+        vec![
+            SubPath::File("map_filter.fbs"),
+            SubPath::File("aggregate.fbs"),
+        ],
     ))];
 
     fn process_path(prefix: PathBuf, path: SubPath) {
@@ -25,13 +27,12 @@ fn main() {
                 fbs_path.push(&prefix);
                 fbs_path.push(file);
 
+                let fbs_path = fbs_path.to_str().unwrap();
+
+                println!("cargo:rerun-if-changed={fbs_path}");
+
                 let status = Command::new("flatc")
-                    .args(&[
-                        "--rust",
-                        "-o",
-                        generated_path.to_str().unwrap(),
-                        fbs_path.to_str().unwrap(),
-                    ])
+                    .args(&["--rust", "-o", generated_path.to_str().unwrap(), fbs_path])
                     .status()
                     .unwrap();
 

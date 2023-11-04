@@ -7,6 +7,15 @@ pub struct Annotated<Value, Annotation> {
     phantom: PhantomData<Annotation>,
 }
 
+impl<Value: Clone, Annotation> Clone for Annotated<Value, Annotation> {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value.clone(),
+            phantom: PhantomData::default(),
+        }
+    }
+}
+
 impl<A, B> From<A> for Annotated<A, B> {
     fn from(value: A) -> Self {
         Self {

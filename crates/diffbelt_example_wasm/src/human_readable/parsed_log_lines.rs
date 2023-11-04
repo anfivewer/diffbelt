@@ -7,9 +7,9 @@ use thiserror_no_std::Error;
 use diffbelt_example_protos::protos::log_line::ParsedLogLine;
 use diffbelt_protos::{deserialize, InvalidFlatbuffer};
 use diffbelt_util_no_std::comments::Annotated;
-use diffbelt_wasm_binding::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;
+use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 
 use crate::util::run_error_coded::run_error_coded;
 

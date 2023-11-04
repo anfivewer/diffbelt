@@ -6,7 +6,7 @@ use core::{ptr, slice};
 
 use thiserror_no_std::Error;
 
-use crate::bytes::BytesVecRawParts;
+use crate::ptr::bytes::BytesVecRawParts;
 use crate::ptr::{NativePtrImpl, PtrImpl};
 
 #[derive(Copy, Clone)]

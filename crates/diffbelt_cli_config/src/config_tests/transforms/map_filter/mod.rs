@@ -9,7 +9,7 @@ use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::lift_result_from_option;
 use diffbelt_util_no_std::cast::checked_usize_to_i32;
 use diffbelt_util_no_std::slice::get_slice_offset_in_other_slice;
-use diffbelt_wasm_binding::bytes::BytesSlice;
+use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_yaml::YamlNode;
 use yaml_input::yaml_test_vars_to_map_filter_input;
 

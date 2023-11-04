@@ -1,6 +1,6 @@
 use diffbelt_util_no_std::comments::Annotated;
-use crate::bytes::{BytesSlice, BytesVecRawParts};
 use crate::error_code::ErrorCode;
+use crate::ptr::bytes::{BytesSlice, BytesVecRawParts};
 
 pub trait HumanReadable {
     extern "C" fn human_readable_key_to_bytes(

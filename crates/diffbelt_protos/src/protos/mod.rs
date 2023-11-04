@@ -54,4 +54,8 @@ pub mod transform {
             }
         }
     }
+
+    pub mod aggregate {
+        pub use super::super::generated::transform::aggregate_generated::*;
+    }
 }

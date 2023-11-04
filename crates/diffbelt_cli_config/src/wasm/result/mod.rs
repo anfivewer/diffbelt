@@ -4,7 +4,7 @@ use either::Either;
 use wasmer::WasmPtr;
 
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_u32, u32_to_usize};
-use diffbelt_wasm_binding::bytes::BytesVecRawParts;
+use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 
 use crate::wasm::memory::WasmVecHolder;
 use crate::wasm::wasm_env::WasmEnv;

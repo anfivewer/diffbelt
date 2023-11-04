@@ -1,29 +1,14 @@
-use alloc::string::{FromUtf8Error, String};
 use alloc::vec::Vec;
 use core::ptr;
+use alloc::string::{FromUtf8Error, String};
 use core::ptr::slice_from_raw_parts;
 use core::str::{from_utf8, Utf8Error};
-use diffbelt_protos::{FlatbuffersType, OwnedSerialized, SerializedRawParts};
-
+use diffbelt_protos::{FlatbuffersType, OwnedSerialized};
 use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32};
-
 use crate::ptr::{NativePtrImpl, PtrImpl};
+use crate::ptr::slice::SliceRawParts;
 
-#[derive(Copy, Clone, Debug)]
-#[repr(C)]
-pub struct BytesSlice<P: PtrImpl = NativePtrImpl> {
-    pub ptr: P::Ptr<u8>,
-    pub len: i32,
-}
-
-impl From<&[u8]> for BytesSlice {
-    fn from(value: &[u8]) -> Self {
-        Self {
-            ptr: value as *const [u8] as *const u8,
-            len: checked_usize_to_i32(value.len()),
-        }
-    }
-}
+pub type BytesSlice<P = NativePtrImpl> = SliceRawParts<u8, P>;
 
 #[repr(transparent)]
 pub struct BytesVecPtr {
@@ -86,16 +71,7 @@ impl From<Vec<u8>> for BytesVecWidePtr {
     }
 }
 
-impl BytesSlice {
-    pub unsafe fn as_slice(&self) -> &[u8] {
-        let Self { ptr, len } = *self;
-
-        let slice = slice_from_raw_parts(ptr, len as usize);
-        let slice = &*slice as &[u8];
-
-        slice
-    }
-
+impl SliceRawParts<u8> {
     pub unsafe fn as_str(&self) -> Result<&str, Utf8Error> {
         from_utf8(self.as_slice())
     }
