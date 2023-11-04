@@ -124,12 +124,14 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
     }
 
     type Output = (
-        WasmBytesSliceResult<'a>,
+        WasmVecHolder<'a>,
         Vec<(BytesSlice<WasmPtrImpl>, Option<BytesSlice<WasmPtrImpl>>)>,
     );
 
     fn input_to_output(&'a self, input: Self::Input) -> Result<Self::Output, TestError> {
-        let bytes_result = self.map_filter.call(input.as_bytes())?;
+        let result_holder = self.map_filter.instance.alloc_vec_holder()?;
+
+        let bytes_result = self.map_filter.call(input.as_bytes(), &result_holder)?;
 
         let update_record_slices = bytes_result.observe_bytes(|bytes| {
             let multi_output =
@@ -185,7 +187,7 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
             Ok::<_, TestError>(update_record_slices)
         })?;
 
-        Ok((bytes_result, update_record_slices))
+        Ok((result_holder, update_record_slices))
     }
 
     type ActualOutput = Vec<(WasmVecHolder<'a>, Option<WasmVecHolder<'a>>)>;
@@ -194,7 +196,7 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
         &self,
         output: Self::Output,
     ) -> Result<Self::ActualOutput, TestError> {
-        let (original_bytes_result, update_record_slices) = output;
+        let (result_bytes_holder, update_record_slices) = output;
 
         let instance = self.target_human_readable.instance;
 
@@ -221,7 +223,7 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
             kv_holders.push((key_vec_holder, value_vec_holder));
         }
 
-        drop(original_bytes_result);
+        drop(result_bytes_holder);
 
         Ok(kv_holders)
     }

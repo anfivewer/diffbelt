@@ -14,15 +14,11 @@ pub struct WasmBytesSliceResult<'a> {
     pub instance: &'a WasmModuleInstance,
     pub ptr: WasmPtr<u8>,
     pub len: u32,
-
-    pub on_drop_dealloc: Option<(WasmPtr<u8>, i32)>,
 }
 
 pub struct WasmBytesSliceOwnedUnsafe {
     pub ptr: WasmPtr<u8>,
     pub len: u32,
-
-    pub on_drop_dealloc: Option<(WasmPtr<u8>, i32)>,
 }
 
 impl<'a> WasmBytesSliceResult<'a> {
@@ -45,7 +41,6 @@ impl<'a> WasmBytesSliceResult<'a> {
             instance,
             ptr: ptr.into(),
             len,
-            on_drop_dealloc: None,
         })
     }
 
@@ -81,34 +76,6 @@ impl<'a> WasmBytesSliceResult<'a> {
         WasmBytesSliceOwnedUnsafe {
             ptr: self.ptr,
             len: self.len,
-            on_drop_dealloc: self.on_drop_dealloc,
         }
-    }
-}
-
-impl Drop for WasmBytesSliceResult<'_> {
-    fn drop(&mut self) {
-        let Some((ptr, len)) = self.on_drop_dealloc.take() else {
-            return;
-        };
-
-        if len <= 0 {
-            return;
-        }
-
-        let result = (|| {
-            let mut store = self.instance.store.try_borrow_mut()?;
-            let store = store.deref_mut();
-
-            () = self
-                .instance
-                .allocation
-                .dealloc
-                .call(store, ptr.into(), len)?;
-
-            Ok::<(), WasmError>(())
-        })();
-
-        () = WasmEnv::handle_error(&self.instance.error, result).unwrap_or(());
     }
 }

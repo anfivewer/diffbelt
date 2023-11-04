@@ -6,7 +6,6 @@ use wasmer_types::{Memory32, MemorySize, ValueType};
 
 use diffbelt_wasm_binding::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::PtrImpl;
-use diffbelt_wasm_binding::transform::map_filter::MapFilterResult;
 use diffbelt_wasm_binding::ReplaceResult;
 
 #[derive(Copy, Clone, Debug)]
@@ -70,10 +69,6 @@ macro_rules! impl_value_type {
 #[repr(transparent)]
 pub struct WasmReplaceResult(pub ReplaceResult<WasmPtrImpl>);
 
-#[derive(Copy, Clone)]
-#[repr(transparent)]
-pub struct WasmFilterResult(pub MapFilterResult<WasmPtrImpl>);
-
 #[derive(Copy, Clone, Debug)]
 #[repr(transparent)]
 pub struct WasmBytesVecRawParts(pub BytesVecRawParts<WasmPtrImpl>);
@@ -83,6 +78,5 @@ pub struct WasmBytesVecRawParts(pub BytesVecRawParts<WasmPtrImpl>);
 pub struct WasmBytesSlice(pub BytesSlice<WasmPtrImpl>);
 
 impl_value_type!(WasmReplaceResult);
-impl_value_type!(WasmFilterResult);
 impl_value_type!(WasmBytesVecRawParts);
 impl_value_type!(WasmBytesSlice);

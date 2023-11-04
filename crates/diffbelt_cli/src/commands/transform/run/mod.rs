@@ -114,6 +114,8 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
     let wasm_instance = config.new_wasm_instance(wasm_def).await?;
     let map_filter = wasm_instance.map_filter_function(map_filter_wasm.method_name.as_str())?;
 
+    let vec_holder = wasm_instance.alloc_vec_holder()?;
+
     let mut transform = MapFilterTransform::new(
         Box::from(from_collection_name),
         Box::from(to_collection_name),
@@ -182,6 +184,7 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                                     verbose,
                                     action,
                                     map_filter: &map_filter,
+                                    vec_holder: &vec_holder,
                                     inputs: &mut inputs,
                                     action_id,
                                 }

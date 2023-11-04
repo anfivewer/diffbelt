@@ -755,6 +755,7 @@ dependencies = [
 name = "diffbelt_wasm_binding"
 version = "0.1.0"
 dependencies = [
+ "diffbelt_protos",
  "diffbelt_util_no_std",
  "thiserror-no-std",
 ]

@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use core::ptr;
 use core::ptr::slice_from_raw_parts;
 use core::str::{from_utf8, Utf8Error};
+use diffbelt_protos::{FlatbuffersType, OwnedSerialized, SerializedRawParts};
 
 use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32};
 
@@ -13,6 +14,15 @@ use crate::ptr::{NativePtrImpl, PtrImpl};
 pub struct BytesSlice<P: PtrImpl = NativePtrImpl> {
     pub ptr: P::Ptr<u8>,
     pub len: i32,
+}
+
+impl From<&[u8]> for BytesSlice {
+    fn from(value: &[u8]) -> Self {
+        Self {
+            ptr: value as *const [u8] as *const u8,
+            len: checked_usize_to_i32(value.len()),
+        }
+    }
 }
 
 #[repr(transparent)]
@@ -37,6 +47,14 @@ pub struct BytesVecRawParts<P: PtrImpl = NativePtrImpl> {
 impl BytesVecRawParts<NativePtrImpl> {
     pub unsafe fn into_empty_vec(self) -> Vec<u8> {
         Vec::from_raw_parts(self.ptr, 0, self.capacity as usize)
+    }
+}
+
+impl <'fbb, T: FlatbuffersType<'fbb>> From<OwnedSerialized<'fbb, T>> for BytesVecRawParts {
+    fn from(serialized: OwnedSerialized<'fbb, T>) -> Self {
+        let buffer = serialized.into_vec();
+
+        Self::from(buffer)
     }
 }
 

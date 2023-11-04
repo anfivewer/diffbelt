@@ -1,4 +1,5 @@
 use diffbelt_cli_config::wasm::MapFilterFunction;
+use diffbelt_cli_config::wasm::memory::WasmVecHolder;
 use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
 use diffbelt_transforms::base::action::function_eval::MapFilterEvalAction;
@@ -14,6 +15,7 @@ pub struct MapFilterEvalOptions<'a> {
     pub verbose: bool,
     pub action: MapFilterEvalAction,
     pub map_filter: &'a MapFilterFunction<'a>,
+    pub vec_holder: &'a WasmVecHolder<'a>,
     pub inputs: &'a mut Vec<Input>,
     pub action_id: (u64, u64),
 }
@@ -24,6 +26,7 @@ impl MapFilterEvalOptions<'_> {
             verbose,
             action,
             map_filter,
+            vec_holder,
             inputs,
             action_id,
         } = self;
@@ -42,7 +45,7 @@ impl MapFilterEvalOptions<'_> {
             );
         }
 
-        let output = map_filter.call(input.as_bytes())?;
+        let output = map_filter.call(input.as_bytes(), vec_holder)?;
 
         () = output.observe_bytes(|bytes| {
             let output = deserialize::<MapFilterMultiOutput>(bytes).map_err(NoStdErrorWrap)?;

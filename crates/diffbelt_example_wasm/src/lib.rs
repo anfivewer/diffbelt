@@ -4,17 +4,17 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use core::str::from_utf8;
-use core::{ptr, slice};
 
+use diffbelt_protos::{deserialize, Serializer};
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterMultiInput, MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate,
     RecordUpdateArgs,
 };
-use diffbelt_protos::{deserialize, Serializer};
-use diffbelt_wasm_binding::bytes::BytesVecWidePtr;
+use diffbelt_wasm_binding::bytes::{BytesSlice, BytesVecRawParts};
+use diffbelt_wasm_binding::error_code::ErrorCode;
+use diffbelt_wasm_binding::transform::map_filter::MapFilter;
 
 use crate::log_lines::parse_log_line_header;
-use diffbelt_wasm_binding::transform::map_filter::{MapFilter, MapFilterResult};
 
 mod date;
 mod global_allocator;
@@ -26,14 +26,15 @@ struct LogLinesMapFilter;
 
 impl MapFilter for LogLinesMapFilter {
     #[export_name = "mapFilter"]
-    extern "C" fn map_filter(input_ptr: *const u8, input_len: i32) -> *mut MapFilterResult {
-        let input = unsafe { slice::from_raw_parts(input_ptr, input_len as usize) };
+    extern "C" fn map_filter(input_and_output: *mut BytesSlice, buffer_holder: *mut BytesVecRawParts) -> ErrorCode {
+        let input = unsafe { (&*input_and_output).as_slice() };
 
         let result = deserialize::<MapFilterMultiInput>(input).unwrap();
 
         let items = result.items().expect("no inputs");
 
-        let mut serializer = Serializer::new();
+        let buffer = unsafe { (*buffer_holder).into_empty_vec() };
+        let mut serializer = Serializer::from_vec(buffer);
         let mut records = Vec::with_capacity(items.len());
 
         for item in items {
@@ -86,35 +87,12 @@ impl MapFilter for LogLinesMapFilter {
             },
         );
 
-        let result = serializer.finish(result).into_owned();
-        let data = result.as_bytes();
+        let serialized = serializer.finish(result).into_owned();
+        let serialized_slice = serialized.as_bytes();
 
-        let result_ptr = data.as_ptr();
-        let result_len = data.len() as i32;
+        unsafe { *input_and_output = serialized_slice.into() };
+        unsafe { *buffer_holder = serialized.into() };
 
-        let vec = result.into_vec();
-
-        let BytesVecWidePtr {
-            ptr: dealloc_ptr,
-            capacity: dealloc_len,
-        } = BytesVecWidePtr::from(vec);
-
-        static mut STATIC_RESULT: MapFilterResult = MapFilterResult {
-            result_ptr: ptr::null_mut(),
-            result_len: 0,
-            dealloc_ptr: ptr::null_mut(),
-            dealloc_len: 0,
-        };
-
-        unsafe {
-            STATIC_RESULT = MapFilterResult {
-                result_ptr: result_ptr as *mut u8,
-                result_len,
-                dealloc_ptr,
-                dealloc_len,
-            };
-
-            &mut STATIC_RESULT as *mut MapFilterResult
-        }
+        ErrorCode::Ok
     }
 }
