@@ -1,14 +1,17 @@
 use alloc::borrow::Cow;
-use crate::date::{parse_date_to_timestamp_ms, ParseDateError};
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
-use const_format::concatcp;
 use core::num::ParseIntError;
-use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineArgs, Prop, PropArgs};
-use diffbelt_protos::{OwnedSerialized, Serializer, WIPOffset};
-use diffbelt_wasm_binding::{Regex, RegexError};
+
+use const_format::concatcp;
 use thiserror_no_std::Error;
+
+use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineArgs, Prop, PropArgs};
+use diffbelt_protos::{OwnedSerialized, Serializer};
+use diffbelt_wasm_binding::{Regex, RegexError};
+
+use crate::date::{parse_date_to_timestamp_ms, ParseDateError};
 
 const LOG_LEVEL_RE: &'static str = r"(T|I|W|E|S)";
 const TIMESTAMP_RE: &'static str = r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{1,3}Z)\.(\d{1,3})";
@@ -63,7 +66,6 @@ macro_rules! ok_none_if_none {
 pub struct LogLineHeader<'a> {
     log_level: &'a str,
     logger_key: Cow<'a, str>,
-    logger_key_start: Cow<'a, str>,
     log_key: Cow<'a, str>,
     timestamp_ms: u64,
     microseconds: usize,
@@ -103,7 +105,6 @@ pub fn parse_log_line_header(line: &str) -> Result<Option<LogLineHeader<'_>>, Pa
     Ok(Some(LogLineHeader {
         log_level,
         logger_key,
-        logger_key_start,
         log_key,
         timestamp_ms,
         microseconds,
@@ -120,11 +121,10 @@ impl LogLineHeader<'_> {
 
     pub fn serialize<'s>(
         &self,
-    ) -> Result<OwnedSerialized, ParseLogLineError> {
+    ) -> Result<OwnedSerialized<'static, ParsedLogLine<'static>>, ParseLogLineError> {
         let Self {
             log_level,
             logger_key,
-            logger_key_start: _,
             log_key,
             timestamp_ms,
             microseconds,

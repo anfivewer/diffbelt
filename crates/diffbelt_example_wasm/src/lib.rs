@@ -64,7 +64,7 @@ impl MapFilter for LogLinesMapFilter {
             }
 
             let value = parsed.serialize().expect("invalid log line in rest");
-            let value = serializer.create_vector(value.data());
+            let value = serializer.create_vector(value.as_bytes());
 
             let record = RecordUpdate::create(
                 serializer.buffer_builder(),
@@ -87,12 +87,12 @@ impl MapFilter for LogLinesMapFilter {
         );
 
         let result = serializer.finish(result).into_owned();
-        let data = result.data();
+        let data = result.as_bytes();
 
         let result_ptr = data.as_ptr();
         let result_len = data.len() as i32;
 
-        let (vec, _) = result.into_raw();
+        let vec = result.into_vec();
 
         let BytesVecWidePtr {
             ptr: dealloc_ptr,

@@ -8,7 +8,6 @@ members = [
 	"crates/diffbelt_types",
 	"crates/diffbelt_protos",
 	"crates/diffbelt_wasm_binding",
-	"crates/diffbelt_example_protos",
 	"crates/diffbelt_util",
 	"crates/diffbelt_util_no_std",
 	"crates/diffbelt_http_client",
@@ -16,8 +15,8 @@ members = [
 	"crates/diffbelt_transforms",
 	"crates/diffbelt_callstack",
 
-	"crates/diffbelt_yaml",
-]
-exclude = [
+	"crates/diffbelt_example_protos",
 	"crates/diffbelt_example_wasm",
+
+	"crates/diffbelt_yaml",
 ]

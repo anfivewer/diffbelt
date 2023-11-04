@@ -1,5 +1,5 @@
 use diffbelt_protos::OwnedSerialized;
-use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFilterMultiOutput};
+use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
 
 #[derive(Debug)]
 pub struct FunctionEvalInput<T> {

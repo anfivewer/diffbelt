@@ -308,7 +308,7 @@ transforms:
 
 wasm:
   - name: example
-    wasm_path: ../crates/diffbelt_example_wasm/target/wasm32-unknown-unknown/release/diffbelt_example_wasm.wasm
+    wasm_path: ../target/wasm32-unknown-unknown/release/diffbelt_example_wasm.wasm
 
 tests:
   transforms.parse_lines.map_filter:

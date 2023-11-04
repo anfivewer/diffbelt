@@ -1,15 +1,16 @@
-use crate::util::run_error_coded::run_error_coded;
-use alloc::format;
 use alloc::string::{FromUtf8Error, String};
 use core::fmt::Write;
 use core::str::Utf8Error;
+
+use thiserror_no_std::Error;
+
 use diffbelt_example_protos::protos::log_line::ParsedLogLine;
 use diffbelt_protos::{deserialize, InvalidFlatbuffer};
 use diffbelt_wasm_binding::bytes::{BytesSlice, BytesVecRawParts};
-use diffbelt_wasm_binding::debug_print_string;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;
-use thiserror_no_std::Error;
+
+use crate::util::run_error_coded::run_error_coded;
 
 struct ParsedLogLinesKv;
 
@@ -29,8 +30,8 @@ impl From<FromUtf8Error> for LogLinesError {
 impl HumanReadable for ParsedLogLinesKv {
     #[export_name = "parsedLogLinesKeyToBytes"]
     extern "C" fn human_readable_key_to_bytes(
-        key: BytesSlice,
-        result_bytes: *mut BytesVecRawParts,
+        _key: BytesSlice,
+        _result_bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
         todo!()
     }
@@ -51,8 +52,8 @@ impl HumanReadable for ParsedLogLinesKv {
 
     #[export_name = "parsedLogLinesValueToBytes"]
     extern "C" fn human_readable_value_to_bytes(
-        key: BytesSlice,
-        bytes: *mut BytesVecRawParts,
+        _key: BytesSlice,
+        _bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
         todo!()
     }
