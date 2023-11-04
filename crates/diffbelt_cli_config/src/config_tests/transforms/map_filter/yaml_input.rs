@@ -11,7 +11,7 @@ use crate::wasm::human_readable::HumanReadableFunctions;
 pub fn yaml_test_vars_to_map_filter_input(
     human_readable_functions: &HumanReadableFunctions,
     node: &YamlNode,
-) -> Result<OwnedSerialized, YamlTestVarsError> {
+) -> Result<OwnedSerialized<'static, MapFilterMultiInput<'static>>, YamlTestVarsError> {
     let mut serializer = Serializer::new();
 
     let map = node

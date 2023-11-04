@@ -3,7 +3,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::str::from_utf8;
 
-use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
+use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFilterMultiOutput};
 use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::lift_result_from_option;
@@ -114,7 +114,7 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
         })
     }
 
-    type Input = OwnedSerialized;
+    type Input = OwnedSerialized<'static, MapFilterMultiInput<'static>>;
 
     fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Self::Input, TestError> {
         let serialized =

@@ -6,7 +6,7 @@ use diffbelt_protos::protos::transform::map_filter::{
     MapFilterInput, MapFilterInputArgs, MapFilterMultiInput, MapFilterMultiInputArgs,
     MapFilterMultiOutput,
 };
-use diffbelt_protos::{deserialize, OwnedSerialized, Serializer};
+use diffbelt_protos::{deserialize, OwnedSerialized, SerializedRawParts, Serializer};
 use generational_arena::{Arena, Index};
 
 use diffbelt_types::collection::diff::{
@@ -405,7 +405,7 @@ impl MapFilterTransform {
         items: Vec<KeyValueDiffJsonData>,
     ) -> Result<(), TransformError> {
         let mut serializer =
-            Serializer::from_vec(buffer_for_eval_inputs.take().unwrap_or_else(|| Vec::new()));
+            Serializer::<MapFilterMultiInput>::from_vec(buffer_for_eval_inputs.take().unwrap_or_else(|| Vec::new()));
 
         macro_rules! ok {
             ($expr:expr) => {
@@ -460,8 +460,8 @@ impl MapFilterTransform {
             },
         );
 
-        let OwnedSerialized { buffer, head, len } =
-            serializer.finish(map_filter_multi_input).into_owned();
+        let SerializedRawParts { buffer, head, len } =
+            serializer.finish(map_filter_multi_input).into_owned().into_raw_parts();
 
         state.actions_left += 1;
         actions.push((
