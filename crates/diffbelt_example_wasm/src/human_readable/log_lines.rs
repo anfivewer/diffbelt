@@ -1,6 +1,7 @@
 use alloc::string::FromUtf8Error;
 use core::str::Utf8Error;
 
+use diffbelt_util_no_std::comments::Annotated;
 use thiserror_no_std::Error;
 
 use diffbelt_wasm_binding::bytes::{BytesSlice, BytesVecRawParts};
@@ -25,37 +26,37 @@ impl From<FromUtf8Error> for LogLinesError {
 impl HumanReadable for LogLinesKv {
     #[export_name = "logLinesKeyToBytes"]
     extern "C" fn human_readable_key_to_bytes(
-        key: BytesSlice,
+        key: Annotated<BytesSlice, &str>,
         result_bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        () = noop(key, result_bytes);
+        () = noop(key.value, result_bytes);
         ErrorCode::Ok
     }
 
     #[export_name = "logLinesBytesToKey"]
     extern "C" fn bytes_to_human_readable_key(
         bytes: BytesSlice,
-        key: *mut BytesVecRawParts,
+        key: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
-        () = noop(bytes, key);
+        () = noop(bytes, key.value);
         ErrorCode::Ok
     }
 
     #[export_name = "logLinesValueToBytes"]
     extern "C" fn human_readable_value_to_bytes(
-        key: BytesSlice,
+        key: Annotated<BytesSlice, &str>,
         bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        () = noop(key, bytes);
+        () = noop(key.value, bytes);
         ErrorCode::Ok
     }
 
     #[export_name = "logLinesBytesToValue"]
     extern "C" fn bytes_to_human_readable_value(
         bytes: BytesSlice,
-        key: *mut BytesVecRawParts,
+        key: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
-        () = noop(bytes, key);
+        () = noop(bytes, key.value);
         ErrorCode::Ok
     }
 }

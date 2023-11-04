@@ -6,6 +6,7 @@ use thiserror_no_std::Error;
 
 use diffbelt_example_protos::protos::log_line::ParsedLogLine;
 use diffbelt_protos::{deserialize, InvalidFlatbuffer};
+use diffbelt_util_no_std::comments::Annotated;
 use diffbelt_wasm_binding::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;
@@ -30,7 +31,7 @@ impl From<FromUtf8Error> for LogLinesError {
 impl HumanReadable for ParsedLogLinesKv {
     #[export_name = "parsedLogLinesKeyToBytes"]
     extern "C" fn human_readable_key_to_bytes(
-        _key: BytesSlice,
+        _key: Annotated<BytesSlice, &str>,
         _result_bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
         todo!()
@@ -39,12 +40,12 @@ impl HumanReadable for ParsedLogLinesKv {
     #[export_name = "parsedLogLinesBytesToKey"]
     extern "C" fn bytes_to_human_readable_key(
         bytes: BytesSlice,
-        key: *mut BytesVecRawParts,
+        key: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
         run_error_coded(|| {
-            let mut vec = unsafe { (&*key).into_empty_vec() };
+            let mut vec = unsafe { (&*key.value).into_empty_vec() };
             vec.extend_from_slice(unsafe { bytes.as_slice() });
-            unsafe { *key = vec.into() };
+            unsafe { *key.value = vec.into() };
 
             Ok::<_, LogLinesError>(ErrorCode::Ok)
         })
@@ -52,7 +53,7 @@ impl HumanReadable for ParsedLogLinesKv {
 
     #[export_name = "parsedLogLinesValueToBytes"]
     extern "C" fn human_readable_value_to_bytes(
-        _key: BytesSlice,
+        _key: Annotated<BytesSlice, &str>,
         _bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
         todo!()
@@ -61,10 +62,10 @@ impl HumanReadable for ParsedLogLinesKv {
     #[export_name = "parsedLogLinesBytesToValue"]
     extern "C" fn bytes_to_human_readable_value(
         bytes: BytesSlice,
-        key: *mut BytesVecRawParts,
+        key: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
         run_error_coded(|| {
-            let vec = unsafe { (&*key).into_empty_vec() };
+            let vec = unsafe { (&*key.value).into_empty_vec() };
             let mut s = String::from_utf8(vec).expect("empty vec should be valid string");
 
             let bytes = unsafe { bytes.as_slice() };
@@ -119,7 +120,7 @@ impl HumanReadable for ParsedLogLinesKv {
                 }
             }
 
-            unsafe { *key = s.into_bytes().into() };
+            unsafe { *key.value = s.into_bytes().into() };
             Ok::<_, LogLinesError>(ErrorCode::Ok)
         })
     }

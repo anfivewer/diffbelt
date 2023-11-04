@@ -4,7 +4,9 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use core::marker::PhantomData;
-use flatbuffers::{FlatBufferBuilder, Follow, ForwardsUOffset, Push, Verifiable, Verifier, VerifierOptions};
+use flatbuffers::{
+    FlatBufferBuilder, Follow, ForwardsUOffset, Push, Verifiable, Verifier, VerifierOptions,
+};
 pub use flatbuffers::{InvalidFlatbuffer, Vector, WIPOffset};
 
 pub mod protos;
@@ -18,6 +20,10 @@ pub fn deserialize<'fbb, T: FlatbuffersType<'fbb>>(
     bytes: &'fbb [u8],
 ) -> Result<T::Inner, InvalidFlatbuffer> {
     flatbuffers::root::<T>(bytes)
+}
+
+pub unsafe fn deserialize_unchecked<'fbb, T: FlatbuffersType<'fbb>>(bytes: &'fbb [u8]) -> T::Inner {
+    flatbuffers::root_unchecked::<T>(bytes)
 }
 
 pub struct Serializer<'fbb, T: FlatbuffersType<'fbb>> {
@@ -114,7 +120,8 @@ pub struct OwnedSerialized<'fbb, T: FlatbuffersType<'fbb>> {
 
 impl<'fbb, T: FlatbuffersType<'fbb>> PartialEq for OwnedSerialized<'fbb, T> {
     fn eq(&self, other: &Self) -> bool {
-        &self.buffer[self.head..(self.head + self.len)] == &other.buffer[other.head..(other.head + other.len)]
+        &self.buffer[self.head..(self.head + self.len)]
+            == &other.buffer[other.head..(other.head + other.len)]
     }
 }
 

@@ -17,6 +17,9 @@ chrono = { version = "0.4.31", default-features = false }
 lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
 thiserror-no-std = { version = "2.0.2", default-features = false }
 
+[dependencies.diffbelt_util_no_std]
+path = "../diffbelt_util_no_std"
+
 [dependencies.diffbelt_wasm_binding]
 path = "../diffbelt_wasm_binding"
 features = ["panic"]

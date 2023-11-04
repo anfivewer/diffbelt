@@ -1,22 +1,23 @@
+use diffbelt_util_no_std::comments::Annotated;
 use crate::bytes::{BytesSlice, BytesVecRawParts};
 use crate::error_code::ErrorCode;
 
 pub trait HumanReadable {
     extern "C" fn human_readable_key_to_bytes(
-        key: BytesSlice,
+        key: Annotated<BytesSlice, &str>,
         bytes: *mut BytesVecRawParts,
     ) -> ErrorCode;
     extern "C" fn bytes_to_human_readable_key(
         bytes: BytesSlice,
-        key: *mut BytesVecRawParts,
+        key: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode;
 
     extern "C" fn human_readable_value_to_bytes(
-        value: BytesSlice,
+        value: Annotated<BytesSlice, &str>,
         bytes: *mut BytesVecRawParts,
     ) -> ErrorCode;
     extern "C" fn bytes_to_human_readable_value(
         bytes: BytesSlice,
-        value: *mut BytesVecRawParts,
+        value: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode;
 }
