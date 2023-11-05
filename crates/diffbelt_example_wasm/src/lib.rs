@@ -9,8 +9,10 @@ use diffbelt_protos::protos::transform::map_filter::{
     MapFilterMultiInput, MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate,
     RecordUpdateArgs,
 };
-use diffbelt_util_no_std::comments::Annotated;
-use diffbelt_wasm_binding::annotations::serializer::{AsSerializerAnnotated, InputAnnotated, OwnedOutputAnnotated, RefOutputAnnotated};
+use diffbelt_wasm_binding::annotations::serializer::{
+    InputAnnotated, IntoSerializerAnnotated, OutputAnnotated,
+};
+use diffbelt_wasm_binding::annotations::{FlatbufferAnnotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::transform::map_filter::MapFilter;
@@ -28,14 +30,19 @@ struct LogLinesMapFilter;
 impl MapFilter for LogLinesMapFilter {
     #[export_name = "mapFilter"]
     extern "C" fn map_filter(
-        input_and_output: Annotated<*mut BytesSlice, (MapFilterMultiInput, MapFilterMultiOutput)>,
-        buffer_holder: Annotated<*mut BytesVecRawParts, MapFilterMultiOutput>,
+        input_and_output: InputOutputAnnotated<
+            *mut BytesSlice,
+            MapFilterMultiInput,
+            MapFilterMultiOutput,
+        >,
+        buffer_holder: FlatbufferAnnotated<*mut BytesVecRawParts, MapFilterMultiOutput>,
     ) -> ErrorCode {
         let input = unsafe { input_and_output.deserialize() };
 
         let items = input.items().expect("no inputs");
 
-        let mut serializer = unsafe { buffer_holder.as_serializer() };
+        let mut serializer_with_buffer_ptr = unsafe { buffer_holder.into_serializer() };
+        let mut serializer = serializer_with_buffer_ptr.serializer_mut();
         let mut records = Vec::with_capacity(items.len());
 
         for item in items {
@@ -88,10 +95,10 @@ impl MapFilter for LogLinesMapFilter {
             },
         );
 
-        let serialized = serializer.finish(result).into_owned();
+        let serialized = serializer_with_buffer_ptr.finish(result);
 
-        unsafe { input_and_output.save_owned_serialized(&serialized) };
-        unsafe { buffer_holder.save_serialized(serialized) };
+        unsafe { input_and_output.save(serialized.serialized_data()) };
+        unsafe { serialized.save() };
 
         ErrorCode::Ok
     }

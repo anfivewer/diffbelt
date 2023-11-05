@@ -1,8 +1,8 @@
 use alloc::string::FromUtf8Error;
 use core::str::Utf8Error;
 
-use diffbelt_util_no_std::comments::Annotated;
 use thiserror_no_std::Error;
+use diffbelt_wasm_binding::annotations::Annotated;
 
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;

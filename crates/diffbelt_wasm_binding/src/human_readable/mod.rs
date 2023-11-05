@@ -1,4 +1,4 @@
-use diffbelt_util_no_std::comments::Annotated;
+use crate::annotations::Annotated;
 use crate::error_code::ErrorCode;
 use crate::ptr::bytes::{BytesSlice, BytesVecRawParts};
 

@@ -6,4 +6,3 @@ pub mod cast;
 pub mod fmt;
 pub mod from_either;
 pub mod slice;
-pub mod comments;
