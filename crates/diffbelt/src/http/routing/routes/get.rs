@@ -1,16 +1,18 @@
-use crate::collection::methods::get::CollectionGetOptions;
+use regex::Regex;
 
+use diffbelt_macro::fn_box_pin_async;
+use diffbelt_types::collection::get_record::{GetRequestJsonData, GetResponseJsonData};
+use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
+
+use crate::collection::methods::get::CollectionGetOptions;
 use crate::context::Context;
 use crate::http::constants::GET_REQUEST_MAX_BYTES;
 use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode,
-    EncodedGenerationIdJsonData,
 };
 use crate::http::data::encoded_key::{EncodedKeyJsonData, EncodedKeyJsonDataTrait};
-use crate::http::data::key_value::KeyValueJsonData;
-use crate::http::errors::HttpError;
-
 use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonDataTrait;
+use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 use crate::http::util::encoding::StringDecoder;
@@ -19,29 +21,6 @@ use crate::http::util::read_json::read_json;
 use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 use crate::util::str_serialization::StrSerializationType;
-use diffbelt_macro::fn_box_pin_async;
-use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
-use regex::Regex;
-use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GetRequestJsonData {
-    key: EncodedKeyJsonData,
-    generation_id: Option<EncodedGenerationIdJsonData>,
-    phantom_id: Option<EncodedPhantomIdJsonData>,
-}
-
-#[skip_serializing_none]
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GetResponseJsonData {
-    generation_id: EncodedGenerationIdJsonData,
-
-    #[serialize_always]
-    item: Option<KeyValueJsonData>,
-}
 
 #[fn_box_pin_async]
 async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult {

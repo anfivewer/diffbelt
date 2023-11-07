@@ -6,10 +6,21 @@ pub mod map_filter;
 mod tests;
 pub mod util;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum TransformRunResult {
     Actions(Vec<Action>),
     Finish,
+}
+
+#[cfg(test)]
+impl TransformRunResult {
+    pub fn is_finish(&self) -> bool {
+        let Self::Finish = self else {
+            return false;
+        };
+
+        true
+    }
 }
 
 impl TransformRunResult {

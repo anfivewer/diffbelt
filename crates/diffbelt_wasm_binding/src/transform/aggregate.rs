@@ -25,7 +25,7 @@ pub trait Aggregate<SourceKey, SourceValue, MappedValue, Accumulator, TargetKey,
             BytesSlice,
             Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
         >,
-        accumulator: FlatbufferAnnotated<*mut BytesVecRawParts, Accumulator>,
+        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode;
 
     extern "C" fn reduce(
@@ -34,7 +34,7 @@ pub trait Aggregate<SourceKey, SourceValue, MappedValue, Accumulator, TargetKey,
             Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
         >,
         input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue>>,
-        accumulator: FlatbufferAnnotated<*mut BytesVecRawParts, Accumulator>,
+        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode;
 
     extern "C" fn merge_accumulators(
@@ -43,7 +43,7 @@ pub trait Aggregate<SourceKey, SourceValue, MappedValue, Accumulator, TargetKey,
             Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
         >,
         input: SliceRawParts<Annotated<BytesSlice, Accumulator>>,
-        accumulator: FlatbufferAnnotated<*mut BytesVecRawParts, Accumulator>,
+        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode;
 
     extern "C" fn apply(

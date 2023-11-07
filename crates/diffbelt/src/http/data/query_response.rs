@@ -1,11 +1,13 @@
+use serde::Serialize;
+use serde_with::skip_serializing_none;
+
+use diffbelt_types::common::key_value::KeyValueJsonData;
+
 use crate::collection::methods::query::QueryOk;
 use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
 };
-use crate::http::data::key_value::KeyValueJsonData;
 use crate::util::str_serialization::StrSerializationType;
-use serde::Serialize;
-use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
 #[derive(Serialize)]

@@ -29,6 +29,9 @@ impl TransformBodyTrait for DiffbeltRequestBody {
             DiffbeltRequestBody::PutMany(x) => {
                 (serde_json::to_string(&x), ExpectedResponseType::PutMany)
             }
+            DiffbeltRequestBody::GetRecord(_) => {
+                todo!()
+            }
         };
 
         let body = body?;

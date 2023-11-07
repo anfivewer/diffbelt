@@ -3,8 +3,7 @@ use std::str::from_utf8;
 
 use diffbelt_protos::{Serializer, Vector};
 use diffbelt_protos::protos::transform::map_filter::{
-    MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate,
-    RecordUpdateArgs,
+    MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate, RecordUpdateArgs,
 };
 use diffbelt_types::collection::diff::{
     DiffCollectionRequestJsonData, DiffCollectionResponseJsonData, KeyValueDiffJsonData,
@@ -29,7 +28,6 @@ use crate::base::input::function_eval::{
     FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput,
 };
 use crate::map_filter::MapFilterTransform;
-use crate::TransformRunResult;
 
 #[test]
 fn map_filter_test() {
@@ -44,13 +42,13 @@ fn map_filter_test() {
         .into_iter();
 
     let action = actions.next().unwrap();
-    assert_eq!(actions.next(), None);
+    assert!(actions.next().is_none());
 
     let Action { id, action } = action;
 
     assert_eq!(
-        action,
-        ActionType::DiffbeltCall(DiffbeltCallAction {
+        action.as_diffbelt_call().expect("should be diffbelt_call"),
+        &DiffbeltCallAction {
             method: Method::Post,
             path: Cow::Borrowed("/collections/from/diff/"),
             query: vec![],
@@ -62,7 +60,7 @@ fn map_filter_test() {
                     collection_name: Some("to".to_string()),
                 }),
             }),
-        })
+        }
     );
 
     let mut actions = transform
@@ -102,13 +100,13 @@ fn map_filter_test() {
         .into_iter();
 
     let action = actions.next().unwrap();
-    assert_eq!(actions.next(), None);
+    assert!(actions.next().is_none());
 
     let Action { id, action } = action;
 
     assert_eq!(
-        action,
-        ActionType::DiffbeltCall(DiffbeltCallAction {
+        action.as_diffbelt_call().expect("should be diffbelt_call"),
+        &DiffbeltCallAction {
             method: Method::Post,
             path: Cow::Borrowed("/collections/to/generation/start"),
             query: vec![],
@@ -116,7 +114,7 @@ fn map_filter_test() {
                 generation_id: EncodedGenerationIdJsonData::new_str("42".to_string()),
                 abort_outdated: Some(true),
             }),
-        })
+        }
     );
 
     let mut actions = transform
@@ -140,16 +138,16 @@ fn map_filter_test() {
         action: action2,
     } = actions.next().unwrap();
 
-    assert_eq!(actions.next(), None);
+    assert!(actions.next().is_none());
 
     assert_eq!(
-        action1,
-        ActionType::DiffbeltCall(DiffbeltCallAction {
+        action1.as_diffbelt_call().expect("should be diffbelt_call"),
+        &DiffbeltCallAction {
             method: Method::Get,
             path: Cow::Borrowed("/collections/from/diff/first_cursor"),
             query: vec![],
             body: DiffbeltRequestBody::ReadDiffCursorNone,
-        })
+        }
     );
 
     let ActionType::FunctionEval(FunctionEvalAction::MapFilter(action)) = action2 else {
@@ -204,7 +202,7 @@ fn map_filter_test() {
         .unwrap()
         .into_iter();
 
-    assert_eq!(actions.next(), None);
+    assert!(actions.next().is_none());
 
     let mut actions = transform
         .run(vec![Input {
@@ -228,8 +226,8 @@ fn map_filter_test() {
         action,
     } = actions.next().unwrap();
     assert_eq!(
-        action,
-        ActionType::DiffbeltCall(DiffbeltCallAction {
+        action.as_diffbelt_call().expect("should be diffbelt_call"),
+        &DiffbeltCallAction {
             method: Method::Post,
             path: Cow::Borrowed("/collections/to/putMany"),
             query: vec![],
@@ -254,10 +252,10 @@ fn map_filter_test() {
                 generation_id: Some(EncodedGenerationIdJsonData::new_str("42".to_string())),
                 phantom_id: None,
             }),
-        })
+        }
     );
 
-    assert_eq!(actions.next(), None);
+    assert!(actions.next().is_none());
 
     let mut actions = transform
         .run(vec![Input {
@@ -278,8 +276,8 @@ fn map_filter_test() {
         action,
     } = actions.next().unwrap();
     assert_eq!(
-        action,
-        ActionType::DiffbeltCall(DiffbeltCallAction {
+        action.as_diffbelt_call().expect("should be diffbelt_call"),
+        &DiffbeltCallAction {
             method: Method::Post,
             path: Cow::Borrowed("/collections/to/generation/commit"),
             query: vec![],
@@ -290,10 +288,10 @@ fn map_filter_test() {
                     generation_id: EncodedGenerationIdJsonData::new_str("42".to_string()),
                 }]),
             }),
-        })
+        }
     );
 
-    assert_eq!(actions.next(), None);
+    assert!(actions.next().is_none());
 
     let mut actions = transform
         .run(vec![Input {
@@ -312,11 +310,11 @@ fn map_filter_test() {
         action,
     } = actions.next().unwrap();
 
-    assert_eq!(actions.next(), None);
+    assert!(actions.next().is_none());
 
     assert_eq!(
-        action,
-        ActionType::DiffbeltCall(DiffbeltCallAction {
+        action.as_diffbelt_call().expect("should be diffbelt_call"),
+        &DiffbeltCallAction {
             method: Method::Post,
             path: Cow::Borrowed("/collections/from/diff/"),
             query: vec![],
@@ -328,7 +326,7 @@ fn map_filter_test() {
                     collection_name: Some("to".to_string()),
                 }),
             }),
-        })
+        }
     );
 
     let result = transform
@@ -345,7 +343,7 @@ fn map_filter_test() {
         }])
         .unwrap();
 
-    assert_eq!(result, TransformRunResult::Finish);
+    assert!(result.is_finish());
 }
 
 #[derive(Debug)]
@@ -451,6 +449,6 @@ fn make_map_filter_eval_input(records: Vec<MapFilterEvalInputRecord>) -> MapFilt
 
     MapFilterEvalInput {
         input: multi_output,
-        output_buffer: vec![],
+        action_input_buffer: vec![],
     }
 }

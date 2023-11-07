@@ -542,7 +542,7 @@ impl MapFilterTransform {
 
         let MapFilterEvalInput {
             input,
-            output_buffer: outputs_buffer,
+            action_input_buffer: outputs_buffer,
         } = input;
 
         self.free_buffers_for_eval_inputs.push(outputs_buffer);

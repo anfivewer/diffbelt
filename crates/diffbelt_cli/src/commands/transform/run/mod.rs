@@ -190,6 +190,12 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                                 }
                                 .call()?;
                             }
+                            FunctionEvalAction::AggregateMap(_) => {
+                                todo!()
+                            }
+                            FunctionEvalAction::AggregateInitialAccumulator(_) => {
+                                todo!()
+                            }
                         },
                     }
                 }

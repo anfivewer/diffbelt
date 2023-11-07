@@ -1,17 +1,8 @@
-use crate::common::KeyValue;
+use diffbelt_types::common::key_value::KeyValueJsonData;
 
+use crate::common::KeyValue;
 use crate::http::data::encoded_key::{EncodedKeyJsonData, EncodedKeyJsonDataTrait};
 use crate::http::data::encoded_value::{EncodedValueJsonData, EncodedValueJsonDataTrait};
-use serde::Serialize;
-use serde_with::skip_serializing_none;
-
-#[skip_serializing_none]
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KeyValueJsonData {
-    key: EncodedKeyJsonData,
-    value: EncodedValueJsonData,
-}
 
 impl From<KeyValue> for KeyValueJsonData {
     fn from(kv: KeyValue) -> Self {
