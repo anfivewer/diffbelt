@@ -5,6 +5,8 @@ pub mod map_filter;
 #[cfg(test)]
 mod tests;
 pub mod util;
+pub mod aggregate;
+mod transform;
 
 #[derive(Debug)]
 pub enum TransformRunResult {

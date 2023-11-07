@@ -1,8 +1,9 @@
-use crate::annotations::{Annotated, AnnotatedTrait, FlatbufferAnnotated, InputOutputAnnotated};
-use crate::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_protos::{
     deserialize_unchecked, FlatbuffersType, OwnedSerialized, Serializer, WIPOffset,
 };
+
+use crate::annotations::{AnnotatedTrait, FlatbufferAnnotated, InputOutputAnnotated};
+use crate::ptr::bytes::{BytesSlice, BytesVecRawParts};
 
 pub struct SerializerFromAnnotated<'fbb, F: FlatbuffersType<'fbb>, A: AnnotatedTrait> {
     original: A,

@@ -1,10 +1,11 @@
+use alloc::string::{FromUtf8Error, String};
 use alloc::vec::Vec;
 use core::ptr;
-use alloc::string::{FromUtf8Error, String};
-use core::ptr::slice_from_raw_parts;
 use core::str::{from_utf8, Utf8Error};
+
 use diffbelt_protos::{FlatbuffersType, OwnedSerialized};
 use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32};
+
 use crate::ptr::{NativePtrImpl, PtrImpl};
 use crate::ptr::slice::SliceRawParts;
 

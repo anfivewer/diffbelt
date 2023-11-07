@@ -42,7 +42,7 @@ impl MapFilter for LogLinesMapFilter {
         let items = input.items().expect("no inputs");
 
         let mut serializer_with_buffer_ptr = unsafe { buffer_holder.into_serializer() };
-        let mut serializer = serializer_with_buffer_ptr.serializer_mut();
+        let serializer = serializer_with_buffer_ptr.serializer_mut();
         let mut records = Vec::with_capacity(items.len());
 
         for item in items {
