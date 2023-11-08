@@ -113,22 +113,11 @@ impl MapFilterTransform {
         let mut actions = Vec::<(_, ActionInputHandler<Self>)>::with_capacity(1);
 
         actions.push((
-            ActionType::DiffbeltCall(DiffbeltCallAction {
-                method: Method::Post,
-                path: Cow::Owned(format!(
-                    "/collections/{}/diff/",
-                    urlencoding::encode(self.from_collection_name.deref())
-                )),
-                query: Vec::with_capacity(0),
-                body: DiffbeltRequestBody::DiffCollectionStart(DiffCollectionRequestJsonData {
-                    from_generation_id: None,
-                    to_generation_id: None,
-                    from_reader: Some(ReaderDiffFromDefJsonData {
-                        reader_name: self.reader_name.to_string(),
-                        collection_name: Some(self.to_collection_name.to_string()),
-                    }),
-                }),
-            }),
+            ActionType::new_diff_call_by_reader(
+                self.from_collection_name.deref(),
+                self.reader_name.deref(),
+                self.to_collection_name.deref(),
+            ),
             input_handler!(this, MapFilterTransform, input, {
                 let DiffbeltCallInput { body } = input.into_diffbelt_diff()?;
 

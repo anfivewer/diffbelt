@@ -9,17 +9,21 @@ pub type HandlerResult<This> = Result<ActionInputHandlerResult<This>, TransformE
 
 pub type ActionInputHandler<This> = fn(&mut This, InputType) -> HandlerResult<This>;
 
+pub type ActionInputHandlerAction<This> = (ActionType, ActionInputHandler<This>);
+
+pub type ActionInputHandlerActionsVec<This> = Vec<ActionInputHandlerAction<This>>;
+
 pub enum ActionInputHandlerResult<This> {
     Finish,
     Consumed,
-    AddActions(Vec<(ActionType, ActionInputHandler<This>)>),
+    AddActions(ActionInputHandlerActionsVec<This>),
 }
 
 #[macro_export]
 macro_rules! input_handler {
     ($this:ident, $this_type:ident, $input:ident, $body:block) => {
         {
-            fn handle_result($this: &mut $this_type, $input: InputType) -> HandlerResult<$this_type> $body
+            fn handle_result($this: &mut $this_type, $input: crate::base::input::InputType) -> crate::transform::HandlerResult<$this_type> $body
 
             handle_result
         }
