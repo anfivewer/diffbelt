@@ -9,6 +9,8 @@ edition = "2021"
 generational-arena = "0.2.9"
 urlencoding = "2.1.2"
 thiserror = "1.0.50"
+rand = "0.8.5"
+rand_chacha = "0.3.1"
 
 [dependencies.diffbelt_types]
 path = "../diffbelt_types"
