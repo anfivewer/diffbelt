@@ -29,6 +29,11 @@ pub fn u32_to_usize(value: u32) -> usize {
 }
 
 #[inline(always)]
+pub fn u32_to_u64(value: u32) -> u64 {
+    value as u64
+}
+
+#[inline(always)]
 pub fn ptr_to_usize<T>(value: *const T) -> usize {
     value as usize
 }
