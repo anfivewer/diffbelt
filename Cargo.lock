@@ -715,8 +715,10 @@ dependencies = [
  "diffbelt_util",
  "diffbelt_util_no_std",
  "generational-arena",
+ "lazy_static",
  "rand",
  "rand_chacha",
+ "regex",
  "thiserror",
  "urlencoding",
 ]

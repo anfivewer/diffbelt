@@ -1,15 +1,26 @@
+use lazy_static::lazy_static;
 use std::cmp::max;
 use std::collections::HashMap;
 use std::mem;
 use std::ops::Deref;
 
+use diffbelt_protos::protos::transform::aggregate::{
+    AggregateMapMultiOutput, AggregateMapMultiOutputArgs, AggregateMapOutput,
+    AggregateMapOutputArgs, AggregateMapOutputItem, AggregateMapOutputItemArgs,
+};
+use diffbelt_protos::Serializer;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+use regex::Regex;
 
 use crate::aggregate::AggregateTransform;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
+use crate::base::action::function_eval::{AggregateMapEvalAction, FunctionEvalAction};
 use crate::base::action::{Action, ActionType};
 use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
+use crate::base::input::function_eval::{
+    AggregateMapEvalInput, FunctionEvalInput, FunctionEvalInputBody,
+};
 use crate::base::input::{Input, InputType};
 use crate::TransformRunResult;
 use diffbelt_types::collection::diff::{
@@ -19,7 +30,7 @@ use diffbelt_types::collection::diff::{
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
 use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
 use diffbelt_types::common::key_value::{EncodedKeyJsonData, EncodedValueJsonData};
-use diffbelt_util_no_std::cast::{u32_to_u64, u32_to_usize};
+use diffbelt_util_no_std::cast::{u32_to_i64, u32_to_u64, u32_to_usize};
 
 #[test]
 fn aggregate_test() {
@@ -28,6 +39,7 @@ fn aggregate_test() {
         new_items_count: 500,
         modify_items_count: 300,
         delete_items_count: 200,
+        target_buckets_count: 20,
         rand: ChaCha8Rng::seed_from_u64(0x9a9ddd206ce854ef),
     });
 }
@@ -37,6 +49,7 @@ struct AggregateTestParams<Random: Rng> {
     new_items_count: usize,
     modify_items_count: usize,
     delete_items_count: usize,
+    target_buckets_count: usize,
     rand: Random,
 }
 
@@ -46,6 +59,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
         new_items_count,
         modify_items_count,
         delete_items_count,
+        target_buckets_count,
         mut rand,
     } = params;
 
@@ -117,6 +131,23 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
     let mut diff_cursor_counter = 0;
     let mut diff_cursor = None;
 
+    fn take_items<Rand: Rng, ItemsIter: Iterator<Item = KeyValueDiffJsonData>>(
+        rand: &mut Rand,
+        diff_items_left: &mut usize,
+        diff_items_iter: &mut ItemsIter,
+        diff_cursor_counter: &mut usize,
+        diff_cursor: &mut Option<String>,
+    ) -> Vec<KeyValueDiffJsonData> {
+        let diff_items_to_take = rand.gen_range(0..*diff_items_left);
+        *diff_items_left -= diff_items_to_take;
+        let items: Vec<_> = diff_items_iter.take(diff_items_to_take).collect();
+
+        *diff_cursor_counter += 1;
+        *diff_cursor = Some(format!("cursor{diff_cursor_counter}"));
+
+        items
+    }
+
     let new_target_items = target_items_from_source(&new_source_items);
 
     let mut transform = AggregateTransform::new(
@@ -180,13 +211,13 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                             )
                         );
 
-                        let diff_items_to_take = rand.gen_range(0..diff_items_left);
-                        diff_items_left -= diff_items_to_take;
-                        let items: Vec<_> =
-                            (&mut diff_items_iter).take(diff_items_to_take).collect();
-
-                        diff_cursor_counter += 1;
-                        diff_cursor = Some(format!("cursor{diff_cursor_counter}"));
+                        let items = take_items(
+                            &mut rand,
+                            &mut diff_items_left,
+                            &mut diff_items_iter,
+                            &mut diff_cursor_counter,
+                            &mut diff_cursor,
+                        );
 
                         inputs.push(Input {
                             id,
@@ -232,9 +263,164 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                         continue;
                     }
 
+                    lazy_static! {
+                        static ref DIFF_RE: Regex =
+                            Regex::new("^/collections/source/diff/([^/]+)$").unwrap();
+                    }
+
+                    let diff_captures = DIFF_RE.captures(&path);
+
+                    if let Some(m) = diff_captures.and_then(|x| x.get(1)) {
+                        let is_current_cursor = diff_cursor
+                            .as_ref()
+                            .map(|x| x.as_str() == m.as_str())
+                            .unwrap_or(false);
+
+                        if is_current_cursor {
+                            assert_eq!(method, Method::Get);
+                            assert!(query.is_empty());
+                            assert_eq!(body, DiffbeltRequestBody::ReadDiffCursorNone,);
+
+                            let items = take_items(
+                                &mut rand,
+                                &mut diff_items_left,
+                                &mut diff_items_iter,
+                                &mut diff_cursor_counter,
+                                &mut diff_cursor,
+                            );
+
+                            inputs.push(Input {
+                                id,
+                                input: InputType::diffbelt_call(DiffbeltResponseBody::Diff(
+                                    DiffCollectionResponseJsonData {
+                                        from_generation_id: EncodedGenerationIdJsonData::new_str(
+                                            "first".to_string(),
+                                        ),
+                                        to_generation_id: EncodedGenerationIdJsonData::new_str(
+                                            "second".to_string(),
+                                        ),
+                                        items,
+                                        cursor_id: diff_cursor
+                                            .as_ref()
+                                            .map(|x| Box::from(x.as_str())),
+                                    },
+                                )),
+                            });
+
+                            continue;
+                        }
+                    }
+
                     panic!("unexpected diffbelt call {method:?} {path} {query:?} {body:?}");
                 }
                 ActionType::FunctionEval(call) => {
+                    match call {
+                        FunctionEvalAction::AggregateMap(map) => {
+                            let AggregateMapEvalAction {
+                                input,
+                                output_buffer,
+                            } = map;
+
+                            let map_multi_input = input.data();
+                            let items = map_multi_input.items().unwrap_or_default();
+
+                            let mut serializer = Serializer::from_vec(output_buffer);
+                            let mut records = Vec::with_capacity(items.len());
+
+                            for item in items {
+                                let source_key = item.source_key().expect("key should be present");
+                                let source_old_value = item.source_old_value();
+                                let source_new_value = item.source_new_value();
+
+                                let source_key = String::from_utf8(source_key.bytes().to_owned())
+                                    .expect("should be utf8")
+                                    .parse::<u32>()
+                                    .expect("should be number");
+                                let source_old_value = source_old_value.map(|x| {
+                                    String::from_utf8(x.bytes().to_owned())
+                                        .expect("should be utf8")
+                                        .parse::<u32>()
+                                        .expect("should be number")
+                                });
+                                let source_new_value = source_new_value.map(|x| {
+                                    String::from_utf8(x.bytes().to_owned())
+                                        .expect("should be utf8")
+                                        .parse::<u32>()
+                                        .expect("should be number")
+                                });
+
+                                let source_old_value = source_old_value
+                                    .map(|x| u32_to_i64(x))
+                                    .unwrap_or(0)
+                                    .to_string();
+                                let source_new_value = source_new_value
+                                    .map(|x| u32_to_i64(x))
+                                    .unwrap_or(0)
+                                    .to_string();
+
+                                let target_key = u32_to_usize(source_key) % target_buckets_count;
+                                let target_key = target_key.to_string();
+                                let target_key = serializer.create_vector(target_key.as_bytes());
+                                let source_old_value =
+                                    serializer.create_vector(source_old_value.as_bytes());
+                                let source_new_value =
+                                    serializer.create_vector(source_new_value.as_bytes());
+
+                                let old_item = AggregateMapOutputItem::create(
+                                    serializer.buffer_builder(),
+                                    &AggregateMapOutputItemArgs {
+                                        target_key: Some(target_key),
+                                        mapped_value: Some(source_old_value),
+                                    },
+                                );
+
+                                let new_item = AggregateMapOutputItem::create(
+                                    serializer.buffer_builder(),
+                                    &AggregateMapOutputItemArgs {
+                                        target_key: Some(target_key),
+                                        mapped_value: Some(source_new_value),
+                                    },
+                                );
+
+                                let record = AggregateMapOutput::create(
+                                    serializer.buffer_builder(),
+                                    &AggregateMapOutputArgs {
+                                        old_item: Some(old_item),
+                                        new_item: Some(new_item),
+                                    },
+                                );
+
+                                records.push(record);
+                            }
+
+                            let records = serializer.create_vector(&records);
+
+                            let result = AggregateMapMultiOutput::create(
+                                serializer.buffer_builder(),
+                                &AggregateMapMultiOutputArgs {
+                                    items: Some(records),
+                                },
+                            );
+
+                            let result = serializer.finish(result).into_owned();
+
+                            inputs.push(Input {
+                                id,
+                                input: InputType::FunctionEval(FunctionEvalInput {
+                                    body: FunctionEvalInputBody::AggregateMap(
+                                        AggregateMapEvalInput {
+                                            input: result,
+                                            action_input_buffer: input.into_vec(),
+                                        },
+                                    ),
+                                }),
+                            });
+
+                            continue;
+                        }
+                        _ => {}
+                    }
+
                     panic!("unexpected function eval {:?}", call);
                 }
             }

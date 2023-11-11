@@ -11,6 +11,8 @@ urlencoding = "2.1.2"
 thiserror = "1.0.50"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
+regex = "1.7.0"
+lazy_static = "1.4.0"
 
 [dependencies.diffbelt_types]
 path = "../diffbelt_types"

@@ -16,3 +16,11 @@ pub enum InputType {
     DiffbeltCall(DiffbeltCallInput<DiffbeltResponseBody>),
     FunctionEval(FunctionEvalInput<FunctionEvalInputBody>),
 }
+
+impl InputType {
+    pub fn diffbelt_call(body: DiffbeltResponseBody) -> Self {
+        Self::DiffbeltCall(DiffbeltCallInput {
+            body,
+        })
+    }
+}
