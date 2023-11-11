@@ -91,6 +91,7 @@ impl AggregateTransform {
         let state = ProcessingState {
             cursor_id: None,
             to_generation_id: diff.to_generation_id.clone(),
+            pending_eval_bytes: 0,
         };
 
         self.state = State::Processing(state);

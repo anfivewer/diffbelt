@@ -3,11 +3,12 @@ use crate::base::error::TransformError;
 use crate::base::input::Input;
 use crate::transform::{ActionInputHandlerResult, TransformInputs, WithTransformInputs};
 use crate::TransformRunResult;
+use diffbelt_util_no_std::buffers_pool::BuffersPool;
 
-mod state;
 mod init;
-mod read_diff_cursor;
 mod on_diff_received;
+mod read_diff_cursor;
+mod state;
 
 pub struct AggregateTransform {
     from_collection_name: Box<str>,
@@ -15,6 +16,9 @@ pub struct AggregateTransform {
     reader_name: Box<str>,
     state: State,
     action_input_handlers: TransformInputs<Self>,
+    max_pending_bytes: usize,
+    free_map_eval_action_buffers: BuffersPool<Vec<u8>>,
+    free_map_eval_input_buffers: BuffersPool<Vec<u8>>,
 }
 
 impl WithTransformInputs for AggregateTransform {
@@ -22,6 +26,8 @@ impl WithTransformInputs for AggregateTransform {
         &mut self.action_input_handlers
     }
 }
+
+const MB_64: usize = 64 * 1024 * 1024;
 
 impl AggregateTransform {
     pub fn new(
@@ -35,6 +41,9 @@ impl AggregateTransform {
             reader_name,
             state: State::Uninitialized,
             action_input_handlers: TransformInputs::new(),
+            max_pending_bytes: MB_64,
+            free_map_eval_action_buffers: BuffersPool::with_capacity(4),
+            free_map_eval_input_buffers: BuffersPool::with_capacity(4),
         }
     }
 
@@ -64,6 +73,12 @@ impl AggregateTransform {
             _ => {}
         }
 
-        TransformInputs::run(self, inputs)
+        match TransformInputs::run(self, inputs) {
+            Ok(x) => Ok(x),
+            Err(err) => {
+                self.state = State::Invalid;
+                Err(err)
+            }
+        }
     }
 }
