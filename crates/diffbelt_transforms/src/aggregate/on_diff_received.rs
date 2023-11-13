@@ -1,7 +1,11 @@
+use crate::aggregate::context::{
+    HandlerContext, HandlerContextKind, HandlerContextMapError, MapContext,
+};
 use crate::aggregate::AggregateTransform;
 use crate::base::action::function_eval::{AggregateMapEvalAction, FunctionEvalAction};
 use crate::base::action::ActionType;
 use crate::base::error::TransformError;
+use crate::base::input::function_eval::FunctionEvalInput;
 use crate::input_handler;
 use crate::transform::{ActionInputHandlerActionsVec, ActionInputHandlerResult, HandlerResult};
 use diffbelt_protos::protos::transform::aggregate::{
@@ -18,7 +22,7 @@ impl AggregateTransform {
     pub fn on_diff_received(
         &mut self,
         diff: DiffCollectionResponseJsonData,
-    ) -> HandlerResult<Self> {
+    ) -> HandlerResult<Self, HandlerContext> {
         let state = self.state.expect_processing_mut()?;
 
         let DiffCollectionResponseJsonData {
@@ -93,10 +97,11 @@ impl AggregateTransform {
 
         let output_buffer = self.free_map_eval_input_buffers.take();
 
-        state.pending_eval_bytes += input.as_bytes().len();
+        let input_bytes_len = input.as_bytes().len();
+        state.current_limits.pending_eval_map_bytes += input_bytes_len;
 
         let read_cursor = left_if_some(cursor_id).left_and_then(|cursor| {
-            if state.pending_eval_bytes < self.max_pending_bytes {
+            if Self::can_request_diff(&self.max_limits, &state.current_limits) {
                 Either::Left(cursor)
             } else {
                 Either::Right(Some(cursor))
@@ -113,7 +118,16 @@ impl AggregateTransform {
                 input,
                 output_buffer,
             })),
-            input_handler!(this, AggregateTransform, input, { todo!() }),
+            HandlerContext::Map(MapContext {
+                bytes_to_free: input_bytes_len,
+            }),
+            input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
+                let FunctionEvalInput { body } = input.into_eval_aggregate_map()?;
+                let ctx = ctx
+                    .into_map()
+                    .map_err_self_to_transform_err(HandlerContextKind::Map)?;
+                this.on_map_received(ctx, body)
+            }),
         ));
 
         match read_cursor {

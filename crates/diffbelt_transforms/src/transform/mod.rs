@@ -5,41 +5,44 @@ use crate::TransformRunResult;
 use diffbelt_util_no_std::cast::{u64_to_usize, usize_to_u64};
 use generational_arena::{Arena, Index};
 
-pub type HandlerResult<This> = Result<ActionInputHandlerResult<This>, TransformError>;
+pub type HandlerResult<This, Context> =
+    Result<ActionInputHandlerResult<This, Context>, TransformError>;
 
-pub type ActionInputHandler<This> = fn(&mut This, InputType) -> HandlerResult<This>;
+pub type ActionInputHandler<This, Context> =
+    fn(&mut This, ctx: Context, InputType) -> HandlerResult<This, Context>;
 
-pub type ActionInputHandlerAction<This> = (ActionType, ActionInputHandler<This>);
+pub type ActionInputHandlerAction<This, Context> =
+    (ActionType, Context, ActionInputHandler<This, Context>);
 
-pub type ActionInputHandlerActionsVec<This> = Vec<ActionInputHandlerAction<This>>;
+pub type ActionInputHandlerActionsVec<This, Context> = Vec<ActionInputHandlerAction<This, Context>>;
 
-pub enum ActionInputHandlerResult<This> {
+pub enum ActionInputHandlerResult<This, Context> {
     Finish,
     Consumed,
-    AddActions(ActionInputHandlerActionsVec<This>),
+    AddActions(ActionInputHandlerActionsVec<This, Context>),
 }
 
 #[macro_export]
 macro_rules! input_handler {
-    ($this:ident, $this_type:ident, $input:ident, $body:block) => {
+    ($this:ident, $this_type:ty, $ctx:ident, $ctx_type:ty, $input:ident, $body:block) => {
         {
-            fn handle_result($this: &mut $this_type, $input: crate::base::input::InputType) -> crate::transform::HandlerResult<$this_type> $body
+            fn handle_result($this: &mut $this_type, $ctx: $ctx_type, $input: crate::base::input::InputType) -> crate::transform::HandlerResult<$this_type, $ctx_type> $body
 
             handle_result
         }
     };
 }
 
-pub trait WithTransformInputs: Sized {
-    fn transform_inputs_mut(&mut self) -> &mut TransformInputs<Self>;
+pub trait WithTransformInputs<Context>: Sized {
+    fn transform_inputs_mut(&mut self) -> &mut TransformInputs<Self, Context>;
 }
 
-pub struct TransformInputs<This> {
+pub struct TransformInputs<This, Context> {
     actions_left: usize,
-    arena: Arena<ActionInputHandler<This>>,
+    arena: Arena<(Context, ActionInputHandler<This, Context>)>,
 }
 
-impl<This: WithTransformInputs> TransformInputs<This> {
+impl<Context, This: WithTransformInputs<Context>> TransformInputs<This, Context> {
     pub fn new() -> Self {
         Self {
             actions_left: 0,
@@ -61,7 +64,7 @@ impl<This: WithTransformInputs> TransformInputs<This> {
 
             let Input { id: (a, b), input } = input;
 
-            let handler = {
+            let (ctx, handler) = {
                 let transform_inputs = this.transform_inputs_mut();
 
                 if transform_inputs.actions_left == 0 {
@@ -74,7 +77,7 @@ impl<This: WithTransformInputs> TransformInputs<This> {
                     .arena
                     .remove(Index::from_raw_parts(u64_to_usize(a), b));
 
-                let Some(handler) = handler else {
+                let Some(ctx_and_handler) = handler else {
                     return Err(TransformError::Unspecified(
                         "No such handler exists".to_string(),
                     ));
@@ -82,10 +85,10 @@ impl<This: WithTransformInputs> TransformInputs<This> {
 
                 transform_inputs.actions_left -= 1;
 
-                handler
+                ctx_and_handler
             };
 
-            let action_result = handler(this, input)?;
+            let action_result = handler(this, ctx, input)?;
 
             match action_result {
                 ActionInputHandlerResult::Finish => {
@@ -97,8 +100,8 @@ impl<This: WithTransformInputs> TransformInputs<This> {
                 ActionInputHandlerResult::AddActions(new_actions) => {
                     let transform_inputs = this.transform_inputs_mut();
 
-                    for (action, handler) in new_actions {
-                        transform_inputs.push_action(&mut actions, action, handler);
+                    for (action, ctx, handler) in new_actions {
+                        transform_inputs.push_action(&mut actions, action, ctx, handler);
                     }
                 }
             }
@@ -125,9 +128,10 @@ impl<This: WithTransformInputs> TransformInputs<This> {
         &mut self,
         actions: &mut Vec<Action>,
         action: ActionType,
-        handler: ActionInputHandler<This>,
+        ctx: Context,
+        handler: ActionInputHandler<This, Context>,
     ) {
-        let index = self.arena.insert(handler);
+        let index = self.arena.insert((ctx, handler));
         let (a, b) = index.into_raw_parts();
 
         self.actions_left += 1;

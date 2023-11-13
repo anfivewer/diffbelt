@@ -1,12 +1,18 @@
+use crate::aggregate::context::HandlerContext;
+use crate::aggregate::limits::Limits;
+use diffbelt_util_no_std::buffers_pool::BuffersPool;
+
 use crate::aggregate::state::State;
 use crate::base::error::TransformError;
 use crate::base::input::Input;
-use crate::transform::{ActionInputHandlerResult, TransformInputs, WithTransformInputs};
+use crate::transform::{TransformInputs, WithTransformInputs};
 use crate::TransformRunResult;
-use diffbelt_util_no_std::buffers_pool::BuffersPool;
 
+mod context;
 mod init;
+mod limits;
 mod on_diff_received;
+mod on_map_received;
 mod read_diff_cursor;
 mod state;
 
@@ -15,14 +21,14 @@ pub struct AggregateTransform {
     to_collection_name: Box<str>,
     reader_name: Box<str>,
     state: State,
-    action_input_handlers: TransformInputs<Self>,
-    max_pending_bytes: usize,
+    action_input_handlers: TransformInputs<Self, HandlerContext>,
+    max_limits: Limits,
     free_map_eval_action_buffers: BuffersPool<Vec<u8>>,
     free_map_eval_input_buffers: BuffersPool<Vec<u8>>,
 }
 
-impl WithTransformInputs for AggregateTransform {
-    fn transform_inputs_mut(&mut self) -> &mut TransformInputs<Self> {
+impl WithTransformInputs<HandlerContext> for AggregateTransform {
+    fn transform_inputs_mut(&mut self) -> &mut TransformInputs<Self, HandlerContext> {
         &mut self.action_input_handlers
     }
 }
@@ -41,7 +47,10 @@ impl AggregateTransform {
             reader_name,
             state: State::Uninitialized,
             action_input_handlers: TransformInputs::new(),
-            max_pending_bytes: MB_64,
+            max_limits: Limits {
+                pending_eval_map_bytes: MB_64,
+                target_data_bytes: 2 * MB_64,
+            },
             free_map_eval_action_buffers: BuffersPool::with_capacity(4),
             free_map_eval_input_buffers: BuffersPool::with_capacity(4),
         }
@@ -60,9 +69,9 @@ impl AggregateTransform {
 
                 let mut actions = Vec::with_capacity(new_actions.len());
 
-                for (action, handler) in new_actions {
+                for (action, ctx, handler) in new_actions {
                     self.action_input_handlers
-                        .push_action(&mut actions, action, handler);
+                        .push_action(&mut actions, action, ctx, handler);
                 }
 
                 return Ok(TransformRunResult::Actions(actions));

@@ -1,6 +1,11 @@
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::rc::Rc;
+use lru::LruCache;
 use crate::base::error::TransformError;
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
+use crate::aggregate::limits::Limits;
 
 #[derive(Debug)]
 pub enum State {
@@ -17,7 +22,13 @@ pub enum State {
 pub struct ProcessingState {
     pub cursor_id: Option<Box<str>>,
     pub to_generation_id: EncodedGenerationIdJsonData,
-    pub pending_eval_bytes: usize,
+    pub current_limits: Limits,
+    pub target_keys: LruCache<Rc<[u8]>, TargetKeyData>,
+}
+
+#[derive(Debug)]
+pub struct TargetKeyData {
+
 }
 
 impl State {
