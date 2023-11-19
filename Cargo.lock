@@ -756,6 +756,7 @@ name = "diffbelt_util_no_std"
 version = "0.1.0"
 dependencies = [
  "either",
+ "hashbrown 0.13.2",
  "thiserror-no-std",
 ]
 

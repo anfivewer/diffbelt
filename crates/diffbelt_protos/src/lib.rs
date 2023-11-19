@@ -26,6 +26,7 @@ pub unsafe fn deserialize_unchecked<'fbb, T: FlatbuffersType<'fbb>>(bytes: &'fbb
     flatbuffers::root_unchecked::<T>(bytes)
 }
 
+#[derive(Debug)]
 pub struct Serializer<'fbb, T: FlatbuffersType<'fbb>> {
     buffer_builder_: FlatBufferBuilder<'fbb>,
     phantom: PhantomData<T>,
@@ -70,6 +71,10 @@ impl<'fbb, F: FlatbuffersType<'fbb>> Serializer<'fbb, F> {
             buffer_builder_: self.buffer_builder_,
             phantom: PhantomData::default(),
         }
+    }
+
+    pub fn buffer_len(&self) -> usize {
+        self.buffer_builder_.unfinished_data().len()
     }
 
     pub fn into_vec(self) -> Vec<u8> {

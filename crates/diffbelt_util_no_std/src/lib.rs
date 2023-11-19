@@ -9,3 +9,4 @@ pub mod either;
 pub mod fmt;
 pub mod from_either;
 pub mod slice;
+pub mod temporary_collection;

@@ -6,7 +6,7 @@ use std::ops::Deref;
 
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiOutput, AggregateMapMultiOutputArgs, AggregateMapOutput,
-    AggregateMapOutputArgs, AggregateMapOutputItem, AggregateMapOutputItemArgs,
+    AggregateMapOutputArgs,
 };
 use diffbelt_protos::Serializer;
 use rand::{Rng, SeedableRng};
@@ -349,11 +349,11 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                         .expect("should be number")
                                 });
 
-                                let source_old_value = source_old_value
-                                    .map(|x| u32_to_i64(x))
-                                    .unwrap_or(0)
-                                    .to_string();
-                                let source_new_value = source_new_value
+                                let source_old_value =
+                                    source_old_value.map(|x| u32_to_i64(x)).unwrap_or(0);
+                                let old_mapped_value = -source_old_value;
+                                let old_mapped_value = old_mapped_value.to_string();
+                                let new_mapped_value = source_new_value
                                     .map(|x| u32_to_i64(x))
                                     .unwrap_or(0)
                                     .to_string();
@@ -361,36 +361,25 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                 let target_key = u32_to_usize(source_key) % target_buckets_count;
                                 let target_key = target_key.to_string();
                                 let target_key = serializer.create_vector(target_key.as_bytes());
-                                let source_old_value =
-                                    serializer.create_vector(source_old_value.as_bytes());
-                                let source_new_value =
-                                    serializer.create_vector(source_new_value.as_bytes());
+                                let old_mapped_value =
+                                    serializer.create_vector(old_mapped_value.as_bytes());
+                                let new_mapped_value =
+                                    serializer.create_vector(new_mapped_value.as_bytes());
 
-                                let old_item = AggregateMapOutputItem::create(
-                                    serializer.buffer_builder(),
-                                    &AggregateMapOutputItemArgs {
-                                        target_key: Some(target_key),
-                                        mapped_value: Some(source_old_value),
-                                    },
-                                );
-
-                                let new_item = AggregateMapOutputItem::create(
-                                    serializer.buffer_builder(),
-                                    &AggregateMapOutputItemArgs {
-                                        target_key: Some(target_key),
-                                        mapped_value: Some(source_new_value),
-                                    },
-                                );
-
-                                let record = AggregateMapOutput::create(
+                                records.push(AggregateMapOutput::create(
                                     serializer.buffer_builder(),
                                     &AggregateMapOutputArgs {
-                                        old_item: Some(old_item),
-                                        new_item: Some(new_item),
+                                        target_key: Some(target_key),
+                                        mapped_value: Some(old_mapped_value),
                                     },
-                                );
-
-                                records.push(record);
+                                ));
+                                records.push(AggregateMapOutput::create(
+                                    serializer.buffer_builder(),
+                                    &AggregateMapOutputArgs {
+                                        target_key: Some(target_key),
+                                        mapped_value: Some(new_mapped_value),
+                                    },
+                                ));
                             }
 
                             let records = serializer.create_vector(&records);

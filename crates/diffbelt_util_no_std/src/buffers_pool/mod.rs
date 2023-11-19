@@ -19,6 +19,10 @@ impl<Buffer: PooledBuffer> BuffersPool<Buffer> {
         }
     }
 
+    pub fn push(&mut self, buffer: Buffer::Item) {
+        self.pool.push(buffer);
+    }
+
     pub fn take(&mut self) -> Buffer::Item {
         self.pool.pop().unwrap_or_else(|| Buffer::new())
     }

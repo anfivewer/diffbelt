@@ -8,14 +8,9 @@ table AggregateMapMultiInput {
   items: [AggregateMapSource];
 }
 
-table AggregateMapOutputItem {
+table AggregateMapOutput {
   target_key: [ubyte];
   mapped_value: [ubyte]; // optional
-}
-
-table AggregateMapOutput {
-  old_item: AggregateMapOutputItem; // optional
-  new_item: AggregateMapOutputItem; // optional
 }
 
 table AggregateMapMultiOutput {
@@ -29,8 +24,7 @@ table AggregateTargetInfo {
 }
 
 table AggregateReduceItem {
-  old_mapped_value: [ubyte]; // optional
-  new_mapped_value: [ubyte]; // optional
+  mapped_value: [ubyte]; // optional
 }
 
 table AggregateReduceInput {

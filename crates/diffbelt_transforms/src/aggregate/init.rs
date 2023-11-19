@@ -1,18 +1,18 @@
-use lru::LruCache;
 use std::borrow::Cow;
 use std::mem;
 use std::ops::Deref;
 
+use lru::LruCache;
+
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
-use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
+use diffbelt_util_no_std::temporary_collection::hash_set::TemporaryRefHashSet;
 
-use crate::aggregate::context::HandlerContext;
-use crate::aggregate::limits::Limits;
-use crate::aggregate::state::{ProcessingState, State};
 use crate::aggregate::AggregateTransform;
-use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
+use crate::aggregate::context::HandlerContext;
+use crate::aggregate::state::{ProcessingState, State};
 use crate::base::action::ActionType;
+use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::error::TransformError;
 use crate::base::input::diffbelt_call::DiffbeltCallInput;
 use crate::input_handler;
@@ -101,6 +101,7 @@ impl AggregateTransform {
             to_generation_id: diff.to_generation_id.clone(),
             current_limits: Default::default(),
             target_keys: LruCache::unbounded(),
+            updated_target_keys_temp_set: TemporaryRefHashSet::new(),
         };
 
         self.state = State::Processing(state);
