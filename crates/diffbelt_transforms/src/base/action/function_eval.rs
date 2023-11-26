@@ -10,7 +10,9 @@ use diffbelt_protos::OwnedSerialized;
 pub enum FunctionEvalAction {
     MapFilter(MapFilterEvalAction),
     AggregateMap(AggregateMapEvalAction),
+    AggregateTargetInfo(AggregateTargetInfoEvalAction),
     AggregateInitialAccumulator(AggregateInitialAccumulatorEvalAction),
+    AggregateReduce(AggregateReduceEvalAction),
 }
 
 #[derive(Debug)]
@@ -28,8 +30,13 @@ pub struct AggregateMapEvalAction {
 }
 
 #[derive(Debug)]
-pub struct AggregateInitialAccumulatorEvalAction {
+pub struct AggregateTargetInfoEvalAction {
     pub target_info: OwnedSerialized<'static, AggregateTargetInfo<'static>>,
+}
+
+#[derive(Debug)]
+pub struct AggregateInitialAccumulatorEvalAction {
+    pub target_info: TargetInfoId,
 }
 
 #[derive(Debug)]

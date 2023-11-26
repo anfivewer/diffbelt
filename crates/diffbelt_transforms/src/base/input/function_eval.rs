@@ -36,9 +36,13 @@ pub struct AggregateMapEvalInput {
 }
 
 #[derive(Debug)]
+pub struct AggregateTargetInfoEvalInput {
+    pub target_info_id: TargetInfoId,
+}
+
+#[derive(Debug)]
 pub struct AggregateInitialAccumulatorEvalInput {
     pub accumulator_id: AccumulatorId,
-    pub target_info_id: TargetInfoId,
 }
 
 #[derive(Debug)]

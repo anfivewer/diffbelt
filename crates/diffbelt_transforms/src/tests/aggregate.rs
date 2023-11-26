@@ -154,6 +154,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
         Box::from("source"),
         Box::from("target"),
         Box::from("reader"),
+        true,
     );
 
     let mut inputs = Vec::new();

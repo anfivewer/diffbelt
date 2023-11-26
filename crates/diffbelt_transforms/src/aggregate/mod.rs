@@ -16,16 +16,7 @@ mod on_map_received;
 mod read_diff_cursor;
 mod state;
 
-pub struct AggregateTransform {
-    from_collection_name: Box<str>,
-    to_collection_name: Box<str>,
-    reader_name: Box<str>,
-    state: State,
-    action_input_handlers: TransformInputs<Self, HandlerContext>,
-    max_limits: Limits,
-    free_map_eval_action_buffers: BuffersPool<Vec<u8>>,
-    free_map_eval_input_buffers: BuffersPool<Vec<u8>>,
-}
+pub use state::AggregateTransform;
 
 impl WithTransformInputs<HandlerContext> for AggregateTransform {
     fn transform_inputs_mut(&mut self) -> &mut TransformInputs<Self, HandlerContext> {
@@ -40,6 +31,7 @@ impl AggregateTransform {
         from_collection_name: Box<str>,
         to_collection_name: Box<str>,
         reader_name: Box<str>,
+        supports_accumulator_merge: bool,
     ) -> Self {
         Self {
             from_collection_name,
@@ -51,8 +43,12 @@ impl AggregateTransform {
                 pending_eval_map_bytes: MB_64,
                 target_data_bytes: 2 * MB_64,
             },
+            supports_accumulator_merge,
             free_map_eval_action_buffers: BuffersPool::with_capacity(4),
             free_map_eval_input_buffers: BuffersPool::with_capacity(4),
+            free_reduce_eval_action_buffers: BuffersPool::with_capacity(4),
+            free_reduce_eval_input_buffers: BuffersPool::with_capacity(4),
+            free_serializer_reduce_input_items_buffers: BuffersPool::with_capacity(4),
         }
     }
 

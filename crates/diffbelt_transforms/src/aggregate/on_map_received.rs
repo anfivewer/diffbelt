@@ -1,14 +1,24 @@
+use std::borrow::Cow;
+use std::collections::VecDeque;
+use std::mem;
 use std::ops::DerefMut;
 use std::rc::Rc;
 
-use diffbelt_protos::protos::transform::aggregate::{AggregateReduceItem, AggregateReduceItemArgs, AggregateTargetInfo};
+use diffbelt_protos::protos::transform::aggregate::{
+    AggregateReduceInput, AggregateReduceInputArgs, AggregateReduceItem, AggregateReduceItemArgs,
+};
 use diffbelt_protos::Serializer;
+use diffbelt_types::collection::get_record::GetRequestJsonData;
+use diffbelt_types::common::key_value::EncodedKeyJsonData;
 
 use crate::aggregate::context::{HandlerContext, MapContext};
-use crate::aggregate::state::TargetKeyData;
+use crate::aggregate::state::{
+    TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyData, TargetKeyReducingChunk,
+};
 use crate::aggregate::AggregateTransform;
+use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{
-    AggregateInitialAccumulatorEvalAction, FunctionEvalAction,
+    AggregateInitialAccumulatorEvalAction, AggregateReduceEvalAction, FunctionEvalAction,
 };
 use crate::base::action::ActionType;
 use crate::base::error::TransformError;
@@ -22,6 +32,8 @@ impl AggregateTransform {
         ctx: MapContext,
         map: AggregateMapEvalInput,
     ) -> HandlerResult<Self, HandlerContext> {
+        let supports_accumulator_merge = self.supports_accumulator_merge;
+
         let state = self.state.expect_processing_mut()?;
 
         let MapContext { bytes_to_free } = ctx;
@@ -39,8 +51,8 @@ impl AggregateTransform {
 
         let mut prev_key_target: Option<(&[u8], &mut TargetKeyData)> = None;
 
-        let mut updated_keys = state.updated_target_keys_temp_set.temp();
-        let updated_keys = updated_keys.as_mut();
+        let mut updated_keys_temp = state.updated_target_keys_temp_set.temp();
+        let updated_keys = updated_keys_temp.as_mut();
 
         for item in map_items {
             let target_key = item
@@ -63,10 +75,9 @@ impl AggregateTransform {
                     state.target_keys.push(
                         Rc::from(target_key),
                         TargetKeyData {
-                            reduce_input: Serializer::new(),
-                            reduce_input_items: Vec::new(),
-                            accumulator_and_target_info: None,
-                            is_accumulator_and_target_info_pending: false,
+                            target_info_id: None,
+                            chunks: VecDeque::with_capacity(1),
+                            is_target_info_pending: false,
                         },
                     );
                     state
@@ -83,25 +94,77 @@ impl AggregateTransform {
                 target.deref_mut()
             };
 
-            if !target.is_accumulator_and_target_info_pending {
+            let mut should_add_to_updated_keys = !target.is_target_info_pending;
+
+            //region Add mapped item to target key record
+            let last_chunk = target.chunks.back_mut();
+            let last_chunk = match last_chunk {
+                Some(last_chunk) => {
+                    if let Some(chunk) = last_chunk.as_collecting() {
+                        if chunk.is_accumulator_pending {
+                            should_add_to_updated_keys = false
+                        }
+                    }
+
+                    last_chunk
+                }
+                None => {
+                    let mut buffer = self.free_reduce_eval_action_buffers.take();
+                    buffer.clear();
+
+                    let chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
+                        accumulator_id: None,
+                        reduce_input: Serializer::from_vec(buffer),
+                        reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
+                        is_accumulator_pending: false,
+                    });
+                    target.chunks.push_back(chunk);
+                    target.chunks.back_mut().expect("just inserted")
+                }
+            };
+
+            let last_chunk = match last_chunk {
+                TargetKeyChunk::Collecting(x) => x,
+                TargetKeyChunk::Reducing(_) => {
+                    if !supports_accumulator_merge {
+                        panic!("aggregate transform without support of accumulator merge cannot have Reducing target key state");
+                    }
+
+                    let mut buffer = self.free_reduce_eval_action_buffers.take();
+                    buffer.clear();
+
+                    let chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
+                        accumulator_id: None,
+                        reduce_input: Serializer::from_vec(buffer),
+                        reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
+                        is_accumulator_pending: false,
+                    });
+                    target.chunks.push_back(chunk);
+                    target.chunks.back_mut().expect("just inserted").as_collecting_mut().expect("aggregate transform without support of accumulator merge cannot have Reducing target key state")
+                }
+            };
+
+            if should_add_to_updated_keys {
                 updated_keys.insert(target_key);
             }
 
-            let prev_buffer_len = target.reduce_input.buffer_len();
+            let prev_buffer_len = last_chunk.reduce_input.buffer_len();
 
-            let mapped_value = mapped_value.map(|x| target.reduce_input.create_vector(x.bytes()));
+            let mapped_value =
+                mapped_value.map(|x| last_chunk.reduce_input.create_vector(x.bytes()));
 
             let item = AggregateReduceItem::create(
-                target.reduce_input.buffer_builder(),
+                last_chunk.reduce_input.buffer_builder(),
                 &AggregateReduceItemArgs { mapped_value },
             );
 
-            target.reduce_input_items.push(item);
+            last_chunk.reduce_input_items.push(item);
 
-            let new_buffer_len = target.reduce_input.buffer_len();
+            let new_buffer_len = last_chunk.reduce_input.buffer_len();
             let new_data_size = new_buffer_len - prev_buffer_len;
 
             state.current_limits.target_data_bytes += new_data_size;
+            //endregion
         }
 
         let mut actions = ActionInputHandlerActionsVec::with_capacity(updated_keys.len());
@@ -115,26 +178,124 @@ impl AggregateTransform {
                 .expect("should be present");
 
             assert!(
-                !target.is_accumulator_and_target_info_pending,
-                "Accumulator should not be already pending"
+                !target.is_target_info_pending,
+                "Target info should not be pending"
             );
 
-            let Some((accumulator_id, target_info_id)) = &target.accumulator_and_target_info else {
-                let target_info = Serializer::<AggregateTargetInfo>::new();
-
-                // TODO: We need to make request for target record first
+            let Some(target_info_id) = target.target_info_id else {
+                target.is_target_info_pending = true;
 
                 actions.push((
-                    ActionType::FunctionEval(FunctionEvalAction::AggregateInitialAccumulator(
-                        AggregateInitialAccumulatorEvalAction { target_info: () },
-                    )),
+                    ActionType::DiffbeltCall(DiffbeltCallAction {
+                        method: Method::Post,
+                        path: Cow::Owned(format!(
+                            "/collections/{}/get",
+                            urlencoding::encode(&self.to_collection_name),
+                        )),
+                        query: Vec::with_capacity(0),
+                        body: DiffbeltRequestBody::GetRecord(GetRequestJsonData {
+                            key: EncodedKeyJsonData::from_bytes_slice(target_key),
+                            generation_id: Some(state.to_generation_id.clone()),
+                            phantom_id: None,
+                        }),
+                    }),
                     HandlerContext::None,
                     input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
-                        todo!()
+                        todo!("create target info")
                     }),
                 ));
                 continue;
             };
+
+            let last_chunk = target
+                .chunks
+                .back_mut()
+                .expect("chunks should not be empty");
+            let collecting_chunk = last_chunk
+                .as_collecting_mut()
+                .expect("last chunk should be Collecting");
+
+            assert_eq!(
+                collecting_chunk.is_accumulator_pending,
+                collecting_chunk.accumulator_id.is_none(),
+                "accumulator should be pending or preset"
+            );
+
+            let Some(accumulator_id) = collecting_chunk.accumulator_id else {
+                collecting_chunk.is_accumulator_pending = true;
+
+                actions.push((
+                    ActionType::FunctionEval(FunctionEvalAction::AggregateInitialAccumulator(
+                        AggregateInitialAccumulatorEvalAction {
+                            target_info: target_info_id,
+                        },
+                    )),
+                    HandlerContext::None,
+                    input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
+                        todo!("create initial accumulator")
+                    }),
+                ));
+                continue;
+            };
+
+            let (new_chunk_id, mut new_chunk) = if supports_accumulator_merge {
+                state.reducing_chunk_id_counter += 1;
+                let chunk_id = state.reducing_chunk_id_counter;
+
+                let new_chunk = TargetKeyChunk::Reducing(TargetKeyReducingChunk { chunk_id });
+
+                (chunk_id, new_chunk)
+            } else {
+                let mut buffer = self.free_reduce_eval_action_buffers.take();
+                buffer.clear();
+
+                let new_chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
+                    accumulator_id: Some(accumulator_id),
+                    is_accumulator_pending: false,
+                    reduce_input: Serializer::from_vec(buffer),
+                    reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
+                });
+
+                (0, new_chunk)
+            };
+
+            mem::swap(last_chunk, &mut new_chunk);
+            let TargetKeyCollectingChunk {
+                accumulator_id: _,
+                is_accumulator_pending: _,
+                mut reduce_input,
+                reduce_input_items,
+            } = new_chunk
+                .into_collecting()
+                .expect("last chunk should be Collecting");
+
+            let items = reduce_input.create_vector(&reduce_input_items);
+            self.free_serializer_reduce_input_items_buffers
+                .push(reduce_input_items);
+
+            let input = AggregateReduceInput::create(
+                reduce_input.buffer_builder(),
+                &AggregateReduceInputArgs { items: Some(items) },
+            );
+            let input = reduce_input.finish(input).into_owned();
+
+            let mut output_buffer_for_input = self.free_reduce_eval_input_buffers.take();
+            output_buffer_for_input.clear();
+
+            actions.push((
+                ActionType::FunctionEval(FunctionEvalAction::AggregateReduce(
+                    AggregateReduceEvalAction {
+                        accumulator: accumulator_id,
+                        target_info: target_info_id,
+                        input,
+                        output_buffer: output_buffer_for_input,
+                    },
+                )),
+                HandlerContext::None,
+                input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
+                    todo!("handle reduce")
+                }),
+            ));
         }
 
         todo!()

@@ -102,6 +102,7 @@ impl AggregateTransform {
             current_limits: Default::default(),
             target_keys: LruCache::unbounded(),
             updated_target_keys_temp_set: TemporaryRefHashSet::new(),
+            reducing_chunk_id_counter: 0,
         };
 
         self.state = State::Processing(state);
