@@ -34,7 +34,10 @@ impl<K: ?Sized + 'static, V: ?Sized + 'static> TemporaryRefCollectionType for Re
         unsafe { mem::transmute(&mut *ptr) }
     }
 
-    fn drop_instance(_instance: &mut Self::Wrap<'_>, _raw: &mut Self::Raw) {}
+    fn drop_instance(instance: &mut Self::Wrap<'_>, _raw: &mut Self::Raw) {
+        let instance = unsafe { &mut **instance };
+        instance.clear();
+    }
 }
 
 pub type TemporaryRefHashMap<K, V> = TemporaryRefCollection<RefHashMap<K, V>>;

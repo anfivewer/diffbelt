@@ -28,8 +28,11 @@ use diffbelt_types::collection::diff::{
     ReaderDiffFromDefJsonData,
 };
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
+use diffbelt_types::collection::get_record::{GetRequestJsonData, GetResponseJsonData};
 use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
-use diffbelt_types::common::key_value::{EncodedKeyJsonData, EncodedValueJsonData};
+use diffbelt_types::common::key_value::{
+    EncodedKeyJsonData, EncodedValueJsonData, KeyValueJsonData,
+};
 use diffbelt_util_no_std::cast::{u32_to_i64, u32_to_u64, u32_to_usize};
 
 #[test]
@@ -65,6 +68,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
 
     let mut source_items = Vec::with_capacity(source_items_count);
     let target_items = target_items_from_source(&source_items);
+    let initial_target_items = target_items.clone();
 
     for _ in 0..source_items_count {
         source_items.push((rand.next_u32(), rand.next_u32()));
@@ -184,7 +188,10 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
             let index = rand.gen_range(0..pending_actions.len());
             let action = pending_actions.swap_remove(index);
 
-            let Action { id, action } = action;
+            let Action {
+                id: action_id,
+                action,
+            } = action;
 
             match action {
                 ActionType::DiffbeltCall(call) => {
@@ -221,7 +228,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                         );
 
                         inputs.push(Input {
-                            id,
+                            id: action_id,
                             input: InputType::DiffbeltCall(DiffbeltCallInput {
                                 body: DiffbeltResponseBody::Diff(DiffCollectionResponseJsonData {
                                     from_generation_id: EncodedGenerationIdJsonData {
@@ -255,7 +262,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                         );
 
                         inputs.push(Input {
-                            id,
+                            id: action_id,
                             input: InputType::DiffbeltCall(DiffbeltCallInput {
                                 body: DiffbeltResponseBody::Ok(()),
                             }),
@@ -291,7 +298,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                             );
 
                             inputs.push(Input {
-                                id,
+                                id: action_id,
                                 input: InputType::diffbelt_call(DiffbeltResponseBody::Diff(
                                     DiffCollectionResponseJsonData {
                                         from_generation_id: EncodedGenerationIdJsonData::new_str(
@@ -310,6 +317,53 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
 
                             continue;
                         }
+                    }
+
+                    if &path == "/collections/target/get" {
+                        assert_eq!(method, Method::Post);
+                        assert!(query.is_empty());
+
+                        let body = body.into_get_record().expect("should be get body");
+                        let GetRequestJsonData {
+                            key,
+                            generation_id,
+                            phantom_id,
+                        } = body;
+
+                        assert!(phantom_id.is_none());
+
+                        let generation_id = generation_id
+                            .expect("get record request should have generation")
+                            .into_bytes()
+                            .expect("parse bytes");
+
+                        assert_eq!(generation_id.as_ref(), "first".as_bytes());
+
+                        let key = key.into_bytes().expect("parse bytes");
+
+                        let key_string = String::from_utf8(key.into_vec()).expect("should be utf8");
+
+                        let key = key_string.parse::<u32>().expect("should be number");
+
+                        let value = initial_target_items.get(&key);
+                        let item = value.map(|value| KeyValueJsonData {
+                            key: EncodedKeyJsonData::new_str(key_string),
+                            value: EncodedValueJsonData::new_str(value.to_string()),
+                        });
+
+                        inputs.push(Input {
+                            id: action_id,
+                            input: InputType::DiffbeltCall(DiffbeltCallInput {
+                                body: DiffbeltResponseBody::GetRecord(GetResponseJsonData {
+                                    generation_id: EncodedGenerationIdJsonData::new_str(
+                                        String::from("first"),
+                                    ),
+                                    item,
+                                }),
+                            }),
+                        });
+
+                        continue;
                     }
 
                     panic!("unexpected diffbelt call {method:?} {path} {query:?} {body:?}");
@@ -395,7 +449,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                             let result = serializer.finish(result).into_owned();
 
                             inputs.push(Input {
-                                id,
+                                id: action_id,
                                 input: InputType::FunctionEval(FunctionEvalInput {
                                     body: FunctionEvalInputBody::AggregateMap(
                                         AggregateMapEvalInput {
@@ -418,7 +472,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
     }
 }
 
-fn target_items_from_source(source_items: &[(u32, u32)]) -> Vec<(u32, u64)> {
+fn target_items_from_source(source_items: &[(u32, u32)]) -> HashMap<u32, u64> {
     let mut target_items = HashMap::new();
 
     for (key, value) in source_items {
@@ -429,10 +483,6 @@ fn target_items_from_source(source_items: &[(u32, u32)]) -> Vec<(u32, u64)> {
             .and_modify(|val| *val += u32_to_u64(*value))
             .or_insert(u32_to_u64(*value));
     }
-
-    let mut target_items: Vec<_> = target_items.into_iter().collect();
-
-    target_items.sort_by(|a, b| a.0.cmp(&b.0));
 
     target_items
 }

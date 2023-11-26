@@ -4,6 +4,7 @@ use diffbelt_types::collection::generation::{
 };
 use diffbelt_types::collection::put_many::PutManyRequestJsonData;
 use std::borrow::Cow;
+use enum_as_inner::EnumAsInner;
 use diffbelt_types::collection::get_record::GetRequestJsonData;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -12,7 +13,7 @@ pub enum Method {
     Post,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, EnumAsInner)]
 pub enum DiffbeltRequestBody {
     ReadDiffCursorNone,
     DiffCollectionStart(DiffCollectionRequestJsonData),

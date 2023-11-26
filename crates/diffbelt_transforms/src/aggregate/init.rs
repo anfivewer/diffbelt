@@ -98,6 +98,7 @@ impl AggregateTransform {
 
         let state = ProcessingState {
             cursor_id: None,
+            from_generation_id: diff.from_generation_id.clone(),
             to_generation_id: diff.to_generation_id.clone(),
             current_limits: Default::default(),
             target_keys: LruCache::unbounded(),

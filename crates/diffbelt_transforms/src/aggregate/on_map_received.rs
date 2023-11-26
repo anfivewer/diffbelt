@@ -11,7 +11,7 @@ use diffbelt_protos::Serializer;
 use diffbelt_types::collection::get_record::GetRequestJsonData;
 use diffbelt_types::common::key_value::EncodedKeyJsonData;
 
-use crate::aggregate::context::{HandlerContext, MapContext};
+use crate::aggregate::context::{HandlerContext, MapContext, TargetRecordContext};
 use crate::aggregate::state::{
     TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyData, TargetKeyReducingChunk,
 };
@@ -22,6 +22,7 @@ use crate::base::action::function_eval::{
 };
 use crate::base::action::ActionType;
 use crate::base::error::TransformError;
+use crate::base::input::diffbelt_call::DiffbeltCallInput;
 use crate::base::input::function_eval::AggregateMapEvalInput;
 use crate::input_handler;
 use crate::transform::{ActionInputHandlerActionsVec, ActionInputHandlerResult, HandlerResult};
@@ -172,6 +173,12 @@ impl AggregateTransform {
         for target_key in updated_keys.iter() {
             let target_key = *target_key;
 
+            let (target_key_rc, _) = state
+                .target_keys
+                .get_key_value(target_key)
+                .expect("should be present");
+            let target_key_rc = target_key_rc.clone();
+
             let target = state
                 .target_keys
                 .get_mut(target_key)
@@ -195,13 +202,17 @@ impl AggregateTransform {
                         query: Vec::with_capacity(0),
                         body: DiffbeltRequestBody::GetRecord(GetRequestJsonData {
                             key: EncodedKeyJsonData::from_bytes_slice(target_key),
-                            generation_id: Some(state.to_generation_id.clone()),
+                            generation_id: Some(state.from_generation_id.clone()),
                             phantom_id: None,
                         }),
                     }),
-                    HandlerContext::None,
+                    HandlerContext::TargetRecord(TargetRecordContext {
+                        target_key: target_key_rc,
+                    }),
                     input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
-                        todo!("create target info")
+                        let ctx = ctx.into_target_record().expect("should be TargetRecord");
+                        let DiffbeltCallInput { body } = input.into_diffbelt_get_record()?;
+                        this.on_target_record_received(ctx, body)
                     }),
                 ));
                 continue;
@@ -298,7 +309,6 @@ impl AggregateTransform {
             ));
         }
 
-        todo!()
-        // Ok(ActionInputHandlerResult::AddActions(actions))
+        Ok(ActionInputHandlerResult::AddActions(actions))
     }
 }

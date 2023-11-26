@@ -3,6 +3,7 @@ use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody}
 use crate::base::input::function_eval::{AggregateMapEvalInput, FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput};
 use crate::base::input::InputType;
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
+use diffbelt_types::collection::get_record::GetResponseJsonData;
 use diffbelt_types::collection::put_many::PutManyResponseJsonData;
 
 macro_rules! input_type_into_diffbelt {
@@ -55,6 +56,7 @@ impl InputType {
     input_type_into_diffbelt!(into_diffbelt_ok, (), Ok);
     input_type_into_diffbelt!(into_diffbelt_diff, DiffCollectionResponseJsonData, Diff);
     input_type_into_diffbelt!(into_diffbelt_put_many, PutManyResponseJsonData, PutMany);
+    input_type_into_diffbelt!(into_diffbelt_get_record, GetResponseJsonData, GetRecord);
 
     input_type_into_eval!(into_eval_map_filter, MapFilterEvalInput, MapFilter);
     input_type_into_eval!(into_eval_aggregate_map, AggregateMapEvalInput, AggregateMap);
