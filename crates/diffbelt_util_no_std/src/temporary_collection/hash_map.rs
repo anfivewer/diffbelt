@@ -1,4 +1,5 @@
 use core::marker::PhantomData;
+use core::mem;
 
 use hashbrown::HashMap;
 
@@ -28,9 +29,9 @@ impl<K: ?Sized + 'static, V: ?Sized + 'static> TemporaryRefCollectionType for Re
         raw as *const HashMap<&'static K, &'static V> as *mut HashMap<&'b K, &'b V>
     }
 
-    fn instance_as_mut<'a>(instance: &'a mut Self::Wrap<'a>) -> &'a mut Self::Mut<'a> {
+    fn instance_as_mut<'a>(instance: &'a mut Self::Wrap<'static>) -> &'a mut Self::Mut<'a> {
         let ptr = *instance;
-        unsafe { &mut *ptr }
+        unsafe { mem::transmute(&mut *ptr) }
     }
 
     fn drop_instance(_instance: &mut Self::Wrap<'_>, _raw: &mut Self::Raw) {}

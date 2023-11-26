@@ -42,8 +42,8 @@ impl<T: ?Sized + 'static> TemporaryRefCollectionType for RefVec<T> {
         vec
     }
 
-    fn instance_as_mut<'a>(instance: &'a mut Self::Wrap<'a>) -> &'a mut Self::Mut<'a> {
-        instance
+    fn instance_as_mut<'a>(instance: &'a mut Self::Wrap<'static>) -> &'a mut Self::Mut<'a> {
+        unsafe { mem::transmute(instance) }
     }
 
     fn drop_instance(instance: &mut Self::Wrap<'_>, raw: &mut Self::Raw) {
