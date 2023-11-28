@@ -337,7 +337,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                             .into_bytes()
                             .expect("parse bytes");
 
-                        assert_eq!(generation_id.as_ref(), "first".as_bytes());
+                        assert_eq!(generation_id.as_ref(), "second".as_bytes());
 
                         let key = key.into_bytes().expect("parse bytes");
 
@@ -345,7 +345,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
 
                         let key = key_string.parse::<u32>().expect("should be number");
 
-                        let value = initial_target_items.get(&key);
+                        let value = target_items.get(&key);
                         let item = value.map(|value| KeyValueJsonData {
                             key: EncodedKeyJsonData::new_str(key_string),
                             value: EncodedValueJsonData::new_str(value.to_string()),
@@ -356,7 +356,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                             input: InputType::DiffbeltCall(DiffbeltCallInput {
                                 body: DiffbeltResponseBody::GetRecord(GetResponseJsonData {
                                     generation_id: EncodedGenerationIdJsonData::new_str(
-                                        String::from("first"),
+                                        String::from("second"),
                                     ),
                                     item,
                                 }),

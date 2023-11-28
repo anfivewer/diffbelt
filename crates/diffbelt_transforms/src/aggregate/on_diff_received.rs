@@ -108,10 +108,7 @@ impl AggregateTransform {
             }
         });
 
-        let need_read_cursor = read_cursor.is_left();
-
-        let mut actions =
-            ActionInputHandlerActionsVec::with_capacity(1 + (if need_read_cursor { 1 } else { 0 }));
+        let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
         actions.push((
             ActionType::FunctionEval(FunctionEvalAction::AggregateMap(AggregateMapEvalAction {

@@ -6,10 +6,7 @@ use diffbelt_protos::protos::transform::map_filter::{
     MapFilterInput, MapFilterInputArgs, MapFilterMultiInput, MapFilterMultiInputArgs,
 };
 use diffbelt_protos::Serializer;
-use diffbelt_types::collection::diff::{
-    DiffCollectionRequestJsonData, DiffCollectionResponseJsonData, KeyValueDiffJsonData,
-    ReaderDiffFromDefJsonData,
-};
+use diffbelt_types::collection::diff::{DiffCollectionResponseJsonData, KeyValueDiffJsonData};
 use diffbelt_types::collection::generation::{
     CommitGenerationRequestJsonData, StartGenerationRequestJsonData,
 };
@@ -21,15 +18,15 @@ use diffbelt_util::option::{cut_layer, lift_result_from_option};
 
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{FunctionEvalAction, MapFilterEvalAction};
-use crate::base::action::ActionType;
+use crate::base::action::{Action, ActionType};
 use crate::base::error::TransformError;
 use crate::base::input::diffbelt_call::DiffbeltCallInput;
 use crate::base::input::function_eval::{FunctionEvalInput, MapFilterEvalInput};
-use crate::base::input::{Input, InputType};
+use crate::base::input::Input;
 use crate::map_filter::state::{AwaitingForGenerationStartState, ProcessingState, State};
 use crate::transform::{
-    ActionInputHandler, ActionInputHandlerAction, ActionInputHandlerActionsVec,
-    ActionInputHandlerResult, HandlerResult, TransformInputs, WithTransformInputs,
+    ActionInputHandlerAction, ActionInputHandlerActionsVec, ActionInputHandlerResult,
+    HandlerResult, TransformInputs, WithTransformInputs,
 };
 use crate::{input_handler, TransformRunResult};
 
@@ -83,18 +80,21 @@ impl MapFilterTransform {
                     ));
                 }
 
-                let ActionInputHandlerResult::AddActions(new_actions) = self.run_init()? else {
+                let ActionInputHandlerResult::AddActions(mut new_actions) = self.run_init()? else {
                     return Err(TransformError::Unspecified(
                         "Impossible: run_init() is not AddActions".to_string(),
                     ));
                 };
 
-                let mut actions = Vec::with_capacity(new_actions.len());
+                let mut actions = self.action_input_handlers.take_actions_vec();
 
-                for (action, (), handler) in new_actions {
+                for (action, (), handler) in new_actions.drain(..) {
                     self.action_input_handlers
                         .push_action(&mut actions, action, (), handler);
                 }
+
+                self.action_input_handlers
+                    .return_action_input_actions_vec(new_actions);
 
                 return Ok(TransformRunResult::Actions(actions));
             }
@@ -107,10 +107,14 @@ impl MapFilterTransform {
         TransformInputs::run(self, inputs)
     }
 
+    pub fn return_actions_vec(&mut self, buffer: Vec<Action>) {
+        self.action_input_handlers.return_actions_vec(buffer);
+    }
+
     fn run_init(&mut self) -> HandlerResult<Self, ()> {
         self.state = State::Initialization;
 
-        let mut actions = ActionInputHandlerActionsVec::with_capacity(1);
+        let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
         actions.push((
             ActionType::new_diff_call_by_reader(
@@ -148,7 +152,7 @@ impl MapFilterTransform {
             to_generation_id: to_generation_id.clone(),
         });
 
-        let mut actions = ActionInputHandlerActionsVec::with_capacity(1);
+        let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
         actions.push((
             ActionType::DiffbeltCall(DiffbeltCallAction {
@@ -197,7 +201,7 @@ impl MapFilterTransform {
             total_chunks: 0,
         };
 
-        let mut actions = ActionInputHandlerActionsVec::new();
+        let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
         if let Some(cursor_id) = cursor_id.as_ref() {
             actions.push(Self::read_cursor(
@@ -361,7 +365,7 @@ impl MapFilterTransform {
         state.total_items += items.len();
         state.total_chunks += 1;
 
-        let mut actions = ActionInputHandlerActionsVec::new();
+        let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
         if items.len() <= self.puts_buffer.len() {
             // Request more items
@@ -451,7 +455,7 @@ impl MapFilterTransform {
         if state.cursor_id.is_some() {
             let avg_items_per_chunk = state.total_items / state.total_chunks;
 
-            let mut actions = Vec::with_capacity(1);
+            let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
             // Fetch more items or send available
             return if self.puts_buffer.len() < avg_items_per_chunk {
@@ -482,7 +486,7 @@ impl MapFilterTransform {
             return Ok(ActionInputHandlerResult::Consumed);
         }
 
-        let mut actions = Vec::with_capacity(1);
+        let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
         // Request more items if cursor present
         let cursor_id = state.cursor_id.take();

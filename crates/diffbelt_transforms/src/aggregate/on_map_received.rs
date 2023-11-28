@@ -168,7 +168,7 @@ impl AggregateTransform {
             //endregion
         }
 
-        let mut actions = ActionInputHandlerActionsVec::with_capacity(updated_keys.len());
+        let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
         for target_key in updated_keys.iter() {
             let target_key = *target_key;
@@ -202,7 +202,7 @@ impl AggregateTransform {
                         query: Vec::with_capacity(0),
                         body: DiffbeltRequestBody::GetRecord(GetRequestJsonData {
                             key: EncodedKeyJsonData::from_bytes_slice(target_key),
-                            generation_id: Some(state.from_generation_id.clone()),
+                            generation_id: Some(state.to_generation_id.clone()),
                             phantom_id: None,
                         }),
                     }),

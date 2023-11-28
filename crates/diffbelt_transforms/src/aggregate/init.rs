@@ -8,11 +8,11 @@ use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
 use diffbelt_util_no_std::temporary_collection::hash_set::TemporaryRefHashSet;
 
-use crate::aggregate::AggregateTransform;
 use crate::aggregate::context::HandlerContext;
 use crate::aggregate::state::{ProcessingState, State};
-use crate::base::action::ActionType;
+use crate::aggregate::AggregateTransform;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
+use crate::base::action::ActionType;
 use crate::base::error::TransformError;
 use crate::base::input::diffbelt_call::DiffbeltCallInput;
 use crate::input_handler;
@@ -22,7 +22,7 @@ impl AggregateTransform {
     pub fn run_init(&mut self) -> ActionInputHandlerActionsVec<Self, HandlerContext> {
         self.state = State::AwaitingDiff;
 
-        let mut actions = ActionInputHandlerActionsVec::with_capacity(1);
+        let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
         actions.push((
             ActionType::new_diff_call_by_reader(

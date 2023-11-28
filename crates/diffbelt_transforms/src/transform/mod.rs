@@ -2,6 +2,7 @@ use crate::base::action::{Action, ActionType};
 use crate::base::error::TransformError;
 use crate::base::input::{Input, InputType};
 use crate::TransformRunResult;
+use diffbelt_util_no_std::buffers_pool::BuffersPool;
 use diffbelt_util_no_std::cast::{u64_to_usize, usize_to_u64};
 use generational_arena::{Arena, Index};
 
@@ -39,6 +40,8 @@ pub trait WithTransformInputs<Context>: Sized {
 
 pub struct TransformInputs<This, Context> {
     actions_left: usize,
+    action_input_actions_buffers: BuffersPool<ActionInputHandlerActionsVec<This, Context>>,
+    actions_buffers: BuffersPool<Vec<Action>>,
     arena: Arena<(Context, ActionInputHandler<This, Context>)>,
 }
 
@@ -46,6 +49,8 @@ impl<Context, This: WithTransformInputs<Context>> TransformInputs<This, Context>
     pub fn new() -> Self {
         Self {
             actions_left: 0,
+            action_input_actions_buffers: BuffersPool::with_capacity(4),
+            actions_buffers: BuffersPool::with_capacity(4),
             arena: Arena::new(),
         }
     }
@@ -53,7 +58,7 @@ impl<Context, This: WithTransformInputs<Context>> TransformInputs<This, Context>
     pub fn run(this: &mut This, inputs: Vec<Input>) -> Result<TransformRunResult, TransformError> {
         let mut must_finish = false;
 
-        let mut actions = Vec::new();
+        let mut actions = { this.transform_inputs_mut().actions_buffers.take() };
 
         for input in inputs {
             if must_finish {
@@ -97,12 +102,16 @@ impl<Context, This: WithTransformInputs<Context>> TransformInputs<This, Context>
                 ActionInputHandlerResult::Consumed => {
                     // Nothing to do, just wait more inputs
                 }
-                ActionInputHandlerResult::AddActions(new_actions) => {
+                ActionInputHandlerResult::AddActions(mut new_actions) => {
                     let transform_inputs = this.transform_inputs_mut();
 
-                    for (action, ctx, handler) in new_actions {
+                    for (action, ctx, handler) in new_actions.drain(..) {
                         transform_inputs.push_action(&mut actions, action, ctx, handler);
                     }
+
+                    transform_inputs
+                        .action_input_actions_buffers
+                        .push(new_actions);
                 }
             }
         }
@@ -118,6 +127,25 @@ impl<Context, This: WithTransformInputs<Context>> TransformInputs<This, Context>
         }
 
         Ok(TransformRunResult::Actions(actions))
+    }
+
+    pub fn take_action_input_actions_vec(&mut self) -> ActionInputHandlerActionsVec<This, Context> {
+        self.action_input_actions_buffers.take()
+    }
+
+    pub fn return_action_input_actions_vec(
+        &mut self,
+        buffer: ActionInputHandlerActionsVec<This, Context>,
+    ) {
+        self.action_input_actions_buffers.push(buffer);
+    }
+
+    pub fn take_actions_vec(&mut self) -> Vec<Action> {
+        self.actions_buffers.take()
+    }
+
+    pub fn return_actions_vec(&mut self, buffer: Vec<Action>) {
+        self.actions_buffers.push(buffer);
     }
 
     pub fn has_pending_actions(&self) -> bool {

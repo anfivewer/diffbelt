@@ -13,9 +13,9 @@ mod init;
 mod limits;
 mod on_diff_received;
 mod on_map_received;
+mod on_target_record_received;
 mod read_diff_cursor;
 mod state;
-mod on_target_record_received;
 
 pub use state::AggregateTransform;
 
@@ -47,6 +47,7 @@ impl AggregateTransform {
             supports_accumulator_merge,
             free_map_eval_action_buffers: BuffersPool::with_capacity(4),
             free_map_eval_input_buffers: BuffersPool::with_capacity(4),
+            free_target_info_action_buffers: BuffersPool::with_capacity(4),
             free_reduce_eval_action_buffers: BuffersPool::with_capacity(4),
             free_reduce_eval_input_buffers: BuffersPool::with_capacity(4),
             free_serializer_reduce_input_items_buffers: BuffersPool::with_capacity(4),
@@ -62,14 +63,17 @@ impl AggregateTransform {
                     ));
                 }
 
-                let new_actions = self.run_init();
+                let mut new_actions = self.run_init();
 
-                let mut actions = Vec::with_capacity(new_actions.len());
+                let mut actions = self.action_input_handlers.take_actions_vec();
 
-                for (action, ctx, handler) in new_actions {
+                for (action, ctx, handler) in new_actions.drain(..) {
                     self.action_input_handlers
                         .push_action(&mut actions, action, ctx, handler);
                 }
+
+                self.action_input_handlers
+                    .return_action_input_actions_vec(new_actions);
 
                 return Ok(TransformRunResult::Actions(actions));
             }
@@ -86,5 +90,9 @@ impl AggregateTransform {
                 Err(err)
             }
         }
+    }
+
+    pub fn return_target_info_action_buffer(&mut self, buffer: Vec<u8>) {
+        self.free_target_info_action_buffers.push(buffer);
     }
 }

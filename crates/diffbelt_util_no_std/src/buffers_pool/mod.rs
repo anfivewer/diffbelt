@@ -6,6 +6,9 @@ pub trait PooledBuffer {
     type Item;
 
     fn new() -> Self::Item;
+    fn with_capacity(capacity: usize) -> Self::Item;
+    fn ensure_capacity(buffer: &mut Self::Item, capacity: usize);
+    fn clear(buffer: &mut Self::Item);
 }
 
 pub struct BuffersPool<B: PooledBuffer> {
@@ -19,12 +22,23 @@ impl<Buffer: PooledBuffer> BuffersPool<Buffer> {
         }
     }
 
-    pub fn push(&mut self, buffer: Buffer::Item) {
+    pub fn push(&mut self, mut buffer: Buffer::Item) {
+        Buffer::clear(&mut buffer);
         self.pool.push(buffer);
     }
 
     pub fn take(&mut self) -> Buffer::Item {
         self.pool.pop().unwrap_or_else(|| Buffer::new())
+    }
+
+    pub fn take_with_capacity(&mut self, capacity: usize) -> Buffer::Item {
+        self.pool
+            .pop()
+            .map(|mut buffer| {
+                Buffer::ensure_capacity(&mut buffer, capacity);
+                buffer
+            })
+            .unwrap_or_else(|| Buffer::with_capacity(capacity))
     }
 
     pub fn provide_as_option<R, E, F: FnOnce(&mut Option<Buffer::Item>) -> Result<R, E>>(

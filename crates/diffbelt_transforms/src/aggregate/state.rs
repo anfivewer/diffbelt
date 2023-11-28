@@ -13,10 +13,11 @@ use diffbelt_util_no_std::temporary_collection::hash_set::TemporaryRefHashSet;
 
 use crate::aggregate::context::HandlerContext;
 use crate::aggregate::limits::Limits;
+use crate::base::action::Action;
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::common::target_info::TargetInfoId;
 use crate::base::error::TransformError;
-use crate::transform::TransformInputs;
+use crate::transform::{ActionInputHandlerActionsVec, TransformInputs};
 
 pub struct AggregateTransform {
     pub(super) from_collection_name: Box<str>,
@@ -28,6 +29,7 @@ pub struct AggregateTransform {
     pub(super) supports_accumulator_merge: bool,
     pub(super) free_map_eval_action_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_map_eval_input_buffers: BuffersPool<Vec<u8>>,
+    pub(super) free_target_info_action_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_reduce_eval_action_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_reduce_eval_input_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_serializer_reduce_input_items_buffers:
