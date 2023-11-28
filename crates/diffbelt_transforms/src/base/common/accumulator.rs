@@ -1,3 +1,3 @@
 #[derive(Debug, Copy, Clone)]
 #[repr(transparent)]
-pub struct AccumulatorId(usize);
+pub struct AccumulatorId(u64);

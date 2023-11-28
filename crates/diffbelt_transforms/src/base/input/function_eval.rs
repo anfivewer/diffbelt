@@ -12,7 +12,8 @@ pub struct FunctionEvalInput<T> {
 #[derive(Debug)]
 pub enum FunctionEvalInputBody {
     MapFilter(MapFilterEvalInput),
-    AggregateMap(AggregateMapEvalInput)
+    AggregateMap(AggregateMapEvalInput),
+    AggregateTargetInfo(AggregateTargetInfoEvalInput),
 }
 
 #[derive(Debug)]

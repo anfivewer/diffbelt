@@ -7,13 +7,15 @@ use std::rc::Rc;
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateReduceInput, AggregateReduceInputArgs, AggregateReduceItem, AggregateReduceItemArgs,
 };
-use diffbelt_protos::Serializer;
+use diffbelt_protos::{Serializer, WIPOffset};
 use diffbelt_types::collection::get_record::GetRequestJsonData;
 use diffbelt_types::common::key_value::EncodedKeyJsonData;
+use diffbelt_util_no_std::buffers_pool::BuffersPool;
 
 use crate::aggregate::context::{HandlerContext, MapContext, TargetRecordContext};
 use crate::aggregate::state::{
-    TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyData, TargetKeyReducingChunk,
+    ProcessingState, TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyData,
+    TargetKeyReducingChunk,
 };
 use crate::aggregate::AggregateTransform;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
@@ -21,6 +23,8 @@ use crate::base::action::function_eval::{
     AggregateInitialAccumulatorEvalAction, AggregateReduceEvalAction, FunctionEvalAction,
 };
 use crate::base::action::ActionType;
+use crate::base::common::accumulator::AccumulatorId;
+use crate::base::common::target_info::TargetInfoId;
 use crate::base::error::TransformError;
 use crate::base::input::diffbelt_call::DiffbeltCallInput;
 use crate::base::input::function_eval::AggregateMapEvalInput;
@@ -249,66 +253,91 @@ impl AggregateTransform {
                 continue;
             };
 
-            let (new_chunk_id, mut new_chunk) = if supports_accumulator_merge {
-                state.reducing_chunk_id_counter += 1;
-                let chunk_id = state.reducing_chunk_id_counter;
-
-                let new_chunk = TargetKeyChunk::Reducing(TargetKeyReducingChunk { chunk_id });
-
-                (chunk_id, new_chunk)
-            } else {
-                let mut buffer = self.free_reduce_eval_action_buffers.take();
-                buffer.clear();
-
-                let new_chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
-                    accumulator_id: Some(accumulator_id),
-                    is_accumulator_pending: false,
-                    reduce_input: Serializer::from_vec(buffer),
-                    reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
-                });
-
-                (0, new_chunk)
-            };
-
-            mem::swap(last_chunk, &mut new_chunk);
-            let TargetKeyCollectingChunk {
-                accumulator_id: _,
-                is_accumulator_pending: _,
-                mut reduce_input,
-                reduce_input_items,
-            } = new_chunk
-                .into_collecting()
-                .expect("last chunk should be Collecting");
-
-            let items = reduce_input.create_vector(&reduce_input_items);
-            self.free_serializer_reduce_input_items_buffers
-                .push(reduce_input_items);
-
-            let input = AggregateReduceInput::create(
-                reduce_input.buffer_builder(),
-                &AggregateReduceInputArgs { items: Some(items) },
+            reduce_target_chunk(
+                &mut actions,
+                last_chunk,
+                target_info_id,
+                accumulator_id,
+                supports_accumulator_merge,
+                &mut state.reducing_chunk_id_counter,
+                &mut self.free_reduce_eval_action_buffers,
+                &mut self.free_serializer_reduce_input_items_buffers,
+                &mut self.free_reduce_eval_input_buffers,
             );
-            let input = reduce_input.finish(input).into_owned();
-
-            let mut output_buffer_for_input = self.free_reduce_eval_input_buffers.take();
-            output_buffer_for_input.clear();
-
-            actions.push((
-                ActionType::FunctionEval(FunctionEvalAction::AggregateReduce(
-                    AggregateReduceEvalAction {
-                        accumulator: accumulator_id,
-                        target_info: target_info_id,
-                        input,
-                        output_buffer: output_buffer_for_input,
-                    },
-                )),
-                HandlerContext::None,
-                input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
-                    todo!("handle reduce")
-                }),
-            ));
         }
 
         Ok(ActionInputHandlerResult::AddActions(actions))
     }
+}
+
+pub fn reduce_target_chunk(
+    actions: &mut ActionInputHandlerActionsVec<AggregateTransform, HandlerContext>,
+    last_chunk: &mut TargetKeyChunk,
+    target_info_id: TargetInfoId,
+    accumulator_id: AccumulatorId,
+    supports_accumulator_merge: bool,
+    reducing_chunk_id_counter: &mut u64,
+    free_reduce_eval_action_buffers: &mut BuffersPool<Vec<u8>>,
+    free_serializer_reduce_input_items_buffers: &mut BuffersPool<
+        Vec<WIPOffset<AggregateReduceItem<'static>>>,
+    >,
+    free_reduce_eval_input_buffers: &mut BuffersPool<Vec<u8>>,
+) {
+    let (new_chunk_id, mut new_chunk) = if supports_accumulator_merge {
+        *reducing_chunk_id_counter += 1;
+        let chunk_id = *reducing_chunk_id_counter;
+
+        let new_chunk = TargetKeyChunk::Reducing(TargetKeyReducingChunk { chunk_id });
+
+        (chunk_id, new_chunk)
+    } else {
+        let mut buffer = free_reduce_eval_action_buffers.take();
+        buffer.clear();
+
+        let new_chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
+            accumulator_id: Some(accumulator_id),
+            is_accumulator_pending: false,
+            reduce_input: Serializer::from_vec(buffer),
+            reduce_input_items: free_serializer_reduce_input_items_buffers.take(),
+        });
+
+        (0, new_chunk)
+    };
+
+    mem::swap(last_chunk, &mut new_chunk);
+    let TargetKeyCollectingChunk {
+        accumulator_id: _,
+        is_accumulator_pending: _,
+        mut reduce_input,
+        reduce_input_items,
+    } = new_chunk
+        .into_collecting()
+        .expect("last chunk should be Collecting");
+
+    let items = reduce_input.create_vector(&reduce_input_items);
+    free_serializer_reduce_input_items_buffers.push(reduce_input_items);
+
+    let input = AggregateReduceInput::create(
+        reduce_input.buffer_builder(),
+        &AggregateReduceInputArgs { items: Some(items) },
+    );
+    let input = reduce_input.finish(input).into_owned();
+
+    let mut output_buffer_for_input = free_reduce_eval_input_buffers.take();
+    output_buffer_for_input.clear();
+
+    actions.push((
+        ActionType::FunctionEval(FunctionEvalAction::AggregateReduce(
+            AggregateReduceEvalAction {
+                accumulator: accumulator_id,
+                target_info: target_info_id,
+                input,
+                output_buffer: output_buffer_for_input,
+            },
+        )),
+        HandlerContext::None,
+        input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
+            todo!("handle reduce")
+        }),
+    ));
 }

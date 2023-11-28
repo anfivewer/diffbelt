@@ -4,6 +4,8 @@ use crate::base::action::function_eval::{
     AggregateReduceEvalAction, AggregateTargetInfoEvalAction, FunctionEvalAction,
 };
 use crate::base::action::ActionType;
+use crate::base::input::function_eval::FunctionEvalInput;
+use crate::base::input::InputType::FunctionEval;
 use crate::input_handler;
 use crate::transform::{ActionInputHandlerActionsVec, ActionInputHandlerResult, HandlerResult};
 use diffbelt_protos::protos::transform::aggregate::{AggregateTargetInfo, AggregateTargetInfoArgs};
@@ -69,7 +71,9 @@ impl AggregateTransform {
                 target_key: target_key_rc,
             }),
             input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
-                todo!("handle target info eval {input:#?}")
+                let ctx = ctx.into_target_record().expect("should be TargetRecord");
+                let FunctionEvalInput { body } = input.into_eval_aggregate_target_info()?;
+                this.on_target_info_received(ctx, body)
             }),
         ));
 

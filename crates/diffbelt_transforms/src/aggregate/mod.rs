@@ -16,6 +16,7 @@ mod on_map_received;
 mod on_target_record_received;
 mod read_diff_cursor;
 mod state;
+mod on_target_info_received;
 
 pub use state::AggregateTransform;
 

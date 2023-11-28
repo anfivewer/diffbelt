@@ -15,11 +15,14 @@ use regex::Regex;
 
 use crate::aggregate::AggregateTransform;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
-use crate::base::action::function_eval::{AggregateMapEvalAction, FunctionEvalAction};
+use crate::base::action::function_eval::{
+    AggregateMapEvalAction, AggregateTargetInfoEvalAction, FunctionEvalAction,
+};
 use crate::base::action::{Action, ActionType};
+use crate::base::common::target_info::TargetInfoId;
 use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
 use crate::base::input::function_eval::{
-    AggregateMapEvalInput, FunctionEvalInput, FunctionEvalInputBody,
+    AggregateMapEvalInput, AggregateTargetInfoEvalInput, FunctionEvalInput, FunctionEvalInputBody,
 };
 use crate::base::input::{Input, InputType};
 use crate::TransformRunResult;
@@ -151,6 +154,9 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
 
         items
     }
+
+    let mut target_info_counter = 0u64;
+    let mut target_infos = HashMap::new();
 
     let new_target_items = target_items_from_source(&new_source_items);
 
@@ -455,6 +461,27 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                         AggregateMapEvalInput {
                                             input: result,
                                             action_input_buffer: input.into_vec(),
+                                        },
+                                    ),
+                                }),
+                            });
+
+                            continue;
+                        }
+                        FunctionEvalAction::AggregateTargetInfo(action) => {
+                            let AggregateTargetInfoEvalAction { target_info } = action;
+
+                            target_info_counter += 1;
+                            let target_info_id = target_info_counter;
+
+                            target_infos.insert(target_info_id, target_info);
+
+                            inputs.push(Input {
+                                id: action_id,
+                                input: InputType::FunctionEval(FunctionEvalInput {
+                                    body: FunctionEvalInputBody::AggregateTargetInfo(
+                                        AggregateTargetInfoEvalInput {
+                                            target_info_id: TargetInfoId(target_info_id),
                                         },
                                     ),
                                 }),
