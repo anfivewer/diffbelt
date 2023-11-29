@@ -1,7 +1,8 @@
 use crate::aggregate::context::{HandlerContext, TargetRecordContext};
+use crate::aggregate::on_map_received::on_target_info_available;
 use crate::aggregate::AggregateTransform;
 use crate::base::input::function_eval::AggregateTargetInfoEvalInput;
-use crate::transform::HandlerResult;
+use crate::transform::{ActionInputHandlerResult, HandlerResult};
 
 impl AggregateTransform {
     pub fn on_target_info_received(
@@ -39,8 +40,19 @@ impl AggregateTransform {
             "pending target info record can have only one chunk"
         );
 
-        // create accumulator
+        let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
-        todo!()
+        on_target_info_available(
+            &mut actions,
+            target,
+            target_info_id,
+            self.supports_accumulator_merge,
+            &mut state.reducing_chunk_id_counter,
+            &mut self.free_reduce_eval_action_buffers,
+            &mut self.free_serializer_reduce_input_items_buffers,
+            &mut self.free_reduce_eval_input_buffers,
+        );
+
+        Ok(ActionInputHandlerResult::AddActions(actions))
     }
 }

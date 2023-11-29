@@ -222,42 +222,10 @@ impl AggregateTransform {
                 continue;
             };
 
-            let last_chunk = target
-                .chunks
-                .back_mut()
-                .expect("chunks should not be empty");
-            let collecting_chunk = last_chunk
-                .as_collecting_mut()
-                .expect("last chunk should be Collecting");
-
-            assert_eq!(
-                collecting_chunk.is_accumulator_pending,
-                collecting_chunk.accumulator_id.is_none(),
-                "accumulator should be pending or preset"
-            );
-
-            let Some(accumulator_id) = collecting_chunk.accumulator_id else {
-                collecting_chunk.is_accumulator_pending = true;
-
-                actions.push((
-                    ActionType::FunctionEval(FunctionEvalAction::AggregateInitialAccumulator(
-                        AggregateInitialAccumulatorEvalAction {
-                            target_info: target_info_id,
-                        },
-                    )),
-                    HandlerContext::None,
-                    input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
-                        todo!("create initial accumulator")
-                    }),
-                ));
-                continue;
-            };
-
-            reduce_target_chunk(
+            on_target_info_available(
                 &mut actions,
-                last_chunk,
+                target,
                 target_info_id,
-                accumulator_id,
                 supports_accumulator_merge,
                 &mut state.reducing_chunk_id_counter,
                 &mut self.free_reduce_eval_action_buffers,
@@ -270,7 +238,63 @@ impl AggregateTransform {
     }
 }
 
-pub fn reduce_target_chunk(
+pub fn on_target_info_available(
+    actions: &mut ActionInputHandlerActionsVec<AggregateTransform, HandlerContext>,
+    target: &mut TargetKeyData,
+    target_info_id: TargetInfoId,
+    supports_accumulator_merge: bool,
+    reducing_chunk_id_counter: &mut u64,
+    free_reduce_eval_action_buffers: &mut BuffersPool<Vec<u8>>,
+    free_serializer_reduce_input_items_buffers: &mut BuffersPool<
+        Vec<WIPOffset<AggregateReduceItem<'static>>>,
+    >,
+    free_reduce_eval_input_buffers: &mut BuffersPool<Vec<u8>>,
+) {
+    let last_chunk = target
+        .chunks
+        .back_mut()
+        .expect("chunks should not be empty");
+    let collecting_chunk = last_chunk
+        .as_collecting_mut()
+        .expect("last chunk should be Collecting");
+
+    assert_eq!(
+        collecting_chunk.is_accumulator_pending,
+        collecting_chunk.accumulator_id.is_some(),
+        "accumulator should be pending or accumulator should be absent"
+    );
+
+    let Some(accumulator_id) = collecting_chunk.accumulator_id else {
+        collecting_chunk.is_accumulator_pending = true;
+
+        actions.push((
+            ActionType::FunctionEval(FunctionEvalAction::AggregateInitialAccumulator(
+                AggregateInitialAccumulatorEvalAction {
+                    target_info: target_info_id,
+                },
+            )),
+            HandlerContext::None,
+            input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
+                todo!("create initial accumulator")
+            }),
+        ));
+        return;
+    };
+
+    reduce_target_chunk(
+        actions,
+        last_chunk,
+        target_info_id,
+        accumulator_id,
+        supports_accumulator_merge,
+        reducing_chunk_id_counter,
+        free_reduce_eval_action_buffers,
+        free_serializer_reduce_input_items_buffers,
+        free_reduce_eval_input_buffers,
+    );
+}
+
+fn reduce_target_chunk(
     actions: &mut ActionInputHandlerActionsVec<AggregateTransform, HandlerContext>,
     last_chunk: &mut TargetKeyChunk,
     target_info_id: TargetInfoId,
