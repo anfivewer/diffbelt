@@ -17,8 +17,10 @@ mod on_target_record_received;
 mod read_diff_cursor;
 mod state;
 mod on_target_info_received;
+mod on_initial_accumulator_received;
 
 pub use state::AggregateTransform;
+use crate::base::action::Action;
 
 impl WithTransformInputs<HandlerContext> for AggregateTransform {
     fn transform_inputs_mut(&mut self) -> &mut TransformInputs<Self, HandlerContext> {
@@ -50,7 +52,6 @@ impl AggregateTransform {
             free_map_eval_input_buffers: BuffersPool::with_capacity(4),
             free_target_info_action_buffers: BuffersPool::with_capacity(4),
             free_reduce_eval_action_buffers: BuffersPool::with_capacity(4),
-            free_reduce_eval_input_buffers: BuffersPool::with_capacity(4),
             free_serializer_reduce_input_items_buffers: BuffersPool::with_capacity(4),
         }
     }
@@ -95,5 +96,9 @@ impl AggregateTransform {
 
     pub fn return_target_info_action_buffer(&mut self, buffer: Vec<u8>) {
         self.free_target_info_action_buffers.push(buffer);
+    }
+
+    pub fn return_actions_vec(&mut self, buffer: Vec<Action>) {
+        self.action_input_handlers.return_actions_vec(buffer);
     }
 }

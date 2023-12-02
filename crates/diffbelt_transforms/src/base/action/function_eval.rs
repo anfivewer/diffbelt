@@ -44,8 +44,6 @@ pub struct AggregateReduceEvalAction {
     pub accumulator: AccumulatorId,
     pub target_info: TargetInfoId,
     pub input: OwnedSerialized<'static, AggregateReduceInput<'static>>,
-    /// returned back `input` buffer from [`crate::base::input::function_eval::AggregateReduceEvalInput`]
-    pub output_buffer: Vec<u8>,
 }
 
 #[derive(Debug)]

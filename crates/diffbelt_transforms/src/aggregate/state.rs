@@ -31,7 +31,6 @@ pub struct AggregateTransform {
     pub(super) free_map_eval_input_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_target_info_action_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_reduce_eval_action_buffers: BuffersPool<Vec<u8>>,
-    pub(super) free_reduce_eval_input_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_serializer_reduce_input_items_buffers:
         BuffersPool<Vec<WIPOffset<AggregateReduceItem<'static>>>>,
 }

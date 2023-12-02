@@ -14,6 +14,8 @@ pub enum FunctionEvalInputBody {
     MapFilter(MapFilterEvalInput),
     AggregateMap(AggregateMapEvalInput),
     AggregateTargetInfo(AggregateTargetInfoEvalInput),
+    AggregateInitialAccumulator(AggregateInitialAccumulatorEvalInput),
+    AggregateReduce(AggregateReduceEvalInput),
 }
 
 #[derive(Debug)]

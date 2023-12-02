@@ -1,31 +1,18 @@
-use lazy_static::lazy_static;
 use std::cmp::max;
 use std::collections::HashMap;
 use std::mem;
-use std::ops::Deref;
+use std::str::from_utf8;
+
+use lazy_static::lazy_static;
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha8Rng;
+use regex::Regex;
 
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiOutput, AggregateMapMultiOutputArgs, AggregateMapOutput,
     AggregateMapOutputArgs,
 };
 use diffbelt_protos::Serializer;
-use rand::{Rng, SeedableRng};
-use rand_chacha::ChaCha8Rng;
-use regex::Regex;
-
-use crate::aggregate::AggregateTransform;
-use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
-use crate::base::action::function_eval::{
-    AggregateMapEvalAction, AggregateTargetInfoEvalAction, FunctionEvalAction,
-};
-use crate::base::action::{Action, ActionType};
-use crate::base::common::target_info::TargetInfoId;
-use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
-use crate::base::input::function_eval::{
-    AggregateMapEvalInput, AggregateTargetInfoEvalInput, FunctionEvalInput, FunctionEvalInputBody,
-};
-use crate::base::input::{Input, InputType};
-use crate::TransformRunResult;
 use diffbelt_types::collection::diff::{
     DiffCollectionRequestJsonData, DiffCollectionResponseJsonData, KeyValueDiffJsonData,
     ReaderDiffFromDefJsonData,
@@ -37,6 +24,23 @@ use diffbelt_types::common::key_value::{
     EncodedKeyJsonData, EncodedValueJsonData, KeyValueJsonData,
 };
 use diffbelt_util_no_std::cast::{u32_to_i64, u32_to_u64, u32_to_usize};
+
+use crate::aggregate::AggregateTransform;
+use crate::base::action::{Action, ActionType};
+use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
+use crate::base::action::function_eval::{
+    AggregateInitialAccumulatorEvalAction, AggregateMapEvalAction, AggregateReduceEvalAction,
+    AggregateTargetInfoEvalAction, FunctionEvalAction,
+};
+use crate::base::common::accumulator::AccumulatorId;
+use crate::base::common::target_info::TargetInfoId;
+use crate::base::input::{Input, InputType};
+use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
+use crate::base::input::function_eval::{
+    AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput, AggregateReduceEvalInput,
+    AggregateTargetInfoEvalInput, FunctionEvalInput, FunctionEvalInputBody,
+};
+use crate::TransformRunResult;
 
 #[test]
 fn aggregate_test() {
@@ -156,7 +160,14 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
     }
 
     let mut target_info_counter = 0u64;
+    let mut accumulator_counter = 0u64;
     let mut target_infos = HashMap::new();
+
+    struct AccumulatorData {
+        target_info: TargetInfoId,
+        diff: i64,
+    }
+    let mut accumulators = HashMap::new();
 
     let new_target_items = target_items_from_source(&new_source_items);
 
@@ -177,14 +188,16 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
 
         let run_result = transform.run(old_inputs).expect("should run");
 
-        let actions = match run_result {
+        let mut actions = match run_result {
             TransformRunResult::Actions(actions) => actions,
             TransformRunResult::Finish => {
                 break;
             }
         };
 
-        pending_actions.extend(actions);
+        pending_actions.extend(actions.drain(..));
+
+        transform.return_actions_vec(actions);
 
         assert!(!pending_actions.is_empty());
 
@@ -482,6 +495,75 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                     body: FunctionEvalInputBody::AggregateTargetInfo(
                                         AggregateTargetInfoEvalInput {
                                             target_info_id: TargetInfoId(target_info_id),
+                                        },
+                                    ),
+                                }),
+                            });
+
+                            continue;
+                        }
+                        FunctionEvalAction::AggregateInitialAccumulator(action) => {
+                            let AggregateInitialAccumulatorEvalAction { target_info } = action;
+
+                            accumulator_counter += 1;
+                            let accumulator_id = accumulator_counter;
+
+                            accumulators.insert(
+                                accumulator_id,
+                                AccumulatorData {
+                                    target_info,
+                                    diff: 0,
+                                },
+                            );
+
+                            inputs.push(Input {
+                                id: action_id,
+                                input: InputType::FunctionEval(FunctionEvalInput {
+                                    body: FunctionEvalInputBody::AggregateInitialAccumulator(
+                                        AggregateInitialAccumulatorEvalInput {
+                                            accumulator_id: AccumulatorId(accumulator_id),
+                                        },
+                                    ),
+                                }),
+                            });
+
+                            continue;
+                        }
+                        FunctionEvalAction::AggregateReduce(action) => {
+                            let AggregateReduceEvalAction {
+                                accumulator,
+                                target_info,
+                                input: input_serialized,
+                            } = action;
+
+                            assert!(target_infos.contains_key(&target_info.0));
+
+                            let accumulator_data = accumulators
+                                .get_mut(&accumulator.0)
+                                .expect("accumulator should exist");
+
+                            let input = input_serialized.data();
+                            let items = input.items().expect("items should not be empty");
+
+                            for item in items {
+                                let mapped_value =
+                                    item.mapped_value().expect("mapped value should be present");
+                                let mapped_value = mapped_value.bytes();
+                                let mapped_value = from_utf8(mapped_value).expect("not utf8");
+                                let diff = mapped_value
+                                    .parse::<i64>()
+                                    .expect("cannot parse reduce item");
+
+                                accumulator_data.diff += diff;
+                            }
+
+                            inputs.push(Input {
+                                id: action_id,
+                                input: InputType::FunctionEval(FunctionEvalInput {
+                                    body: FunctionEvalInputBody::AggregateReduce(
+                                        AggregateReduceEvalInput {
+                                            accumulator_id: accumulator,
+                                            action_input_buffer: input_serialized.into_vec(),
                                         },
                                     ),
                                 }),

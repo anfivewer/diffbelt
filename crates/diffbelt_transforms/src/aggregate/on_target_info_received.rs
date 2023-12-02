@@ -43,6 +43,7 @@ impl AggregateTransform {
         let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
         on_target_info_available(
+            target_key_rc,
             &mut actions,
             target,
             target_info_id,
@@ -50,7 +51,6 @@ impl AggregateTransform {
             &mut state.reducing_chunk_id_counter,
             &mut self.free_reduce_eval_action_buffers,
             &mut self.free_serializer_reduce_input_items_buffers,
-            &mut self.free_reduce_eval_input_buffers,
         );
 
         Ok(ActionInputHandlerResult::AddActions(actions))

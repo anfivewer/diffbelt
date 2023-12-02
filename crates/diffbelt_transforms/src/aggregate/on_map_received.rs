@@ -27,7 +27,7 @@ use crate::base::common::accumulator::AccumulatorId;
 use crate::base::common::target_info::TargetInfoId;
 use crate::base::error::TransformError;
 use crate::base::input::diffbelt_call::DiffbeltCallInput;
-use crate::base::input::function_eval::AggregateMapEvalInput;
+use crate::base::input::function_eval::{AggregateMapEvalInput, FunctionEvalInput};
 use crate::input_handler;
 use crate::transform::{ActionInputHandlerActionsVec, ActionInputHandlerResult, HandlerResult};
 
@@ -211,7 +211,7 @@ impl AggregateTransform {
                         }),
                     }),
                     HandlerContext::TargetRecord(TargetRecordContext {
-                        target_key: target_key_rc,
+                        target_key: target_key_rc.clone(),
                     }),
                     input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
                         let ctx = ctx.into_target_record().expect("should be TargetRecord");
@@ -223,6 +223,7 @@ impl AggregateTransform {
             };
 
             on_target_info_available(
+                target_key_rc,
                 &mut actions,
                 target,
                 target_info_id,
@@ -230,7 +231,6 @@ impl AggregateTransform {
                 &mut state.reducing_chunk_id_counter,
                 &mut self.free_reduce_eval_action_buffers,
                 &mut self.free_serializer_reduce_input_items_buffers,
-                &mut self.free_reduce_eval_input_buffers,
             );
         }
 
@@ -239,6 +239,7 @@ impl AggregateTransform {
 }
 
 pub fn on_target_info_available(
+    target_key_rc: Rc<[u8]>,
     actions: &mut ActionInputHandlerActionsVec<AggregateTransform, HandlerContext>,
     target: &mut TargetKeyData,
     target_info_id: TargetInfoId,
@@ -248,7 +249,6 @@ pub fn on_target_info_available(
     free_serializer_reduce_input_items_buffers: &mut BuffersPool<
         Vec<WIPOffset<AggregateReduceItem<'static>>>,
     >,
-    free_reduce_eval_input_buffers: &mut BuffersPool<Vec<u8>>,
 ) {
     let last_chunk = target
         .chunks
@@ -273,9 +273,11 @@ pub fn on_target_info_available(
                     target_info: target_info_id,
                 },
             )),
-            HandlerContext::None,
+            HandlerContext::TargetRecord(TargetRecordContext { target_key: target_key_rc }),
             input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
-                todo!("create initial accumulator")
+                let ctx = ctx.into_target_record().expect("should be TargetRecord");
+                let FunctionEvalInput { body } = input.into_eval_aggregate_initial_accumulator()?;
+                this.on_initial_accumulator_received(ctx, body)
             }),
         ));
         return;
@@ -290,11 +292,10 @@ pub fn on_target_info_available(
         reducing_chunk_id_counter,
         free_reduce_eval_action_buffers,
         free_serializer_reduce_input_items_buffers,
-        free_reduce_eval_input_buffers,
     );
 }
 
-fn reduce_target_chunk(
+pub fn reduce_target_chunk(
     actions: &mut ActionInputHandlerActionsVec<AggregateTransform, HandlerContext>,
     last_chunk: &mut TargetKeyChunk,
     target_info_id: TargetInfoId,
@@ -305,7 +306,6 @@ fn reduce_target_chunk(
     free_serializer_reduce_input_items_buffers: &mut BuffersPool<
         Vec<WIPOffset<AggregateReduceItem<'static>>>,
     >,
-    free_reduce_eval_input_buffers: &mut BuffersPool<Vec<u8>>,
 ) {
     let (new_chunk_id, mut new_chunk) = if supports_accumulator_merge {
         *reducing_chunk_id_counter += 1;
@@ -347,16 +347,12 @@ fn reduce_target_chunk(
     );
     let input = reduce_input.finish(input).into_owned();
 
-    let mut output_buffer_for_input = free_reduce_eval_input_buffers.take();
-    output_buffer_for_input.clear();
-
     actions.push((
         ActionType::FunctionEval(FunctionEvalAction::AggregateReduce(
             AggregateReduceEvalAction {
                 accumulator: accumulator_id,
                 target_info: target_info_id,
                 input,
-                output_buffer: output_buffer_for_input,
             },
         )),
         HandlerContext::None,
