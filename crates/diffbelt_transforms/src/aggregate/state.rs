@@ -61,6 +61,7 @@ pub struct ProcessingState {
 pub struct TargetKeyCollectingChunk {
     pub accumulator_id: Option<AccumulatorId>,
     pub is_accumulator_pending: bool,
+    pub is_reducing: bool,
     pub reduce_input: Serializer<'static, AggregateReduceInput<'static>>,
     pub reduce_input_items: Vec<WIPOffset<AggregateReduceItem<'static>>>,
 }
@@ -72,10 +73,16 @@ pub struct TargetKeyReducingChunk {
     pub chunk_id: TargetKeyReducingChunkId,
 }
 
+#[derive(Debug)]
+pub struct TargetKeyReducedChunk {
+    pub accumulator_id: AccumulatorId,
+}
+
 #[derive(Debug, EnumAsInner)]
 pub enum TargetKeyChunk {
     Collecting(TargetKeyCollectingChunk),
     Reducing(TargetKeyReducingChunk),
+    Reduced(TargetKeyReducedChunk),
 }
 
 #[derive(Debug)]

@@ -18,6 +18,7 @@ mod read_diff_cursor;
 mod state;
 mod on_target_info_received;
 mod on_initial_accumulator_received;
+mod on_reduce_received;
 
 pub use state::AggregateTransform;
 use crate::base::action::Action;

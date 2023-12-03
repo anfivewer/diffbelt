@@ -58,6 +58,7 @@ impl AggregateTransform {
         let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
         reduce_target_chunk(
+            target_key_rc,
             &mut actions,
             last_chunk,
             target_info_id,

@@ -10,6 +10,7 @@ pub enum HandlerContext {
     None,
     Map(MapContext),
     TargetRecord(TargetRecordContext),
+    Reducing(ReducingContext),
 }
 
 #[derive(Debug)]
@@ -20,6 +21,12 @@ pub struct MapContext {
 #[derive(Debug)]
 pub struct TargetRecordContext {
     pub target_key: Rc<[u8]>,
+}
+
+#[derive(Debug)]
+pub struct ReducingContext {
+    pub target_key: Rc<[u8]>,
+    pub chunk_id: TargetKeyReducingChunkId,
 }
 
 pub trait HandlerContextMapError<T> {

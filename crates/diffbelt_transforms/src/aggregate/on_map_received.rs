@@ -12,7 +12,7 @@ use diffbelt_types::collection::get_record::GetRequestJsonData;
 use diffbelt_types::common::key_value::EncodedKeyJsonData;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
 
-use crate::aggregate::context::{HandlerContext, MapContext, TargetRecordContext};
+use crate::aggregate::context::{HandlerContext, MapContext, ReducingContext, TargetRecordContext};
 use crate::aggregate::state::{
     ProcessingState, TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyData,
     TargetKeyReducingChunk,
@@ -109,6 +109,11 @@ impl AggregateTransform {
                         if chunk.is_accumulator_pending {
                             should_add_to_updated_keys = false
                         }
+
+                        if chunk.is_reducing {
+                            // We are in !supports_accumulator_merge mode, wait for previous reduce
+                            should_add_to_updated_keys = false;
+                        }
                     }
 
                     last_chunk
@@ -122,6 +127,7 @@ impl AggregateTransform {
                         reduce_input: Serializer::from_vec(buffer),
                         reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
                         is_accumulator_pending: false,
+                        is_reducing: false,
                     });
                     target.chunks.push_back(chunk);
                     target.chunks.back_mut().expect("just inserted")
@@ -130,19 +136,19 @@ impl AggregateTransform {
 
             let last_chunk = match last_chunk {
                 TargetKeyChunk::Collecting(x) => x,
-                TargetKeyChunk::Reducing(_) => {
+                TargetKeyChunk::Reducing(_) | TargetKeyChunk::Reduced(_) => {
                     if !supports_accumulator_merge {
-                        panic!("aggregate transform without support of accumulator merge cannot have Reducing target key state");
+                        panic!("aggregate transform without support of accumulator merge cannot have Reducing/Reduced target key state");
                     }
-
-                    let mut buffer = self.free_reduce_eval_action_buffers.take();
-                    buffer.clear();
 
                     let chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
                         accumulator_id: None,
-                        reduce_input: Serializer::from_vec(buffer),
+                        reduce_input: Serializer::from_vec(
+                            self.free_reduce_eval_action_buffers.take(),
+                        ),
                         reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
                         is_accumulator_pending: false,
+                        is_reducing: false,
                     });
                     target.chunks.push_back(chunk);
                     target.chunks.back_mut().expect("just inserted").as_collecting_mut().expect("aggregate transform without support of accumulator merge cannot have Reducing target key state")
@@ -273,7 +279,9 @@ pub fn on_target_info_available(
                     target_info: target_info_id,
                 },
             )),
-            HandlerContext::TargetRecord(TargetRecordContext { target_key: target_key_rc }),
+            HandlerContext::TargetRecord(TargetRecordContext {
+                target_key: target_key_rc,
+            }),
             input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
                 let ctx = ctx.into_target_record().expect("should be TargetRecord");
                 let FunctionEvalInput { body } = input.into_eval_aggregate_initial_accumulator()?;
@@ -284,6 +292,7 @@ pub fn on_target_info_available(
     };
 
     reduce_target_chunk(
+        target_key_rc,
         actions,
         last_chunk,
         target_info_id,
@@ -296,6 +305,7 @@ pub fn on_target_info_available(
 }
 
 pub fn reduce_target_chunk(
+    target_key_rc: Rc<[u8]>,
     actions: &mut ActionInputHandlerActionsVec<AggregateTransform, HandlerContext>,
     last_chunk: &mut TargetKeyChunk,
     target_info_id: TargetInfoId,
@@ -315,12 +325,12 @@ pub fn reduce_target_chunk(
 
         (chunk_id, new_chunk)
     } else {
-        let mut buffer = free_reduce_eval_action_buffers.take();
-        buffer.clear();
+        let buffer = free_reduce_eval_action_buffers.take();
 
         let new_chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
             accumulator_id: Some(accumulator_id),
             is_accumulator_pending: false,
+            is_reducing: true,
             reduce_input: Serializer::from_vec(buffer),
             reduce_input_items: free_serializer_reduce_input_items_buffers.take(),
         });
@@ -332,6 +342,7 @@ pub fn reduce_target_chunk(
     let TargetKeyCollectingChunk {
         accumulator_id: _,
         is_accumulator_pending: _,
+        is_reducing: _,
         mut reduce_input,
         reduce_input_items,
     } = new_chunk
@@ -355,9 +366,14 @@ pub fn reduce_target_chunk(
                 input,
             },
         )),
-        HandlerContext::None,
+        HandlerContext::Reducing(ReducingContext {
+            target_key: target_key_rc,
+            chunk_id: new_chunk_id,
+        }),
         input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
-            todo!("handle reduce")
+            let ctx = ctx.into_reducing().expect("should be ReducingContext");
+            let FunctionEvalInput { body } = input.into_eval_aggregate_reduce()?;
+            this.on_reduce_received(ctx, body)
         }),
     ));
 }
