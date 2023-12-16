@@ -1,14 +1,26 @@
-use crate::aggregate::context::{HandlerContext, ReducingContext, TargetRecordContext};
-use crate::aggregate::on_map_received::reduce_target_chunk;
-use crate::aggregate::state::{TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyReducedChunk};
-use crate::aggregate::AggregateTransform;
-use crate::base::error::TransformError;
-use crate::base::input::function_eval::{
-    AggregateInitialAccumulatorEvalInput, AggregateReduceEvalInput,
-};
-use crate::transform::{ActionInputHandlerResult, HandlerResult};
-use diffbelt_protos::Serializer;
+use diffbelt_types::collection::get_record::GetRequestJsonData;
+use diffbelt_types::common::key_value::EncodedKeyJsonData;
+use std::borrow::Cow;
 use std::mem;
+
+use crate::aggregate::context::{
+    HandlerContext, MergingContext, ReducingContext, TargetRecordContext,
+};
+use crate::aggregate::on_map_received::reduce_target_chunk;
+use crate::aggregate::state::{
+    TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyMergingChunk, TargetKeyReducedChunk,
+};
+use crate::aggregate::AggregateTransform;
+use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
+use crate::base::action::function_eval::{
+    AggregateMergeEvalAction, FunctionEvalAction, MapFilterEvalAction,
+};
+use crate::base::action::ActionType;
+use crate::base::common::accumulator::AccumulatorId;
+use crate::base::error::TransformError;
+use crate::base::input::function_eval::AggregateReduceEvalInput;
+use crate::input_handler;
+use crate::transform::{ActionInputHandlerResult, HandlerResult};
 
 impl AggregateTransform {
     pub fn on_reduce_received(
@@ -101,7 +113,7 @@ impl AggregateTransform {
                 target_info_id,
                 accumulator_id,
                 self.supports_accumulator_merge,
-                &mut state.reducing_chunk_id_counter,
+                &mut state.chunk_id_counter,
                 &mut self.free_reduce_eval_action_buffers,
                 &mut self.free_serializer_reduce_input_items_buffers,
             );
@@ -112,8 +124,97 @@ impl AggregateTransform {
         // Replace chunk
         let mut new_chunk = TargetKeyChunk::Reduced(TargetKeyReducedChunk { accumulator_id });
         mem::swap(chunk, &mut new_chunk);
-        let old_chunk = chunk;
 
-        todo!("try merge chunks")
+        // Try merge chunks
+        let mut chunks_iter = target.chunks.iter_mut();
+        let mut prev_reduced_chunk = chunks_iter.next().and_then(|chunk| {
+            if chunk.is_reduced() {
+                Some(chunk)
+            } else {
+                None
+            }
+        });
+
+        let mut chunk_id = None;
+        let mut accumulator_ids = self.free_merge_accumulator_ids_vecs.take();
+
+        for chunk in chunks_iter {
+            if prev_reduced_chunk.is_none() {
+                // Find first reduced chunk
+                if chunk.is_reduced() {
+                    prev_reduced_chunk = Some(chunk);
+                    continue;
+                }
+
+                continue;
+            }
+
+            // Collect accumulators to merge
+            if let Some(reduced) = chunk.as_reduced() {
+                if accumulator_ids.is_empty() {
+                    accumulator_ids.push(
+                        prev_reduced_chunk
+                            .as_ref()
+                            .expect("already checked")
+                            .as_reduced()
+                            .expect("already checked")
+                            .accumulator_id,
+                    );
+
+                    state.chunk_id_counter += 1;
+                    let new_chunk_id = state.chunk_id_counter;
+
+                    chunk_id = Some(new_chunk_id);
+
+                    prev_reduced_chunk = prev_reduced_chunk.map(|prev_reduced_chunk| {
+                        let mut new_chunk = TargetKeyChunk::Merging(TargetKeyMergingChunk {
+                            chunk_id: new_chunk_id,
+                        });
+                        mem::swap(prev_reduced_chunk, &mut new_chunk);
+
+                        prev_reduced_chunk
+                    });
+                }
+
+                accumulator_ids.push(reduced.accumulator_id);
+
+                mem::swap(chunk, &mut TargetKeyChunk::Tombstone);
+                continue;
+            }
+
+            // Continue to search first reduced chunk
+            if accumulator_ids.is_empty() {
+                prev_reduced_chunk = None;
+                continue;
+            }
+
+            // Merge maybe found chain
+            break;
+        }
+
+        let Some(chunk_id) = chunk_id else {
+            return Ok(ActionInputHandlerResult::Consumed);
+        };
+
+        let mut actions = self.action_input_handlers.take_action_input_actions_vec();
+
+        actions.push((
+            ActionType::FunctionEval(FunctionEvalAction::AggregateMerge(
+                AggregateMergeEvalAction {
+                    target_info: target_info_id,
+                    input: accumulator_ids,
+                },
+            )),
+            HandlerContext::Merging(MergingContext {
+                target_key: target_key_rc,
+                chunk_id,
+            }),
+            input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
+                let ctx = ctx.into_merging().expect("should be MergingContext");
+                todo!()
+            }),
+        ));
+
+        Ok(ActionInputHandlerResult::AddActions(actions))
     }
 }

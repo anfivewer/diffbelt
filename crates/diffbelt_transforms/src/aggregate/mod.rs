@@ -12,16 +12,17 @@ mod context;
 mod init;
 mod limits;
 mod on_diff_received;
+mod on_initial_accumulator_received;
 mod on_map_received;
+mod on_reduce_received;
+mod on_target_info_received;
 mod on_target_record_received;
 mod read_diff_cursor;
 mod state;
-mod on_target_info_received;
-mod on_initial_accumulator_received;
-mod on_reduce_received;
 
-pub use state::AggregateTransform;
 use crate::base::action::Action;
+use crate::base::common::accumulator::AccumulatorId;
+pub use state::AggregateTransform;
 
 impl WithTransformInputs<HandlerContext> for AggregateTransform {
     fn transform_inputs_mut(&mut self) -> &mut TransformInputs<Self, HandlerContext> {
@@ -54,6 +55,7 @@ impl AggregateTransform {
             free_target_info_action_buffers: BuffersPool::with_capacity(4),
             free_reduce_eval_action_buffers: BuffersPool::with_capacity(4),
             free_serializer_reduce_input_items_buffers: BuffersPool::with_capacity(4),
+            free_merge_accumulator_ids_vecs: BuffersPool::with_capacity(4),
         }
     }
 
@@ -101,5 +103,9 @@ impl AggregateTransform {
 
     pub fn return_actions_vec(&mut self, buffer: Vec<Action>) {
         self.action_input_handlers.return_actions_vec(buffer);
+    }
+
+    pub fn return_merge_accumulator_ids_vec(&mut self, buffer: Vec<AccumulatorId>) {
+        self.free_merge_accumulator_ids_vecs.push(buffer);
     }
 }

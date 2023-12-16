@@ -64,7 +64,7 @@ impl AggregateTransform {
             target_info_id,
             accumulator_id,
             self.supports_accumulator_merge,
-            &mut state.reducing_chunk_id_counter,
+            &mut state.chunk_id_counter,
             &mut self.free_reduce_eval_action_buffers,
             &mut self.free_serializer_reduce_input_items_buffers,
         );

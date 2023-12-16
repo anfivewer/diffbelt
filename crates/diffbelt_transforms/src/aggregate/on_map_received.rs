@@ -103,56 +103,35 @@ impl AggregateTransform {
 
             //region Add mapped item to target key record
             let last_chunk = target.chunks.back_mut();
-            let last_chunk = match last_chunk {
-                Some(last_chunk) => {
-                    if let Some(chunk) = last_chunk.as_collecting() {
-                        if chunk.is_accumulator_pending {
-                            should_add_to_updated_keys = false
-                        }
+            let last_chunk = last_chunk.and_then(|last_chunk| {
+                let Some(chunk) = last_chunk.as_collecting_mut() else {
+                    return None;
+                };
 
-                        if chunk.is_reducing {
-                            // We are in !supports_accumulator_merge mode, wait for previous reduce
-                            should_add_to_updated_keys = false;
-                        }
-                    }
-
-                    last_chunk
+                if chunk.is_accumulator_pending {
+                    should_add_to_updated_keys = false
                 }
-                None => {
-                    let mut buffer = self.free_reduce_eval_action_buffers.take();
-                    buffer.clear();
 
-                    let chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
-                        accumulator_id: None,
-                        reduce_input: Serializer::from_vec(buffer),
-                        reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
-                        is_accumulator_pending: false,
-                        is_reducing: false,
-                    });
-                    target.chunks.push_back(chunk);
-                    target.chunks.back_mut().expect("just inserted")
+                if chunk.is_reducing {
+                    // We are in !supports_accumulator_merge mode, wait for previous reduce
+                    should_add_to_updated_keys = false;
                 }
-            };
 
-            let last_chunk = match last_chunk {
-                TargetKeyChunk::Collecting(x) => x,
-                TargetKeyChunk::Reducing(_) | TargetKeyChunk::Reduced(_) => {
-                    if !supports_accumulator_merge {
-                        panic!("aggregate transform without support of accumulator merge cannot have Reducing/Reduced target key state");
-                    }
+                Some(chunk)
+            });
 
-                    let chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
-                        accumulator_id: None,
-                        reduce_input: Serializer::from_vec(
-                            self.free_reduce_eval_action_buffers.take(),
-                        ),
-                        reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
-                        is_accumulator_pending: false,
-                        is_reducing: false,
-                    });
-                    target.chunks.push_back(chunk);
-                    target.chunks.back_mut().expect("just inserted").as_collecting_mut().expect("aggregate transform without support of accumulator merge cannot have Reducing target key state")
-                }
+            let last_chunk = if let Some(last_chunk) = last_chunk {
+                last_chunk
+            } else {
+                let chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
+                    accumulator_id: None,
+                    reduce_input: Serializer::from_vec(self.free_reduce_eval_action_buffers.take()),
+                    reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
+                    is_accumulator_pending: false,
+                    is_reducing: false,
+                });
+                target.chunks.push_back(chunk);
+                target.chunks.back_mut().expect("just inserted").as_collecting_mut().expect("aggregate transform without support of accumulator merge cannot have Reducing target key state")
             };
 
             if should_add_to_updated_keys {
@@ -234,7 +213,7 @@ impl AggregateTransform {
                 target,
                 target_info_id,
                 supports_accumulator_merge,
-                &mut state.reducing_chunk_id_counter,
+                &mut state.chunk_id_counter,
                 &mut self.free_reduce_eval_action_buffers,
                 &mut self.free_serializer_reduce_input_items_buffers,
             );

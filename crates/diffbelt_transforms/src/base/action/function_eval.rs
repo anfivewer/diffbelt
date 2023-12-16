@@ -13,6 +13,7 @@ pub enum FunctionEvalAction {
     AggregateTargetInfo(AggregateTargetInfoEvalAction),
     AggregateInitialAccumulator(AggregateInitialAccumulatorEvalAction),
     AggregateReduce(AggregateReduceEvalAction),
+    AggregateMerge(AggregateMergeEvalAction),
 }
 
 #[derive(Debug)]
@@ -50,8 +51,6 @@ pub struct AggregateReduceEvalAction {
 pub struct AggregateMergeEvalAction {
     pub target_info: TargetInfoId,
     pub input: Vec<AccumulatorId>,
-    /// returned back `input` buffer from [`crate::base::input::function_eval::AggregateMergeEvalInput`]
-    pub output_buffer: Vec<u8>,
 }
 
 #[derive(Debug)]

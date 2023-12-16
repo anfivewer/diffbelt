@@ -1,4 +1,4 @@
-use crate::aggregate::state::TargetKeyReducingChunkId;
+use crate::aggregate::state::{TargetKeyMergingChunkId, TargetKeyReducingChunkId};
 use crate::base::error::TransformError;
 use enum_as_inner::EnumAsInner;
 use enum_kinds::EnumKind;
@@ -11,6 +11,7 @@ pub enum HandlerContext {
     Map(MapContext),
     TargetRecord(TargetRecordContext),
     Reducing(ReducingContext),
+    Merging(MergingContext),
 }
 
 #[derive(Debug)]
@@ -27,6 +28,12 @@ pub struct TargetRecordContext {
 pub struct ReducingContext {
     pub target_key: Rc<[u8]>,
     pub chunk_id: TargetKeyReducingChunkId,
+}
+
+#[derive(Debug)]
+pub struct MergingContext {
+    pub target_key: Rc<[u8]>,
+    pub chunk_id: TargetKeyMergingChunkId,
 }
 
 pub trait HandlerContextMapError<T> {

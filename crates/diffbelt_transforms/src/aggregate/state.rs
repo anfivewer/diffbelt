@@ -4,8 +4,8 @@ use std::rc::Rc;
 use enum_as_inner::EnumAsInner;
 use lru::LruCache;
 
-use diffbelt_protos::protos::transform::aggregate::{AggregateReduceInput, AggregateReduceItem};
 use diffbelt_protos::{Serializer, WIPOffset};
+use diffbelt_protos::protos::transform::aggregate::{AggregateReduceInput, AggregateReduceItem};
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
@@ -13,11 +13,10 @@ use diffbelt_util_no_std::temporary_collection::hash_set::TemporaryRefHashSet;
 
 use crate::aggregate::context::HandlerContext;
 use crate::aggregate::limits::Limits;
-use crate::base::action::Action;
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::common::target_info::TargetInfoId;
 use crate::base::error::TransformError;
-use crate::transform::{ActionInputHandlerActionsVec, TransformInputs};
+use crate::transform::TransformInputs;
 
 pub struct AggregateTransform {
     pub(super) from_collection_name: Box<str>,
@@ -33,6 +32,7 @@ pub struct AggregateTransform {
     pub(super) free_reduce_eval_action_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_serializer_reduce_input_items_buffers:
         BuffersPool<Vec<WIPOffset<AggregateReduceItem<'static>>>>,
+    pub(super) free_merge_accumulator_ids_vecs: BuffersPool<Vec<AccumulatorId>>,
 }
 
 #[derive(Debug)]
@@ -54,7 +54,7 @@ pub struct ProcessingState {
     pub current_limits: Limits,
     pub target_keys: LruCache<Rc<[u8]>, TargetKeyData>,
     pub updated_target_keys_temp_set: TemporaryRefHashSet<[u8]>,
-    pub reducing_chunk_id_counter: u64,
+    pub chunk_id_counter: u64,
 }
 
 #[derive(Debug)]
@@ -67,6 +67,7 @@ pub struct TargetKeyCollectingChunk {
 }
 
 pub type TargetKeyReducingChunkId = u64;
+pub type TargetKeyMergingChunkId = u64;
 
 #[derive(Debug)]
 pub struct TargetKeyReducingChunk {
@@ -78,11 +79,18 @@ pub struct TargetKeyReducedChunk {
     pub accumulator_id: AccumulatorId,
 }
 
+#[derive(Debug)]
+pub struct TargetKeyMergingChunk {
+    pub chunk_id: TargetKeyMergingChunkId,
+}
+
 #[derive(Debug, EnumAsInner)]
 pub enum TargetKeyChunk {
+    Tombstone,
     Collecting(TargetKeyCollectingChunk),
     Reducing(TargetKeyReducingChunk),
     Reduced(TargetKeyReducedChunk),
+    Merging(TargetKeyMergingChunk),
 }
 
 #[derive(Debug)]
