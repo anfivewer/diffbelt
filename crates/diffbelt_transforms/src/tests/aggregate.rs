@@ -150,7 +150,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
         diff_cursor_counter: &mut usize,
         diff_cursor: &mut Option<String>,
     ) -> Vec<KeyValueDiffJsonData> {
-        let diff_items_to_take = rand.gen_range(0..*diff_items_left);
+        let diff_items_to_take = rand.gen_range(0..(*diff_items_left + 1));
         *diff_items_left -= diff_items_to_take;
         let items: Vec<_> = diff_items_iter.take(diff_items_to_take).collect();
 
@@ -328,9 +328,11 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                             "second".to_string(),
                                         ),
                                         items,
-                                        cursor_id: diff_cursor
-                                            .as_ref()
-                                            .map(|x| Box::from(x.as_str())),
+                                        cursor_id: if diff_items_left == 0 {
+                                            None
+                                        } else {
+                                            diff_cursor.as_ref().map(|x| Box::from(x.as_str()))
+                                        },
                                     },
                                 )),
                             });
