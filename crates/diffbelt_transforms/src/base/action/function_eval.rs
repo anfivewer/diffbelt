@@ -50,7 +50,7 @@ pub struct AggregateReduceEvalAction {
 #[derive(Debug)]
 pub struct AggregateMergeEvalAction {
     pub target_info: TargetInfoId,
-    pub input: Vec<AccumulatorId>,
+    pub accumulator_ids: Vec<AccumulatorId>,
 }
 
 #[derive(Debug)]

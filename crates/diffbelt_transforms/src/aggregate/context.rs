@@ -32,7 +32,7 @@ pub struct ReducingContext {
 
 #[derive(Debug)]
 pub struct MergingContext {
-    pub target_key: Rc<[u8]>,
+    pub target_key_rc: Rc<[u8]>,
     pub chunk_id: TargetKeyMergingChunkId,
 }
 

@@ -19,6 +19,9 @@ mod on_target_info_received;
 mod on_target_record_received;
 mod read_diff_cursor;
 mod state;
+mod on_merge_received;
+mod merge;
+mod apply;
 
 use crate::base::action::Action;
 use crate::base::common::accumulator::AccumulatorId;

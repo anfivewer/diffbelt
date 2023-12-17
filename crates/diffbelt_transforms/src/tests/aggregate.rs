@@ -26,20 +26,21 @@ use diffbelt_types::common::key_value::{
 use diffbelt_util_no_std::cast::{u32_to_i64, u32_to_u64, u32_to_usize};
 
 use crate::aggregate::AggregateTransform;
-use crate::base::action::{Action, ActionType};
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{
-    AggregateInitialAccumulatorEvalAction, AggregateMapEvalAction, AggregateReduceEvalAction,
-    AggregateTargetInfoEvalAction, FunctionEvalAction,
+    AggregateInitialAccumulatorEvalAction, AggregateMapEvalAction, AggregateMergeEvalAction,
+    AggregateReduceEvalAction, AggregateTargetInfoEvalAction, FunctionEvalAction,
 };
+use crate::base::action::{Action, ActionType};
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::common::target_info::TargetInfoId;
-use crate::base::input::{Input, InputType};
 use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
 use crate::base::input::function_eval::{
-    AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput, AggregateReduceEvalInput,
-    AggregateTargetInfoEvalInput, FunctionEvalInput, FunctionEvalInputBody,
+    AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput, AggregateMergeEvalInput,
+    AggregateReduceEvalInput, AggregateTargetInfoEvalInput, FunctionEvalInput,
+    FunctionEvalInputBody,
 };
+use crate::base::input::{Input, InputType};
 use crate::TransformRunResult;
 
 #[test]
@@ -564,6 +565,53 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                         AggregateReduceEvalInput {
                                             accumulator_id: accumulator,
                                             action_input_buffer: input_serialized.into_vec(),
+                                        },
+                                    ),
+                                }),
+                            });
+
+                            continue;
+                        }
+                        FunctionEvalAction::AggregateMerge(action) => {
+                            let AggregateMergeEvalAction {
+                                target_info,
+                                accumulator_ids: input,
+                            } = action;
+
+                            let mut result = AccumulatorData {
+                                target_info,
+                                diff: 0,
+                            };
+
+                            input.iter().fold(&mut result, |acc, x| {
+                                let AccumulatorData {
+                                    target_info: acc_target_info,
+                                    diff,
+                                } = accumulators.remove(&x.0).expect("accumulator not found");
+
+                                assert_eq!(
+                                    &acc_target_info, &acc.target_info,
+                                    "different target_info"
+                                );
+
+                                acc.diff += diff;
+
+                                acc
+                            });
+
+                            transform.return_merge_accumulator_ids_vec(input);
+
+                            accumulator_counter += 1;
+                            let accumulator_id = accumulator_counter;
+
+                            accumulators.insert(accumulator_id, result);
+
+                            inputs.push(Input {
+                                id: action_id,
+                                input: InputType::FunctionEval(FunctionEvalInput {
+                                    body: FunctionEvalInputBody::AggregateMerge(
+                                        AggregateMergeEvalInput {
+                                            accumulator_id: AccumulatorId(accumulator_id),
                                         },
                                     ),
                                 }),

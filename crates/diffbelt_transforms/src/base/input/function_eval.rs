@@ -16,6 +16,7 @@ pub enum FunctionEvalInputBody {
     AggregateTargetInfo(AggregateTargetInfoEvalInput),
     AggregateInitialAccumulator(AggregateInitialAccumulatorEvalInput),
     AggregateReduce(AggregateReduceEvalInput),
+    AggregateMerge(AggregateMergeEvalInput),
 }
 
 #[derive(Debug)]
