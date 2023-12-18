@@ -1,16 +1,11 @@
-use std::mem;
-
-use crate::aggregate::context::{HandlerContext, MergingContext, ReducingContext};
+use crate::aggregate::AggregateTransform;
+use crate::aggregate::context::{HandlerContext, ReducingContext};
 use crate::aggregate::on_map_received::reduce_target_chunk;
 use crate::aggregate::state::{
-    TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyMergingChunk, TargetKeyReducedChunk,
+    TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyReducedChunk,
 };
-use crate::aggregate::AggregateTransform;
-use crate::base::action::function_eval::{AggregateMergeEvalAction, FunctionEvalAction};
-use crate::base::action::ActionType;
 use crate::base::error::TransformError;
-use crate::base::input::function_eval::{AggregateReduceEvalInput, FunctionEvalInput};
-use crate::input_handler;
+use crate::base::input::function_eval::AggregateReduceEvalInput;
 use crate::transform::{ActionInputHandlerResult, HandlerResult};
 
 impl AggregateTransform {
@@ -24,15 +19,22 @@ impl AggregateTransform {
         let ReducingContext {
             target_key: target_key_rc,
             chunk_id,
+            prev_accumulator_data_bytes,
+            transferring_target_data_bytes,
         } = ctx;
 
         let AggregateReduceEvalInput {
             accumulator_id,
+            accumulator_data_bytes: new_accumulator_data_bytes,
             action_input_buffer,
         } = input;
 
         self.free_reduce_eval_action_buffers
             .push(action_input_buffer);
+
+        state.current_limits.target_data_bytes -= transferring_target_data_bytes;
+        state.current_limits.target_data_bytes -= prev_accumulator_data_bytes;
+        state.current_limits.target_data_bytes += new_accumulator_data_bytes;
 
         let target = state
             .target_keys
@@ -82,12 +84,14 @@ impl AggregateTransform {
 
             let TargetKeyCollectingChunk {
                 accumulator_id: chunk_accumulator_id,
+                accumulator_data_bytes,
                 is_accumulator_pending: _,
                 is_reducing,
                 reduce_input: _,
                 reduce_input_items,
             } = collecting;
 
+            *accumulator_data_bytes = new_accumulator_data_bytes;
             *chunk_accumulator_id = Some(accumulator_id);
             *is_reducing = false;
 
@@ -111,6 +115,7 @@ impl AggregateTransform {
                 chunk,
                 target_info_id,
                 accumulator_id,
+                &mut state.current_limits,
                 self.supports_accumulator_merge,
                 &mut state.chunk_id_counter,
                 &mut self.free_reduce_eval_action_buffers,
@@ -121,7 +126,10 @@ impl AggregateTransform {
         }
 
         // Replace chunk
-        *chunk = TargetKeyChunk::Reduced(TargetKeyReducedChunk { accumulator_id });
+        *chunk = TargetKeyChunk::Reduced(TargetKeyReducedChunk {
+            accumulator_id,
+            accumulator_data_bytes: new_accumulator_data_bytes,
+        });
 
         let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 

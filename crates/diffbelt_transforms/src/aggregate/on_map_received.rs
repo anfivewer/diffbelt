@@ -18,6 +18,7 @@ use crate::aggregate::state::{
     TargetKeyReducingChunk,
 };
 use crate::aggregate::AggregateTransform;
+use crate::aggregate::limits::Limits;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{
     AggregateInitialAccumulatorEvalAction, AggregateReduceEvalAction, FunctionEvalAction,
@@ -123,13 +124,18 @@ impl AggregateTransform {
             let last_chunk = if let Some(last_chunk) = last_chunk {
                 last_chunk
             } else {
+                let reduce_input = Serializer::from_vec(self.free_reduce_eval_action_buffers.take());
+
+                state.current_limits.target_data_bytes += reduce_input.buffer_len();
+
                 let chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
                     accumulator_id: None,
-                    reduce_input: Serializer::from_vec(self.free_reduce_eval_action_buffers.take()),
+                    reduce_input,
                     reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
                     is_accumulator_pending: false,
                     is_reducing: false,
                 });
+
                 target.chunks.push_back(chunk);
                 target.chunks.back_mut().expect("just inserted").as_collecting_mut().expect("aggregate transform without support of accumulator merge cannot have Reducing target key state")
             };
@@ -138,7 +144,7 @@ impl AggregateTransform {
                 updated_keys.insert(target_key);
             }
 
-            let prev_buffer_len = last_chunk.reduce_input.buffer_len();
+            state.current_limits.target_data_bytes -= last_chunk.reduce_input.buffer_len();
 
             let mapped_value =
                 mapped_value.map(|x| last_chunk.reduce_input.create_vector(x.bytes()));
@@ -150,10 +156,7 @@ impl AggregateTransform {
 
             last_chunk.reduce_input_items.push(item);
 
-            let new_buffer_len = last_chunk.reduce_input.buffer_len();
-            let new_data_size = new_buffer_len - prev_buffer_len;
-
-            state.current_limits.target_data_bytes += new_data_size;
+            state.current_limits.target_data_bytes += last_chunk.reduce_input.buffer_len();
             //endregion
         }
 
@@ -212,6 +215,7 @@ impl AggregateTransform {
                 &mut actions,
                 target,
                 target_info_id,
+                &mut state.current_limits,
                 supports_accumulator_merge,
                 &mut state.chunk_id_counter,
                 &mut self.free_reduce_eval_action_buffers,
@@ -228,6 +232,7 @@ pub fn on_target_info_available(
     actions: &mut ActionInputHandlerActionsVec<AggregateTransform, HandlerContext>,
     target: &mut TargetKeyData,
     target_info_id: TargetInfoId,
+    current_limits: &mut Limits,
     supports_accumulator_merge: bool,
     reducing_chunk_id_counter: &mut u64,
     free_reduce_eval_action_buffers: &mut BuffersPool<Vec<u8>>,
@@ -276,6 +281,7 @@ pub fn on_target_info_available(
         last_chunk,
         target_info_id,
         accumulator_id,
+        current_limits,
         supports_accumulator_merge,
         reducing_chunk_id_counter,
         free_reduce_eval_action_buffers,
@@ -289,6 +295,7 @@ pub fn reduce_target_chunk(
     last_chunk: &mut TargetKeyChunk,
     target_info_id: TargetInfoId,
     accumulator_id: AccumulatorId,
+    current_limits: &mut Limits,
     supports_accumulator_merge: bool,
     reducing_chunk_id_counter: &mut u64,
     free_reduce_eval_action_buffers: &mut BuffersPool<Vec<u8>>,
@@ -305,12 +312,15 @@ pub fn reduce_target_chunk(
         (chunk_id, new_chunk)
     } else {
         let buffer = free_reduce_eval_action_buffers.take();
+        let reduce_input = Serializer::from_vec(buffer);
+
+        current_limits.target_data_bytes += reduce_input.buffer_len();
 
         let new_chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
             accumulator_id: Some(accumulator_id),
             is_accumulator_pending: false,
             is_reducing: true,
-            reduce_input: Serializer::from_vec(buffer),
+            reduce_input,
             reduce_input_items: free_serializer_reduce_input_items_buffers.take(),
         });
 
@@ -327,6 +337,8 @@ pub fn reduce_target_chunk(
     } = new_chunk
         .into_collecting()
         .expect("last chunk should be Collecting");
+
+    let transferring_target_data_bytes = reduce_input.buffer_len();
 
     let items = reduce_input.create_vector(&reduce_input_items);
     free_serializer_reduce_input_items_buffers.push(reduce_input_items);
@@ -348,6 +360,7 @@ pub fn reduce_target_chunk(
         HandlerContext::Reducing(ReducingContext {
             target_key: target_key_rc,
             chunk_id: new_chunk_id,
+            transferring_target_data_bytes,
         }),
         input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
             let ctx = ctx.into_reducing().expect("should be ReducingContext");

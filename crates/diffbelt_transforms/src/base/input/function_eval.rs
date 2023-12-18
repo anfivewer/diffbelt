@@ -52,6 +52,7 @@ pub struct AggregateInitialAccumulatorEvalInput {
 #[derive(Debug)]
 pub struct AggregateReduceEvalInput {
     pub accumulator_id: AccumulatorId,
+    pub accumulator_data_bytes: usize,
     /// returned back `input` buffer from [`crate::base::action::function_eval::AggregateReduceEvalAction`]
     pub action_input_buffer: Vec<u8>,
 }

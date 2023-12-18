@@ -28,6 +28,8 @@ pub struct TargetRecordContext {
 pub struct ReducingContext {
     pub target_key: Rc<[u8]>,
     pub chunk_id: TargetKeyReducingChunkId,
+    pub prev_accumulator_data_bytes: usize,
+    pub transferring_target_data_bytes: usize,
 }
 
 #[derive(Debug)]

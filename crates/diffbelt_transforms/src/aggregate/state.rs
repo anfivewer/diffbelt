@@ -60,6 +60,7 @@ pub struct ProcessingState {
 #[derive(Debug)]
 pub struct TargetKeyCollectingChunk {
     pub accumulator_id: Option<AccumulatorId>,
+    pub accumulator_data_bytes: usize,
     pub is_accumulator_pending: bool,
     pub is_reducing: bool,
     pub reduce_input: Serializer<'static, AggregateReduceInput<'static>>,
@@ -77,6 +78,7 @@ pub struct TargetKeyReducingChunk {
 #[derive(Debug)]
 pub struct TargetKeyReducedChunk {
     pub accumulator_id: AccumulatorId,
+    pub accumulator_data_bytes: usize,
 }
 
 #[derive(Debug)]
