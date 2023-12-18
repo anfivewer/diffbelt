@@ -199,8 +199,12 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
         pending_actions.extend(actions.drain(..));
 
         transform.return_actions_vec(actions);
-
-        assert!(!pending_actions.is_empty());
+        
+        if pending_actions.is_empty() {
+            transform.debug_print();
+            
+            panic!("no more actions");
+        }
 
         let actions_to_process_count = rand.gen_range(1..(pending_actions.len() + 1));
 

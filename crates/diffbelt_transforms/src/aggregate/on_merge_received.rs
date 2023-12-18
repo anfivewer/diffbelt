@@ -51,8 +51,19 @@ impl AggregateTransform {
             target,
         );
 
-        if actions.is_empty() {
-            Self::try_apply(&mut actions);
+        let need_try_apply = actions.is_empty();
+
+        () = Self::maybe_read_cursor(
+            &mut actions,
+            &self.max_limits,
+            &state.current_limits,
+            &self.from_collection_name,
+            &mut state.cursor_id,
+            None,
+        );
+
+        if need_try_apply {
+            () = Self::try_apply(&mut actions);
         }
 
         if actions.is_empty() {

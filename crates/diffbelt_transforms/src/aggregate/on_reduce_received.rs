@@ -94,7 +94,7 @@ impl AggregateTransform {
             let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
             if reduce_input_items.is_empty() {
-                Self::try_apply(&mut actions);
+                () = Self::try_apply(&mut actions);
 
                 if actions.is_empty() {
                     self.action_input_handlers
@@ -132,6 +132,14 @@ impl AggregateTransform {
             target_key_rc,
             target_info_id,
             target,
+        );
+        () = Self::maybe_read_cursor(
+            &mut actions,
+            &self.max_limits,
+            &state.current_limits,
+            &self.from_collection_name,
+            &mut state.cursor_id,
+            None,
         );
 
         if actions.is_empty() {

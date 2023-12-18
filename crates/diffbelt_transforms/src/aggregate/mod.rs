@@ -8,20 +8,22 @@ use crate::base::input::Input;
 use crate::transform::{TransformInputs, WithTransformInputs};
 use crate::TransformRunResult;
 
+mod apply;
 mod context;
+#[cfg(test)]
+mod debug_print;
 mod init;
 mod limits;
+mod merge;
 mod on_diff_received;
 mod on_initial_accumulator_received;
 mod on_map_received;
+mod on_merge_received;
 mod on_reduce_received;
 mod on_target_info_received;
 mod on_target_record_received;
 mod read_diff_cursor;
 mod state;
-mod on_merge_received;
-mod merge;
-mod apply;
 
 use crate::base::action::Action;
 use crate::base::common::accumulator::AccumulatorId;

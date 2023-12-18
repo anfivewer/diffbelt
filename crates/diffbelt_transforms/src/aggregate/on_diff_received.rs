@@ -100,14 +100,6 @@ impl AggregateTransform {
         let input_bytes_len = input.as_bytes().len();
         state.current_limits.pending_eval_map_bytes += input_bytes_len;
 
-        let read_cursor = left_if_some(cursor_id).left_and_then(|cursor| {
-            if Self::can_request_diff(&self.max_limits, &state.current_limits) {
-                Either::Left(cursor)
-            } else {
-                Either::Right(Some(cursor))
-            }
-        });
-
         let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
         actions.push((
@@ -127,14 +119,14 @@ impl AggregateTransform {
             }),
         ));
 
-        match read_cursor {
-            Either::Left(cursor) => {
-                actions.push(Self::read_cursor(&self.from_collection_name, &cursor));
-            }
-            Either::Right(cursor) => {
-                state.cursor_id = cursor;
-            }
-        }
+        () = Self::maybe_read_cursor(
+            &mut actions,
+            &self.max_limits,
+            &state.current_limits,
+            &self.from_collection_name,
+            &mut state.cursor_id,
+            cursor_id,
+        );
 
         Ok(ActionInputHandlerResult::AddActions(actions))
     }

@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::rc::Rc;
 
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
@@ -98,6 +99,19 @@ impl AggregateTransform {
             return;
         };
 
+        fn is_back_tombstone(chunks: &mut VecDeque<TargetKeyChunk>) -> bool {
+            if let Some(chunk) = chunks.back() {
+                chunk.is_tombstone()
+            } else {
+                false
+            }
+        }
+
+        // Remove tombstones
+        while is_back_tombstone(&mut target.chunks) {
+            target.chunks.pop_back();
+        }
+
         actions.push((
             ActionType::FunctionEval(FunctionEvalAction::AggregateMerge(
                 AggregateMergeEvalAction {
@@ -106,7 +120,7 @@ impl AggregateTransform {
                 },
             )),
             HandlerContext::Merging(MergingContext {
-                target_key_rc: target_key_rc,
+                target_key_rc,
                 chunk_id,
             }),
             input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
