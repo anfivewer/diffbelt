@@ -14,7 +14,7 @@ impl AggregateTransform {
     pub fn maybe_read_cursor(
         actions: &mut ActionInputHandlerActionsVec<Self, HandlerContext>,
         max_limits: &Limits,
-        current_limits: &Limits,
+        current_limits: &mut Limits,
         from_collection_name: &str,
         stored_cursor: &mut Option<Box<str>>,
         got_cursor: Option<Box<str>>,
@@ -30,9 +30,11 @@ impl AggregateTransform {
 
         match read_cursor {
             Either::Left(cursor) => {
+                current_limits.pending_diffs_count += 1;
                 actions.push(Self::read_cursor(from_collection_name, &cursor));
             }
             Either::Right(cursor) => {
+                current_limits.has_more_diffs = cursor.is_some();
                 *stored_cursor = cursor;
             }
         }

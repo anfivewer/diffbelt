@@ -26,21 +26,21 @@ use diffbelt_types::common::key_value::{
 use diffbelt_util_no_std::cast::{u32_to_i64, u32_to_u64, u32_to_usize};
 
 use crate::aggregate::AggregateTransform;
+use crate::base::action::{Action, ActionType};
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{
     AggregateInitialAccumulatorEvalAction, AggregateMapEvalAction, AggregateMergeEvalAction,
     AggregateReduceEvalAction, AggregateTargetInfoEvalAction, FunctionEvalAction,
 };
-use crate::base::action::{Action, ActionType};
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::common::target_info::TargetInfoId;
+use crate::base::input::{Input, InputType};
 use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
 use crate::base::input::function_eval::{
     AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput, AggregateMergeEvalInput,
     AggregateReduceEvalInput, AggregateTargetInfoEvalInput, FunctionEvalInput,
     FunctionEvalInputBody,
 };
-use crate::base::input::{Input, InputType};
 use crate::TransformRunResult;
 
 #[test]
@@ -199,10 +199,10 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
         pending_actions.extend(actions.drain(..));
 
         transform.return_actions_vec(actions);
-        
+
         if pending_actions.is_empty() {
             transform.debug_print();
-            
+
             panic!("no more actions");
         }
 
@@ -494,6 +494,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                             target_info_counter += 1;
                             let target_info_id = target_info_counter;
 
+                            let target_info_data_bytes = target_info.as_bytes().len();
                             target_infos.insert(target_info_id, target_info);
 
                             inputs.push(Input {
@@ -502,6 +503,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                     body: FunctionEvalInputBody::AggregateTargetInfo(
                                         AggregateTargetInfoEvalInput {
                                             target_info_id: TargetInfoId(target_info_id),
+                                            target_info_data_bytes,
                                         },
                                     ),
                                 }),
@@ -529,6 +531,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                     body: FunctionEvalInputBody::AggregateInitialAccumulator(
                                         AggregateInitialAccumulatorEvalInput {
                                             accumulator_id: AccumulatorId(accumulator_id),
+                                            accumulator_data_bytes: 48,
                                         },
                                     ),
                                 }),
@@ -570,6 +573,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                     body: FunctionEvalInputBody::AggregateReduce(
                                         AggregateReduceEvalInput {
                                             accumulator_id: accumulator,
+                                            accumulator_data_bytes: 64,
                                             action_input_buffer: input_serialized.into_vec(),
                                         },
                                     ),
@@ -618,6 +622,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                     body: FunctionEvalInputBody::AggregateMerge(
                                         AggregateMergeEvalInput {
                                             accumulator_id: AccumulatorId(accumulator_id),
+                                            accumulator_data_bytes: 64,
                                         },
                                     ),
                                 }),

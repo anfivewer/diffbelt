@@ -36,6 +36,7 @@ pub struct ReducingContext {
 pub struct MergingContext {
     pub target_key_rc: Rc<[u8]>,
     pub chunk_id: TargetKeyMergingChunkId,
+    pub accumulators_total_data_bytes: usize,
 }
 
 pub trait HandlerContextMapError<T> {

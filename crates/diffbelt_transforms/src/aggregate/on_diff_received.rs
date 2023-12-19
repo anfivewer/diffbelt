@@ -25,6 +25,8 @@ impl AggregateTransform {
     ) -> HandlerResult<Self, HandlerContext> {
         let state = self.state.expect_processing_mut()?;
 
+        state.current_limits.pending_diffs_count -= 1;
+
         let DiffCollectionResponseJsonData {
             from_generation_id: _,
             to_generation_id: _,
@@ -122,7 +124,7 @@ impl AggregateTransform {
         () = Self::maybe_read_cursor(
             &mut actions,
             &self.max_limits,
-            &state.current_limits,
+            &mut state.current_limits,
             &self.from_collection_name,
             &mut state.cursor_id,
             cursor_id,

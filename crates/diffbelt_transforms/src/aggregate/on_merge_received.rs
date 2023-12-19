@@ -15,8 +15,12 @@ impl AggregateTransform {
         let MergingContext {
             target_key_rc,
             chunk_id,
+            accumulators_total_data_bytes,
         } = ctx;
-        let AggregateMergeEvalInput { accumulator_id } = input;
+        let AggregateMergeEvalInput {
+            accumulator_id,
+            accumulator_data_bytes,
+        } = input;
 
         let target = state
             .target_keys
@@ -38,7 +42,13 @@ impl AggregateTransform {
             })
             .expect("chunk cannot disappear if merging in progress");
 
-        *chunk = TargetKeyChunk::Reduced(TargetKeyReducedChunk { accumulator_id });
+        state.current_limits.target_data_bytes -= accumulators_total_data_bytes;
+        state.current_limits.target_data_bytes += accumulator_data_bytes;
+
+        *chunk = TargetKeyChunk::Reduced(TargetKeyReducedChunk {
+            accumulator_id,
+            accumulator_data_bytes,
+        });
 
         let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
@@ -56,14 +66,14 @@ impl AggregateTransform {
         () = Self::maybe_read_cursor(
             &mut actions,
             &self.max_limits,
-            &state.current_limits,
+            &mut state.current_limits,
             &self.from_collection_name,
             &mut state.cursor_id,
             None,
         );
 
         if need_try_apply {
-            () = Self::try_apply(&mut actions);
+            () = Self::try_apply(&mut actions, &self.max_limits, &state.current_limits);
         }
 
         if actions.is_empty() {

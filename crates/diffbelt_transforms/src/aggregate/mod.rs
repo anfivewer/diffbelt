@@ -53,6 +53,7 @@ impl AggregateTransform {
             max_limits: Limits {
                 pending_eval_map_bytes: MB_64,
                 target_data_bytes: 2 * MB_64,
+                ..Default::default()
             },
             supports_accumulator_merge,
             free_map_eval_action_buffers: BuffersPool::with_capacity(4),

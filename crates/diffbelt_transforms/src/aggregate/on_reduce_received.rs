@@ -75,6 +75,8 @@ impl AggregateTransform {
             ));
         };
 
+        state.current_limits.pending_reduces_count -= 1;
+
         if !self.supports_accumulator_merge {
             let TargetKeyChunk::Collecting(collecting) = chunk else {
                 return Err(TransformError::Unspecified(
@@ -98,7 +100,7 @@ impl AggregateTransform {
             let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
             if reduce_input_items.is_empty() {
-                () = Self::try_apply(&mut actions);
+                () = Self::try_apply(&mut actions, &self.max_limits, &state.current_limits);
 
                 if actions.is_empty() {
                     self.action_input_handlers
@@ -144,7 +146,7 @@ impl AggregateTransform {
         () = Self::maybe_read_cursor(
             &mut actions,
             &self.max_limits,
-            &state.current_limits,
+            &mut state.current_limits,
             &self.from_collection_name,
             &mut state.cursor_id,
             None,

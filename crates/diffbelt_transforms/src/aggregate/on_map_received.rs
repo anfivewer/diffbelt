@@ -13,12 +13,12 @@ use diffbelt_types::common::key_value::EncodedKeyJsonData;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
 
 use crate::aggregate::context::{HandlerContext, MapContext, ReducingContext, TargetRecordContext};
+use crate::aggregate::limits::Limits;
 use crate::aggregate::state::{
     ProcessingState, TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyData,
     TargetKeyReducingChunk,
 };
 use crate::aggregate::AggregateTransform;
-use crate::aggregate::limits::Limits;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{
     AggregateInitialAccumulatorEvalAction, AggregateReduceEvalAction, FunctionEvalAction,
@@ -124,12 +124,14 @@ impl AggregateTransform {
             let last_chunk = if let Some(last_chunk) = last_chunk {
                 last_chunk
             } else {
-                let reduce_input = Serializer::from_vec(self.free_reduce_eval_action_buffers.take());
+                let reduce_input =
+                    Serializer::from_vec(self.free_reduce_eval_action_buffers.take());
 
                 state.current_limits.target_data_bytes += reduce_input.buffer_len();
 
                 let chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
                     accumulator_id: None,
+                    accumulator_data_bytes: 0,
                     reduce_input,
                     reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
                     is_accumulator_pending: false,
@@ -180,6 +182,8 @@ impl AggregateTransform {
                 !target.is_target_info_pending,
                 "Target info should not be pending"
             );
+
+            state.current_limits.pending_reduces_count += 1;
 
             let Some(target_info_id) = target.target_info_id else {
                 target.is_target_info_pending = true;
@@ -318,6 +322,7 @@ pub fn reduce_target_chunk(
 
         let new_chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
             accumulator_id: Some(accumulator_id),
+            accumulator_data_bytes: 0,
             is_accumulator_pending: false,
             is_reducing: true,
             reduce_input,
@@ -330,6 +335,7 @@ pub fn reduce_target_chunk(
     mem::swap(last_chunk, &mut new_chunk);
     let TargetKeyCollectingChunk {
         accumulator_id: _,
+        accumulator_data_bytes: prev_accumulator_data_bytes,
         is_accumulator_pending: _,
         is_reducing: _,
         mut reduce_input,
@@ -360,6 +366,7 @@ pub fn reduce_target_chunk(
         HandlerContext::Reducing(ReducingContext {
             target_key: target_key_rc,
             chunk_id: new_chunk_id,
+            prev_accumulator_data_bytes,
             transferring_target_data_bytes,
         }),
         input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {

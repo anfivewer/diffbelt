@@ -36,6 +36,7 @@ impl AggregateTransform {
 
         let mut chunk_id = None;
         let mut accumulator_ids = free_merge_accumulator_ids_vecs.take();
+        let mut accumulators_total_data_bytes = 0;
 
         for chunk in chunks_iter {
             if chunk.is_tombstone() {
@@ -55,14 +56,16 @@ impl AggregateTransform {
             // Collect accumulators to merge
             if let Some(reduced) = chunk.as_reduced() {
                 if accumulator_ids.is_empty() {
+                    let first_chunk = prev_reduced_chunk
+                        .as_ref()
+                        .expect("already checked")
+                        .as_reduced()
+                        .expect("already checked");
+
                     accumulator_ids.push(
-                        prev_reduced_chunk
-                            .as_ref()
-                            .expect("already checked")
-                            .as_reduced()
-                            .expect("already checked")
-                            .accumulator_id,
+                        first_chunk.accumulator_id,
                     );
+                    accumulators_total_data_bytes += first_chunk.accumulator_data_bytes;
 
                     *chunk_id_counter += 1;
                     let new_chunk_id = *chunk_id_counter;
@@ -79,6 +82,7 @@ impl AggregateTransform {
                 }
 
                 accumulator_ids.push(reduced.accumulator_id);
+                accumulators_total_data_bytes += reduced.accumulator_data_bytes;
 
                 *chunk = TargetKeyChunk::Tombstone;
                 continue;
@@ -122,6 +126,7 @@ impl AggregateTransform {
             HandlerContext::Merging(MergingContext {
                 target_key_rc,
                 chunk_id,
+                accumulators_total_data_bytes,
             }),
             input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
                 let ctx = ctx.into_merging().expect("should be MergingContext");

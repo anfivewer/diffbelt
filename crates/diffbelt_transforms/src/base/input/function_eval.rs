@@ -42,11 +42,13 @@ pub struct AggregateMapEvalInput {
 #[derive(Debug)]
 pub struct AggregateTargetInfoEvalInput {
     pub target_info_id: TargetInfoId,
+    pub target_info_data_bytes: usize,
 }
 
 #[derive(Debug)]
 pub struct AggregateInitialAccumulatorEvalInput {
     pub accumulator_id: AccumulatorId,
+    pub accumulator_data_bytes: usize,
 }
 
 #[derive(Debug)]
@@ -60,4 +62,5 @@ pub struct AggregateReduceEvalInput {
 #[derive(Debug)]
 pub struct AggregateMergeEvalInput {
     pub accumulator_id: AccumulatorId,
+    pub accumulator_data_bytes: usize,
 }

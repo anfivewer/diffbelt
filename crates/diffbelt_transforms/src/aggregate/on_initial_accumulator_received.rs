@@ -1,6 +1,6 @@
-use crate::aggregate::AggregateTransform;
 use crate::aggregate::context::{HandlerContext, TargetRecordContext};
 use crate::aggregate::on_map_received::reduce_target_chunk;
+use crate::aggregate::AggregateTransform;
 use crate::base::input::function_eval::AggregateInitialAccumulatorEvalInput;
 use crate::transform::{ActionInputHandlerResult, HandlerResult};
 
@@ -15,7 +15,10 @@ impl AggregateTransform {
         let TargetRecordContext {
             target_key: target_key_rc,
         } = ctx;
-        let AggregateInitialAccumulatorEvalInput { accumulator_id } = input;
+        let AggregateInitialAccumulatorEvalInput {
+            accumulator_id,
+            accumulator_data_bytes,
+        } = input;
 
         let target = state
             .target_keys
@@ -54,6 +57,8 @@ impl AggregateTransform {
 
         collecting_chunk.is_accumulator_pending = false;
         collecting_chunk.accumulator_id = Some(accumulator_id);
+        collecting_chunk.accumulator_data_bytes = accumulator_data_bytes;
+        state.current_limits.target_data_bytes += accumulator_data_bytes;
 
         let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
@@ -63,6 +68,7 @@ impl AggregateTransform {
             last_chunk,
             target_info_id,
             accumulator_id,
+            &mut state.current_limits,
             self.supports_accumulator_merge,
             &mut state.chunk_id_counter,
             &mut self.free_reduce_eval_action_buffers,

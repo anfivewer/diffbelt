@@ -9,6 +9,7 @@ use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
 use diffbelt_util_no_std::temporary_collection::hash_set::TemporaryRefHashSet;
 
 use crate::aggregate::context::HandlerContext;
+use crate::aggregate::limits::Limits;
 use crate::aggregate::state::{ProcessingState, State};
 use crate::aggregate::AggregateTransform;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
@@ -100,7 +101,10 @@ impl AggregateTransform {
             cursor_id: None,
             from_generation_id: diff.from_generation_id.clone(),
             to_generation_id: diff.to_generation_id.clone(),
-            current_limits: Default::default(),
+            current_limits: Limits {
+                pending_diffs_count: 1,
+                ..Default::default()
+            },
             target_keys: LruCache::unbounded(),
             updated_target_keys_temp_set: TemporaryRefHashSet::new(),
             chunk_id_counter: 0,
