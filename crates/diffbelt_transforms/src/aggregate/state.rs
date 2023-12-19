@@ -4,12 +4,13 @@ use std::rc::Rc;
 use enum_as_inner::EnumAsInner;
 use lru::LruCache;
 
-use diffbelt_protos::{Serializer, WIPOffset};
 use diffbelt_protos::protos::transform::aggregate::{AggregateReduceInput, AggregateReduceItem};
+use diffbelt_protos::{Serializer, WIPOffset};
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
-use diffbelt_util_no_std::temporary_collection::hash_set::TemporaryRefHashSet;
+use diffbelt_util_no_std::temporary_collection::immutable::hash_set::TemporaryRefHashSet;
+use diffbelt_util_no_std::temporary_collection::mutable::vec::TemporaryMutRefVec;
 
 use crate::aggregate::context::HandlerContext;
 use crate::aggregate::limits::Limits;
@@ -26,6 +27,8 @@ pub struct AggregateTransform {
     pub(super) action_input_handlers: TransformInputs<Self, HandlerContext>,
     pub(super) max_limits: Limits,
     pub(super) supports_accumulator_merge: bool,
+    pub(super) updated_target_keys_temp_set: TemporaryRefHashSet<[u8]>,
+    pub(super) apply_target_keys_temp_vec: TemporaryMutRefVec<Target>,
     pub(super) free_map_eval_action_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_map_eval_input_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_target_info_action_buffers: BuffersPool<Vec<u8>>,
@@ -52,8 +55,7 @@ pub struct ProcessingState {
     pub from_generation_id: EncodedGenerationIdJsonData,
     pub to_generation_id: EncodedGenerationIdJsonData,
     pub current_limits: Limits,
-    pub target_keys: LruCache<Rc<[u8]>, TargetKeyData>,
-    pub updated_target_keys_temp_set: TemporaryRefHashSet<[u8]>,
+    pub target_keys: LruCache<Rc<[u8]>, Target>,
     pub chunk_id_counter: u64,
 }
 
@@ -95,11 +97,22 @@ pub enum TargetKeyChunk {
     Merging(TargetKeyMergingChunk),
 }
 
+#[derive(Debug, EnumAsInner)]
+pub enum Target {
+    Processing(TargetKeyData),
+    Applying(TargetKeyApplying),
+}
+
 #[derive(Debug)]
 pub struct TargetKeyData {
     pub target_info_id: Option<TargetInfoId>,
     pub chunks: VecDeque<TargetKeyChunk>,
     pub is_target_info_pending: bool,
+}
+
+#[derive(Debug)]
+pub struct TargetKeyApplying {
+    //
 }
 
 impl State {

@@ -3,7 +3,7 @@ use core::marker::PhantomData;
 use core::mem;
 use core::mem::ManuallyDrop;
 
-use crate::temporary_collection::{TemporaryRefCollection, TemporaryRefCollectionType};
+use crate::temporary_collection::immutable::{TemporaryRefCollection, TemporaryRefCollectionType};
 
 pub struct RefVec<T: ?Sized> {
     phantom: PhantomData<T>,

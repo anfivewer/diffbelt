@@ -3,7 +3,7 @@ use core::mem;
 
 use hashbrown::HashSet;
 
-use crate::temporary_collection::{TemporaryRefCollection, TemporaryRefCollectionType};
+use crate::temporary_collection::immutable::{TemporaryRefCollection, TemporaryRefCollectionType};
 
 pub struct RefHashSet<T: ?Sized> {
     phantom: PhantomData<T>,

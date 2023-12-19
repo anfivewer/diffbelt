@@ -4,26 +4,26 @@ use std::mem;
 use std::ops::DerefMut;
 use std::rc::Rc;
 
+use diffbelt_protos::{Serializer, WIPOffset};
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateReduceInput, AggregateReduceInputArgs, AggregateReduceItem, AggregateReduceItemArgs,
 };
-use diffbelt_protos::{Serializer, WIPOffset};
 use diffbelt_types::collection::get_record::GetRequestJsonData;
 use diffbelt_types::common::key_value::EncodedKeyJsonData;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
 
+use crate::aggregate::AggregateTransform;
 use crate::aggregate::context::{HandlerContext, MapContext, ReducingContext, TargetRecordContext};
 use crate::aggregate::limits::Limits;
 use crate::aggregate::state::{
-    ProcessingState, TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyData,
+    Target, TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyData,
     TargetKeyReducingChunk,
 };
-use crate::aggregate::AggregateTransform;
+use crate::base::action::ActionType;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{
     AggregateInitialAccumulatorEvalAction, AggregateReduceEvalAction, FunctionEvalAction,
 };
-use crate::base::action::ActionType;
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::common::target_info::TargetInfoId;
 use crate::base::error::TransformError;
@@ -57,7 +57,7 @@ impl AggregateTransform {
 
         let mut prev_key_target: Option<(&[u8], &mut TargetKeyData)> = None;
 
-        let mut updated_keys_temp = state.updated_target_keys_temp_set.temp();
+        let mut updated_keys_temp = self.updated_target_keys_temp_set.temp();
         let updated_keys = updated_keys_temp.as_mut();
 
         for item in map_items {
@@ -76,20 +76,24 @@ impl AggregateTransform {
 
                 let target = state.target_keys.get_mut(target_key);
                 let target = if let Some(target) = target {
-                    target
+                    // target.as_processing_mut()
+                    //     .expect("TODO")
+                    todo!("handle applied case")
                 } else {
                     state.target_keys.push(
                         Rc::from(target_key),
-                        TargetKeyData {
+                        Target::Processing(TargetKeyData {
                             target_info_id: None,
                             chunks: VecDeque::with_capacity(1),
                             is_target_info_pending: false,
-                        },
+                        }),
                     );
                     state
                         .target_keys
                         .get_mut(target_key)
                         .expect("should be inserted")
+                        .as_processing_mut()
+                        .expect("just created")
                 };
 
                 prev_key_target = Some((target_key, target));
@@ -176,6 +180,8 @@ impl AggregateTransform {
             let target = state
                 .target_keys
                 .get_mut(target_key)
+                .expect("should be present")
+                .as_processing_mut()
                 .expect("should be present");
 
             assert!(

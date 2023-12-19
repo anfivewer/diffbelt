@@ -23,7 +23,9 @@ impl AggregateTransform {
         let target = state
             .target_keys
             .get_mut(&target_key_rc)
-            .expect("target cannot be removed while there is pending get target record");
+            .expect("target cannot be removed while there is pending get target record")
+            .as_processing_mut()
+            .expect("target cannot be applied while there is pending target info");
 
         assert!(
             target.is_target_info_pending,

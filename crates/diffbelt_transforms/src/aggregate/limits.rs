@@ -7,6 +7,7 @@ pub struct Limits {
     pub has_more_diffs: bool,
     pub pending_eval_map_bytes: usize,
     pub target_data_bytes: usize,
+    pub eval_apply_threshold: usize,
 }
 
 impl Default for Limits {
@@ -17,20 +18,28 @@ impl Default for Limits {
             has_more_diffs: true,
             pending_diffs_count: 0,
             pending_reduces_count: 0,
+            eval_apply_threshold: 0,
         }
     }
 }
 
 impl AggregateTransform {
+    #[inline(always)]
     pub fn can_request_diff(max_limits: &Limits, current_limits: &Limits) -> bool {
         current_limits.pending_eval_map_bytes < max_limits.pending_eval_map_bytes
             && current_limits.target_data_bytes <= max_limits.target_data_bytes
     }
 
+    #[inline(always)]
     pub fn can_eval_apply(max_limits: &Limits, current_limits: &Limits) -> bool {
-        current_limits.target_data_bytes > max_limits.target_data_bytes
+        Self::need_eval_apply(max_limits, current_limits)
             || (!current_limits.has_more_diffs
                 && current_limits.pending_diffs_count == 0
                 && current_limits.pending_reduces_count == 0)
+    }
+
+    #[inline(always)]
+    pub fn need_eval_apply(max_limits: &Limits, current_limits: &Limits) -> bool {
+        current_limits.target_data_bytes > max_limits.target_data_bytes
     }
 }

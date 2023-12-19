@@ -25,7 +25,9 @@ impl AggregateTransform {
         let target = state
             .target_keys
             .get_mut(&target_key_rc)
-            .expect("target key should exist if merging in progress");
+            .expect("target key should exist if merging in progress")
+            .as_processing_mut()
+            .expect("target cannot be applied while merging in progress");
 
         let target_info_id = target
             .target_info_id
@@ -73,7 +75,13 @@ impl AggregateTransform {
         );
 
         if need_try_apply {
-            () = Self::try_apply(&mut actions, &self.max_limits, &state.current_limits);
+            () = Self::try_apply(
+                &mut actions,
+                &self.max_limits,
+                &state.current_limits,
+                &mut state.target_keys,
+                &mut self.apply_target_keys_temp_vec,
+            );
         }
 
         if actions.is_empty() {

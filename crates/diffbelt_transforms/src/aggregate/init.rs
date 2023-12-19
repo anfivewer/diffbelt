@@ -6,7 +6,7 @@ use lru::LruCache;
 
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
-use diffbelt_util_no_std::temporary_collection::hash_set::TemporaryRefHashSet;
+use diffbelt_util_no_std::temporary_collection::immutable::hash_set::TemporaryRefHashSet;
 
 use crate::aggregate::context::HandlerContext;
 use crate::aggregate::limits::Limits;
@@ -106,7 +106,6 @@ impl AggregateTransform {
                 ..Default::default()
             },
             target_keys: LruCache::unbounded(),
-            updated_target_keys_temp_set: TemporaryRefHashSet::new(),
             chunk_id_counter: 0,
         };
 

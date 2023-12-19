@@ -1,9 +1,7 @@
-use crate::aggregate::AggregateTransform;
 use crate::aggregate::context::{HandlerContext, ReducingContext};
 use crate::aggregate::on_map_received::reduce_target_chunk;
-use crate::aggregate::state::{
-    TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyReducedChunk,
-};
+use crate::aggregate::state::{TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyReducedChunk};
+use crate::aggregate::AggregateTransform;
 use crate::base::error::TransformError;
 use crate::base::input::function_eval::AggregateReduceEvalInput;
 use crate::transform::{ActionInputHandlerResult, HandlerResult};
@@ -39,7 +37,9 @@ impl AggregateTransform {
         let target = state
             .target_keys
             .get_mut(&target_key_rc)
-            .expect("target key should exist if reducing in progress");
+            .expect("target key should exist if reducing in progress")
+            .as_processing_mut()
+            .expect("target cannot be applied while there is pending reduce");
 
         let target_info_id = target
             .target_info_id
@@ -100,7 +100,13 @@ impl AggregateTransform {
             let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
             if reduce_input_items.is_empty() {
-                () = Self::try_apply(&mut actions, &self.max_limits, &state.current_limits);
+                () = Self::try_apply(
+                    &mut actions,
+                    &self.max_limits,
+                    &state.current_limits,
+                    &mut state.target_keys,
+                    &mut self.apply_target_keys_temp_vec,
+                );
 
                 if actions.is_empty() {
                     self.action_input_handlers

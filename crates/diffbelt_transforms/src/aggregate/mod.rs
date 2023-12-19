@@ -1,8 +1,13 @@
+use diffbelt_util_no_std::buffers_pool::BuffersPool;
+use diffbelt_util_no_std::temporary_collection::immutable::hash_set::TemporaryRefHashSet;
+use diffbelt_util_no_std::temporary_collection::mutable::vec::TemporaryMutRefVec;
+pub use state::AggregateTransform;
+
 use crate::aggregate::context::HandlerContext;
 use crate::aggregate::limits::Limits;
-use diffbelt_util_no_std::buffers_pool::BuffersPool;
-
 use crate::aggregate::state::State;
+use crate::base::action::Action;
+use crate::base::common::accumulator::AccumulatorId;
 use crate::base::error::TransformError;
 use crate::base::input::Input;
 use crate::transform::{TransformInputs, WithTransformInputs};
@@ -24,10 +29,6 @@ mod on_target_info_received;
 mod on_target_record_received;
 mod read_diff_cursor;
 mod state;
-
-use crate::base::action::Action;
-use crate::base::common::accumulator::AccumulatorId;
-pub use state::AggregateTransform;
 
 impl WithTransformInputs<HandlerContext> for AggregateTransform {
     fn transform_inputs_mut(&mut self) -> &mut TransformInputs<Self, HandlerContext> {
@@ -56,6 +57,8 @@ impl AggregateTransform {
                 ..Default::default()
             },
             supports_accumulator_merge,
+            updated_target_keys_temp_set: TemporaryRefHashSet::new(),
+            apply_target_keys_temp_vec: TemporaryMutRefVec::new(),
             free_map_eval_action_buffers: BuffersPool::with_capacity(4),
             free_map_eval_input_buffers: BuffersPool::with_capacity(4),
             free_target_info_action_buffers: BuffersPool::with_capacity(4),
