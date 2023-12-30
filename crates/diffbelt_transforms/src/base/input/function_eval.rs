@@ -1,8 +1,10 @@
-use diffbelt_protos::OwnedSerialized;
-use diffbelt_protos::protos::transform::aggregate::AggregateMapMultiOutput;
-use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::common::target_info::TargetInfoId;
+use diffbelt_protos::protos::transform::aggregate::{
+    AggregateApplyOutput, AggregateMapMultiOutput,
+};
+use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
+use diffbelt_protos::OwnedSerialized;
 
 #[derive(Debug)]
 pub struct FunctionEvalInput<T> {
@@ -17,6 +19,7 @@ pub enum FunctionEvalInputBody {
     AggregateInitialAccumulator(AggregateInitialAccumulatorEvalInput),
     AggregateReduce(AggregateReduceEvalInput),
     AggregateMerge(AggregateMergeEvalInput),
+    AggregateApply(AggregateApplyEvalInput),
 }
 
 #[derive(Debug)]
@@ -42,19 +45,19 @@ pub struct AggregateMapEvalInput {
 #[derive(Debug)]
 pub struct AggregateTargetInfoEvalInput {
     pub target_info_id: TargetInfoId,
-    pub target_info_data_bytes: usize,
+    pub target_info_data_bytes: u64,
 }
 
 #[derive(Debug)]
 pub struct AggregateInitialAccumulatorEvalInput {
     pub accumulator_id: AccumulatorId,
-    pub accumulator_data_bytes: usize,
+    pub accumulator_data_bytes: u64,
 }
 
 #[derive(Debug)]
 pub struct AggregateReduceEvalInput {
     pub accumulator_id: AccumulatorId,
-    pub accumulator_data_bytes: usize,
+    pub accumulator_data_bytes: u64,
     /// returned back `input` buffer from [`crate::base::action::function_eval::AggregateReduceEvalAction`]
     pub action_input_buffer: Vec<u8>,
 }
@@ -62,5 +65,10 @@ pub struct AggregateReduceEvalInput {
 #[derive(Debug)]
 pub struct AggregateMergeEvalInput {
     pub accumulator_id: AccumulatorId,
-    pub accumulator_data_bytes: usize,
+    pub accumulator_data_bytes: u64,
+}
+
+#[derive(Debug)]
+pub struct AggregateApplyEvalInput {
+    pub input: OwnedSerialized<'static, AggregateApplyOutput<'static>>,
 }

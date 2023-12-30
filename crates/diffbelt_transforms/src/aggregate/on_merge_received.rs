@@ -22,6 +22,8 @@ impl AggregateTransform {
             accumulator_data_bytes,
         } = input;
 
+        state.current_limits.pending_merges_count -= 1;
+
         let target = state
             .target_keys
             .get_mut(&target_key_rc)
@@ -56,6 +58,7 @@ impl AggregateTransform {
 
         Self::try_merge_chunks(
             &mut self.free_merge_accumulator_ids_vecs,
+            &mut state.current_limits,
             &mut state.chunk_id_counter,
             &mut actions,
             target_key_rc,
@@ -77,10 +80,12 @@ impl AggregateTransform {
         if need_try_apply {
             () = Self::try_apply(
                 &mut actions,
+                &mut state.chunk_id_counter,
                 &self.max_limits,
-                &state.current_limits,
+                &mut state.current_limits,
                 &mut state.target_keys,
                 &mut self.apply_target_keys_temp_vec,
+                &mut self.free_apply_eval_buffers,
             );
         }
 

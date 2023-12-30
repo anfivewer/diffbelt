@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::mem;
 use std::ops::Deref;
 
@@ -107,6 +108,7 @@ impl AggregateTransform {
             },
             target_keys: LruCache::unbounded(),
             chunk_id_counter: 0,
+            apply_puts: HashMap::new(),
         };
 
         self.state = State::Processing(state);

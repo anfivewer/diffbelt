@@ -1,5 +1,5 @@
 #[inline(always)]
-#[cfg(target_pointer_width = "64")]
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
 pub fn usize_to_u64(value: usize) -> u64 {
     value as u64
 }

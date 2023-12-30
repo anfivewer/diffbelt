@@ -1,6 +1,7 @@
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
 use diffbelt_util_no_std::temporary_collection::immutable::hash_set::TemporaryRefHashSet;
 use diffbelt_util_no_std::temporary_collection::mutable::vec::TemporaryMutRefVec;
+use diffbelt_util_no_std::temporary_collection::vec::TemporaryVec;
 pub use state::AggregateTransform;
 
 use crate::aggregate::context::HandlerContext;
@@ -20,6 +21,7 @@ mod debug_print;
 mod init;
 mod limits;
 mod merge;
+mod on_apply_received;
 mod on_diff_received;
 mod on_initial_accumulator_received;
 mod on_map_received;
@@ -36,7 +38,7 @@ impl WithTransformInputs<HandlerContext> for AggregateTransform {
     }
 }
 
-const MB_64: usize = 64 * 1024 * 1024;
+const MB: u64 = 1024 * 1024;
 
 impl AggregateTransform {
     pub fn new(
@@ -52,17 +54,19 @@ impl AggregateTransform {
             state: State::Uninitialized,
             action_input_handlers: TransformInputs::new(),
             max_limits: Limits {
-                pending_eval_map_bytes: MB_64,
-                target_data_bytes: 2 * MB_64,
+                pending_eval_map_bytes: 64 * MB,
+                target_data_bytes: 128 * MB,
+                pending_applying_bytes: 16 * MB,
                 ..Default::default()
             },
             supports_accumulator_merge,
             updated_target_keys_temp_set: TemporaryRefHashSet::new(),
-            apply_target_keys_temp_vec: TemporaryMutRefVec::new(),
+            apply_target_keys_temp_vec: TemporaryVec::new(),
             free_map_eval_action_buffers: BuffersPool::with_capacity(4),
             free_map_eval_input_buffers: BuffersPool::with_capacity(4),
             free_target_info_action_buffers: BuffersPool::with_capacity(4),
             free_reduce_eval_action_buffers: BuffersPool::with_capacity(4),
+            free_apply_eval_buffers: BuffersPool::with_capacity(4),
             free_serializer_reduce_input_items_buffers: BuffersPool::with_capacity(4),
             free_merge_accumulator_ids_vecs: BuffersPool::with_capacity(4),
         }

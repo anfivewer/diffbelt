@@ -8,6 +8,7 @@ use crate::aggregate::state::{
     ProcessingState, TargetKeyChunk, TargetKeyData, TargetKeyMergingChunk,
 };
 use crate::aggregate::AggregateTransform;
+use crate::aggregate::limits::Limits;
 use crate::base::action::function_eval::{AggregateMergeEvalAction, FunctionEvalAction};
 use crate::base::action::ActionType;
 use crate::base::common::accumulator::AccumulatorId;
@@ -19,6 +20,7 @@ use crate::transform::ActionInputHandlerActionsVec;
 impl AggregateTransform {
     pub fn try_merge_chunks(
         free_merge_accumulator_ids_vecs: &mut BuffersPool<Vec<AccumulatorId>>,
+        current_limits: &mut Limits,
         chunk_id_counter: &mut u64,
         actions: &mut ActionInputHandlerActionsVec<Self, HandlerContext>,
         target_key_rc: Rc<[u8]>,
@@ -115,6 +117,8 @@ impl AggregateTransform {
         while is_back_tombstone(&mut target.chunks) {
             target.chunks.pop_back();
         }
+
+        current_limits.pending_merges_count += 1;
 
         actions.push((
             ActionType::FunctionEval(FunctionEvalAction::AggregateMerge(

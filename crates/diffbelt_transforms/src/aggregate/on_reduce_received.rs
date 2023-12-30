@@ -102,10 +102,12 @@ impl AggregateTransform {
             if reduce_input_items.is_empty() {
                 () = Self::try_apply(
                     &mut actions,
+                    &mut state.chunk_id_counter,
                     &self.max_limits,
-                    &state.current_limits,
+                    &mut state.current_limits,
                     &mut state.target_keys,
                     &mut self.apply_target_keys_temp_vec,
+                    &mut self.free_apply_eval_buffers,
                 );
 
                 if actions.is_empty() {
@@ -143,6 +145,7 @@ impl AggregateTransform {
 
         Self::try_merge_chunks(
             &mut self.free_merge_accumulator_ids_vecs,
+            &mut state.current_limits,
             &mut state.chunk_id_counter,
             &mut actions,
             target_key_rc,

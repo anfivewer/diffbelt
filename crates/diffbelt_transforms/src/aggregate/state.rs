@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
 use enum_as_inner::EnumAsInner;
@@ -11,6 +11,7 @@ use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
 use diffbelt_util_no_std::temporary_collection::immutable::hash_set::TemporaryRefHashSet;
 use diffbelt_util_no_std::temporary_collection::mutable::vec::TemporaryMutRefVec;
+use diffbelt_util_no_std::temporary_collection::vec::{TemporaryVec, TempVecType};
 
 use crate::aggregate::context::HandlerContext;
 use crate::aggregate::limits::Limits;
@@ -28,14 +29,20 @@ pub struct AggregateTransform {
     pub(super) max_limits: Limits,
     pub(super) supports_accumulator_merge: bool,
     pub(super) updated_target_keys_temp_set: TemporaryRefHashSet<[u8]>,
-    pub(super) apply_target_keys_temp_vec: TemporaryMutRefVec<Target>,
+    pub(super) apply_target_keys_temp_vec: TemporaryVec<TargetKvTemp>,
     pub(super) free_map_eval_action_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_map_eval_input_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_target_info_action_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_reduce_eval_action_buffers: BuffersPool<Vec<u8>>,
+    pub(super) free_apply_eval_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_serializer_reduce_input_items_buffers:
         BuffersPool<Vec<WIPOffset<AggregateReduceItem<'static>>>>,
     pub(super) free_merge_accumulator_ids_vecs: BuffersPool<Vec<AccumulatorId>>,
+}
+
+pub struct TargetKvTemp;
+impl TempVecType for TargetKvTemp {
+    type Item<'a> = ((Rc<[u8]>, &'a mut Target));
 }
 
 #[derive(Debug)]
@@ -57,12 +64,13 @@ pub struct ProcessingState {
     pub current_limits: Limits,
     pub target_keys: LruCache<Rc<[u8]>, Target>,
     pub chunk_id_counter: u64,
+    pub apply_puts: HashMap<Rc<[u8]>, Option<Box<[u8]>>>,
 }
 
 #[derive(Debug)]
 pub struct TargetKeyCollectingChunk {
     pub accumulator_id: Option<AccumulatorId>,
-    pub accumulator_data_bytes: usize,
+    pub accumulator_data_bytes: u64,
     pub is_accumulator_pending: bool,
     pub is_reducing: bool,
     pub reduce_input: Serializer<'static, AggregateReduceInput<'static>>,
@@ -71,6 +79,7 @@ pub struct TargetKeyCollectingChunk {
 
 pub type TargetKeyReducingChunkId = u64;
 pub type TargetKeyMergingChunkId = u64;
+pub type TargetKeyApplyId = u64;
 
 #[derive(Debug)]
 pub struct TargetKeyReducingChunk {
@@ -80,7 +89,7 @@ pub struct TargetKeyReducingChunk {
 #[derive(Debug)]
 pub struct TargetKeyReducedChunk {
     pub accumulator_id: AccumulatorId,
-    pub accumulator_data_bytes: usize,
+    pub accumulator_data_bytes: u64,
 }
 
 #[derive(Debug)]
@@ -106,13 +115,17 @@ pub enum Target {
 #[derive(Debug)]
 pub struct TargetKeyData {
     pub target_info_id: Option<TargetInfoId>,
+    pub target_info_data_bytes: u64,
     pub chunks: VecDeque<TargetKeyChunk>,
     pub is_target_info_pending: bool,
 }
 
 #[derive(Debug)]
 pub struct TargetKeyApplying {
-    //
+    // TODO: measure how frequently this vector is not zero
+    /// Values that was received while this key was applied
+    pub mapped_values: Vec<Option<Box<[u8]>>>,
+    pub is_got_value: bool,
 }
 
 impl State {

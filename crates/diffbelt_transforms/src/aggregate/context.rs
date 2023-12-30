@@ -12,11 +12,12 @@ pub enum HandlerContext {
     TargetRecord(TargetRecordContext),
     Reducing(ReducingContext),
     Merging(MergingContext),
+    Applying(ApplyingContext),
 }
 
 #[derive(Debug)]
 pub struct MapContext {
-    pub bytes_to_free: usize,
+    pub bytes_to_free: u64,
 }
 
 #[derive(Debug)]
@@ -28,15 +29,21 @@ pub struct TargetRecordContext {
 pub struct ReducingContext {
     pub target_key: Rc<[u8]>,
     pub chunk_id: TargetKeyReducingChunkId,
-    pub prev_accumulator_data_bytes: usize,
-    pub transferring_target_data_bytes: usize,
+    pub prev_accumulator_data_bytes: u64,
+    pub transferring_target_data_bytes: u64,
 }
 
 #[derive(Debug)]
 pub struct MergingContext {
     pub target_key_rc: Rc<[u8]>,
     pub chunk_id: TargetKeyMergingChunkId,
-    pub accumulators_total_data_bytes: usize,
+    pub accumulators_total_data_bytes: u64,
+}
+
+#[derive(Debug)]
+pub struct ApplyingContext {
+    pub target_key: Rc<[u8]>,
+    pub applying_bytes: u64,
 }
 
 pub trait HandlerContextMapError<T> {

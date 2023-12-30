@@ -4,26 +4,28 @@ use std::mem;
 use std::ops::DerefMut;
 use std::rc::Rc;
 
-use diffbelt_protos::{Serializer, WIPOffset};
 use diffbelt_protos::protos::transform::aggregate::{
-    AggregateReduceInput, AggregateReduceInputArgs, AggregateReduceItem, AggregateReduceItemArgs,
+    AggregateMapOutput, AggregateReduceInput, AggregateReduceInputArgs, AggregateReduceItem,
+    AggregateReduceItemArgs,
 };
+use diffbelt_protos::{Serializer, WIPOffset};
 use diffbelt_types::collection::get_record::GetRequestJsonData;
 use diffbelt_types::common::key_value::EncodedKeyJsonData;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
+use diffbelt_util_no_std::cast::usize_to_u64;
 
-use crate::aggregate::AggregateTransform;
 use crate::aggregate::context::{HandlerContext, MapContext, ReducingContext, TargetRecordContext};
 use crate::aggregate::limits::Limits;
 use crate::aggregate::state::{
-    Target, TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyData,
+    Target, TargetKeyApplying, TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyData,
     TargetKeyReducingChunk,
 };
-use crate::base::action::ActionType;
+use crate::aggregate::AggregateTransform;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{
     AggregateInitialAccumulatorEvalAction, AggregateReduceEvalAction, FunctionEvalAction,
 };
+use crate::base::action::ActionType;
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::common::target_info::TargetInfoId;
 use crate::base::error::TransformError;
@@ -55,35 +57,56 @@ impl AggregateTransform {
         let map_output = input.data();
         let map_items = map_output.items().unwrap_or_default();
 
-        let mut prev_key_target: Option<(&[u8], &mut TargetKeyData)> = None;
+        let mut prev_key_target: Option<(&[u8], &mut Target)> = None;
 
         let mut updated_keys_temp = self.updated_target_keys_temp_set.temp();
         let updated_keys = updated_keys_temp.as_mut();
 
-        for item in map_items {
+        'items: for item in map_items {
             let target_key = item
                 .target_key()
                 .ok_or_else(|| TransformError::Unspecified("target_key is None".to_string()))?
                 .bytes();
-            let mapped_value = item.mapped_value();
+
+            fn handle_applying(applying: &mut TargetKeyApplying, item: AggregateMapOutput) {
+                let value = item
+                    .mapped_value()
+                    .map(|value| Box::<[u8]>::from(value.bytes()));
+
+                applying.mapped_values.push(value);
+            }
 
             let target: &mut TargetKeyData = 'get_target: {
                 if let Some((prev_target_key, target)) = &mut prev_key_target {
                     if *prev_target_key == target_key {
-                        break 'get_target target.deref_mut();
+                        match target {
+                            Target::Processing(processing) => {
+                                break 'get_target processing;
+                            }
+                            Target::Applying(applying) => {
+                                handle_applying(applying, item);
+                                continue 'items;
+                            }
+                        }
                     }
                 }
 
                 let target = state.target_keys.get_mut(target_key);
                 let target = if let Some(target) = target {
-                    // target.as_processing_mut()
-                    //     .expect("TODO")
-                    todo!("handle applied case")
+                    match target {
+                        Target::Processing(_) => target,
+                        Target::Applying(applying) => {
+                            handle_applying(applying, item);
+                            prev_key_target = Some((target_key, target));
+                            continue 'items;
+                        }
+                    }
                 } else {
                     state.target_keys.push(
                         Rc::from(target_key),
                         Target::Processing(TargetKeyData {
                             target_info_id: None,
+                            target_info_data_bytes: 0,
                             chunks: VecDeque::with_capacity(1),
                             is_target_info_pending: false,
                         }),
@@ -92,8 +115,6 @@ impl AggregateTransform {
                         .target_keys
                         .get_mut(target_key)
                         .expect("should be inserted")
-                        .as_processing_mut()
-                        .expect("just created")
                 };
 
                 prev_key_target = Some((target_key, target));
@@ -101,7 +122,9 @@ impl AggregateTransform {
                     panic!()
                 };
 
-                target.deref_mut()
+                let processing = target.as_processing_mut().expect("should be processing");
+
+                processing
             };
 
             let mut should_add_to_updated_keys = !target.is_target_info_pending;
@@ -131,7 +154,7 @@ impl AggregateTransform {
                 let reduce_input =
                     Serializer::from_vec(self.free_reduce_eval_action_buffers.take());
 
-                state.current_limits.target_data_bytes += reduce_input.buffer_len();
+                state.current_limits.target_data_bytes += usize_to_u64(reduce_input.buffer_len());
 
                 let chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
                     accumulator_id: None,
@@ -150,8 +173,10 @@ impl AggregateTransform {
                 updated_keys.insert(target_key);
             }
 
-            state.current_limits.target_data_bytes -= last_chunk.reduce_input.buffer_len();
+            state.current_limits.target_data_bytes -=
+                usize_to_u64(last_chunk.reduce_input.buffer_len());
 
+            let mapped_value = item.mapped_value();
             let mapped_value =
                 mapped_value.map(|x| last_chunk.reduce_input.create_vector(x.bytes()));
 
@@ -162,7 +187,8 @@ impl AggregateTransform {
 
             last_chunk.reduce_input_items.push(item);
 
-            state.current_limits.target_data_bytes += last_chunk.reduce_input.buffer_len();
+            state.current_limits.target_data_bytes +=
+                usize_to_u64(last_chunk.reduce_input.buffer_len());
             //endregion
         }
 
@@ -324,7 +350,7 @@ pub fn reduce_target_chunk(
         let buffer = free_reduce_eval_action_buffers.take();
         let reduce_input = Serializer::from_vec(buffer);
 
-        current_limits.target_data_bytes += reduce_input.buffer_len();
+        current_limits.target_data_bytes += usize_to_u64(reduce_input.buffer_len());
 
         let new_chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
             accumulator_id: Some(accumulator_id),
@@ -350,7 +376,7 @@ pub fn reduce_target_chunk(
         .into_collecting()
         .expect("last chunk should be Collecting");
 
-    let transferring_target_data_bytes = reduce_input.buffer_len();
+    let transferring_target_data_bytes = usize_to_u64(reduce_input.buffer_len());
 
     let items = reduce_input.create_vector(&reduce_input_items);
     free_serializer_reduce_input_items_buffers.push(reduce_input_items);

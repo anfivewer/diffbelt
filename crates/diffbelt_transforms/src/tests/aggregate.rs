@@ -23,24 +23,24 @@ use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
 use diffbelt_types::common::key_value::{
     EncodedKeyJsonData, EncodedValueJsonData, KeyValueJsonData,
 };
-use diffbelt_util_no_std::cast::{u32_to_i64, u32_to_u64, u32_to_usize};
+use diffbelt_util_no_std::cast::{u32_to_i64, u32_to_u64, u32_to_usize, usize_to_u64};
 
 use crate::aggregate::AggregateTransform;
-use crate::base::action::{Action, ActionType};
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{
     AggregateInitialAccumulatorEvalAction, AggregateMapEvalAction, AggregateMergeEvalAction,
     AggregateReduceEvalAction, AggregateTargetInfoEvalAction, FunctionEvalAction,
 };
+use crate::base::action::{Action, ActionType};
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::common::target_info::TargetInfoId;
-use crate::base::input::{Input, InputType};
 use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
 use crate::base::input::function_eval::{
     AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput, AggregateMergeEvalInput,
     AggregateReduceEvalInput, AggregateTargetInfoEvalInput, FunctionEvalInput,
     FunctionEvalInputBody,
 };
+use crate::base::input::{Input, InputType};
 use crate::TransformRunResult;
 
 #[test]
@@ -494,7 +494,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                             target_info_counter += 1;
                             let target_info_id = target_info_counter;
 
-                            let target_info_data_bytes = target_info.as_bytes().len();
+                            let target_info_data_bytes = usize_to_u64(target_info.as_bytes().len());
                             target_infos.insert(target_info_id, target_info);
 
                             inputs.push(Input {

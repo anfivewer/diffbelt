@@ -38,6 +38,7 @@ impl AggregateTransform {
 
         target.is_target_info_pending = false;
         target.target_info_id = Some(target_info_id);
+        target.target_info_data_bytes = target_info_data_bytes;
         state.current_limits.target_data_bytes += target_info_data_bytes;
 
         assert_eq!(

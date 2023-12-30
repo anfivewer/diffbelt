@@ -1,10 +1,6 @@
 use crate::base::error::TransformError;
 use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
-use crate::base::input::function_eval::{
-    AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput, AggregateMergeEvalInput,
-    AggregateReduceEvalInput, AggregateTargetInfoEvalInput, FunctionEvalInput,
-    FunctionEvalInputBody, MapFilterEvalInput,
-};
+use crate::base::input::function_eval::{AggregateApplyEvalInput, AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput, AggregateMergeEvalInput, AggregateReduceEvalInput, AggregateTargetInfoEvalInput, FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput};
 use crate::base::input::InputType;
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use diffbelt_types::collection::get_record::GetResponseJsonData;
@@ -83,5 +79,10 @@ impl InputType {
         into_eval_aggregate_merge,
         AggregateMergeEvalInput,
         AggregateMerge
+    );
+    input_type_into_eval!(
+        into_eval_aggregate_apply,
+        AggregateApplyEvalInput,
+        AggregateApply
     );
 }

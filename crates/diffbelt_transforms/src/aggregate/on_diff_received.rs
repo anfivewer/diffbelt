@@ -14,6 +14,7 @@ use diffbelt_protos::protos::transform::aggregate::{
 use diffbelt_protos::Serializer;
 use diffbelt_types::collection::diff::{DiffCollectionResponseJsonData, KeyValueDiffJsonData};
 use diffbelt_util::option::lift_result_from_option;
+use diffbelt_util_no_std::cast::usize_to_u64;
 use diffbelt_util_no_std::either::left_if_some;
 use diffbelt_util_no_std::from_either::Either;
 use diffbelt_util_no_std::try_or_return_with_buffer_back;
@@ -99,7 +100,7 @@ impl AggregateTransform {
 
         let output_buffer = self.free_map_eval_input_buffers.take();
 
-        let input_bytes_len = input.as_bytes().len();
+        let input_bytes_len = usize_to_u64(input.as_bytes().len());
         state.current_limits.pending_eval_map_bytes += input_bytes_len;
 
         let mut actions = self.action_input_handlers.take_action_input_actions_vec();
