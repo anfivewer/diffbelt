@@ -63,7 +63,7 @@ impl AggregateTransform {
         state.apply_puts.insert(target_key, target_value);
 
         let needs_do_put = state.current_limits.pending_applying_bytes
-            >= state.current_limits.pending_applying_bytes
+            >= self.max_limits.pending_applying_bytes
             || state.current_limits.pending_applies_count == 0;
 
         if needs_do_put {

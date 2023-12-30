@@ -9,8 +9,8 @@ use rand_chacha::ChaCha8Rng;
 use regex::Regex;
 
 use diffbelt_protos::protos::transform::aggregate::{
-    AggregateMapMultiOutput, AggregateMapMultiOutputArgs, AggregateMapOutput,
-    AggregateMapOutputArgs,
+    AggregateApplyOutput, AggregateApplyOutputArgs, AggregateMapMultiOutput,
+    AggregateMapMultiOutputArgs, AggregateMapOutput, AggregateMapOutputArgs,
 };
 use diffbelt_protos::Serializer;
 use diffbelt_types::collection::diff::{
@@ -28,17 +28,18 @@ use diffbelt_util_no_std::cast::{u32_to_i64, u32_to_u64, u32_to_usize, usize_to_
 use crate::aggregate::AggregateTransform;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{
-    AggregateInitialAccumulatorEvalAction, AggregateMapEvalAction, AggregateMergeEvalAction,
-    AggregateReduceEvalAction, AggregateTargetInfoEvalAction, FunctionEvalAction,
+    AggregateApplyEvalAction, AggregateInitialAccumulatorEvalAction, AggregateMapEvalAction,
+    AggregateMergeEvalAction, AggregateReduceEvalAction, AggregateTargetInfoEvalAction,
+    FunctionEvalAction,
 };
 use crate::base::action::{Action, ActionType};
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::common::target_info::TargetInfoId;
 use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
 use crate::base::input::function_eval::{
-    AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput, AggregateMergeEvalInput,
-    AggregateReduceEvalInput, AggregateTargetInfoEvalInput, FunctionEvalInput,
-    FunctionEvalInputBody,
+    AggregateApplyEvalInput, AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput,
+    AggregateMergeEvalInput, AggregateReduceEvalInput, AggregateTargetInfoEvalInput,
+    FunctionEvalInput, FunctionEvalInputBody,
 };
 use crate::base::input::{Input, InputType};
 use crate::TransformRunResult;
@@ -624,6 +625,67 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                             accumulator_id: AccumulatorId(accumulator_id),
                                             accumulator_data_bytes: 64,
                                         },
+                                    ),
+                                }),
+                            });
+
+                            continue;
+                        }
+                        FunctionEvalAction::AggregateApply(action) => {
+                            let AggregateApplyEvalAction {
+                                target_info: target_info_id,
+                                accumulator,
+                                output_buffer,
+                            } = action;
+
+                            let target_info = target_infos
+                                .remove(&target_info_id.0)
+                                .expect("target info should be present");
+                            let AccumulatorData {
+                                target_info: accumulator_target_info_id,
+                                diff,
+                            } = accumulators
+                                .remove(&accumulator.0)
+                                .expect("accumulator should be present");
+
+                            assert_eq!(accumulator_target_info_id, target_info_id);
+
+                            let target = target_info.data();
+                            let old_target_value = target
+                                .target_old_value()
+                                .map(|value| {
+                                    let s = from_utf8(value.bytes()).expect("not valid utf8");
+                                    let n = s.parse::<u64>().expect("not valid u64");
+
+                                    n
+                                })
+                                .unwrap_or(0);
+
+                            let new_target_value = old_target_value
+                                .checked_add_signed(diff)
+                                .expect("should not overflow");
+
+                            let new_target_value = new_target_value.to_string();
+
+                            let mut serializer =
+                                Serializer::<AggregateApplyOutput>::from_vec(output_buffer);
+
+                            let target_value =
+                                serializer.create_vector(new_target_value.as_bytes());
+
+                            let root = AggregateApplyOutput::create(
+                                serializer.buffer_builder(),
+                                &AggregateApplyOutputArgs {
+                                    target_value: Some(target_value),
+                                },
+                            );
+                            let input = serializer.finish(root).into_owned();
+
+                            inputs.push(Input {
+                                id: action_id,
+                                input: InputType::FunctionEval(FunctionEvalInput {
+                                    body: FunctionEvalInputBody::AggregateApply(
+                                        AggregateApplyEvalInput { input },
                                     ),
                                 }),
                             });
