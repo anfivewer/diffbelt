@@ -1,6 +1,8 @@
 use std::cmp::max;
 use std::collections::HashMap;
+use std::io::Read;
 use std::mem;
+use std::ops::Deref;
 use std::str::from_utf8;
 
 use lazy_static::lazy_static;
@@ -19,10 +21,12 @@ use diffbelt_types::collection::diff::{
 };
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
 use diffbelt_types::collection::get_record::{GetRequestJsonData, GetResponseJsonData};
+use diffbelt_types::collection::put_many::{PutManyRequestJsonData, PutManyResponseJsonData};
 use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
 use diffbelt_types::common::key_value::{
     EncodedKeyJsonData, EncodedValueJsonData, KeyValueJsonData,
 };
+use diffbelt_types::common::key_value_update::KeyValueUpdateJsonData;
 use diffbelt_util_no_std::cast::{u32_to_i64, u32_to_u64, u32_to_usize, usize_to_u64};
 
 use crate::aggregate::AggregateTransform;
@@ -76,7 +80,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
     } = params;
 
     let mut source_items = Vec::with_capacity(source_items_count);
-    let target_items = target_items_from_source(&source_items);
+    let mut target_items = target_items_from_source(&source_items);
     let initial_target_items = target_items.clone();
 
     for _ in 0..source_items_count {
@@ -386,6 +390,78 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                         String::from("second"),
                                     ),
                                     item,
+                                }),
+                            }),
+                        });
+
+                        continue;
+                    }
+
+                    if &path == "/collections/target/putMany" {
+                        assert_eq!(method, Method::Post);
+                        assert!(query.is_empty());
+
+                        let body = body.into_put_many().expect("should be putMany");
+                        let PutManyRequestJsonData {
+                            items,
+                            generation_id,
+                            phantom_id,
+                        } = body;
+
+                        let generation_id = generation_id.expect("should be present");
+
+                        assert_eq!(
+                            generation_id
+                                .into_bytes()
+                                .expect("invalid encoding")
+                                .deref(),
+                            "second".as_bytes()
+                        );
+                        assert!(phantom_id.is_none());
+
+                        assert_eq!(items.len(), 1);
+                        let record = items.into_iter().next().expect("checked");
+
+                        let KeyValueUpdateJsonData {
+                            key,
+                            if_not_present,
+                            value,
+                        } = record;
+
+                        assert!(if_not_present.is_none());
+
+                        let key = {
+                            let bytes = key.into_bytes().expect("invalid encoding");
+                            let s = from_utf8(&bytes).expect("not valid utf8");
+                            let n = s.parse::<u32>().expect("not valid u32");
+                            n
+                        };
+                        let value = match value {
+                            None => None,
+                            Some(value) => {
+                                let bytes = value.into_bytes().expect("invalid encoding");
+                                let s = from_utf8(&bytes).expect("not valid utf8");
+                                let n = s.parse::<u64>().expect("not valid u64");
+                                Some(n)
+                            }
+                        };
+
+                        match value {
+                            None => {
+                                target_items.remove(&key);
+                            }
+                            Some(value) => {
+                                target_items.insert(key, value);
+                            }
+                        }
+
+                        inputs.push(Input {
+                            id: action_id,
+                            input: InputType::DiffbeltCall(DiffbeltCallInput {
+                                body: DiffbeltResponseBody::PutMany(PutManyResponseJsonData {
+                                    generation_id: EncodedGenerationIdJsonData::new_str(
+                                        "second".to_string(),
+                                    ),
                                 }),
                             }),
                         });
