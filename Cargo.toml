@@ -16,7 +16,11 @@ members = [
 	"crates/diffbelt_callstack",
 
 	"crates/diffbelt_example_protos",
-	"crates/diffbelt_example_wasm",
+	# Cannot be included yet, we need force target
+	# "crates/diffbelt_example_wasm",
 
 	"crates/diffbelt_yaml",
+]
+exclude = [
+	"crates/diffbelt_example_wasm",
 ]

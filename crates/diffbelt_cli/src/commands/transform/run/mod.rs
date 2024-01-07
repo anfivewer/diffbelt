@@ -196,6 +196,18 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                             FunctionEvalAction::AggregateInitialAccumulator(_) => {
                                 todo!()
                             }
+                            FunctionEvalAction::AggregateTargetInfo(_) => {
+                                todo!()
+                            }
+                            FunctionEvalAction::AggregateReduce(_) => {
+                                todo!()
+                            }
+                            FunctionEvalAction::AggregateMerge(_) => {
+                                todo!()
+                            }
+                            FunctionEvalAction::AggregateApply(_) => {
+                                todo!()
+                            }
                         },
                     }
                 }
