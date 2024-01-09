@@ -52,23 +52,34 @@ use crate::base::input::{Input, InputType};
 use crate::TransformRunResult;
 
 #[test]
-fn aggregate_test() {
+fn aggregate_small_test() {
     run_aggregate_test(AggregateTestParams {
-        source_items_count: 1000,
-        new_items_count: 500,
-        modify_items_count: 300,
-        delete_items_count: 200,
-        target_buckets_count: 20,
+        source_items_count: 4,
+        new_items_count: 2,
+        modify_items_count: 0,
+        delete_items_count: 0,
+        target_buckets_count: 2,
         rand: ChaCha8Rng::seed_from_u64(0x9a9ddd206ce854ef),
     });
 }
 
+#[test]
+fn aggregate_small_with_reduce_after_put_test() {
+    run_aggregate_test(AggregateTestParams {
+        source_items_count: 4,
+        new_items_count: 2,
+        modify_items_count: 0,
+        delete_items_count: 0,
+        target_buckets_count: 2,
+        rand: ChaCha8Rng::seed_from_u64(0x9a9ddd206ce854ef + 11),
+    });
+}
 struct AggregateTestParams<Random: Rng> {
     source_items_count: usize,
     new_items_count: usize,
     modify_items_count: usize,
     delete_items_count: usize,
-    target_buckets_count: usize,
+    target_buckets_count: u32,
     rand: Random,
 }
 
@@ -83,12 +94,12 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
     } = params;
 
     let mut source_items = Vec::with_capacity(source_items_count);
-    let mut target_items = target_items_from_source(&source_items);
-    let initial_target_items = target_items.clone();
 
     for _ in 0..source_items_count {
         source_items.push((rand.next_u32(), rand.next_u32()));
     }
+
+    let mut target_items = target_items_from_source(&source_items, target_buckets_count);
 
     let mut new_source_items = Vec::with_capacity(max(
         source_items_count + new_items_count - delete_items_count,
@@ -178,7 +189,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
     }
     let mut accumulators = HashMap::new();
 
-    let new_target_items = target_items_from_source(&new_source_items);
+    let expected_target_items = target_items_from_source(&new_source_items, target_buckets_count);
 
     let mut transform = AggregateTransform::new(
         Box::from("source"),
@@ -577,7 +588,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                     .unwrap_or(0)
                                     .to_string();
 
-                                let target_key = u32_to_usize(source_key) % target_buckets_count;
+                                let target_key = source_key % target_buckets_count;
                                 let target_key = target_key.to_string();
                                 let target_key = serializer.create_vector(target_key.as_bytes());
                                 let old_mapped_value =
@@ -837,13 +848,18 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
             }
         }
     }
+
+    assert_eq!(target_items, expected_target_items);
 }
 
-fn target_items_from_source(source_items: &[(u32, u32)]) -> HashMap<u32, u64> {
+fn target_items_from_source(
+    source_items: &[(u32, u32)],
+    target_buckets_count: u32,
+) -> HashMap<u32, u64> {
     let mut target_items = HashMap::new();
 
     for (key, value) in source_items {
-        let target_key = *key % 1024;
+        let target_key = *key % target_buckets_count;
 
         target_items
             .entry(target_key)
