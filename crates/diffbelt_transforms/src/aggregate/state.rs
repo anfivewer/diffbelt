@@ -54,6 +54,7 @@ pub enum State {
         diff: DiffCollectionResponseJsonData,
     },
     Processing(ProcessingState),
+    AwaitingCommitGeneration,
     Invalid,
 }
 

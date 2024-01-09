@@ -1,9 +1,9 @@
 use diffbelt_types::collection::put_many::PutManyResponseJsonData;
 
+use crate::aggregate::AggregateTransform;
 use crate::aggregate::context::{ApplyingPutContext, HandlerContext};
 use crate::aggregate::state::TargetKeyApplying;
-use crate::aggregate::AggregateTransform;
-use crate::transform::{ActionInputHandlerResult, HandlerResult};
+use crate::transform::HandlerResult;
 
 impl AggregateTransform {
     pub fn on_put_received(
@@ -44,6 +44,6 @@ impl AggregateTransform {
 
         self.free_target_keys_buffers.push(target_keys);
 
-        Ok(ActionInputHandlerResult::Consumed)
+        self.on_finish()
     }
 }

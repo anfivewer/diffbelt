@@ -57,3 +57,32 @@ impl AggregateTransform {
         current_limits.target_data_bytes > max_limits.target_data_bytes
     }
 }
+
+impl Limits {
+    pub fn is_empty(&self) -> bool {
+        let Self {
+            pending_diffs_count,
+            pending_reduces_count,
+            pending_merges_count,
+            pending_applies_count,
+            pending_puts_count,
+            has_more_diffs,
+            pending_eval_map_bytes,
+            target_data_bytes,
+            eval_apply_threshold: _,
+            applying_bytes,
+            pending_applying_bytes,
+        } = self;
+
+        return *pending_diffs_count == 0
+            && *pending_reduces_count == 0
+            && *pending_merges_count == 0
+            && *pending_applies_count == 0
+            && *pending_puts_count == 0
+            && !*has_more_diffs
+            && *pending_eval_map_bytes == 0
+            && *target_data_bytes == 0
+            && *applying_bytes == 0
+            && *pending_applying_bytes == 0;
+    }
+}

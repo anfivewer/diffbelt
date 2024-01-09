@@ -19,7 +19,9 @@ use diffbelt_types::collection::diff::{
     DiffCollectionRequestJsonData, DiffCollectionResponseJsonData, KeyValueDiffJsonData,
     ReaderDiffFromDefJsonData,
 };
-use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
+use diffbelt_types::collection::generation::{
+    CommitGenerationRequestJsonData, StartGenerationRequestJsonData,
+};
 use diffbelt_types::collection::get_record::{GetRequestJsonData, GetResponseJsonData};
 use diffbelt_types::collection::put_many::{PutManyRequestJsonData, PutManyResponseJsonData};
 use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
@@ -27,6 +29,7 @@ use diffbelt_types::common::key_value::{
     EncodedKeyJsonData, EncodedValueJsonData, KeyValueJsonData,
 };
 use diffbelt_types::common::key_value_update::KeyValueUpdateJsonData;
+use diffbelt_types::common::reader::UpdateReaderJsonData;
 use diffbelt_util_no_std::cast::{u32_to_i64, u32_to_u64, u32_to_usize, usize_to_u64};
 
 use crate::aggregate::AggregateTransform;
@@ -184,6 +187,8 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
         true,
     );
 
+    let mut was_commited = false;
+
     let mut inputs = Vec::new();
 
     let mut pending_actions = Vec::new();
@@ -247,6 +252,30 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                 }
                             )
                         );
+
+                        if was_commited {
+                            inputs.push(Input {
+                                id: action_id,
+                                input: InputType::DiffbeltCall(DiffbeltCallInput {
+                                    body: DiffbeltResponseBody::Diff(
+                                        DiffCollectionResponseJsonData {
+                                            from_generation_id: EncodedGenerationIdJsonData {
+                                                value: "second".to_string(),
+                                                encoding: None,
+                                            },
+                                            to_generation_id: EncodedGenerationIdJsonData {
+                                                value: "second".to_string(),
+                                                encoding: None,
+                                            },
+                                            items: Vec::with_capacity(0),
+                                            cursor_id: None,
+                                        },
+                                    ),
+                                }),
+                            });
+
+                            continue;
+                        }
 
                         let items = take_items(
                             &mut rand,
@@ -462,6 +491,39 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                         "second".to_string(),
                                     ),
                                 }),
+                            }),
+                        });
+
+                        continue;
+                    }
+
+                    if &path == "/collections/target/generation/commit" {
+                        assert_eq!(method, Method::Post);
+                        assert!(query.is_empty());
+
+                        let body = body.into_commit_generation().expect("should be commit");
+
+                        assert_eq!(
+                            body,
+                            CommitGenerationRequestJsonData {
+                                generation_id: EncodedGenerationIdJsonData::new_str(
+                                    "second".to_string()
+                                ),
+                                update_readers: Some(vec![UpdateReaderJsonData {
+                                    reader_name: "reader".to_string(),
+                                    generation_id: EncodedGenerationIdJsonData::new_str(
+                                        "second".to_string()
+                                    )
+                                }]),
+                            }
+                        );
+
+                        was_commited = true;
+
+                        inputs.push(Input {
+                            id: action_id,
+                            input: InputType::DiffbeltCall(DiffbeltCallInput {
+                                body: DiffbeltResponseBody::Ok(()),
                             }),
                         });
 

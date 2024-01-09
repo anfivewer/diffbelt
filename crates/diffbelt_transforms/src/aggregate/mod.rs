@@ -32,6 +32,7 @@ mod on_target_record_received;
 mod read_diff_cursor;
 mod state;
 mod on_put_received;
+mod on_finish;
 
 impl WithTransformInputs<HandlerContext> for AggregateTransform {
     fn transform_inputs_mut(&mut self) -> &mut TransformInputs<Self, HandlerContext> {
