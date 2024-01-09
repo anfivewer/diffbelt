@@ -13,6 +13,7 @@ pub enum HandlerContext {
     Reducing(ReducingContext),
     Merging(MergingContext),
     Applying(ApplyingContext),
+    ApplyingPut(ApplyingPutContext),
 }
 
 #[derive(Debug)]
@@ -44,6 +45,11 @@ pub struct MergingContext {
 pub struct ApplyingContext {
     pub target_key: Rc<[u8]>,
     pub applying_bytes: u64,
+}
+
+#[derive(Debug)]
+pub struct ApplyingPutContext {
+    pub target_keys: Vec<Rc<[u8]>>,
 }
 
 pub trait HandlerContextMapError<T> {

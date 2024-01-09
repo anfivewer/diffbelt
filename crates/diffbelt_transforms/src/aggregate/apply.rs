@@ -71,6 +71,8 @@ impl AggregateTransform {
             let mut applying = Target::Applying(TargetKeyApplying {
                 mapped_values: Vec::with_capacity(0),
                 is_got_value: false,
+                is_putting: false,
+                target_kv_size: 0,
             });
 
             mem::swap(*target, &mut applying);

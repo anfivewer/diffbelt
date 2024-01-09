@@ -419,39 +419,38 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                         );
                         assert!(phantom_id.is_none());
 
-                        assert_eq!(items.len(), 1);
-                        let record = items.into_iter().next().expect("checked");
+                        for record in items {
+                            let KeyValueUpdateJsonData {
+                                key,
+                                if_not_present,
+                                value,
+                            } = record;
 
-                        let KeyValueUpdateJsonData {
-                            key,
-                            if_not_present,
-                            value,
-                        } = record;
+                            assert!(if_not_present.is_none());
 
-                        assert!(if_not_present.is_none());
-
-                        let key = {
-                            let bytes = key.into_bytes().expect("invalid encoding");
-                            let s = from_utf8(&bytes).expect("not valid utf8");
-                            let n = s.parse::<u32>().expect("not valid u32");
-                            n
-                        };
-                        let value = match value {
-                            None => None,
-                            Some(value) => {
-                                let bytes = value.into_bytes().expect("invalid encoding");
+                            let key = {
+                                let bytes = key.into_bytes().expect("invalid encoding");
                                 let s = from_utf8(&bytes).expect("not valid utf8");
-                                let n = s.parse::<u64>().expect("not valid u64");
-                                Some(n)
-                            }
-                        };
+                                let n = s.parse::<u32>().expect("not valid u32");
+                                n
+                            };
+                            let value = match value {
+                                None => None,
+                                Some(value) => {
+                                    let bytes = value.into_bytes().expect("invalid encoding");
+                                    let s = from_utf8(&bytes).expect("not valid utf8");
+                                    let n = s.parse::<u64>().expect("not valid u64");
+                                    Some(n)
+                                }
+                            };
 
-                        match value {
-                            None => {
-                                target_items.remove(&key);
-                            }
-                            Some(value) => {
-                                target_items.insert(key, value);
+                            match value {
+                                None => {
+                                    target_items.remove(&key);
+                                }
+                                Some(value) => {
+                                    target_items.insert(key, value);
+                                }
                             }
                         }
 

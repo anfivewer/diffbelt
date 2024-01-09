@@ -17,7 +17,7 @@ use crate::TransformRunResult;
 mod apply;
 mod context;
 #[cfg(test)]
-mod debug_print;
+mod debug;
 mod init;
 mod limits;
 mod merge;
@@ -31,6 +31,7 @@ mod on_target_info_received;
 mod on_target_record_received;
 mod read_diff_cursor;
 mod state;
+mod on_put_received;
 
 impl WithTransformInputs<HandlerContext> for AggregateTransform {
     fn transform_inputs_mut(&mut self) -> &mut TransformInputs<Self, HandlerContext> {
@@ -69,6 +70,7 @@ impl AggregateTransform {
             free_apply_eval_buffers: BuffersPool::with_capacity(4),
             free_serializer_reduce_input_items_buffers: BuffersPool::with_capacity(4),
             free_merge_accumulator_ids_vecs: BuffersPool::with_capacity(4),
+            free_target_keys_buffers: BuffersPool::with_capacity(4),
         }
     }
 

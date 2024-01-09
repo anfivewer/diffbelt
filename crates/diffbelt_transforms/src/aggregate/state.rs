@@ -35,6 +35,7 @@ pub struct AggregateTransform {
     pub(super) free_target_info_action_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_reduce_eval_action_buffers: BuffersPool<Vec<u8>>,
     pub(super) free_apply_eval_buffers: BuffersPool<Vec<u8>>,
+    pub(super) free_target_keys_buffers: BuffersPool<Vec<Rc<[u8]>>>,
     pub(super) free_serializer_reduce_input_items_buffers:
         BuffersPool<Vec<WIPOffset<AggregateReduceItem<'static>>>>,
     pub(super) free_merge_accumulator_ids_vecs: BuffersPool<Vec<AccumulatorId>>,
@@ -126,6 +127,8 @@ pub struct TargetKeyApplying {
     /// Values that was received while this key was applied
     pub mapped_values: Vec<Option<Box<[u8]>>>,
     pub is_got_value: bool,
+    pub is_putting: bool,
+    pub target_kv_size: u64,
 }
 
 impl State {
