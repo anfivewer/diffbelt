@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
 use enum_as_inner::EnumAsInner;
@@ -66,7 +66,7 @@ pub struct ProcessingState {
     pub current_limits: Limits,
     pub target_keys: LruCache<Rc<[u8]>, Target>,
     pub chunk_id_counter: u64,
-    pub apply_puts: HashMap<Rc<[u8]>, Option<Box<[u8]>>>,
+    pub apply_puts: HashSet<Rc<[u8]>>,
 }
 
 #[derive(Debug)]
@@ -129,6 +129,7 @@ pub struct TargetKeyApplying {
     pub mapped_values: Vec<Option<Box<[u8]>>>,
     pub is_got_value: bool,
     pub is_putting: bool,
+    pub target_value: Option<Box<[u8]>>,
     pub target_kv_size: u64,
 }
 

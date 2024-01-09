@@ -27,14 +27,21 @@ impl AggregateTransform {
 
             let TargetKeyApplying {
                 mapped_values,
-                is_got_value: _,
-                is_putting: _,
+                is_got_value,
+                is_putting,
+                target_value,
                 target_kv_size,
             } = target;
+
+            assert!(*is_got_value);
+            assert!(*is_putting);
 
             state.current_limits.pending_applying_bytes -= *target_kv_size;
 
             if !mapped_values.is_empty() {
+                let target_value = target_value.take();
+
+                //
                 // TODO: move value in `on_apply_received` to TargetKeyApplying from `apply_puts`
                 todo!("create accumulator, start reduce");
             }

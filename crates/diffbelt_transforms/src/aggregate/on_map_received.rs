@@ -1,3 +1,4 @@
+use lru::LruCache;
 use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::mem;
@@ -57,139 +58,31 @@ impl AggregateTransform {
         let map_output = input.data();
         let map_items = map_output.items().unwrap_or_default();
 
-        let mut prev_key_target: Option<(&[u8], &mut Target)> = None;
-
         let mut updated_keys_temp = self.updated_target_keys_temp_set.temp();
         let updated_keys = updated_keys_temp.as_mut();
 
-        'items: for item in map_items {
+        for item in map_items {
             let target_key = item
                 .target_key()
                 .ok_or_else(|| TransformError::Unspecified("target_key is None".to_string()))?
                 .bytes();
 
-            fn handle_applying(applying: &mut TargetKeyApplying, item: AggregateMapOutput) {
-                let value = item
-                    .mapped_value()
-                    .map(|value| Box::<[u8]>::from(value.bytes()));
+            let mapped_value = item
+                .mapped_value()
+                .map(|value| Box::<[u8]>::from(value.bytes()));
 
-                applying.mapped_values.push(value);
-            }
-
-            let target: &mut TargetKeyData = 'get_target: {
-                if let Some((prev_target_key, target)) = &mut prev_key_target {
-                    if *prev_target_key == target_key {
-                        match target {
-                            Target::Processing(processing) => {
-                                break 'get_target processing;
-                            }
-                            Target::Applying(applying) => {
-                                handle_applying(applying, item);
-                                continue 'items;
-                            }
-                        }
-                    }
-                }
-
-                let target = state.target_keys.get_mut(target_key);
-                let target = if let Some(target) = target {
-                    match target {
-                        Target::Processing(_) => target,
-                        Target::Applying(applying) => {
-                            handle_applying(applying, item);
-                            prev_key_target = Some((target_key, target));
-                            continue 'items;
-                        }
-                    }
-                } else {
-                    state.target_keys.push(
-                        Rc::from(target_key),
-                        Target::Processing(TargetKeyData {
-                            target_info_id: None,
-                            target_info_data_bytes: 0,
-                            chunks: VecDeque::with_capacity(1),
-                            is_target_info_pending: false,
-                        }),
-                    );
-                    state
-                        .target_keys
-                        .get_mut(target_key)
-                        .expect("should be inserted")
-                };
-
-                prev_key_target = Some((target_key, target));
-                let Some((_, target)) = &mut prev_key_target else {
-                    panic!()
-                };
-
-                let processing = target.as_processing_mut().expect("should be processing");
-
-                processing
-            };
-
-            let mut should_add_to_updated_keys = !target.is_target_info_pending;
-
-            //region Add mapped item to target key record
-            let last_chunk = target.chunks.back_mut();
-            let last_chunk = last_chunk.and_then(|last_chunk| {
-                let Some(chunk) = last_chunk.as_collecting_mut() else {
-                    return None;
-                };
-
-                if chunk.is_accumulator_pending {
-                    should_add_to_updated_keys = false
-                }
-
-                if chunk.is_reducing {
-                    // We are in !supports_accumulator_merge mode, wait for previous reduce
-                    should_add_to_updated_keys = false;
-                }
-
-                Some(chunk)
-            });
-
-            let last_chunk = if let Some(last_chunk) = last_chunk {
-                last_chunk
-            } else {
-                let reduce_input =
-                    Serializer::from_vec(self.free_reduce_eval_action_buffers.take());
-
-                state.current_limits.target_data_bytes += usize_to_u64(reduce_input.buffer_len());
-
-                let chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
-                    accumulator_id: None,
-                    accumulator_data_bytes: 0,
-                    reduce_input,
-                    reduce_input_items: self.free_serializer_reduce_input_items_buffers.take(),
-                    is_accumulator_pending: false,
-                    is_reducing: false,
-                });
-
-                target.chunks.push_back(chunk);
-                target.chunks.back_mut().expect("just inserted").as_collecting_mut().expect("aggregate transform without support of accumulator merge cannot have Reducing target key state")
-            };
-
-            if should_add_to_updated_keys {
-                updated_keys.insert(target_key);
-            }
-
-            state.current_limits.target_data_bytes -=
-                usize_to_u64(last_chunk.reduce_input.buffer_len());
-
-            let mapped_value = item.mapped_value();
-            let mapped_value =
-                mapped_value.map(|x| last_chunk.reduce_input.create_vector(x.bytes()));
-
-            let item = AggregateReduceItem::create(
-                last_chunk.reduce_input.buffer_builder(),
-                &AggregateReduceItemArgs { mapped_value },
+            let need_process = update_mapped_target(
+                &mut state.target_keys,
+                &mut self.free_reduce_eval_action_buffers,
+                &mut self.free_serializer_reduce_input_items_buffers,
+                &mut state.current_limits,
+                target_key,
+                mapped_value,
             );
 
-            last_chunk.reduce_input_items.push(item);
-
-            state.current_limits.target_data_bytes +=
-                usize_to_u64(last_chunk.reduce_input.buffer_len());
-            //endregion
+            if need_process {
+                updated_keys.insert(target_key);
+            }
         }
 
         let mut actions = self.action_input_handlers.take_action_input_actions_vec();
@@ -261,6 +154,108 @@ impl AggregateTransform {
 
         Ok(ActionInputHandlerResult::AddActions(actions))
     }
+}
+
+/// Returns true if need to continue processing
+pub fn update_mapped_target(
+    target_keys: &mut LruCache<Rc<[u8]>, Target>,
+    free_reduce_eval_action_buffers: &mut BuffersPool<Vec<u8>>,
+    free_serializer_reduce_input_items_buffers: &mut BuffersPool<
+        Vec<WIPOffset<AggregateReduceItem<'static>>>,
+    >,
+    current_limits: &mut Limits,
+    target_key: &[u8],
+    mapped_value: Option<Box<[u8]>>,
+) -> bool {
+    fn handle_applying(applying: &mut TargetKeyApplying, value: Option<Box<[u8]>>) {
+        applying.mapped_values.push(value);
+    }
+
+    let target: &mut TargetKeyData = 'get_target: {
+        let target = target_keys.get_mut(target_key);
+        let target = match target {
+            Some(target) => match target {
+                Target::Processing(_) => target,
+                Target::Applying(applying) => {
+                    handle_applying(applying, mapped_value);
+                    return false;
+                }
+            },
+            None => {
+                target_keys.push(
+                    Rc::from(target_key),
+                    Target::Processing(TargetKeyData {
+                        target_info_id: None,
+                        target_info_data_bytes: 0,
+                        chunks: VecDeque::with_capacity(1),
+                        is_target_info_pending: false,
+                    }),
+                );
+                target_keys.get_mut(target_key).expect("should be inserted")
+            }
+        };
+
+        let processing = target.as_processing_mut().expect("should be processing");
+
+        processing
+    };
+
+    let mut should_add_to_updated_keys = !target.is_target_info_pending;
+
+    //region Add mapped item to target key record
+    let last_chunk = target.chunks.back_mut();
+    let last_chunk = last_chunk.and_then(|last_chunk| {
+        let Some(chunk) = last_chunk.as_collecting_mut() else {
+            return None;
+        };
+
+        if chunk.is_accumulator_pending {
+            should_add_to_updated_keys = false
+        }
+
+        if chunk.is_reducing {
+            // We are in !supports_accumulator_merge mode, wait for previous reduce
+            should_add_to_updated_keys = false;
+        }
+
+        Some(chunk)
+    });
+
+    let last_chunk = if let Some(last_chunk) = last_chunk {
+        last_chunk
+    } else {
+        let reduce_input = Serializer::from_vec(free_reduce_eval_action_buffers.take());
+
+        current_limits.target_data_bytes += usize_to_u64(reduce_input.buffer_len());
+
+        let chunk = TargetKeyChunk::Collecting(TargetKeyCollectingChunk {
+            accumulator_id: None,
+            accumulator_data_bytes: 0,
+            reduce_input,
+            reduce_input_items: free_serializer_reduce_input_items_buffers.take(),
+            is_accumulator_pending: false,
+            is_reducing: false,
+        });
+
+        target.chunks.push_back(chunk);
+        target.chunks.back_mut().expect("just inserted").as_collecting_mut().expect("aggregate transform without support of accumulator merge cannot have Reducing target key state")
+    };
+
+    current_limits.target_data_bytes -= usize_to_u64(last_chunk.reduce_input.buffer_len());
+
+    let mapped_value = mapped_value.map(|x| last_chunk.reduce_input.create_vector(&x));
+
+    let item = AggregateReduceItem::create(
+        last_chunk.reduce_input.buffer_builder(),
+        &AggregateReduceItemArgs { mapped_value },
+    );
+
+    last_chunk.reduce_input_items.push(item);
+
+    current_limits.target_data_bytes += usize_to_u64(last_chunk.reduce_input.buffer_len());
+
+    return should_add_to_updated_keys;
+    //endregion
 }
 
 pub fn on_target_info_available(

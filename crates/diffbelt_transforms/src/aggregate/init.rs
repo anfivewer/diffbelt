@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::mem;
 use std::ops::Deref;
 
@@ -7,7 +7,6 @@ use lru::LruCache;
 
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
-use diffbelt_util_no_std::temporary_collection::immutable::hash_set::TemporaryRefHashSet;
 
 use crate::aggregate::context::HandlerContext;
 use crate::aggregate::limits::Limits;
@@ -108,7 +107,7 @@ impl AggregateTransform {
             },
             target_keys: LruCache::unbounded(),
             chunk_id_counter: 0,
-            apply_puts: HashMap::new(),
+            apply_puts: HashSet::new(),
         };
 
         self.state = State::Processing(state);

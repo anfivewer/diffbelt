@@ -72,6 +72,7 @@ impl AggregateTransform {
                 mapped_values: Vec::with_capacity(0),
                 is_got_value: false,
                 is_putting: false,
+                target_value: None,
                 target_kv_size: 0,
             });
 

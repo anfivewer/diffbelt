@@ -40,12 +40,14 @@ impl AggregateTransform {
             .as_applying_mut()
             .expect("should be applying while applying");
 
-        target.is_got_value = true;
-
         let apply = input.data();
         let target_value = apply
             .target_value()
             .map(|value| Box::<[u8]>::from(value.bytes()));
+
+        assert!(target.target_value.is_none());
+        target.is_got_value = true;
+        target.target_value = target_value;
 
         if !target.mapped_values.is_empty() {
             // Do not put save result, resume reducing
@@ -53,16 +55,18 @@ impl AggregateTransform {
         }
 
         let target_key_size = usize_to_u64(target_key.len());
-        let target_value_size = target_key_size + target_value
-            .as_ref()
-            .map(|value| usize_to_u64(value.len()))
-            .unwrap_or(0);
+        let target_value_size = target_key_size
+            + target
+                .target_value
+                .as_ref()
+                .map(|value| usize_to_u64(value.len()))
+                .unwrap_or(0);
 
         state.current_limits.applying_bytes -= applying_bytes;
         state.current_limits.pending_applying_bytes += target_value_size;
         target.target_kv_size = target_value_size;
 
-        state.apply_puts.insert(target_key, target_value);
+        state.apply_puts.insert(target_key);
 
         let needs_do_put = state.current_limits.pending_applying_bytes
             >= self.max_limits.pending_applying_bytes
@@ -78,7 +82,7 @@ impl AggregateTransform {
 
             let puts = state.apply_puts.drain();
 
-            for (target_key, target_value) in puts {
+            for target_key in puts {
                 let target = state
                     .target_keys
                     .get_mut(&target_key)
@@ -86,6 +90,7 @@ impl AggregateTransform {
                     .as_applying_mut()
                     .expect("should be applying while applying");
 
+                assert!(target.is_got_value);
                 assert!(!target.is_putting);
 
                 target.is_putting = true;
@@ -93,7 +98,8 @@ impl AggregateTransform {
                 let item = KeyValueUpdateJsonData {
                     key: EncodedKeyJsonData::from_bytes_slice(&target_key),
                     if_not_present: None,
-                    value: target_value
+                    value: target
+                        .target_value
                         .as_ref()
                         .map(|value| EncodedValueJsonData::from_bytes_slice(&value)),
                 };
@@ -116,9 +122,7 @@ impl AggregateTransform {
                         phantom_id: None,
                     }),
                 }),
-                HandlerContext::ApplyingPut(ApplyingPutContext {
-                    target_keys,
-                }),
+                HandlerContext::ApplyingPut(ApplyingPutContext { target_keys }),
                 input_handler!(this, AggregateTransform, ctx, HandlerContext, input, {
                     let DiffbeltCallInput { body } = input.into_diffbelt_put_many()?;
                     let ctx = ctx
