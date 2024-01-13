@@ -1,3 +1,12 @@
+use diffbelt_protos::protos::transform::aggregate::{
+    AggregateMapMultiInput, AggregateMapMultiInputArgs, AggregateMapSource, AggregateMapSourceArgs,
+};
+use diffbelt_protos::Serializer;
+use diffbelt_types::collection::diff::{DiffCollectionResponseJsonData, KeyValueDiffJsonData};
+use diffbelt_util::option::lift_result_from_option;
+use diffbelt_util_no_std::cast::usize_to_u64;
+use diffbelt_util_no_std::try_or_return_with_buffer_back;
+
 use crate::aggregate::context::{
     HandlerContext, HandlerContextKind, HandlerContextMapError, MapContext,
 };
@@ -7,17 +16,7 @@ use crate::base::action::ActionType;
 use crate::base::error::TransformError;
 use crate::base::input::function_eval::FunctionEvalInput;
 use crate::input_handler;
-use crate::transform::{ActionInputHandlerActionsVec, ActionInputHandlerResult, HandlerResult};
-use diffbelt_protos::protos::transform::aggregate::{
-    AggregateMapMultiInput, AggregateMapMultiInputArgs, AggregateMapSource, AggregateMapSourceArgs,
-};
-use diffbelt_protos::Serializer;
-use diffbelt_types::collection::diff::{DiffCollectionResponseJsonData, KeyValueDiffJsonData};
-use diffbelt_util::option::lift_result_from_option;
-use diffbelt_util_no_std::cast::usize_to_u64;
-use diffbelt_util_no_std::either::left_if_some;
-use diffbelt_util_no_std::from_either::Either;
-use diffbelt_util_no_std::try_or_return_with_buffer_back;
+use crate::transform::{ActionInputHandlerResult, HandlerResult};
 
 impl AggregateTransform {
     pub fn on_diff_received(

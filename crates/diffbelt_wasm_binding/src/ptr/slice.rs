@@ -1,5 +1,5 @@
-use core::ptr::slice_from_raw_parts;
 use crate::ptr::{NativePtrImpl, PtrImpl};
+use core::ptr::slice_from_raw_parts;
 use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32};
 
 #[derive(Copy, Clone, Debug)]
@@ -18,7 +18,7 @@ impl<T: Clone> From<&[T]> for SliceRawParts<T> {
     }
 }
 
-impl <T: Clone> SliceRawParts<T> {
+impl<T: Clone> SliceRawParts<T> {
     pub unsafe fn as_slice(&self) -> &[T] {
         let Self { ptr, len } = *self;
 

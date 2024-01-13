@@ -19,8 +19,6 @@ pub enum InputType {
 
 impl InputType {
     pub fn diffbelt_call(body: DiffbeltResponseBody) -> Self {
-        Self::DiffbeltCall(DiffbeltCallInput {
-            body,
-        })
+        Self::DiffbeltCall(DiffbeltCallInput { body })
     }
 }

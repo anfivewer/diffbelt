@@ -1,12 +1,12 @@
 use crate::base::action::Action;
 
+pub mod aggregate;
 pub mod base;
 pub mod map_filter;
 #[cfg(test)]
 mod tests;
-pub mod util;
-pub mod aggregate;
 mod transform;
+pub mod util;
 
 #[derive(Debug)]
 pub enum TransformRunResult {

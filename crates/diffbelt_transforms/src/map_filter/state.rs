@@ -1,6 +1,6 @@
+use crate::base::error::TransformError;
 use diffbelt_types::collection::diff::KeyValueDiffJsonData;
 use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
-use crate::base::error::TransformError;
 
 pub enum State {
     Uninitialized,

@@ -3,7 +3,6 @@ use crate::aggregate::state::{TargetKeyChunk, TargetKeyReducedChunk};
 use crate::aggregate::AggregateTransform;
 use crate::base::input::function_eval::AggregateMergeEvalInput;
 use crate::transform::{ActionInputHandlerResult, HandlerResult};
-use std::mem;
 
 impl AggregateTransform {
     pub fn on_merge_received(
@@ -80,7 +79,6 @@ impl AggregateTransform {
         if need_try_apply {
             () = Self::try_apply(
                 &mut actions,
-                &mut state.chunk_id_counter,
                 &self.max_limits,
                 &mut state.current_limits,
                 &mut state.target_keys,

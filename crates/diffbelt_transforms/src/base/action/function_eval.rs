@@ -1,10 +1,11 @@
-use crate::base::common::accumulator::AccumulatorId;
-use crate::base::common::target_info::TargetInfoId;
 use diffbelt_protos::protos::transform::aggregate::{
-    AggregateApplyOutput, AggregateMapMultiInput, AggregateReduceInput, AggregateTargetInfo,
+    AggregateMapMultiInput, AggregateReduceInput, AggregateTargetInfo,
 };
 use diffbelt_protos::protos::transform::map_filter::MapFilterMultiInput;
 use diffbelt_protos::OwnedSerialized;
+
+use crate::base::common::accumulator::AccumulatorId;
+use crate::base::common::target_info::TargetInfoId;
 
 #[derive(Debug)]
 pub enum FunctionEvalAction {

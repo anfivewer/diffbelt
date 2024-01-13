@@ -1,5 +1,5 @@
-use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_wasm_binding::error_code::ErrorCode;
+use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use std::ops::DerefMut;
 use wasmer::{TypedFunction, WasmPtr};
 

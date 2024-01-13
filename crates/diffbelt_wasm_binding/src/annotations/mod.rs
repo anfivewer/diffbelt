@@ -16,7 +16,7 @@ pub struct Annotated<Value, Annotation> {
     phantom: PhantomData<Annotation>,
 }
 
-impl <Value, Annotation> AnnotatedTrait for Annotated<Value, Annotation> {
+impl<Value, Annotation> AnnotatedTrait for Annotated<Value, Annotation> {
     type Value = Value;
     type Annotation = Annotation;
 
@@ -35,7 +35,7 @@ pub struct FlatbufferAnnotated<Value, Annotation> {
     phantom: PhantomData<Annotation>,
 }
 
-impl <Value, Annotation> AnnotatedTrait for FlatbufferAnnotated<Value, Annotation> {
+impl<Value, Annotation> AnnotatedTrait for FlatbufferAnnotated<Value, Annotation> {
     type Value = Value;
     type Annotation = Annotation;
 

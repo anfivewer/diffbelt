@@ -4,11 +4,9 @@ use std::rc::Rc;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
 
 use crate::aggregate::context::{HandlerContext, MergingContext};
-use crate::aggregate::state::{
-    ProcessingState, TargetKeyChunk, TargetKeyData, TargetKeyMergingChunk,
-};
-use crate::aggregate::AggregateTransform;
 use crate::aggregate::limits::Limits;
+use crate::aggregate::state::{TargetKeyChunk, TargetKeyData, TargetKeyMergingChunk};
+use crate::aggregate::AggregateTransform;
 use crate::base::action::function_eval::{AggregateMergeEvalAction, FunctionEvalAction};
 use crate::base::action::ActionType;
 use crate::base::common::accumulator::AccumulatorId;
@@ -64,9 +62,7 @@ impl AggregateTransform {
                         .as_reduced()
                         .expect("already checked");
 
-                    accumulator_ids.push(
-                        first_chunk.accumulator_id,
-                    );
+                    accumulator_ids.push(first_chunk.accumulator_id);
                     accumulators_total_data_bytes += first_chunk.accumulator_data_bytes;
 
                     *chunk_id_counter += 1;

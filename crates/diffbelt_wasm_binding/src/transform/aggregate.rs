@@ -52,6 +52,9 @@ pub trait Aggregate<SourceKey, SourceValue, MappedValue, Accumulator, TargetKey,
             Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
         >,
         accumulator: Annotated<BytesSlice, Accumulator>,
-        output: FlatbufferAnnotated<*mut BytesVecRawParts, Annotated<AggregateApplyOutput, TargetValue>>,
+        output: FlatbufferAnnotated<
+            *mut BytesVecRawParts,
+            Annotated<AggregateApplyOutput, TargetValue>,
+        >,
     ) -> ErrorCode;
 }

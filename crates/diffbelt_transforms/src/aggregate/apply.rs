@@ -6,17 +6,12 @@ use lru::LruCache;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
 use diffbelt_util_no_std::temporary_collection::vec::TemporaryVec;
 
-use crate::aggregate::AggregateTransform;
 use crate::aggregate::context::{ApplyingContext, HandlerContext};
 use crate::aggregate::limits::Limits;
-use crate::aggregate::state::{
-    Target, TargetKeyApplying,
-    TargetKeyReducedChunk, TargetKvTemp,
-};
+use crate::aggregate::state::{Target, TargetKeyApplying, TargetKeyReducedChunk, TargetKvTemp};
+use crate::aggregate::AggregateTransform;
+use crate::base::action::function_eval::{AggregateApplyEvalAction, FunctionEvalAction};
 use crate::base::action::ActionType;
-use crate::base::action::function_eval::{
-    AggregateApplyEvalAction, FunctionEvalAction,
-};
 use crate::base::input::function_eval::FunctionEvalInput;
 use crate::input_handler;
 use crate::transform::ActionInputHandlerActionsVec;
@@ -24,7 +19,6 @@ use crate::transform::ActionInputHandlerActionsVec;
 impl AggregateTransform {
     pub fn try_apply(
         actions: &mut ActionInputHandlerActionsVec<Self, HandlerContext>,
-        chunk_id_counter: &mut u64,
         max_limits: &Limits,
         current_limits: &mut Limits,
         target_keys: &mut LruCache<Rc<[u8]>, Target>,

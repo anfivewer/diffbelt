@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::rc::Rc;
 
 use enum_as_inner::EnumAsInner;
@@ -10,8 +10,7 @@ use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
 use diffbelt_util_no_std::temporary_collection::immutable::hash_set::TemporaryRefHashSet;
-use diffbelt_util_no_std::temporary_collection::mutable::vec::TemporaryMutRefVec;
-use diffbelt_util_no_std::temporary_collection::vec::{TemporaryVec, TempVecType};
+use diffbelt_util_no_std::temporary_collection::vec::{TempVecType, TemporaryVec};
 
 use crate::aggregate::context::HandlerContext;
 use crate::aggregate::limits::Limits;
@@ -81,7 +80,6 @@ pub struct TargetKeyCollectingChunk {
 
 pub type TargetKeyReducingChunkId = u64;
 pub type TargetKeyMergingChunkId = u64;
-pub type TargetKeyApplyId = u64;
 
 #[derive(Debug)]
 pub struct TargetKeyReducingChunk {

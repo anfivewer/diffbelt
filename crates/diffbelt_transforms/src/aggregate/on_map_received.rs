@@ -1,13 +1,12 @@
-use lru::LruCache;
 use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::mem;
-use std::ops::DerefMut;
 use std::rc::Rc;
 
+use lru::LruCache;
+
 use diffbelt_protos::protos::transform::aggregate::{
-    AggregateMapOutput, AggregateReduceInput, AggregateReduceInputArgs, AggregateReduceItem,
-    AggregateReduceItemArgs,
+    AggregateReduceInput, AggregateReduceInputArgs, AggregateReduceItem, AggregateReduceItemArgs,
 };
 use diffbelt_protos::{Serializer, WIPOffset};
 use diffbelt_types::collection::get_record::GetRequestJsonData;

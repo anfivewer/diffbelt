@@ -1,7 +1,7 @@
-use alloc::vec::Vec;
 use crate::buffers_pool::PooledBuffer;
+use alloc::vec::Vec;
 
-impl <T> PooledBuffer for Vec<T> {
+impl<T> PooledBuffer for Vec<T> {
     type Item = Self;
 
     fn new() -> Self::Item {
@@ -12,7 +12,7 @@ impl <T> PooledBuffer for Vec<T> {
         Vec::with_capacity(capacity)
     }
 
-    fn ensure_capacity(mut buffer: &mut Self::Item, capacity: usize) {
+    fn ensure_capacity(buffer: &mut Self::Item, capacity: usize) {
         if capacity <= buffer.capacity() {
             return;
         }

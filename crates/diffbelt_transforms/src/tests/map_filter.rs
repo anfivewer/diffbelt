@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 use std::str::from_utf8;
 
-use diffbelt_protos::{Serializer, Vector};
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate, RecordUpdateArgs,
 };
+use diffbelt_protos::{Serializer, Vector};
 use diffbelt_types::collection::diff::{
     DiffCollectionRequestJsonData, DiffCollectionResponseJsonData, KeyValueDiffJsonData,
     ReaderDiffFromDefJsonData,
@@ -19,14 +19,14 @@ use diffbelt_types::common::key_value_update::KeyValueUpdateJsonData;
 use diffbelt_types::common::reader::UpdateReaderJsonData;
 use diffbelt_util::option::lift_result_from_option;
 
-use crate::base::action::{Action, ActionType};
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{FunctionEvalAction, MapFilterEvalAction};
-use crate::base::input::{Input, InputType};
+use crate::base::action::{Action, ActionType};
 use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
 use crate::base::input::function_eval::{
     FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput,
 };
+use crate::base::input::{Input, InputType};
 use crate::map_filter::MapFilterTransform;
 
 #[test]

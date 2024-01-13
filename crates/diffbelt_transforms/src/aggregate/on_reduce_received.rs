@@ -102,7 +102,6 @@ impl AggregateTransform {
             if reduce_input_items.is_empty() {
                 () = Self::try_apply(
                     &mut actions,
-                    &mut state.chunk_id_counter,
                     &self.max_limits,
                     &mut state.current_limits,
                     &mut state.target_keys,
@@ -164,7 +163,6 @@ impl AggregateTransform {
         if actions.is_empty() {
             () = Self::try_apply(
                 &mut actions,
-                &mut state.chunk_id_counter,
                 &self.max_limits,
                 &mut state.current_limits,
                 &mut state.target_keys,

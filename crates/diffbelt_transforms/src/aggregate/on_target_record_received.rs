@@ -1,7 +1,5 @@
 use std::rc::Rc;
 
-use lru::LruCache;
-
 use diffbelt_protos::protos::transform::aggregate::{AggregateTargetInfo, AggregateTargetInfoArgs};
 use diffbelt_protos::Serializer;
 use diffbelt_types::collection::get_record::GetResponseJsonData;

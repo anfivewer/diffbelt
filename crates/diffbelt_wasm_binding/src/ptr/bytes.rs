@@ -6,8 +6,8 @@ use core::str::{from_utf8, Utf8Error};
 use diffbelt_protos::{FlatbuffersType, OwnedSerialized};
 use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32};
 
-use crate::ptr::{NativePtrImpl, PtrImpl};
 use crate::ptr::slice::SliceRawParts;
+use crate::ptr::{NativePtrImpl, PtrImpl};
 
 pub type BytesSlice<P = NativePtrImpl> = SliceRawParts<u8, P>;
 
@@ -36,7 +36,7 @@ impl BytesVecRawParts<NativePtrImpl> {
     }
 }
 
-impl <'fbb, T: FlatbuffersType<'fbb>> From<OwnedSerialized<'fbb, T>> for BytesVecRawParts {
+impl<'fbb, T: FlatbuffersType<'fbb>> From<OwnedSerialized<'fbb, T>> for BytesVecRawParts {
     fn from(serialized: OwnedSerialized<'fbb, T>) -> Self {
         let buffer = serialized.into_vec();
 
