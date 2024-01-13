@@ -171,7 +171,7 @@ pub fn update_mapped_target(
         applying.mapped_values.push(value);
     }
 
-    let target: &mut TargetKeyData = 'get_target: {
+    let target: &mut TargetKeyData = {
         let target = target_keys.get_mut(target_key);
         let target = match target {
             Some(target) => match target {

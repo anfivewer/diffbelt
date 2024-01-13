@@ -74,6 +74,19 @@ fn aggregate_small_with_reduce_after_put_test() {
         rand: ChaCha8Rng::seed_from_u64(0x9a9ddd206ce854ef + 11),
     });
 }
+
+#[test]
+fn aggregate_medium_test() {
+    run_aggregate_test(AggregateTestParams {
+        source_items_count: 1000,
+        new_items_count: 500,
+        modify_items_count: 250,
+        delete_items_count: 250,
+        target_buckets_count: 64,
+        rand: ChaCha8Rng::seed_from_u64(0x9a9ddd206ce854ef),
+    });
+}
+
 struct AggregateTestParams<Random: Rng> {
     source_items_count: usize,
     new_items_count: usize,
