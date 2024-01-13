@@ -43,7 +43,7 @@ pub struct AggregateTransform {
 
 pub struct TargetKvTemp;
 impl TempVecType for TargetKvTemp {
-    type Item<'a> = ((Rc<[u8]>, &'a mut Target));
+    type Item<'a> = (Rc<[u8]>, &'a mut Target);
 }
 
 #[derive(Debug)]

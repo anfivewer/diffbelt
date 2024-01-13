@@ -165,7 +165,7 @@ impl RawDb {
         let mut default_cf_opts = Options::default();
         match options.comparator {
             Some(comparator) => {
-                default_cf_opts.set_comparator(&comparator.name, comparator.compare_fn)
+                default_cf_opts.set_comparator(&comparator.name, Box::new(comparator.compare_fn))
             }
             None => (),
         }
@@ -178,7 +178,7 @@ impl RawDb {
             let mut cf_opts = Options::default();
 
             family.comparator.as_ref().map(|comparator| {
-                cf_opts.set_comparator(&comparator.name, comparator.compare_fn);
+                cf_opts.set_comparator(&comparator.name, Box::new(comparator.compare_fn));
             });
 
             family.merge.map(|merge| {
