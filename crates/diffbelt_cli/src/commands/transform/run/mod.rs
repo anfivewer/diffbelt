@@ -10,15 +10,20 @@ use diffbelt_cli_config::Collection;
 use diffbelt_transforms::base::action::function_eval::FunctionEvalAction;
 use diffbelt_transforms::base::action::{Action, ActionType};
 use diffbelt_transforms::base::input::diffbelt_call::DiffbeltCallInput;
+use diffbelt_transforms::base::input::function_eval::{FunctionEvalInput, FunctionEvalInputBody};
 use diffbelt_transforms::base::input::{Input, InputType};
 use diffbelt_transforms::map_filter::MapFilterTransform;
 use diffbelt_transforms::TransformRunResult;
 
-use crate::commands::errors::CommandError;
-use crate::commands::transform::run::map_filter_eval::MapFilterEvalOptions;
+use crate::commands::errors::{CommandError, TransformEvalError};
+use crate::commands::transform::run::create_transform::{
+    create_transform, TransformDirection, TransformEvaluator,
+};
 use crate::state::CliState;
 use crate::CommandResult;
 
+mod create_transform;
+mod function_eval_handler;
 mod map_filter_eval;
 mod parse;
 
@@ -100,27 +105,16 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
 
     let from_collection_name = from_collection_name.deref();
 
-    let Some(map_filter_wasm) = map_filter_wasm else {
-        return Err(CommandError::Message("Unknown transform type".to_string()));
+    let transform_direction = TransformDirection {
+        from_collection_name,
+        to_collection_name,
+        reader_name,
     };
 
-    let wasm_module_name = map_filter_wasm.module_name.as_str();
-    let Some(wasm_def) = config.wasm_module_def_by_name(wasm_module_name) else {
-        return Err(CommandError::Message(format!(
-            "WASM module {wasm_module_name} not defined in config"
-        )));
-    };
-
-    let wasm_instance = config.new_wasm_instance(wasm_def).await?;
-    let map_filter = wasm_instance.map_filter_function(map_filter_wasm.method_name.as_str())?;
-
-    let vec_holder = wasm_instance.alloc_vec_holder()?;
-
-    let mut transform = MapFilterTransform::new(
-        Box::from(from_collection_name),
-        Box::from(to_collection_name),
-        Box::from(reader_name),
-    );
+    let TransformEvaluator {
+        mut transform,
+        eval_handler,
+    } = create_transform(config, transform_config, transform_direction, verbose).await?;
 
     // TODO: thread pool, parallelize function evals and diffbelt calls
     //       (they parse/serialize jsons currently)
@@ -129,17 +123,32 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
     let (sender, mut receiver) = mpsc::channel::<Result<Input, CommandError>>(8);
 
     loop {
-        let mut prev_inputs = Vec::new();
-        mem::swap(&mut prev_inputs, &mut inputs);
-        let run_result = transform.run(prev_inputs)?;
+        let run_result = transform.run(&mut inputs)?;
+        inputs.clear();
 
         match run_result {
-            TransformRunResult::Actions(actions) => {
-                for action in actions {
+            TransformRunResult::Actions(mut actions) => {
+                for action in actions.drain(..) {
                     let Action {
                         id: action_id,
                         action,
                     } = action;
+
+                    let emit_input = |input_or_error: Result<
+                        FunctionEvalInput<FunctionEvalInputBody>,
+                        TransformEvalError,
+                    >| async {
+                        let result = input_or_error.map_or_else(
+                            |err| Err(err.into()),
+                            |input| {
+                                Ok(Input {
+                                    id: action_id,
+                                    input: InputType::FunctionEval(input),
+                                })
+                            },
+                        );
+                        () = sender.send(result).await.unwrap_or(());
+                    };
 
                     match action {
                         ActionType::DiffbeltCall(call) => {
@@ -178,39 +187,13 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                                 () = sender.send(message).await.unwrap_or(());
                             });
                         }
-                        ActionType::FunctionEval(eval) => match eval {
-                            FunctionEvalAction::MapFilter(action) => {
-                                () = MapFilterEvalOptions {
-                                    verbose,
-                                    action,
-                                    map_filter: &map_filter,
-                                    vec_holder: &vec_holder,
-                                    inputs: &mut inputs,
-                                    action_id,
-                                }
-                                .call()?;
-                            }
-                            FunctionEvalAction::AggregateMap(_) => {
-                                todo!()
-                            }
-                            FunctionEvalAction::AggregateInitialAccumulator(_) => {
-                                todo!()
-                            }
-                            FunctionEvalAction::AggregateTargetInfo(_) => {
-                                todo!()
-                            }
-                            FunctionEvalAction::AggregateReduce(_) => {
-                                todo!()
-                            }
-                            FunctionEvalAction::AggregateMerge(_) => {
-                                todo!()
-                            }
-                            FunctionEvalAction::AggregateApply(_) => {
-                                todo!()
-                            }
-                        },
+                        ActionType::FunctionEval(eval) => {
+                            eval_handler.handle_action(eval, &emit_input).await
+                        }
                     }
                 }
+
+                transform.return_actions_vec(actions)
             }
             TransformRunResult::Finish => {
                 break;

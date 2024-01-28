@@ -1,3 +1,5 @@
+mod r#trait;
+
 use crate::base::action::{Action, ActionType};
 use crate::base::error::TransformError;
 use crate::base::input::{Input, InputType};
@@ -5,6 +7,8 @@ use crate::TransformRunResult;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
 use diffbelt_util_no_std::cast::{u64_to_usize, usize_to_u64};
 use generational_arena::{Arena, Index};
+
+pub use r#trait::Transform;
 
 pub type HandlerResult<This, Context> =
     Result<ActionInputHandlerResult<This, Context>, TransformError>;
@@ -55,12 +59,12 @@ impl<Context, This: WithTransformInputs<Context>> TransformInputs<This, Context>
         }
     }
 
-    pub fn run(this: &mut This, inputs: Vec<Input>) -> Result<TransformRunResult, TransformError> {
+    pub fn run(this: &mut This, inputs: &mut Vec<Input>) -> Result<TransformRunResult, TransformError> {
         let mut must_finish = false;
 
         let mut actions = { this.transform_inputs_mut().actions_buffers.take() };
 
-        for input in inputs {
+        for input in inputs.drain(..) {
             if must_finish {
                 return Err(TransformError::Unspecified(
                     "Expected to finish, but got more inputs".to_string(),

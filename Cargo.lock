@@ -615,6 +615,7 @@ dependencies = [
  "diffbelt_types",
  "diffbelt_util",
  "diffbelt_util_no_std",
+ "enum-as-inner",
  "hyper",
  "thiserror",
  "tokio",

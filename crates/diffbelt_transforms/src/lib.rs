@@ -8,6 +8,8 @@ mod tests;
 mod transform;
 pub mod util;
 
+pub use transform::Transform;
+
 #[derive(Debug)]
 pub enum TransformRunResult {
     Actions(Vec<Action>),

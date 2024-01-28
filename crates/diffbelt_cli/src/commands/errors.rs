@@ -21,7 +21,7 @@ pub enum CommandError {
     #[error(transparent)]
     Wasm(#[from] WasmError),
     #[error(transparent)]
-    MapFilterEval(#[from] MapFilterEvalError),
+    MapFilterEval(#[from] TransformEvalError),
 }
 
 impl From<TransformError> for CommandError {
@@ -37,7 +37,7 @@ impl From<DiffbeltClientError> for CommandError {
 }
 
 #[derive(Error, Debug)]
-pub enum MapFilterEvalError {
+pub enum TransformEvalError {
     #[error("{0}")]
     Unspecified(String),
     #[error(transparent)]
@@ -46,4 +46,4 @@ pub enum MapFilterEvalError {
     InvalidFlatbuffer(#[from] NoStdErrorWrap<InvalidFlatbuffer>),
 }
 
-impl_from_either!(MapFilterEvalError);
+impl_from_either!(TransformEvalError);

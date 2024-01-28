@@ -10,7 +10,7 @@ use crate::base::action::Action;
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::error::TransformError;
 use crate::base::input::Input;
-use crate::transform::{TransformInputs, WithTransformInputs};
+use crate::transform::{Transform, TransformInputs, WithTransformInputs};
 use crate::TransformRunResult;
 
 mod apply;
@@ -73,8 +73,10 @@ impl AggregateTransform {
             free_target_keys_buffers: BuffersPool::with_capacity(4),
         }
     }
+}
 
-    pub fn run(&mut self, inputs: Vec<Input>) -> Result<TransformRunResult, TransformError> {
+impl Transform for AggregateTransform {
+    fn run(&mut self, inputs: &mut Vec<Input>) -> Result<TransformRunResult, TransformError> {
         match self.state {
             State::Uninitialized => {
                 if !inputs.is_empty() {
@@ -112,15 +114,15 @@ impl AggregateTransform {
         }
     }
 
-    pub fn return_target_info_action_buffer(&mut self, buffer: Vec<u8>) {
-        self.free_target_info_action_buffers.push(buffer);
-    }
-
-    pub fn return_actions_vec(&mut self, buffer: Vec<Action>) {
+    fn return_actions_vec(&mut self, buffer: Vec<Action>) {
         self.action_input_handlers.return_actions_vec(buffer);
     }
 
-    pub fn return_merge_accumulator_ids_vec(&mut self, buffer: Vec<AccumulatorId>) {
+    fn return_target_info_action_buffer(&mut self, buffer: Vec<u8>) {
+        self.free_target_info_action_buffers.push(buffer);
+    }
+
+    fn return_merge_accumulator_ids_vec(&mut self, buffer: Vec<AccumulatorId>) {
         self.free_merge_accumulator_ids_vecs.push(buffer);
     }
 }

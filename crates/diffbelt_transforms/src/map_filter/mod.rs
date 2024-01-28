@@ -24,10 +24,7 @@ use crate::base::input::diffbelt_call::DiffbeltCallInput;
 use crate::base::input::function_eval::{FunctionEvalInput, MapFilterEvalInput};
 use crate::base::input::Input;
 use crate::map_filter::state::{AwaitingForGenerationStartState, ProcessingState, State};
-use crate::transform::{
-    ActionInputHandlerAction, ActionInputHandlerActionsVec, ActionInputHandlerResult,
-    HandlerResult, TransformInputs, WithTransformInputs,
-};
+use crate::transform::{ActionInputHandlerAction, ActionInputHandlerActionsVec, ActionInputHandlerResult, HandlerResult, Transform, TransformInputs, WithTransformInputs};
 use crate::{input_handler, TransformRunResult};
 
 mod state;
@@ -53,25 +50,8 @@ impl WithTransformInputs<()> for MapFilterTransform {
     }
 }
 
-impl MapFilterTransform {
-    pub fn new(
-        from_collection_name: Box<str>,
-        to_collection_name: Box<str>,
-        reader_name: Box<str>,
-    ) -> Self {
-        Self {
-            from_collection_name,
-            to_collection_name,
-            reader_name,
-            state: State::Uninitialized,
-            puts_buffer: Vec::new(),
-            free_buffers_for_eval_inputs: Vec::with_capacity(4),
-            free_buffers_for_eval_outputs: Vec::with_capacity(4),
-            action_input_handlers: TransformInputs::new(),
-        }
-    }
-
-    pub fn run(&mut self, inputs: Vec<Input>) -> Result<TransformRunResult, TransformError> {
+impl Transform for MapFilterTransform {
+    fn run(&mut self, inputs: &mut Vec<Input>) -> Result<TransformRunResult, TransformError> {
         match self.state {
             State::Uninitialized => {
                 if !inputs.is_empty() {
@@ -107,8 +87,27 @@ impl MapFilterTransform {
         TransformInputs::run(self, inputs)
     }
 
-    pub fn return_actions_vec(&mut self, buffer: Vec<Action>) {
+    fn return_actions_vec(&mut self, buffer: Vec<Action>) {
         self.action_input_handlers.return_actions_vec(buffer);
+    }
+}
+
+impl MapFilterTransform {
+    pub fn new(
+        from_collection_name: Box<str>,
+        to_collection_name: Box<str>,
+        reader_name: Box<str>,
+    ) -> Self {
+        Self {
+            from_collection_name,
+            to_collection_name,
+            reader_name,
+            state: State::Uninitialized,
+            puts_buffer: Vec::new(),
+            free_buffers_for_eval_inputs: Vec::with_capacity(4),
+            free_buffers_for_eval_outputs: Vec::with_capacity(4),
+            action_input_handlers: TransformInputs::new(),
+        }
     }
 
     fn run_init(&mut self) -> HandlerResult<Self, ()> {
