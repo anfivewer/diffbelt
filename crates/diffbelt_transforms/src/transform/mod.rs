@@ -8,7 +8,7 @@ use diffbelt_util_no_std::buffers_pool::BuffersPool;
 use diffbelt_util_no_std::cast::{u64_to_usize, usize_to_u64};
 use generational_arena::{Arena, Index};
 
-pub use r#trait::Transform;
+pub use r#trait::{Transform, TransformImpl};
 
 pub type HandlerResult<This, Context> =
     Result<ActionInputHandlerResult<This, Context>, TransformError>;
@@ -59,7 +59,10 @@ impl<Context, This: WithTransformInputs<Context>> TransformInputs<This, Context>
         }
     }
 
-    pub fn run(this: &mut This, inputs: &mut Vec<Input>) -> Result<TransformRunResult, TransformError> {
+    pub fn run(
+        this: &mut This,
+        inputs: &mut Vec<Input>,
+    ) -> Result<TransformRunResult, TransformError> {
         let mut must_finish = false;
 
         let mut actions = { this.transform_inputs_mut().actions_buffers.take() };

@@ -1,10 +1,12 @@
 use crate::commands::errors::TransformEvalError;
-use diffbelt_cli_config::wasm::memory::WasmVecHolder;
+use crate::commands::transform::run::map_filter_eval::MapFilterEvalHandler;
 use diffbelt_transforms::base::action::function_eval::FunctionEvalAction;
 use diffbelt_transforms::base::input::function_eval::{FunctionEvalInput, FunctionEvalInputBody};
+use enum_dispatch::enum_dispatch;
 use std::future::Future;
 
-pub trait FunctionEvalHandler: Sized {
+#[enum_dispatch]
+pub trait FunctionEvalHandler {
     async fn handle_action<
         'a,
         Fut: Future<Output = ()>,
@@ -14,4 +16,9 @@ pub trait FunctionEvalHandler: Sized {
         action: FunctionEvalAction,
         emit_input: &F,
     );
+}
+
+#[enum_dispatch(FunctionEvalHandler)]
+pub enum FunctionEvalHandlerImpl {
+    MapFilter(MapFilterEvalHandler),
 }

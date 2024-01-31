@@ -11,6 +11,7 @@ tokio = { version = "1.22.0", features = ["full"] }
 hyper = { version = "0.14.23", features = ["full"] }
 thiserror = "1.0.50"
 enum-as-inner = "0.6.0"
+enum_dispatch = "0.3.12"
 
 [dependencies.diffbelt_types]
 path = "../diffbelt_types"

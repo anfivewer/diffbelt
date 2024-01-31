@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use diffbelt_cli_config::wasm::memory::WasmVecHolder;
 use diffbelt_cli_config::wasm::{MapFilterFunction, WasmModuleInstance};
 use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
@@ -6,16 +8,14 @@ use diffbelt_transforms::base::action::function_eval::{FunctionEvalAction, MapFi
 use diffbelt_transforms::base::input::function_eval::{
     FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput,
 };
-use diffbelt_transforms::base::input::{Input, InputType};
 use diffbelt_util::errors::NoStdErrorWrap;
-use std::future::Future;
 
 use crate::commands::errors::TransformEvalError;
 use crate::commands::transform::run::function_eval_handler::FunctionEvalHandler;
 
 pub struct MapFilterEvalHandler {
     pub verbose: bool,
-    pub instance: *mut WasmModuleInstance,
+    pub instance: *const WasmModuleInstance,
     pub vec_holder: WasmVecHolder<'static>,
     pub map_filter: MapFilterFunction<'static>,
 }
@@ -34,11 +34,11 @@ impl FunctionEvalHandler for MapFilterEvalHandler {
             Ok(action) => action,
             Err(_) => {
                 emit_input(Err(TransformEvalError::Unspecified(
-                    "action is not MapFilterEvalAction"
-                        .to_string(),
-                ))).await;
+                    "action is not MapFilterEvalAction".to_string(),
+                )))
+                .await;
                 return;
-            },
+            }
         };
 
         let MapFilterEvalAction {

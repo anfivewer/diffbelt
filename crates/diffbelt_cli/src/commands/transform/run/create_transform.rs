@@ -1,20 +1,19 @@
-use crate::commands::errors::CommandError;
-use crate::commands::transform::run::function_eval_handler::FunctionEvalHandler;
-use crate::commands::transform::run::map_filter_eval::MapFilterEvalHandler;
 use diffbelt_cli_config::transforms::aggregate::Aggregate;
 use diffbelt_cli_config::transforms::wasm::WasmMethodDef;
-use diffbelt_cli_config::transforms::{
-    aggregate, percentiles, unique_count, Transform as TransformConfig,
-};
+use diffbelt_cli_config::transforms::Transform as TransformConfig;
 use diffbelt_cli_config::wasm::WasmModuleInstance;
 use diffbelt_cli_config::CliConfig;
 use diffbelt_transforms::map_filter::MapFilterTransform;
-use diffbelt_transforms::Transform;
+use diffbelt_transforms::TransformImpl;
+
+use crate::commands::errors::CommandError;
+use crate::commands::transform::run::function_eval_handler::FunctionEvalHandlerImpl;
+use crate::commands::transform::run::map_filter_eval::MapFilterEvalHandler;
 
 pub struct TransformEvaluator {
     // TODO: replace with enum_dispatch?
-    pub transform: Box<dyn Transform>,
-    pub eval_handler: Box<dyn FunctionEvalHandler>,
+    pub transform: TransformImpl,
+    pub eval_handler: FunctionEvalHandlerImpl,
 }
 
 pub struct TransformDirection<'a> {
@@ -111,14 +110,14 @@ async fn create_map_filter_transform(
 
     let handler = MapFilterEvalHandler {
         verbose,
-        instance: wasm_instance as *mut WasmModuleInstance,
+        instance: wasm_instance as *const WasmModuleInstance,
         vec_holder,
         map_filter,
     };
 
     Ok(TransformEvaluator {
-        transform: Box::new(transform),
-        eval_handler: Box::new(handler),
+        transform: TransformImpl::MapFilter(transform),
+        eval_handler: FunctionEvalHandlerImpl::MapFilter(handler),
     })
 }
 

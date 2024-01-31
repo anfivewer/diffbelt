@@ -8,7 +8,7 @@ mod tests;
 mod transform;
 pub mod util;
 
-pub use transform::Transform;
+pub use transform::{Transform, TransformImpl};
 
 #[derive(Debug)]
 pub enum TransformRunResult {

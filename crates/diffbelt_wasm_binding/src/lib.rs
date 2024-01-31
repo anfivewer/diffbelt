@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(unused_imports)]
 
 mod allocator;
 pub mod annotations;
