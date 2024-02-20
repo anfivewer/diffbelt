@@ -19,6 +19,7 @@ use diffbelt_types::common::key_value_update::KeyValueUpdateJsonData;
 use diffbelt_types::common::reader::UpdateReaderJsonData;
 use diffbelt_util::option::lift_result_from_option;
 
+use crate::Transform;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{FunctionEvalAction, MapFilterEvalAction};
 use crate::base::action::{Action, ActionType};
@@ -35,7 +36,7 @@ fn map_filter_test() {
         MapFilterTransform::new(Box::from("from"), Box::from("to"), Box::from("reader"));
 
     let mut actions = transform
-        .run(vec![])
+        .run(&mut vec![])
         .unwrap()
         .into_actions()
         .unwrap()
@@ -64,7 +65,7 @@ fn map_filter_test() {
     );
 
     let mut actions = transform
-        .run(vec![Input {
+        .run(&mut vec![Input {
             id,
             input: InputType::DiffbeltCall(DiffbeltCallInput {
                 body: DiffbeltResponseBody::Diff(DiffCollectionResponseJsonData {
@@ -118,7 +119,7 @@ fn map_filter_test() {
     );
 
     let mut actions = transform
-        .run(vec![Input {
+        .run(&mut vec![Input {
             id,
             input: InputType::DiffbeltCall(DiffbeltCallInput {
                 body: DiffbeltResponseBody::Ok(()),
@@ -191,7 +192,7 @@ fn map_filter_test() {
     ]);
 
     let mut actions = transform
-        .run(vec![Input {
+        .run(&mut vec![Input {
             id: id2,
             input: InputType::FunctionEval(FunctionEvalInput {
                 body: FunctionEvalInputBody::MapFilter(map_filter_input),
@@ -205,7 +206,7 @@ fn map_filter_test() {
     assert!(actions.next().is_none());
 
     let mut actions = transform
-        .run(vec![Input {
+        .run(&mut vec![Input {
             id: id1,
             input: InputType::DiffbeltCall(DiffbeltCallInput {
                 body: DiffbeltResponseBody::Diff(DiffCollectionResponseJsonData {
@@ -258,7 +259,7 @@ fn map_filter_test() {
     assert!(actions.next().is_none());
 
     let mut actions = transform
-        .run(vec![Input {
+        .run(&mut vec![Input {
             id: put_many_id,
             input: InputType::DiffbeltCall(DiffbeltCallInput {
                 body: DiffbeltResponseBody::PutMany(PutManyResponseJsonData {
@@ -294,7 +295,7 @@ fn map_filter_test() {
     assert!(actions.next().is_none());
 
     let mut actions = transform
-        .run(vec![Input {
+        .run(&mut vec![Input {
             id: commit_id,
             input: InputType::DiffbeltCall(DiffbeltCallInput {
                 body: DiffbeltResponseBody::Ok(()),
@@ -330,7 +331,7 @@ fn map_filter_test() {
     );
 
     let result = transform
-        .run(vec![Input {
+        .run(&mut vec![Input {
             id: second_diff,
             input: InputType::DiffbeltCall(DiffbeltCallInput {
                 body: DiffbeltResponseBody::Diff(DiffCollectionResponseJsonData {

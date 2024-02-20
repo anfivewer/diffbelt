@@ -48,7 +48,7 @@ use crate::base::input::function_eval::{
     FunctionEvalInput, FunctionEvalInputBody,
 };
 use crate::base::input::{Input, InputType};
-use crate::TransformRunResult;
+use crate::{Transform, TransformRunResult};
 
 #[test]
 fn aggregate_small_test() {
@@ -220,7 +220,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
         let mut old_inputs = Vec::new();
         mem::swap(&mut inputs, &mut old_inputs);
 
-        let run_result = transform.run(old_inputs).expect("should run");
+        let run_result = transform.run(&mut old_inputs).expect("should run");
 
         let mut actions = match run_result {
             TransformRunResult::Actions(actions) => actions,

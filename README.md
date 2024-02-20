@@ -444,3 +444,14 @@ Transform iteration:
 If you got any error on steps above — abort generation and try again/investigate your code.
 
 Repeat transform iteration until readers `from_a` and `from_b` will not be equal to `A` and `B` generation ids correspondingly.  Then you can watch for `A` and `B` generation ids, wait for their updates and repeat the process.
+
+# Building
+
+Install `flatc` of flatbuffers with same version as `diffbelt_protos` have.
+
+```
+$ rustup target add wasm32-unknown-unknown
+$ cd crates/diffbelt_example_wasm && make
+$ cargo test
+```
+
