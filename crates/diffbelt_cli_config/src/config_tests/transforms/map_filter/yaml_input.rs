@@ -39,7 +39,7 @@ pub fn yaml_test_vars_to_map_filter_input(
                     let slice = instance.vec_to_bytes_slice(&input_vec_holder)?;
 
                     () =
-                        human_readable_functions.call_bytes_to_key(&slice.0, &output_vec_holder)?;
+                        human_readable_functions.call_key_to_bytes(&slice.0, &output_vec_holder)?;
 
                     let result = output_vec_holder.access()?;
                     () = result.observe_bytes(|bytes| {

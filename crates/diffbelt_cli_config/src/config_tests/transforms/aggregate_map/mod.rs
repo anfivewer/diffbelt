@@ -1,8 +1,11 @@
+mod yaml_input;
+
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::str::from_utf8;
 
+use diffbelt_protos::protos::transform::aggregate::AggregateMapMultiInput;
 use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFilterMultiOutput};
 use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_util::errors::NoStdErrorWrap;
@@ -13,6 +16,7 @@ use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_yaml::YamlNode;
 
 use crate::config_tests::error::{AssertError, TestError};
+use crate::config_tests::transforms::aggregate_map::yaml_input::yaml_test_vars_to_aggregate_map_input;
 use crate::config_tests::{TransformTest, TransformTestPreCreateOptions};
 use crate::transforms::aggregate::Aggregate;
 use crate::transforms::wasm::WasmMethodDef;
@@ -57,6 +61,10 @@ impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
             Cow::Borrowed(source.wasm.as_str()),
             Cow::Borrowed(aggregate.wasm.as_str()),
             Cow::Borrowed(data.map.module_name.as_str()),
+            Cow::Borrowed(data.initial_accumulator.module_name.as_str()),
+            Cow::Borrowed(data.reduce.module_name.as_str()),
+            Cow::Borrowed(data.merge_accumulators.module_name.as_str()),
+            Cow::Borrowed(data.apply.module_name.as_str()),
         ])
     }
 
@@ -64,18 +72,30 @@ impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
         data: &'a Self::InitialData,
         wasm_modules: Vec<&'a WasmModuleInstance>,
     ) -> Result<Self, TestError> {
-        if wasm_modules.len() != 4 {
+        if wasm_modules.len() != 7 {
             return Err(TestError::Panic(format!(
                 "wasm_module has wrong size: {}",
                 wasm_modules.len()
             )));
         }
 
-        let (source_wasm, human_readable_wasm, map_wasm) = unsafe {
+        let (
+            source_wasm,
+            human_readable_wasm,
+            map_wasm,
+            initial_accumulator_wasm,
+            reduce_wasm,
+            merge_accumulators_wasm,
+            apply_wasm,
+        ) = unsafe {
             (
                 wasm_modules.get_unchecked(0),
                 wasm_modules.get_unchecked(1),
                 wasm_modules.get_unchecked(2),
+                wasm_modules.get_unchecked(3),
+                wasm_modules.get_unchecked(4),
+                wasm_modules.get_unchecked(5),
+                wasm_modules.get_unchecked(6),
             )
         };
 
@@ -118,22 +138,29 @@ impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
                     )
                 })?
                 .as_str(),
-        );
+        )?;
 
-        // TODO: make AggregateFunctions
+        let aggregate = AggregateFunctions::new(
+            map_wasm,
+            data.map.method_name.as_str(),
+            data.initial_accumulator.method_name.as_str(),
+            data.reduce.method_name.as_str(),
+            data.merge_accumulators.method_name.as_str(),
+            data.apply.method_name.as_str(),
+        )?;
 
         Ok(Self {
             source_human_readable,
             aggregate_human_readable,
-            map_filter,
+            aggregate,
         })
     }
 
-    type Input = OwnedSerialized<'static, MapFilterMultiInput<'static>>;
+    type Input = OwnedSerialized<'static, AggregateMapMultiInput<'static>>;
 
     fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Self::Input, TestError> {
         let serialized =
-            yaml_test_vars_to_map_filter_input(&self.source_human_readable, vars.as_ref())?;
+            yaml_test_vars_to_aggregate_map_input(&self.source_human_readable, vars.as_ref())?;
 
         Ok(serialized)
     }
@@ -144,6 +171,8 @@ impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
     );
 
     fn input_to_output(&'a self, input: Self::Input) -> Result<Self::Output, TestError> {
+        self.aggregate.instance
+
         let result_holder = self.map_filter.instance.alloc_vec_holder()?;
 
         let bytes_result = self.map_filter.call(input.as_bytes(), &result_holder)?;

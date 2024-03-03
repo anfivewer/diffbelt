@@ -1,8 +1,12 @@
+use std::ops::DerefMut;
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
 use crate::wasm::{WasmError, WasmModuleInstance};
+use diffbelt_protos::protos::transform::aggregate::AggregateMapMultiInput;
+use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 use wasmer::{TypedFunction, WasmPtr};
+use diffbelt_util_no_std::cast::try_usize_to_i32;
 
 pub struct AggregateFunctions<'a> {
     pub instance: &'a WasmModuleInstance,
@@ -73,5 +77,27 @@ impl<'a> AggregateFunctions<'a> {
             merge_accumulators,
             apply,
         })
+    }
+
+    pub fn call_map(
+        &self,
+        input: FlatbufferAnnotated<&[u8], AggregateMapMultiInput>,
+    ) -> Result<(), WasmError> {
+        let input = input.value;
+
+        let mut store = self.instance.store.try_borrow_mut()?;
+        let store = store.deref_mut();
+
+        let input_len = try_usize_to_i32(input.len()).ok_or_else(|| {
+            WasmError::Unspecified(format!("AggregateFunctionscall_map: slice len {}", input.len()))
+        })?;
+        () = self.instance
+            .allocation
+            .ensure_vec_capacity
+            .call(store, self.vector.ptr, input_len)?;
+
+        // TODO
+
+        todo!()
     }
 }

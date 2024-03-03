@@ -64,6 +64,18 @@ impl<'fbb, F: FlatbuffersType<'fbb>> Serializer<'fbb, F> {
         self.buffer_builder_.create_vector(items)
     }
 
+    pub fn start_vector<T: Push>(&mut self, items_count: usize) {
+        self.buffer_builder_.start_vector::<T>(items_count);
+    }
+
+    pub fn push<T: Push>(&mut self, item: WIPOffset<T>) {
+        self.buffer_builder_.push(item);
+    }
+
+    pub fn end_vector<T: Push>(&mut self, items_count: usize) -> WIPOffset<Vector<'fbb, T>> {
+        self.buffer_builder_.end_vector(items_count)
+    }
+
     pub fn finish(mut self, root: WIPOffset<F>) -> Serialized<'fbb, F> {
         () = self.buffer_builder_.finish_minimal(root);
 
