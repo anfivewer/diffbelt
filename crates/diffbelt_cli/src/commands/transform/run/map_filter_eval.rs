@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use diffbelt_cli_config::wasm::memory::WasmVecHolder;
+use diffbelt_cli_config::wasm::memory::vector::WasmVecHolder;
 use diffbelt_cli_config::wasm::{MapFilterFunction, WasmModuleInstance};
 use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
 use diffbelt_protos::{deserialize, OwnedSerialized};

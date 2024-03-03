@@ -24,6 +24,7 @@ mod create_transform;
 mod function_eval_handler;
 mod map_filter_eval;
 mod parse;
+mod aggregate_eval;
 
 #[derive(Args, Debug)]
 pub struct Run {

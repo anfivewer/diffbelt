@@ -41,7 +41,7 @@ pub fn yaml_test_vars_to_map_filter_input(
                     () =
                         human_readable_functions.call_bytes_to_key(&slice.0, &output_vec_holder)?;
 
-                    let result = instance.access_vec(&output_vec_holder)?;
+                    let result = output_vec_holder.access()?;
                     () = result.observe_bytes(|bytes| {
                         source_key_offset = Some(serializer.create_vector(bytes));
 
@@ -57,7 +57,7 @@ pub fn yaml_test_vars_to_map_filter_input(
                     () = human_readable_functions
                         .call_value_to_bytes(&slice.0, &output_vec_holder)?;
 
-                    let result = instance.access_vec(&output_vec_holder)?;
+                    let result = output_vec_holder.access()?;
                     () = result.observe_bytes(|bytes| {
                         source_old_value_offset = Some(serializer.create_vector(bytes));
 
@@ -73,7 +73,7 @@ pub fn yaml_test_vars_to_map_filter_input(
                     () = human_readable_functions
                         .call_value_to_bytes(&slice.0, &output_vec_holder)?;
 
-                    let result = instance.access_vec(&output_vec_holder)?;
+                    let result = output_vec_holder.access()?;
                     () = result.observe_bytes(|bytes| {
                         source_new_value_offset = Some(serializer.create_vector(bytes));
 

@@ -3,7 +3,7 @@ use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use std::ops::DerefMut;
 use wasmer::{TypedFunction, WasmPtr};
 
-use crate::wasm::memory::WasmVecHolder;
+use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::types::WasmBytesVecRawParts;
 use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
 
@@ -54,7 +54,7 @@ impl<'a> HumanReadableFunctions<'a> {
         value_to_bytes: &str,
         bytes_to_value: &str,
     ) -> Result<Self, WasmError> {
-        let store = instance.store.borrow();
+        let store = instance.store.try_borrow()?;
 
         let key_to_bytes = instance.typed_function_with_store(&store, key_to_bytes)?;
         let bytes_to_key = instance.typed_function_with_store(&store, bytes_to_key)?;

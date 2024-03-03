@@ -18,7 +18,7 @@ use crate::config_tests::transforms::map_filter::yaml_output::yaml_test_output_t
 use crate::config_tests::{TransformTest, TransformTestPreCreateOptions};
 use crate::transforms::wasm::WasmMethodDef;
 use crate::wasm::human_readable::HumanReadableFunctions;
-use crate::wasm::memory::WasmVecHolder;
+use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::types::WasmPtrImpl;
 use crate::wasm::{MapFilterFunction, WasmModuleInstance};
 

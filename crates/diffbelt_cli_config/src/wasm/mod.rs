@@ -22,11 +22,13 @@ pub use types::WasmPtrImpl;
 
 use crate::errors::WithMark;
 use crate::wasm::human_readable::HumanReadableFunctions;
-use crate::wasm::memory::WasmVecHolder;
+use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
 use crate::wasm::wasm_env::WasmEnv;
+use memory::vector::WasmVecHolder;
 
+pub mod aggregate;
 pub mod human_readable;
 pub mod memory;
 pub mod result;
@@ -108,7 +110,7 @@ pub struct WasmModuleInstance {
 pub struct MapFilterFunction<'a> {
     pub instance: &'a WasmModuleInstance,
     fun: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
-    slice: WasmPtr<WasmBytesSlice>,
+    slice: WasmSliceHolder<'a>,
 }
 
 impl Wasm {
@@ -216,11 +218,11 @@ impl WasmModuleInstance {
     }
 
     pub fn map_filter_function(&self, name: &str) -> Result<MapFilterFunction<'_>, WasmError> {
-        let mut store = self.store.try_borrow_mut()?;
+        let slice = self.alloc_slice_holder()?;
+
+        let store = self.store.try_borrow()?;
 
         let fun = self.typed_function_with_store(&store, name)?;
-
-        let slice = self.allocation.alloc_bytes_slice.call(&mut store)?;
 
         Ok(MapFilterFunction {
             instance: self,
@@ -267,14 +269,14 @@ impl MapFilterFunction<'_> {
             let slice = ptr.slice(&view, unchecked_i32_to_u32(inputs_len_i32))?;
             () = slice.write_slice(inputs)?;
 
-            let mut input_slice_def = self.slice.access(&view)?;
+            let mut input_slice_def = self.slice.ptr.access(&view)?;
             let input_slice_def = input_slice_def.as_mut();
 
             input_slice_def.0.ptr = ptr.into();
             input_slice_def.0.len = inputs_len_i32;
         }
 
-        let error_code = { self.fun.call(store, self.slice, result_buffer.ptr)? };
+        let error_code = { self.fun.call(store, self.slice.ptr, result_buffer.ptr)? };
 
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {
@@ -287,7 +289,7 @@ impl MapFilterFunction<'_> {
         let slice_def = {
             let view = self.instance.allocation.memory.view(store);
 
-            let input_slice_def = self.slice.access(&view)?;
+            let input_slice_def = self.slice.ptr.access(&view)?;
             let input_slice_def = input_slice_def.as_ref();
 
             *input_slice_def
@@ -302,24 +304,5 @@ impl MapFilterFunction<'_> {
             ptr: slice_def.0.ptr.into(),
             len: result_len,
         })
-    }
-}
-
-impl Drop for MapFilterFunction<'_> {
-    fn drop(&mut self) {
-        let result = (|| {
-            let mut store = self.instance.store.try_borrow_mut()?;
-            let store = store.deref_mut();
-
-            () = self
-                .instance
-                .allocation
-                .dealloc_bytes_slice
-                .call(store, self.slice)?;
-
-            Ok::<(), WasmError>(())
-        })();
-
-        () = WasmEnv::handle_error(&self.instance.error, result).unwrap_or(());
     }
 }
