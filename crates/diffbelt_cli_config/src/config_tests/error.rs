@@ -29,6 +29,8 @@ pub enum TestError {
     SourceHasNoHumanReadableFunctions,
     #[error("TargetHasNoHumanReadableFunctions")]
     TargetHasNoHumanReadableFunctions,
+    #[error("AggregateHasNoHumanReadableFunctions")]
+    AggregateHasNoHumanReadableFunctions,
     #[error("{0}")]
     Unspecified(String),
     #[error("{0}")]

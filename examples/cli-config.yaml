@@ -64,6 +64,21 @@ transforms:
     reader_name: log-lines
     map_filter: example.mapFilter
 
+  - name: parsed_lines_1d
+    source: parsed-log-lines
+    target: parsed-log-lines:1d
+    reader_name: parsed-log-lines
+    aggregate:
+      map: example.aggregateMap
+      initial_accumulator: example.aggregateInitialAccumulator
+      reduce: example.aggregateReduce
+      merge_accumulators: example.aggregateMergeAccumulators
+      apply: example.aggregateApply
+      human_readable:
+        wasm: example
+        mapped_key_from_bytes: parsedLogLinesMappedKeyFromBytes
+        mapped_value_from_bytes: parsedLogLinesMappedValueFromBytes
+
 #  - source: parsed-log-lines
 #    target: parsed-log-lines:1d
 #    reader_name: parsed-log-lines
@@ -437,3 +452,23 @@ tests:
                 at emitErrorNT (internal/streams/destroy.js:106:8)
                 at emitErrorCloseNT (internal/streams/destroy.js:74:3)
                 at processTicksAndRejections (internal/process/task_queues.js:82:21)
+
+  transforms.parsed_lines_1d.map:
+    - name: basic
+      input:
+        - source_key: S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27
+          source_old_value: !none
+          source_new_value: ''
+        - source_key: T 2023-08-13T23:15:28.371Z.004 main:l10n noTranslation key:viewCustomCaptcha_help lang:uk
+          source_old_value: !none
+          source_new_value: ''
+        - source_key: T 2023-08-13T23:17:03.865Z.000 master247627:setMyCommands set lang:et scope:all_private_chats tasksLeft:36
+          source_old_value: !none
+          source_new_value: ''
+      output:
+        - target_key: 2023-02-20
+          mapped_value: worker#:middlewares::handleFull::S
+        - target_key: 2023-08-13
+          mapped_value: main:l10n::noTranslation::T
+        - target_key: 2023-08-13
+          mapped_value: master#:setMyCommands::set::T
