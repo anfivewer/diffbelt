@@ -5,6 +5,7 @@ use std::rc::Rc;
 use std::str::Utf8Error;
 use std::sync::{Arc, Mutex};
 
+use diffbelt_protos::error::FlatbufferError;
 use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
 use serde::Deserialize;
 use thiserror::Error;
@@ -16,6 +17,7 @@ use wasmer::{
 
 use diffbelt_util::Wrap;
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
+use diffbelt_util_no_std::impl_from_either;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use memory::Allocation;
 pub use types::WasmPtrImpl;
@@ -78,7 +80,17 @@ pub enum WasmError {
     #[error("{0:?}")]
     BorrowMut(#[from] BorrowMutError),
     #[error("{0:?}")]
+    Flatbuffer(FlatbufferError),
+    #[error("{0:?}")]
     Unspecified(String),
+}
+
+impl_from_either!(WasmError);
+
+impl From<FlatbufferError> for WasmError {
+    fn from(value: FlatbufferError) -> Self {
+        Self::Flatbuffer(value)
+    }
 }
 
 pub fn export_error_context<F: FnOnce() -> String>(
@@ -281,7 +293,7 @@ impl MapFilterFunction<'_> {
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {
             return Err(WasmError::Unspecified(format!(
-                concat!("MapFilterFunction error code {:?}"),
+                "MapFilterFunction error code {:?}",
                 error_code
             )));
         };

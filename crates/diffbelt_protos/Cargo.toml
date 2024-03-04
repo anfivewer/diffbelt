@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 flatbuffers = { version = "23.5.26", default-features = false, features = [] }
+thiserror-no-std = { version = "2.0.2", default-features = false }
+enum-as-inner = "0.6.0"
 
 [dependencies.diffbelt_util_no_std]
 path = "../diffbelt_util_no_std"

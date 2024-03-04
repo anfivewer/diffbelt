@@ -4,9 +4,7 @@ pub mod map_filter;
 #[macro_export]
 macro_rules! call_human_readable_conversion {
     ($value:ident, $human_readable:ident, $method:ident, $input_vec_holder:ident, $output_vec_holder:ident) => {{
-        () = $human_readable
-            .instance
-            .replace_vec_with_slice(&$input_vec_holder, $value.as_bytes())?;
+        () = $input_vec_holder.replace_with_slice($value.as_bytes())?;
         let slice = $human_readable
             .instance
             .vec_to_bytes_slice(&$input_vec_holder)?;

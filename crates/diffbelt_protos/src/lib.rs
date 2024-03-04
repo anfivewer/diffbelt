@@ -2,6 +2,7 @@
 
 extern crate alloc;
 
+use crate::error::{FlatbufferError, InvalidFlatbufferWithBuffer};
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 use flatbuffers::{
@@ -9,6 +10,7 @@ use flatbuffers::{
 };
 pub use flatbuffers::{InvalidFlatbuffer, Vector, WIPOffset};
 
+pub mod error;
 pub mod protos;
 pub mod util;
 
@@ -68,7 +70,7 @@ impl<'fbb, F: FlatbuffersType<'fbb>> Serializer<'fbb, F> {
         self.buffer_builder_.start_vector::<T>(items_count);
     }
 
-    pub fn push<T: Push>(&mut self, item: WIPOffset<T>) {
+    pub fn push<T: Push>(&mut self, item: T) {
         self.buffer_builder_.push(item);
     }
 
@@ -145,10 +147,20 @@ impl<'fbb, T: FlatbuffersType<'fbb>> PartialEq for OwnedSerialized<'fbb, T> {
 impl<'fbb, T: FlatbuffersType<'fbb>> Eq for OwnedSerialized<'fbb, T> {}
 
 impl<'fbb, F: FlatbuffersType<'fbb>> OwnedSerialized<'fbb, F> {
-    pub fn from_vec(buffer: Vec<u8>) -> Result<Self, InvalidFlatbuffer> {
+    pub fn from_vec(buffer: Vec<u8>) -> Result<Self, FlatbufferError> {
         let opts = VerifierOptions::default();
         let mut v = Verifier::new(&opts, &buffer);
-        <ForwardsUOffset<F>>::run_verifier(&mut v, 0)?;
+        () = match <ForwardsUOffset<F>>::run_verifier(&mut v, 0) {
+            Ok(()) => (),
+            Err(error) => {
+                return Err(FlatbufferError::InvalidFlatbufferWithBuffer(
+                    InvalidFlatbufferWithBuffer {
+                        buffer: Some(buffer),
+                        error,
+                    },
+                ));
+            }
+        };
         let len = buffer.len();
         Ok(Self {
             buffer,

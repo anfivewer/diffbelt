@@ -1,7 +1,7 @@
 use std::ops::DerefMut;
 
 use diffbelt_util_no_std::cast::try_positive_i32_to_u32;
-use wasmer::WasmPtr;
+use wasmer::{AsStoreRef, WasmPtr};
 
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::result::WasmBytesSliceResult;

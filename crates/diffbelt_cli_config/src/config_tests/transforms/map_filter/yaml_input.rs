@@ -35,7 +35,7 @@ pub fn yaml_test_vars_to_map_filter_input(
         match key {
             "source_key" => {
                 if let Some(s) = parse_scalar(value)?.as_str() {
-                    () = instance.replace_vec_with_slice(&input_vec_holder, s.as_bytes())?;
+                    () = input_vec_holder.replace_with_slice(s.as_bytes())?;
                     let slice = instance.vec_to_bytes_slice(&input_vec_holder)?;
 
                     () =
@@ -51,7 +51,7 @@ pub fn yaml_test_vars_to_map_filter_input(
             }
             "source_old_value" => {
                 if let Some(s) = parse_scalar(value)?.as_str() {
-                    () = instance.replace_vec_with_slice(&input_vec_holder, s.as_bytes())?;
+                    () = input_vec_holder.replace_with_slice(s.as_bytes())?;
                     let slice = instance.vec_to_bytes_slice(&input_vec_holder)?;
 
                     () = human_readable_functions
@@ -67,7 +67,7 @@ pub fn yaml_test_vars_to_map_filter_input(
             }
             "source_new_value" => {
                 if let Some(s) = parse_scalar(value)?.as_str() {
-                    () = instance.replace_vec_with_slice(&input_vec_holder, s.as_bytes())?;
+                    () = input_vec_holder.replace_with_slice(s.as_bytes())?;
                     let slice = instance.vec_to_bytes_slice(&input_vec_holder)?;
 
                     () = human_readable_functions

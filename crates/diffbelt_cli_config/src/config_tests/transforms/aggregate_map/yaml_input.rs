@@ -3,11 +3,11 @@ use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiInput, AggregateMapMultiInputArgs, AggregateMapSource, AggregateMapSourceArgs,
     AggregateMapSourceBuilder,
 };
-use diffbelt_protos::{OwnedSerialized, Serializer};
+use diffbelt_protos::{OwnedSerialized, Serializer, WIPOffset};
 use diffbelt_yaml::YamlNode;
 
 use crate::config_tests::error::YamlTestVarsError;
-use crate::config_tests::value::parse_scalar;
+use crate::config_tests::value::{parse_scalar, Scalar};
 use crate::wasm::human_readable::HumanReadableFunctions;
 
 pub fn yaml_test_vars_to_aggregate_map_input(
@@ -25,7 +25,7 @@ pub fn yaml_test_vars_to_aggregate_map_input(
         .ok_or_else(|| YamlTestVarsError::Unspecified("input should be a sequence".to_string()))?;
 
     let source_items_len = source_items.items.len();
-    serializer.start_vector::<AggregateMapSource>(source_items_len);
+    serializer.start_vector::<WIPOffset<AggregateMapMultiInput>>(source_items_len);
 
     for source_item in source_items {
         let source_item = source_item.as_mapping().ok_or_else(|| {
@@ -63,7 +63,7 @@ pub fn yaml_test_vars_to_aggregate_map_input(
                     })?;
                 }
                 "source_old_value" => {
-                    if let Some(value) = value {
+                    if let Scalar::String(value) = value {
                         () = call_human_readable_conversion!(
                             value,
                             source_human_readable,
@@ -79,7 +79,7 @@ pub fn yaml_test_vars_to_aggregate_map_input(
                     }
                 }
                 "source_new_value" => {
-                    if let Some(value) = value {
+                    if let Scalar::String(value) = value {
                         () = call_human_readable_conversion!(
                             value,
                             source_human_readable,
@@ -124,8 +124,8 @@ pub fn yaml_test_vars_to_aggregate_map_input(
 
     let input = AggregateMapMultiInput::create(
         serializer.buffer_builder(),
-        &AggregateMapMultiInputArgs { items },
+        &AggregateMapMultiInputArgs { items: Some(items) },
     );
 
-    serializer.finish(input).into_owned()
+    Ok(serializer.finish(input).into_owned())
 }

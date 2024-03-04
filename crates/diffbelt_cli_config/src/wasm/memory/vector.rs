@@ -4,6 +4,7 @@ use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::{WasmError, WasmModuleInstance};
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
+use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 use std::ops::DerefMut;
 use wasmer::WasmPtr;
 
@@ -22,39 +23,6 @@ impl WasmModuleInstance {
             instance: self,
             ptr,
         })
-    }
-
-    pub fn replace_vec_with_slice(
-        &self,
-        vec_holder: &WasmVecHolder<'_>,
-        slice: &[u8],
-    ) -> Result<(), WasmError> {
-        let mut store = self.store.try_borrow_mut()?;
-
-        let len = try_usize_to_i32(slice.len()).ok_or_else(|| {
-            WasmError::Unspecified(format!("replace_vec_with_slice: slice len {}", slice.len()))
-        })?;
-        let len_u32 = unchecked_i32_to_u32(len);
-
-        () = self
-            .allocation
-            .ensure_vec_capacity
-            .call(&mut store, vec_holder.ptr, len)?;
-
-        let view = self.allocation.memory.view(&store);
-        let mut access = vec_holder.ptr.access(&view)?;
-
-        {
-            let raw_parts = access.as_mut();
-            raw_parts.0.len = len;
-        }
-
-        let vec_ptr = WasmPtr::from(access.as_ref().0.ptr);
-
-        let vec_slice = vec_ptr.slice(&view, len_u32)?;
-        () = vec_slice.write_slice(slice)?;
-
-        Ok(())
     }
 
     pub fn vec_to_bytes_slice(
@@ -97,6 +65,50 @@ impl<'a> WasmVecHolder<'a> {
         };
 
         Ok(result)
+    }
+
+    pub fn replace_with_slice_and_return_slice(
+        &self,
+        slice: &[u8],
+    ) -> Result<WasmBytesSlice, WasmError> {
+        let mut store = self.instance.store.try_borrow_mut()?;
+
+        let len = try_usize_to_i32(slice.len()).ok_or_else(|| {
+            WasmError::Unspecified(format!("replace_vec_with_slice: slice len {}", slice.len()))
+        })?;
+        let len_u32 = unchecked_i32_to_u32(len);
+
+        () = self
+            .instance
+            .allocation
+            .ensure_vec_capacity
+            .call(&mut store, self.ptr, len)?;
+
+        let view = self.instance.allocation.memory.view(&store);
+        let mut access = self.ptr.access(&view)?;
+
+        {
+            let raw_parts = access.as_mut();
+            raw_parts.0.len = len;
+        }
+
+        let vec_ptr = WasmPtr::from(access.as_ref().0.ptr);
+
+        let vec_slice = vec_ptr.slice(&view, len_u32)?;
+        () = vec_slice.write_slice(slice)?;
+
+        let wasm_slice = WasmBytesSlice(SliceRawParts {
+            ptr: vec_ptr.into(),
+            len,
+        });
+
+        Ok(wasm_slice)
+    }
+
+    pub fn replace_with_slice(&self, slice: &[u8]) -> Result<(), WasmError> {
+        _ = self.replace_with_slice_and_return_slice(slice)?;
+
+        Ok(())
     }
 }
 
