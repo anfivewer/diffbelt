@@ -1,23 +1,19 @@
 mod yaml_input;
 
+use diffbelt_protos::protos::transform::aggregate::AggregateMapMultiInput;
+use diffbelt_protos::OwnedSerialized;
+use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
+use diffbelt_yaml::YamlNode;
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::str::from_utf8;
-
-use diffbelt_protos::protos::transform::aggregate::AggregateMapMultiInput;
-use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFilterMultiOutput};
-use diffbelt_protos::{deserialize, OwnedSerialized};
-use diffbelt_util::errors::NoStdErrorWrap;
-use diffbelt_util::option::lift_result_from_option;
-use diffbelt_util_no_std::cast::checked_usize_to_i32;
-use diffbelt_util_no_std::slice::get_slice_offset_in_other_slice;
-use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
-use diffbelt_yaml::YamlNode;
 
 use crate::config_tests::error::{AssertError, TestError};
 use crate::config_tests::transforms::aggregate_map::yaml_input::yaml_test_vars_to_aggregate_map_input;
-use crate::config_tests::{TransformTest, TransformTestPreCreateOptions};
+use crate::config_tests::transforms::{
+    TransformTest, TransformTestCreator, TransformTestCreatorImpl, TransformTestImpl,
+    TransformTestPreCreateOptions,
+};
 use crate::transforms::aggregate::Aggregate;
 use crate::transforms::wasm::WasmMethodDef;
 use crate::wasm::aggregate::AggregateFunctions;
@@ -25,30 +21,29 @@ use crate::wasm::human_readable::aggregate::AggregateHumanReadableFunctions;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::types::WasmPtrImpl;
-use crate::wasm::{MapFilterFunction, WasmModuleInstance};
+use crate::wasm::WasmModuleInstance;
 
-pub struct AggregateMapTransformTest<'a> {
-    source_human_readable: HumanReadableFunctions<'a>,
-    aggregate_human_readable: AggregateHumanReadableFunctions<'a>,
-    aggregate: AggregateFunctions<'a>,
+pub struct AggregateMapTransformTestCreator<'a> {
+    data: TransformTestPreCreateOptions<'a, &'a Aggregate>,
 }
 
-impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
-    type ConstructorData = &'a Aggregate;
-    type InitialData = TransformTestPreCreateOptions<'a, Self::ConstructorData>;
-
-    fn pre_create(
-        options: TransformTestPreCreateOptions<'a, Self::ConstructorData>,
-    ) -> Result<Self::InitialData, TestError> {
-        Ok(options)
+impl<'a> AggregateMapTransformTestCreator<'a> {
+    pub fn new(
+        data: TransformTestPreCreateOptions<'a, &'a Aggregate>,
+    ) -> Result<TransformTestCreatorImpl<'a>, TestError> {
+        Ok(TransformTestCreatorImpl::AggregateMap(
+            AggregateMapTransformTestCreator { data },
+        ))
     }
+}
 
-    fn required_wasm_modules(data: &Self::InitialData) -> Result<Vec<Cow<str>>, TestError> {
+impl<'a> TransformTestCreator<'a> for AggregateMapTransformTestCreator<'a> {
+    fn required_wasm_modules(&self) -> Result<Vec<Cow<'a, str>>, TestError> {
         let TransformTestPreCreateOptions {
             source_collection,
             target_collection: _,
             data,
-        } = data;
+        } = self.data;
 
         let Some(source) = &source_collection.human_readable else {
             return Err(TestError::SourceHasNoHumanReadableFunctions);
@@ -69,9 +64,9 @@ impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
     }
 
     fn create(
-        data: &'a Self::InitialData,
+        self,
         wasm_modules: Vec<&'a WasmModuleInstance>,
-    ) -> Result<Self, TestError> {
+    ) -> Result<TransformTestImpl<'a>, TestError> {
         if wasm_modules.len() != 7 {
             return Err(TestError::Panic(format!(
                 "wasm_module has wrong size: {}",
@@ -103,7 +98,7 @@ impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
             source_collection,
             target_collection,
             data,
-        } = data;
+        } = self.data;
 
         let source_human_readable = source_collection
             .human_readable
@@ -149,54 +144,73 @@ impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
             data.apply.method_name.as_str(),
         )?;
 
-        Ok(Self {
+        Ok(TransformTestImpl::AggregateMap(AggregateMapTransformTest {
             source_human_readable,
             aggregate_human_readable,
             aggregate,
-        })
+        }))
     }
+}
 
-    type Input = OwnedSerialized<'static, AggregateMapMultiInput<'static>>;
+pub struct AggregateMapTransformTest<'a> {
+    source_human_readable: HumanReadableFunctions<'a>,
+    aggregate_human_readable: AggregateHumanReadableFunctions<'a>,
+    aggregate: AggregateFunctions<'a>,
+}
 
-    fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Self::Input, TestError> {
+type Input = OwnedSerialized<'static, AggregateMapMultiInput<'static>>;
+type Output<'a> = (
+    WasmVecHolder<'a>,
+    Vec<(BytesSlice<WasmPtrImpl>, Option<BytesSlice<WasmPtrImpl>>)>,
+);
+type ActualOutput<'a> = Vec<(WasmVecHolder<'a>, Option<WasmVecHolder<'a>>)>;
+type ExpectedOutput<'a> = Vec<(&'a str, Option<&'a str>)>;
+
+impl<'a> AggregateMapTransformTest<'a> {
+    fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Input, TestError> {
         let serialized =
             yaml_test_vars_to_aggregate_map_input(&self.source_human_readable, vars.as_ref())?;
 
         Ok(serialized)
     }
 
-    type Output = (
-        WasmVecHolder<'a>,
-        Vec<(BytesSlice<WasmPtrImpl>, Option<BytesSlice<WasmPtrImpl>>)>,
-    );
-
-    fn input_to_output(&'a self, input: Self::Input) -> Result<Self::Output, TestError> {
+    fn input_to_output(&'a self, input: Input) -> Result<Output<'a>, TestError> {
         todo!()
     }
 
-    type ActualOutput = Vec<(WasmVecHolder<'a>, Option<WasmVecHolder<'a>>)>;
-
-    fn output_to_actual_output(
-        &self,
-        output: Self::Output,
-    ) -> Result<Self::ActualOutput, TestError> {
+    fn output_to_actual_output(&self, output: Output<'a>) -> Result<ActualOutput<'a>, TestError> {
         todo!()
     }
-
-    type ExpectedOutput = Vec<(&'a str, Option<&'a str>)>;
 
     fn expected_output_from_test_vars(
         &self,
         vars: &'a Rc<YamlNode>,
-    ) -> Result<Self::ExpectedOutput, TestError> {
+    ) -> Result<ExpectedOutput<'a>, TestError> {
         todo!()
     }
 
     fn compare_actual_and_expected_output(
         &self,
-        actual: &Self::ActualOutput,
-        expected: &Self::ExpectedOutput,
+        actual: &ActualOutput<'a>,
+        expected: &ExpectedOutput<'a>,
     ) -> Result<Option<AssertError>, TestError> {
         todo!()
+    }
+}
+
+impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
+    fn test(
+        &self,
+        input: &Rc<YamlNode>,
+        expected_output: &Rc<YamlNode>,
+    ) -> Result<Option<AssertError>, TestError> {
+        let input = self.input_from_test_vars(&input)?;
+        let output = self.input_to_output(input)?;
+        let actual_output = self.output_to_actual_output(output)?;
+        let expected_output = self.expected_output_from_test_vars(&expected_output)?;
+        let comparison =
+            self.compare_actual_and_expected_output(&actual_output, &expected_output)?;
+
+        Ok(comparison)
     }
 }

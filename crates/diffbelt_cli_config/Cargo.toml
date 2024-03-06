@@ -19,6 +19,7 @@ tokio = "1.22.0"
 thiserror = "1.0.50"
 either = "1.9.0"
 dioxus-hooks = "0.4.0"
+enum_dispatch = "0.3.12"
 
 [dependencies.diffbelt_util]
 path = "../diffbelt_util"

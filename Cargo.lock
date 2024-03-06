@@ -636,6 +636,7 @@ dependencies = [
  "diffbelt_yaml",
  "dioxus-hooks",
  "either",
+ "enum_dispatch",
  "indexmap 2.2.5",
  "lazy_static",
  "lexpr",

@@ -1,15 +1,23 @@
-use std::borrow::Cow;
 use std::ops::Deref;
 use std::rc::Rc;
 
 use serde::Deserialize;
 
-use diffbelt_yaml::{YamlNode, YamlNodeRc};
+use diffbelt_yaml::YamlNodeRc;
 use error::{AssertError, TestError};
 
-use crate::config_tests::transforms::map_filter::MapFilterTransformTest;
+use crate::config_tests::transforms::aggregate_map::{
+    AggregateMapTransformTest, AggregateMapTransformTestCreator,
+};
+use crate::config_tests::transforms::map_filter::{
+    MapFilterTransformTest, MapFilterTransformTestCreator,
+};
+use crate::config_tests::transforms::{
+    TransformTest, TransformTestCreator, TransformTestCreatorImpl, TransformTestImpl,
+    TransformTestPreCreateOptions,
+};
 use crate::wasm::{NewWasmInstanceOptions, WasmModuleInstance};
-use crate::{CliConfig, Collection};
+use crate::CliConfig;
 
 pub mod error;
 pub mod run;
@@ -41,52 +49,6 @@ pub struct SingleTestResult {
 pub struct TestResult {
     pub name: Rc<str>,
     pub result: Result<Vec<SingleTestResult>, TestError>,
-}
-
-pub struct TransformTestPreCreateOptions<'a, T> {
-    pub source_collection: &'a Collection,
-    pub target_collection: &'a Collection,
-    pub data: T,
-}
-
-pub trait TransformTest<'a>: Sized {
-    type ConstructorData;
-    type InitialData;
-
-    fn pre_create(
-        options: TransformTestPreCreateOptions<'a, Self::ConstructorData>,
-    ) -> Result<Self::InitialData, TestError>;
-
-    fn required_wasm_modules(data: &'a Self::InitialData) -> Result<Vec<Cow<'a, str>>, TestError>;
-
-    fn create(
-        data: &'a Self::InitialData,
-        wasm_modules: Vec<&'a WasmModuleInstance>,
-    ) -> Result<Self, TestError>;
-
-    type Input;
-    fn input_from_test_vars(&self, vars: &Rc<YamlNode>) -> Result<Self::Input, TestError>;
-
-    type Output;
-    fn input_to_output(&'a self, input: Self::Input) -> Result<Self::Output, TestError>;
-
-    type ActualOutput;
-    fn output_to_actual_output(
-        &self,
-        output: Self::Output,
-    ) -> Result<Self::ActualOutput, TestError>;
-
-    type ExpectedOutput;
-    fn expected_output_from_test_vars(
-        &self,
-        vars: &'a Rc<YamlNode>,
-    ) -> Result<Self::ExpectedOutput, TestError>;
-
-    fn compare_actual_and_expected_output(
-        &self,
-        actual: &Self::ActualOutput,
-        expected: &Self::ExpectedOutput,
-    ) -> Result<Option<AssertError>, TestError>;
 }
 
 impl CliConfig {
@@ -166,18 +128,34 @@ impl CliConfig {
 
                     match transform_method {
                         "map_filter" => {
-                            if let Some(map_filter) = transform.map_filter.as_ref() {
-                                match_ok!(<MapFilterTransformTest as TransformTest>::pre_create(
-                                    TransformTestPreCreateOptions {
-                                        source_collection,
-                                        target_collection,
-                                        data: map_filter,
-                                    }
-                                ))
-                            } else {
+                            let Some(map_filter) = transform.map_filter.as_ref() else {
                                 push_error!(format!("Transform {transform_name} does not contain {transform_method}"));
                                 continue 'outer;
-                            }
+                            };
+
+                            match_ok!(MapFilterTransformTestCreator::new(
+                                TransformTestPreCreateOptions {
+                                    source_collection,
+                                    target_collection,
+                                    data: map_filter,
+                                }
+                            ))
+                        }
+                        "map" => {
+                            let Some(aggregate) = transform.aggregate.as_ref() else {
+                                push_error!(format!(
+                                    "Transform {transform_name} does not contain aggregate"
+                                ));
+                                continue 'outer;
+                            };
+
+                            match_ok!(AggregateMapTransformTestCreator::new(
+                                TransformTestPreCreateOptions {
+                                    source_collection,
+                                    target_collection,
+                                    data: aggregate,
+                                }
+                            ))
                         }
                         _ => {
                             push_error!(format!("Unknown transform method {transform_method}"));
@@ -192,7 +170,9 @@ impl CliConfig {
             };
 
             let required_wasm_modules = match_ok!(
-                <MapFilterTransformTest as TransformTest>::required_wasm_modules(&initial_data)
+                <TransformTestCreatorImpl as TransformTestCreator>::required_wasm_modules(
+                    &initial_data
+                )
             );
 
             let mut wasm_modules =
@@ -230,10 +210,11 @@ impl CliConfig {
             let wasm_modules: Vec<&WasmModuleInstance> =
                 wasm_modules.iter().map(|(_, wasm)| wasm.deref()).collect();
 
-            let transform_test = match_ok!(<MapFilterTransformTest as TransformTest>::create(
-                &initial_data,
-                wasm_modules
-            ));
+            let transform_test =
+                match_ok!(<TransformTestCreatorImpl as TransformTestCreator>::create(
+                    initial_data,
+                    wasm_modules
+                ));
 
             let mut single_tests = Vec::with_capacity(tests.len());
 
@@ -259,16 +240,11 @@ impl CliConfig {
                     output: expected_value,
                 } = test;
 
-                let input = match_ok!(transform_test.input_from_test_vars(vars.deref()));
-                let output = match_ok!(transform_test.input_to_output(input));
-
-                let actual_output = match_ok!(transform_test.output_to_actual_output(output));
-                let expected_output = match_ok!(
-                    transform_test.expected_output_from_test_vars(expected_value.deref())
-                );
-
-                let comparison = match_ok!(transform_test
-                    .compare_actual_and_expected_output(&actual_output, &expected_output));
+                let comparison = match_ok!(<TransformTestImpl as TransformTest>::test(
+                    &transform_test,
+                    &vars,
+                    &expected_value
+                ));
 
                 single_tests.push(SingleTestResult {
                     name: name.clone(),

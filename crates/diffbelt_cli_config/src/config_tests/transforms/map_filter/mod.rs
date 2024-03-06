@@ -15,7 +15,10 @@ use yaml_input::yaml_test_vars_to_map_filter_input;
 
 use crate::config_tests::error::{AssertError, TestError};
 use crate::config_tests::transforms::map_filter::yaml_output::yaml_test_output_to_map_filter_expected_output;
-use crate::config_tests::{TransformTest, TransformTestPreCreateOptions};
+use crate::config_tests::transforms::{
+    TransformTest, TransformTestCreator, TransformTestCreatorImpl, TransformTestImpl,
+    TransformTestPreCreateOptions,
+};
 use crate::transforms::wasm::WasmMethodDef;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::vector::WasmVecHolder;
@@ -25,28 +28,27 @@ use crate::wasm::{MapFilterFunction, WasmModuleInstance};
 mod yaml_input;
 mod yaml_output;
 
-pub struct MapFilterTransformTest<'a> {
-    source_human_readable: HumanReadableFunctions<'a>,
-    target_human_readable: HumanReadableFunctions<'a>,
-    map_filter: MapFilterFunction<'a>,
+pub struct MapFilterTransformTestCreator<'a> {
+    data: TransformTestPreCreateOptions<'a, &'a WasmMethodDef>,
 }
 
-impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
-    type ConstructorData = &'a WasmMethodDef;
-    type InitialData = TransformTestPreCreateOptions<'a, Self::ConstructorData>;
-
-    fn pre_create(
-        options: TransformTestPreCreateOptions<'a, Self::ConstructorData>,
-    ) -> Result<TransformTestPreCreateOptions<'a, &'a WasmMethodDef>, TestError> {
-        Ok(options)
+impl<'a> MapFilterTransformTestCreator<'a> {
+    pub fn new(
+        data: TransformTestPreCreateOptions<'a, &'a WasmMethodDef>,
+    ) -> Result<TransformTestCreatorImpl<'a>, TestError> {
+        Ok(TransformTestCreatorImpl::MapFilter(
+            MapFilterTransformTestCreator { data },
+        ))
     }
+}
 
-    fn required_wasm_modules(data: &Self::InitialData) -> Result<Vec<Cow<str>>, TestError> {
+impl<'a> TransformTestCreator<'a> for MapFilterTransformTestCreator<'a> {
+    fn required_wasm_modules(&self) -> Result<Vec<Cow<'a, str>>, TestError> {
         let TransformTestPreCreateOptions {
             source_collection,
             target_collection,
             data,
-        } = data;
+        } = self.data;
 
         let Some(source) = &source_collection.human_readable else {
             return Err(TestError::SourceHasNoHumanReadableFunctions);
@@ -63,9 +65,9 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
     }
 
     fn create(
-        data: &'a Self::InitialData,
+        self,
         wasm_modules: Vec<&'a WasmModuleInstance>,
-    ) -> Result<Self, TestError> {
+    ) -> Result<TransformTestImpl<'a>, TestError> {
         let source_wasm = wasm_modules
             .get(0)
             .ok_or_else(|| TestError::Panic("wasm_module has wrong size, <1".to_string()))?;
@@ -80,7 +82,7 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
             source_collection,
             target_collection,
             data,
-        } = data;
+        } = self.data;
 
         let source_collection_hr = source_collection
             .human_readable
@@ -106,28 +108,37 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
 
         let map_filter = transform_wasm.map_filter_function(data.method_name.as_str())?;
 
-        Ok(Self {
+        Ok(TransformTestImpl::MapFilter(MapFilterTransformTest {
             source_human_readable: source_hr,
             target_human_readable: target_hr,
             map_filter,
-        })
+        }))
     }
+}
 
-    type Input = OwnedSerialized<'static, MapFilterMultiInput<'static>>;
+pub struct MapFilterTransformTest<'a> {
+    source_human_readable: HumanReadableFunctions<'a>,
+    target_human_readable: HumanReadableFunctions<'a>,
+    map_filter: MapFilterFunction<'a>,
+}
 
-    fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Self::Input, TestError> {
+type Input<'a> = OwnedSerialized<'static, MapFilterMultiInput<'static>>;
+type Output<'a> = (
+    WasmVecHolder<'a>,
+    Vec<(BytesSlice<WasmPtrImpl>, Option<BytesSlice<WasmPtrImpl>>)>,
+);
+type ActualOutput<'a> = Vec<(WasmVecHolder<'a>, Option<WasmVecHolder<'a>>)>;
+type ExpectedOutput<'a> = Vec<(&'a str, Option<&'a str>)>;
+
+impl<'a> MapFilterTransformTest<'a> {
+    fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Input, TestError> {
         let serialized =
             yaml_test_vars_to_map_filter_input(&self.source_human_readable, vars.as_ref())?;
 
         Ok(serialized)
     }
 
-    type Output = (
-        WasmVecHolder<'a>,
-        Vec<(BytesSlice<WasmPtrImpl>, Option<BytesSlice<WasmPtrImpl>>)>,
-    );
-
-    fn input_to_output(&'a self, input: Self::Input) -> Result<Self::Output, TestError> {
+    fn input_to_output(&'a self, input: Input) -> Result<Output, TestError> {
         let result_holder = self.map_filter.instance.alloc_vec_holder()?;
 
         let bytes_result = self.map_filter.call(input.as_bytes(), &result_holder)?;
@@ -189,12 +200,7 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
         Ok((result_holder, update_record_slices))
     }
 
-    type ActualOutput = Vec<(WasmVecHolder<'a>, Option<WasmVecHolder<'a>>)>;
-
-    fn output_to_actual_output(
-        &self,
-        output: Self::Output,
-    ) -> Result<Self::ActualOutput, TestError> {
+    fn output_to_actual_output(&self, output: Output) -> Result<ActualOutput, TestError> {
         let (result_bytes_holder, update_record_slices) = output;
 
         let instance = self.target_human_readable.instance;
@@ -227,12 +233,10 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
         Ok(kv_holders)
     }
 
-    type ExpectedOutput = Vec<(&'a str, Option<&'a str>)>;
-
     fn expected_output_from_test_vars(
         &self,
         vars: &'a Rc<YamlNode>,
-    ) -> Result<Self::ExpectedOutput, TestError> {
+    ) -> Result<ExpectedOutput, TestError> {
         let expected_output = yaml_test_output_to_map_filter_expected_output(vars.deref())?;
 
         Ok(expected_output)
@@ -240,8 +244,8 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
 
     fn compare_actual_and_expected_output(
         &self,
-        actual: &Self::ActualOutput,
-        expected: &Self::ExpectedOutput,
+        actual: &ActualOutput<'a>,
+        expected: &ExpectedOutput<'a>,
     ) -> Result<Option<AssertError>, TestError> {
         let result = self
             .target_human_readable
@@ -306,5 +310,22 @@ impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
             })?;
 
         Ok(result)
+    }
+}
+
+impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
+    fn test(
+        &self,
+        input: &Rc<YamlNode>,
+        expected_output: &Rc<YamlNode>,
+    ) -> Result<Option<AssertError>, TestError> {
+        let input = self.input_from_test_vars(&input)?;
+        let output = self.input_to_output(input)?;
+        let actual_output = self.output_to_actual_output(output)?;
+        let expected_output = self.expected_output_from_test_vars(&expected_output)?;
+        let comparison =
+            self.compare_actual_and_expected_output(&actual_output, &expected_output)?;
+
+        Ok(comparison)
     }
 }
