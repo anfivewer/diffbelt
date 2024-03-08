@@ -10,7 +10,6 @@ use diffbelt_util_no_std::cast::{
 use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 use diffbelt_wasm_binding::ReplaceResult;
 use regex::Regex;
-use wasmer::{Function, FunctionEnv, FunctionEnvMut, Imports, Memory, Store, ValueType, WasmPtr};
 
 use crate::wasm::memory::Allocation;
 use crate::wasm::types::{BytesVecFullTrait, WasmPtrImpl, WasmReplaceResult};

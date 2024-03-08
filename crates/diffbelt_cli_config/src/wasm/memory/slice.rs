@@ -1,18 +1,13 @@
 use either::Either;
 use std::ops::DerefMut;
 
-use diffbelt_util_no_std::cast::try_positive_i32_to_u32;
-use wasmer::{AsStoreRef, WasmPtr};
-
-use crate::wasm::memory::vector::WasmVecHolder;
-use crate::wasm::result::WasmBytesSliceResult;
-use crate::wasm::types::WasmBytesSlice;
+use crate::wasm::types::{WasmBytesSlice, WasmPtrToBytesSlice};
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::{WasmError, WasmModuleInstance};
 
 pub struct WasmSliceHolder<'a> {
     pub instance: &'a WasmModuleInstance,
-    pub ptr: WasmPtr<WasmBytesSlice>,
+    pub ptr: WasmPtrToBytesSlice,
 }
 
 impl WasmModuleInstance {

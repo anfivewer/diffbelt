@@ -9,11 +9,7 @@ use diffbelt_protos::error::FlatbufferError;
 use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
 use serde::Deserialize;
 use thiserror::Error;
-use wasmer::{
-    AsStoreRef, CompileError, ExportError, Imports, Instance, InstantiationError,
-    MemoryAccessError, MemoryError, Module, RuntimeError, Store, TypedFunction, WasmPtr,
-    WasmTypeList,
-};
+use wasmtime::{Config, Engine, Instance, Linker, Module, Store, TypedFunc};
 
 use diffbelt_util::Wrap;
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
@@ -26,7 +22,9 @@ use crate::errors::WithMark;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::result::WasmBytesSliceResult;
-use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
+use crate::wasm::types::{
+    WasmBytesSlice, WasmBytesVecRawParts, WasmPtrToBytesSlice, WasmPtrToVecRawParts,
+};
 use crate::wasm::wasm_env::WasmEnv;
 use memory::vector::WasmVecHolder;
 
@@ -50,21 +48,6 @@ pub enum WasmError {
     AlreadyErrored,
     #[error("{0:?}")]
     Io(std::io::Error),
-    #[error("{0:?}")]
-    Compile(CompileError),
-    #[error("{0:?}")]
-    Instantiation(InstantiationError),
-    #[error("{0:?}")]
-    Memory(MemoryError),
-    #[error("{original:?}: {context}")]
-    Export {
-        original: ExportError,
-        context: String,
-    },
-    #[error(transparent)]
-    Runtime(#[from] RuntimeError),
-    #[error("{0:?}")]
-    MemoryAccess(MemoryAccessError),
     #[error("{0:?}")]
     Utf8(Utf8Error),
     #[error("MutexPoisoned")]
@@ -93,35 +76,22 @@ impl From<FlatbufferError> for WasmError {
     }
 }
 
-pub fn export_error_context<F: FnOnce() -> String>(
-    context: F,
-) -> impl FnOnce(ExportError) -> WasmError {
-    |original| WasmError::Export {
-        original,
-        context: context(),
-    }
-}
-
-impl From<MemoryAccessError> for WasmError {
-    fn from(value: MemoryAccessError) -> Self {
-        Self::MemoryAccess(value)
-    }
-}
-
 pub struct NewWasmInstanceOptions<'a> {
     pub config_path: &'a str,
 }
 
+pub struct WasmStoreData;
+
 pub struct WasmModuleInstance {
     error: Arc<Mutex<Option<WasmError>>>,
-    store: RefCell<Store>,
+    store: RefCell<Store<WasmStoreData>>,
     instance: Instance,
     allocation: Allocation,
 }
 
 pub struct MapFilterFunction<'a> {
     pub instance: &'a WasmModuleInstance,
-    fun: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    fun: TypedFunc<(WasmPtrToBytesSlice, WasmPtrToVecRawParts), i32>,
     slice: WasmSliceHolder<'a>,
 }
 
@@ -148,8 +118,13 @@ impl Wasm {
             WasmError::Io(err)
         })?;
 
-        let mut store = Store::default();
-        let wasm_mod = Module::new(&store, wat_bytes).map_err(WasmError::Compile)?;
+        let config = Config::new().async_support(true);
+        let engine = Engine::new(&config)?;
+
+        let data = WasmStoreData;
+
+        let mut store = Store::new(&engine, data);
+        let wasm_mod = Module::new(&engine, &wat_bytes)?;
 
         let mut memories = wasm_mod.exports().memories();
         let Some(memory) = memories.next() else {
@@ -164,25 +139,23 @@ impl Wasm {
             ));
         }
 
-        let mut import_object = Imports::new();
+        let mut linker = Linker::<WasmStoreData>::new(&engine);
 
         let error: Arc<Mutex<Option<WasmError>>> = Wrap::wrap(None);
 
         let env = WasmEnv::new(error.clone());
 
-        env.register_imports(&mut store, &mut import_object);
+        env.register_imports(&mut store, &mut linker);
 
-        let instance = Instance::new(&mut store, &wasm_mod, &import_object)
-            .map_err(WasmError::Instantiation)?;
+        let instance = linker.instantiate_async(&store, &wasm_mod).await?;
 
         let memory = instance
-            .exports
-            .get_memory(memory.name())
-            .map_err(export_error_context(|| "memory".to_string()))?;
+            .get_memory(&store, "memory")
+            .ok_or_else(|| WasmError::Unspecified("no memory named \"memory\""))?;
 
-        env.set_memory(memory.clone());
+        env.set_memory(memory);
 
-        let allocation = Allocation::new(&store, &instance, memory.clone())?;
+        let allocation = Allocation::new(&store, &instance, memory)?;
 
         env.set_allocation(allocation.clone());
 
@@ -196,39 +169,6 @@ impl Wasm {
 }
 
 impl WasmModuleInstance {
-    pub fn typed_function_with_store<Args: WasmTypeList, Rets: WasmTypeList>(
-        &self,
-        store: &(impl AsStoreRef + ?Sized),
-        name: &str,
-    ) -> Result<TypedFunction<Args, Rets>, WasmError> {
-        let fun = self
-            .instance
-            .exports
-            .get_typed_function(&store, name)
-            .map_err(|original| {
-                let actual_type = if let ExportError::IncompatibleType = original {
-                    self.instance
-                        .exports
-                        .get_function(name)
-                        .map(|fun| fun.ty(&store))
-                        .map(|ty| ty.to_string())
-                        .ok()
-                } else {
-                    None
-                };
-
-                let context = if let Some(actual_type) = actual_type {
-                    format!("function {name}(), actual type: {actual_type}")
-                } else {
-                    format!("function {name}()")
-                };
-
-                WasmError::Export { original, context }
-            })?;
-
-        Ok(fun)
-    }
-
     pub fn map_filter_function(&self, name: &str) -> Result<MapFilterFunction<'_>, WasmError> {
         let slice = self.alloc_slice_holder()?;
 

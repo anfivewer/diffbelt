@@ -1,9 +1,6 @@
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 
-use wasmer::WasmPtr;
-use wasmer_types::{Memory32, MemorySize, ValueType};
-
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::PtrImpl;
 use diffbelt_wasm_binding::ReplaceResult;
@@ -86,3 +83,6 @@ impl AsRef<BytesSlice<WasmPtrImpl>> for WasmBytesSlice {
 impl_value_type!(WasmReplaceResult);
 impl_value_type!(WasmBytesVecRawParts);
 impl_value_type!(WasmBytesSlice);
+
+pub type WasmPtrToBytesSlice = i32;
+pub type WasmPtrToVecRawParts = i32;

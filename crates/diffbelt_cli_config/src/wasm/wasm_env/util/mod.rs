@@ -1,7 +1,6 @@
 use crate::wasm::WasmError;
 use diffbelt_util_no_std::cast::try_positive_i32_to_u32;
 use std::str::from_utf8;
-use wasmer::{MemoryView, WasmPtr, WasmSliceAccess};
 
 pub struct WasmUtf8Holder<'a> {
     slice: WasmSliceAccess<'a, u8>,

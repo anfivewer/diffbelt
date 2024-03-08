@@ -1,6 +1,6 @@
 use crate::wasm::memory::Allocation;
 use crate::wasm::wasm_env::WasmEnv;
-use wasmer::Memory;
+use wasmtime::Memory;
 
 impl WasmEnv {
     pub fn set_memory(&self, memory: Memory) {

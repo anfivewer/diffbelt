@@ -1,16 +1,15 @@
 use crate::wasm::result::WasmBytesSliceResult;
-use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
+use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtrToVecRawParts};
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::{WasmError, WasmModuleInstance};
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 use std::ops::DerefMut;
-use wasmer::WasmPtr;
 
 pub struct WasmVecHolder<'a> {
     pub instance: &'a WasmModuleInstance,
-    pub ptr: WasmPtr<WasmBytesVecRawParts>,
+    pub ptr: WasmPtrToVecRawParts,
 }
 
 impl WasmModuleInstance {

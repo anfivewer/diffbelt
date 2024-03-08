@@ -1,7 +1,5 @@
 use std::ops::DerefMut;
 
-use wasmer::{TypedFunction, WasmPtr};
-
 use diffbelt_protos::error::map_flatbuffer_error_to_return_buffer;
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiInput, AggregateMapMultiOutput,

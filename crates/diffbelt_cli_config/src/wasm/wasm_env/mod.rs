@@ -1,11 +1,10 @@
 use std::sync::{Arc, Mutex};
-
-use wasmer::{AsStoreRef, Imports, Memory, MemoryView, Store};
+use wasmtime::{Linker, Memory, Store};
 
 use diffbelt_util::Wrap;
 
 use crate::wasm::memory::Allocation;
-use crate::wasm::WasmError;
+use crate::wasm::{WasmError, WasmStoreData};
 
 pub mod debug;
 pub mod memory;
@@ -27,20 +26,13 @@ impl WasmEnv {
         }
     }
 
-    pub fn register_imports(&self, store: &mut Store, imports: &mut Imports) {
-        self.register_debug_wasm_imports(store, imports);
-        self.register_regex_wasm_imports(store, imports);
-    }
-
-    pub fn memory_view<'a>(
-        memory: &Arc<Mutex<Option<Memory>>>,
-        store: &'a (impl AsStoreRef + ?Sized),
-    ) -> Result<MemoryView<'a>, WasmError> {
-        let lock = memory.lock().map_err(|_| WasmError::MutexPoisoned)?;
-        let memory = lock.as_ref().ok_or_else(|| WasmError::NoMemory)?;
-        let view = memory.view(store);
-
-        Ok(view)
+    pub fn register_imports(
+        &self,
+        store: &mut Store<WasmStoreData>,
+        linker: &mut Linker<WasmStoreData>,
+    ) {
+        self.register_debug_wasm_imports(store, linker);
+        self.register_regex_wasm_imports(store, linker);
     }
 
     pub fn handle_error<T>(

@@ -1,13 +1,11 @@
 use std::ops::DerefMut;
 
-use wasmer::{AsStoreRef, Instance, Memory, TypedFunction, WasmPtr};
-
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
-use crate::wasm::{export_error_context, WasmError};
+use crate::wasm::WasmError;
 
 pub mod observe_context;
-pub mod vector;
 pub mod slice;
+pub mod vector;
 
 #[derive(Clone)]
 pub struct Allocation {

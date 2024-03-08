@@ -1,8 +1,6 @@
 use std::ops::Deref;
 
 use either::Either;
-use wasmer::{MemoryView, WasmPtr, WasmSliceAccess};
-use wasmer_types::ValueType;
 
 use diffbelt_util_no_std::cast::try_positive_i32_to_u32;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;

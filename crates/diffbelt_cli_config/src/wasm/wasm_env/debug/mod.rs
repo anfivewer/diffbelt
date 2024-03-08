@@ -2,7 +2,6 @@ use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::WasmError;
 use std::sync::{Arc, Mutex};
-use wasmer::{Function, FunctionEnv, FunctionEnvMut, Imports, Memory, Store, WasmPtr};
 
 impl WasmEnv {
     pub fn register_debug_wasm_imports(&self, store: &mut Store, imports: &mut Imports) {
