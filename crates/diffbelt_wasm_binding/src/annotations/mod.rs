@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
 
 pub mod serializer;
+pub mod slice;
 
 pub trait AnnotatedTrait {
     type Value;

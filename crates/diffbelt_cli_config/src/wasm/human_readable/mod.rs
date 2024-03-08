@@ -6,15 +6,15 @@ use std::ops::DerefMut;
 use wasmer::{TypedFunction, WasmPtr};
 
 use crate::wasm::memory::vector::WasmVecHolder;
-use crate::wasm::types::WasmBytesVecRawParts;
+use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
 use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
 
 pub struct HumanReadableFunctions<'a> {
     pub instance: &'a WasmModuleInstance,
-    key_to_bytes: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
-    bytes_to_key: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
-    value_to_bytes: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
-    bytes_to_value: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    key_to_bytes: TypedFunction<(WasmPtr<WasmBytesSlice>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    bytes_to_key: TypedFunction<(WasmPtr<WasmBytesSlice>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    value_to_bytes: TypedFunction<(WasmPtr<WasmBytesSlice>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    bytes_to_value: TypedFunction<(WasmPtr<WasmBytesSlice>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
 }
 
 #[macro_export]
@@ -73,7 +73,37 @@ impl<'a> HumanReadableFunctions<'a> {
         })
     }
 
-    impl_human_readable_call!(call_key_to_bytes, key_to_bytes, "call_key_to_bytes");
+    // TODO: return slice
+    pub fn call_key_to_bytes(
+        &self,
+        slice: &BytesSlice<WasmPtrImpl>,
+        holder: &WasmVecHolder,
+    ) -> Result<(), WasmError> {
+        let mut store = self.instance.store.try_borrow_mut()?;
+        let store = store.deref_mut();
+
+        // TODO: write slice, read slice
+
+        let error_code = self
+            .key_to_bytes
+            .call(store, slice.ptr.into(), slice.len, holder.ptr)?;
+        let error_code = ErrorCode::from_repr(error_code);
+
+        let ErrorCode::Ok = error_code   else {
+            return Err(WasmError::Unspecified(format!(
+                concat!(
+                "HumanReadableFunctions::",
+                "call_key_to_bytes",
+                "() error code {:?}"
+                ),
+                error_code
+            )));
+        };
+
+        Ok(())
+    }
+
+    // impl_human_readable_call!(call_key_to_bytes, key_to_bytes, "call_key_to_bytes");
     impl_human_readable_call!(call_bytes_to_key, bytes_to_key, "call_bytes_to_key");
     impl_human_readable_call!(call_value_to_bytes, value_to_bytes, "call_value_to_bytes");
     impl_human_readable_call!(call_bytes_to_value, bytes_to_value, "call_bytes_to_value");

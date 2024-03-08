@@ -78,6 +78,15 @@ impl SliceRawParts<u8> {
     }
 }
 
+impl From<&BytesVecRawParts> for SliceRawParts<u8> {
+    fn from(value: &BytesVecRawParts) -> Self {
+        Self {
+            ptr: value.ptr,
+            len: value.len,
+        }
+    }
+}
+
 impl BytesVecRawParts {
     pub fn null() -> Self {
         Self {

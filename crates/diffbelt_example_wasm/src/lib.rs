@@ -24,6 +24,8 @@ mod global_allocator;
 mod human_readable;
 mod log_lines;
 mod util;
+mod parsed_log_lines;
+pub mod types;
 
 struct LogLinesMapFilter;
 

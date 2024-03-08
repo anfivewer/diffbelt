@@ -4,11 +4,13 @@ use core::str::Utf8Error;
 
 use thiserror_no_std::Error;
 
+use crate::human_readable::noop;
 use diffbelt_example_protos::protos::log_line::ParsedLogLine;
-use diffbelt_protos::{deserialize, InvalidFlatbuffer};
-use diffbelt_wasm_binding::annotations::Annotated;
+use diffbelt_protos::{deserialize, InvalidFlatbuffer, Serializer};
+use diffbelt_wasm_binding::annotations::{Annotated, InputOutputAnnotated};
+use diffbelt_wasm_binding::debug_print;
 use diffbelt_wasm_binding::error_code::ErrorCode;
-use diffbelt_wasm_binding::human_readable::HumanReadable;
+use diffbelt_wasm_binding::human_readable::{AggregateHumanReadable, HumanReadable};
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 
 use crate::util::run_error_coded::run_error_coded;
@@ -31,44 +33,48 @@ impl From<FromUtf8Error> for LogLinesError {
 impl HumanReadable for ParsedLogLinesKv {
     #[export_name = "parsedLogLinesKeyToBytes"]
     extern "C" fn human_readable_key_to_bytes(
-        _key: Annotated<BytesSlice, &str>,
-        _result_bytes: *mut BytesVecRawParts,
+        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
+        _buffer: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        todo!()
+        ErrorCode::Ok
     }
 
     #[export_name = "parsedLogLinesBytesToKey"]
     extern "C" fn bytes_to_human_readable_key(
-        bytes: BytesSlice,
-        key: Annotated<*mut BytesVecRawParts, &str>,
+        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        _buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
-        run_error_coded(|| {
-            let mut vec = unsafe { (&*key.value).into_empty_vec() };
-            vec.extend_from_slice(unsafe { bytes.as_slice() });
-            unsafe { *key.value = vec.into() };
-
-            Ok::<_, LogLinesError>(ErrorCode::Ok)
-        })
+        run_error_coded(|| Ok::<_, LogLinesError>(ErrorCode::Ok))
     }
 
     #[export_name = "parsedLogLinesValueToBytes"]
     extern "C" fn human_readable_value_to_bytes(
-        _key: Annotated<BytesSlice, &str>,
-        _bytes: *mut BytesVecRawParts,
+        input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
+        bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        todo!()
+        run_error_coded(|| -> Result<ErrorCode, LogLinesError> {
+            let key = unsafe { (&*input_and_output.value).as_str() }?;
+
+            let buffer = unsafe { (&*bytes).into_empty_vec() };
+            let serializer = Serializer::<ParsedLogLine>::from_vec(buffer);
+
+            debug_print(key);
+
+            // Ok::<_, LogLinesError>(ErrorCode::Ok)
+            todo!()
+        })
     }
 
     #[export_name = "parsedLogLinesBytesToValue"]
     extern "C" fn bytes_to_human_readable_value(
-        bytes: BytesSlice,
+        input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         key: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
         run_error_coded(|| {
             let vec = unsafe { (&*key.value).into_empty_vec() };
             let mut s = String::from_utf8(vec).expect("empty vec should be valid string");
 
-            let bytes = unsafe { bytes.as_slice() };
+            let bytes = unsafe { (&*input_and_output.value).as_slice() };
             let log_line = deserialize::<ParsedLogLine>(bytes)?;
 
             let log_level = log_line.log_level();
@@ -120,8 +126,32 @@ impl HumanReadable for ParsedLogLinesKv {
                 }
             }
 
-            unsafe { *key.value = s.into_bytes().into() };
+            unsafe {
+                *key.value = s.into_bytes().into();
+                *input_and_output.value = (&*key.value).into();
+            };
+
             Ok::<_, LogLinesError>(ErrorCode::Ok)
         })
+    }
+}
+
+impl AggregateHumanReadable for ParsedLogLinesKv {
+    #[export_name = "parsedLogLinesMappedKeyFromBytes"]
+    extern "C" fn mapped_key_from_bytes(
+        bytes: BytesSlice,
+        key: Annotated<*mut BytesVecRawParts, &str>,
+    ) -> ErrorCode {
+        () = noop(bytes, key.value);
+        ErrorCode::Ok
+    }
+
+    #[export_name = "parsedLogLinesMappedValueFromBytes"]
+    extern "C" fn mapped_value_from_bytes(
+        bytes: BytesSlice,
+        value: Annotated<*mut BytesVecRawParts, &str>,
+    ) -> ErrorCode {
+        () = noop(bytes, value.value);
+        ErrorCode::Ok
     }
 }

@@ -3,6 +3,7 @@ use thiserror::Error;
 use diffbelt_cli_config::config_tests::run::RunTestsError;
 use diffbelt_cli_config::wasm::WasmError;
 use diffbelt_http_client::errors::DiffbeltClientError;
+use diffbelt_protos::error::FlatbufferError;
 use diffbelt_protos::InvalidFlatbuffer;
 use diffbelt_transforms::base::error::TransformError;
 use diffbelt_util::errors::NoStdErrorWrap;
@@ -42,6 +43,8 @@ pub enum TransformEvalError {
     Unspecified(String),
     #[error(transparent)]
     Wasm(#[from] WasmError),
+    #[error(transparent)]
+    Flatbuffer(#[from] NoStdErrorWrap<FlatbufferError>),
     #[error(transparent)]
     InvalidFlatbuffer(#[from] NoStdErrorWrap<InvalidFlatbuffer>),
 }

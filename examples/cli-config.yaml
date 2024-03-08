@@ -456,19 +456,46 @@ tests:
   transforms.parsed_lines_1d.map:
     - name: basic
       input:
-        - source_key: S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27
+        - source_key: 2023-02-20T21:42:48.822Z.000 worker258688
           source_old_value: !none
-          source_new_value: ''
-        - source_key: T 2023-08-13T23:15:28.371Z.004 main:l10n noTranslation key:viewCustomCaptcha_help lang:uk
+          source_new_value: |-
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1676929368822
+            tsMicro: 0
+            loggerKey: worker258688:middlewares
+            logKey: handleFull
+            props:
+              updateType: edited_message
+              ms: 27
+            extra:
+              some extra 2
+              another extra 2
+        - source_key: 2023-02-21T21:42:48.822Z.000 main
           source_old_value: !none
-          source_new_value: ''
-        - source_key: T 2023-08-13T23:17:03.865Z.000 master247627:setMyCommands set lang:et scope:all_private_chats tasksLeft:36
+          source_new_value: |-
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1677015768822
+            tsMicro: 0
+            loggerKey: main:middlewares
+            logKey: noTranslation
+        - source_key: 2023-02-22T21:42:48.822Z.000 master4242
           source_old_value: !none
-          source_new_value: ''
+          source_new_value: |-
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1677102168822
+            tsMicro: 0
+            loggerKey: master4242:middlewares
+            logKey: handleFull
+            props:
+              updateType: edited_message
+              ms: 27
       output:
         - target_key: 2023-02-20
           mapped_value: worker#:middlewares::handleFull::S
-        - target_key: 2023-08-13
-          mapped_value: main:l10n::noTranslation::T
-        - target_key: 2023-08-13
-          mapped_value: master#:setMyCommands::set::T
+        - target_key: 2023-02-21
+          mapped_value: main:middlewares::noTranslation::S
+        - target_key: 2023-02-22
+          mapped_value: master#:middlewares::handleFull::S
