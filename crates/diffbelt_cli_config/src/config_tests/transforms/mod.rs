@@ -54,14 +54,11 @@ pub enum TransformTestImpl<'a> {
 
 #[macro_export]
 macro_rules! call_human_readable_conversion {
-    ($value:ident, $human_readable:ident, $method:ident, $input_vec_holder:ident, $output_vec_holder:ident) => {{
-        () = $input_vec_holder.replace_with_slice($value.as_bytes())?;
+    ($value:expr, $human_readable:ident, $method:ident, $input_vec_holder:ident, $output_vec_holder:ident) => {{
+        () = $input_vec_holder.replace_with_slice($value)?;
         let slice = $human_readable
             .instance
             .vec_to_bytes_slice(&$input_vec_holder)?;
-
-        () = $human_readable.$method(&slice.0, &$output_vec_holder)?;
-
-        $output_vec_holder.access()?
+        $human_readable.$method(slice, &$output_vec_holder)?
     }};
 }

@@ -139,19 +139,17 @@ impl HumanReadable for ParsedLogLinesKv {
 impl AggregateHumanReadable for ParsedLogLinesKv {
     #[export_name = "parsedLogLinesMappedKeyFromBytes"]
     extern "C" fn mapped_key_from_bytes(
-        bytes: BytesSlice,
-        key: Annotated<*mut BytesVecRawParts, &str>,
+        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        _buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
-        () = noop(bytes, key.value);
         ErrorCode::Ok
     }
 
     #[export_name = "parsedLogLinesMappedValueFromBytes"]
     extern "C" fn mapped_value_from_bytes(
-        bytes: BytesSlice,
-        value: Annotated<*mut BytesVecRawParts, &str>,
+        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        _buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
-        () = noop(bytes, value.value);
         ErrorCode::Ok
     }
 }

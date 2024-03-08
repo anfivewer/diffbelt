@@ -77,6 +77,12 @@ pub struct WasmBytesVecRawParts(pub BytesVecRawParts<WasmPtrImpl>);
 #[repr(transparent)]
 pub struct WasmBytesSlice(pub BytesSlice<WasmPtrImpl>);
 
+impl AsRef<BytesSlice<WasmPtrImpl>> for WasmBytesSlice {
+    fn as_ref(&self) -> &BytesSlice<WasmPtrImpl> {
+        &self.0
+    }
+}
+
 impl_value_type!(WasmReplaceResult);
 impl_value_type!(WasmBytesVecRawParts);
 impl_value_type!(WasmBytesSlice);

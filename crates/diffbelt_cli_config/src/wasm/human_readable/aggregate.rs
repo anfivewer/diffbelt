@@ -5,13 +5,15 @@ use std::ops::DerefMut;
 use wasmer::{TypedFunction, WasmPtr};
 
 use crate::wasm::memory::vector::WasmVecHolder;
-use crate::wasm::types::WasmBytesVecRawParts;
+use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
 use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
+use crate::wasm::memory::slice::WasmSliceHolder;
 
 pub struct AggregateHumanReadableFunctions<'a> {
     pub instance: &'a WasmModuleInstance,
-    mapped_key_from_bytes: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
-    mapped_value_from_bytes: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    slice_holder: WasmSliceHolder<'a>,
+    mapped_key_from_bytes: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    mapped_value_from_bytes: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
 }
 
 impl<'a> AggregateHumanReadableFunctions<'a> {
@@ -20,6 +22,8 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
         mapped_key_from_bytes: &str,
         mapped_value_from_bytes: &str,
     ) -> Result<Self, WasmError> {
+        let slice_holder = instance.alloc_slice_holder()?;
+
         let store = instance.store.try_borrow()?;
 
         let mapped_key_from_bytes =
@@ -29,6 +33,7 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
 
         Ok(Self {
             instance,
+            slice_holder,
             mapped_key_from_bytes,
             mapped_value_from_bytes,
         })

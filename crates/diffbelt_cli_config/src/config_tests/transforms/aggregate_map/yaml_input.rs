@@ -50,13 +50,13 @@ pub fn yaml_test_vars_to_aggregate_map_input(
                     })?;
 
                     () = call_human_readable_conversion!(
-                        value,
+                        value.as_bytes(),
                         source_human_readable,
                         call_key_to_bytes,
                         input_vec_holder,
                         output_vec_holder
                     )
-                    .observe_bytes(|bytes| {
+                    .observe_bytes(instance, |bytes| {
                         source_key_offset = Some(serializer.create_vector(bytes));
 
                         Ok::<_, YamlTestVarsError>(())
@@ -65,13 +65,13 @@ pub fn yaml_test_vars_to_aggregate_map_input(
                 "source_old_value" => {
                     if let Scalar::String(value) = value {
                         () = call_human_readable_conversion!(
-                            value,
+                            value.as_bytes(),
                             source_human_readable,
                             call_value_to_bytes,
                             input_vec_holder,
                             output_vec_holder
                         )
-                        .observe_bytes(|bytes| {
+                        .observe_bytes(instance, |bytes| {
                             source_old_value_offset = Some(serializer.create_vector(bytes));
 
                             Ok::<_, YamlTestVarsError>(())
@@ -81,13 +81,13 @@ pub fn yaml_test_vars_to_aggregate_map_input(
                 "source_new_value" => {
                     if let Scalar::String(value) = value {
                         () = call_human_readable_conversion!(
-                            value,
+                            value.as_bytes(),
                             source_human_readable,
                             call_value_to_bytes,
                             input_vec_holder,
                             output_vec_holder
                         )
-                        .observe_bytes(|bytes| {
+                        .observe_bytes(instance, |bytes| {
                             source_new_value_offset = Some(serializer.create_vector(bytes));
 
                             Ok::<_, YamlTestVarsError>(())

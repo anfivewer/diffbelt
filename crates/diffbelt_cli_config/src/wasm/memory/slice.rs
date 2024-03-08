@@ -1,3 +1,4 @@
+use either::Either;
 use std::ops::DerefMut;
 
 use diffbelt_util_no_std::cast::try_positive_i32_to_u32;
@@ -23,6 +24,20 @@ impl WasmModuleInstance {
         Ok(WasmSliceHolder {
             instance: self,
             ptr,
+        })
+    }
+}
+
+impl WasmBytesSlice {
+    pub fn observe_bytes<T, E: From<WasmError>, F: FnOnce(&[u8]) -> Result<T, E>>(
+        &self,
+        instance: &WasmModuleInstance,
+        fun: F,
+    ) -> Result<T, Either<E, WasmError>> {
+        instance.enter_memory_observe_context(|observer| {
+            let slice = observer.bytes_slice_view(self)?;
+
+            fun(slice.as_ref())
         })
     }
 }

@@ -1,3 +1,4 @@
+use crate::call_human_readable_conversion;
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterInput, MapFilterInputArgs, MapFilterMultiInput, MapFilterMultiInputArgs,
 };
@@ -35,14 +36,14 @@ pub fn yaml_test_vars_to_map_filter_input(
         match key {
             "source_key" => {
                 if let Some(s) = parse_scalar(value)?.as_str() {
-                    () = input_vec_holder.replace_with_slice(s.as_bytes())?;
-                    let slice = instance.vec_to_bytes_slice(&input_vec_holder)?;
-
-                    () =
-                        human_readable_functions.call_key_to_bytes(&slice.0, &output_vec_holder)?;
-
-                    let result = output_vec_holder.access()?;
-                    () = result.observe_bytes(|bytes| {
+                    () = call_human_readable_conversion!(
+                        s.as_bytes(),
+                        human_readable_functions,
+                        call_key_to_bytes,
+                        input_vec_holder,
+                        output_vec_holder
+                    )
+                    .observe_bytes(instance, |bytes| {
                         source_key_offset = Some(serializer.create_vector(bytes));
 
                         Ok::<_, YamlTestVarsError>(())
@@ -51,15 +52,15 @@ pub fn yaml_test_vars_to_map_filter_input(
             }
             "source_old_value" => {
                 if let Some(s) = parse_scalar(value)?.as_str() {
-                    () = input_vec_holder.replace_with_slice(s.as_bytes())?;
-                    let slice = instance.vec_to_bytes_slice(&input_vec_holder)?;
-
-                    () = human_readable_functions
-                        .call_value_to_bytes(&slice.0, &output_vec_holder)?;
-
-                    let result = output_vec_holder.access()?;
-                    () = result.observe_bytes(|bytes| {
-                        source_old_value_offset = Some(serializer.create_vector(bytes));
+                    () = call_human_readable_conversion!(
+                        s.as_bytes(),
+                        human_readable_functions,
+                        call_value_to_bytes,
+                        input_vec_holder,
+                        output_vec_holder
+                    )
+                    .observe_bytes(instance, |bytes| {
+                        source_key_offset = Some(serializer.create_vector(bytes));
 
                         Ok::<_, YamlTestVarsError>(())
                     })?;
@@ -67,15 +68,15 @@ pub fn yaml_test_vars_to_map_filter_input(
             }
             "source_new_value" => {
                 if let Some(s) = parse_scalar(value)?.as_str() {
-                    () = input_vec_holder.replace_with_slice(s.as_bytes())?;
-                    let slice = instance.vec_to_bytes_slice(&input_vec_holder)?;
-
-                    () = human_readable_functions
-                        .call_value_to_bytes(&slice.0, &output_vec_holder)?;
-
-                    let result = output_vec_holder.access()?;
-                    () = result.observe_bytes(|bytes| {
-                        source_new_value_offset = Some(serializer.create_vector(bytes));
+                    () = call_human_readable_conversion!(
+                        s.as_bytes(),
+                        human_readable_functions,
+                        call_value_to_bytes,
+                        input_vec_holder,
+                        output_vec_holder
+                    )
+                    .observe_bytes(instance, |bytes| {
+                        source_key_offset = Some(serializer.create_vector(bytes));
 
                         Ok::<_, YamlTestVarsError>(())
                     })?;

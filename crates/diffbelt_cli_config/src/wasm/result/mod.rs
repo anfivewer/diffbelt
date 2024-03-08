@@ -7,6 +7,7 @@ use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
 
+#[deprecated(note = "Use just WasmBytesSlice")]
 pub struct WasmBytesSliceResult<'a> {
     pub instance: &'a WasmModuleInstance,
     pub ptr: WasmPtr<u8>,
@@ -58,6 +59,7 @@ impl<'a> WasmBytesSliceResult<'a> {
         Ok(ptr)
     }
 
+    #[deprecated(note = "Use just WasmBytesSlice")]
     pub fn observe_bytes<T, E: From<WasmError>, F: FnOnce(&[u8]) -> Result<T, E>>(
         &self,
         fun: F,

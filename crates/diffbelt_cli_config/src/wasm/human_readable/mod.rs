@@ -5,16 +5,19 @@ use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use std::ops::DerefMut;
 use wasmer::{TypedFunction, WasmPtr};
 
+use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
+use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
 use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
 
 pub struct HumanReadableFunctions<'a> {
     pub instance: &'a WasmModuleInstance,
-    key_to_bytes: TypedFunction<(WasmPtr<WasmBytesSlice>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
-    bytes_to_key: TypedFunction<(WasmPtr<WasmBytesSlice>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
-    value_to_bytes: TypedFunction<(WasmPtr<WasmBytesSlice>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
-    bytes_to_value: TypedFunction<(WasmPtr<WasmBytesSlice>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    slice_holder: WasmSliceHolder<'a>,
+    key_to_bytes: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    bytes_to_key: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    value_to_bytes: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    bytes_to_value: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
 }
 
 #[macro_export]
@@ -22,15 +25,20 @@ macro_rules! impl_human_readable_call {
     ($fn_name:ident, $field:ident, $fn_name_str:literal) => {
         pub fn $fn_name(
             &self,
-            slice: &BytesSlice<WasmPtrImpl>,
-            holder: &WasmVecHolder,
-        ) -> Result<(), WasmError> {
+            slice: WasmBytesSlice,
+            buffer_holder: &WasmVecHolder,
+        ) -> Result<WasmBytesSlice, WasmError> {
             let mut store = self.instance.store.try_borrow_mut()?;
             let store = store.deref_mut();
 
+            {
+                let view = self.instance.allocation.memory.view(store);
+                () = self.slice_holder.ptr.write(&view, slice)?;
+            }
+
             let error_code = self
                 .$field
-                .call(store, slice.ptr.into(), slice.len, holder.ptr)?;
+                .call(store, self.slice_holder.ptr, buffer_holder.ptr)?;
             let error_code = ErrorCode::from_repr(error_code);
 
             let ErrorCode::Ok = error_code else {
@@ -44,7 +52,12 @@ macro_rules! impl_human_readable_call {
                 )));
             };
 
-            Ok(())
+            let slice = {
+                let view = self.instance.allocation.memory.view(store);
+                self.slice_holder.ptr.read(&view)?
+            };
+
+            Ok(slice)
         }
     };
 }
@@ -57,6 +70,8 @@ impl<'a> HumanReadableFunctions<'a> {
         value_to_bytes: &str,
         bytes_to_value: &str,
     ) -> Result<Self, WasmError> {
+        let slice_holder = instance.alloc_slice_holder()?;
+
         let store = instance.store.try_borrow()?;
 
         let key_to_bytes = instance.typed_function_with_store(&store, key_to_bytes)?;
@@ -66,6 +81,7 @@ impl<'a> HumanReadableFunctions<'a> {
 
         Ok(Self {
             instance,
+            slice_holder,
             key_to_bytes,
             bytes_to_key,
             value_to_bytes,
@@ -73,37 +89,7 @@ impl<'a> HumanReadableFunctions<'a> {
         })
     }
 
-    // TODO: return slice
-    pub fn call_key_to_bytes(
-        &self,
-        slice: &BytesSlice<WasmPtrImpl>,
-        holder: &WasmVecHolder,
-    ) -> Result<(), WasmError> {
-        let mut store = self.instance.store.try_borrow_mut()?;
-        let store = store.deref_mut();
-
-        // TODO: write slice, read slice
-
-        let error_code = self
-            .key_to_bytes
-            .call(store, slice.ptr.into(), slice.len, holder.ptr)?;
-        let error_code = ErrorCode::from_repr(error_code);
-
-        let ErrorCode::Ok = error_code   else {
-            return Err(WasmError::Unspecified(format!(
-                concat!(
-                "HumanReadableFunctions::",
-                "call_key_to_bytes",
-                "() error code {:?}"
-                ),
-                error_code
-            )));
-        };
-
-        Ok(())
-    }
-
-    // impl_human_readable_call!(call_key_to_bytes, key_to_bytes, "call_key_to_bytes");
+    impl_human_readable_call!(call_key_to_bytes, key_to_bytes, "call_key_to_bytes");
     impl_human_readable_call!(call_bytes_to_key, bytes_to_key, "call_bytes_to_key");
     impl_human_readable_call!(call_value_to_bytes, value_to_bytes, "call_value_to_bytes");
     impl_human_readable_call!(call_bytes_to_value, bytes_to_value, "call_bytes_to_value");

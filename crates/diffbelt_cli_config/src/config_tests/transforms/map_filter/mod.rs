@@ -3,6 +3,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::str::from_utf8;
 
+use crate::call_human_readable_conversion;
 use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFilterMultiOutput};
 use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_util::errors::NoStdErrorWrap;
@@ -22,7 +23,7 @@ use crate::config_tests::transforms::{
 use crate::transforms::wasm::WasmMethodDef;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::vector::WasmVecHolder;
-use crate::wasm::types::WasmPtrImpl;
+use crate::wasm::types::{WasmBytesSlice, WasmPtrImpl};
 use crate::wasm::{MapFilterFunction, WasmModuleInstance};
 
 mod yaml_input;
@@ -127,7 +128,10 @@ type Output<'a> = (
     WasmVecHolder<'a>,
     Vec<(BytesSlice<WasmPtrImpl>, Option<BytesSlice<WasmPtrImpl>>)>,
 );
-type ActualOutput<'a> = Vec<(WasmVecHolder<'a>, Option<WasmVecHolder<'a>>)>;
+type ActualOutput<'a> = Vec<(
+    (WasmBytesSlice, WasmVecHolder<'a>),
+    Option<(WasmBytesSlice, WasmVecHolder<'a>)>,
+)>;
 type ExpectedOutput<'a> = Vec<(&'a str, Option<&'a str>)>;
 
 impl<'a> MapFilterTransformTest<'a> {
@@ -210,22 +214,24 @@ impl<'a> MapFilterTransformTest<'a> {
         for (key, value) in update_record_slices {
             let key_vec_holder = instance.alloc_vec_holder()?;
 
-            () = self
+            let key_slice = self
                 .target_human_readable
-                .call_bytes_to_key(&key, &key_vec_holder)?;
+                .call_bytes_to_key(WasmBytesSlice(key), &key_vec_holder)?;
 
-            let value_vec_holder = value.map(|value| {
+            let key = (key_slice, key_vec_holder);
+
+            let value = value.map(|value| {
                 let value_vec_holder = instance.alloc_vec_holder()?;
 
-                () = self
+                let value_slice = self
                     .target_human_readable
-                    .call_bytes_to_value(&value, &value_vec_holder)?;
+                    .call_bytes_to_value(WasmBytesSlice(value), &value_vec_holder)?;
 
-                Ok::<_, TestError>(value_vec_holder)
+                Ok::<_, TestError>((value_slice, value_vec_holder))
             });
-            let value_vec_holder = lift_result_from_option(value_vec_holder)?;
+            let value = lift_result_from_option(value)?;
 
-            kv_holders.push((key_vec_holder, value_vec_holder));
+            kv_holders.push((key, value));
         }
 
         drop(result_bytes_holder);
@@ -254,8 +260,8 @@ impl<'a> MapFilterTransformTest<'a> {
                 let mut expected_iter = expected.iter();
 
                 for (key, value) in actual {
-                    let key = memory.vec_view(key)?;
-                    let value = value.as_ref().map(|x| memory.vec_view(x));
+                    let key = memory.bytes_slice_view(key.0)?;
+                    let value = value.as_ref().map(|x| memory.bytes_slice_view(x.0));
                     let value = lift_result_from_option(value)?;
 
                     let key = from_utf8(key.as_ref())?;

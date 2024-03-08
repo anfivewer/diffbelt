@@ -5,10 +5,11 @@ use wasmer::{MemoryView, WasmPtr, WasmSliceAccess};
 use wasmer_types::ValueType;
 
 use diffbelt_util_no_std::cast::try_positive_i32_to_u32;
+use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::types::WasmBytesSlice;
-use crate::wasm::{WasmError, WasmModuleInstance};
+use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
 
 pub struct WasmMemoryObserver<'a> {
     view: MemoryView<'a>,
@@ -31,6 +32,19 @@ impl WasmMemoryObserver<'_> {
         len: u32,
     ) -> Result<WasmSliceView<'_, T>, WasmError> {
         let slice = ptr.slice(&self.view, len)?;
+        let slice = slice.access()?;
+
+        Ok(WasmSliceView { slice })
+    }
+
+    pub fn bytes_slice_view<T: AsRef<BytesSlice<WasmPtrImpl>>>(
+        &self,
+        slice: T,
+    ) -> Result<WasmSliceView<'_, u8>, WasmError> {
+        let slice = slice.as_ref();
+        let len = try_positive_i32_to_u32(slice.len)
+            .ok_or_else(|| WasmError::Unspecified(format!("bytes_slice_view len {}", slice.len)))?;
+        let slice = WasmPtr::from(slice.ptr).slice(&self.view, len)?;
         let slice = slice.access()?;
 
         Ok(WasmSliceView { slice })
