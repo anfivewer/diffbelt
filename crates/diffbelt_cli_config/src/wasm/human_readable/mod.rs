@@ -3,20 +3,21 @@ pub mod aggregate;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use std::ops::DerefMut;
+use wasmtime::TypedFunc;
 
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::result::WasmBytesSliceResult;
-use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
+use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
 use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
 
 pub struct HumanReadableFunctions<'a> {
     pub instance: &'a WasmModuleInstance,
     slice_holder: WasmSliceHolder<'a>,
-    key_to_bytes: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
-    bytes_to_key: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
-    value_to_bytes: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
-    bytes_to_value: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    key_to_bytes: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    bytes_to_key: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    value_to_bytes: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    bytes_to_value: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
 }
 
 #[macro_export]

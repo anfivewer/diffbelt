@@ -1,10 +1,11 @@
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
-use crate::wasm::WasmError;
+use crate::wasm::{WasmError, WasmStoreData};
 use std::sync::{Arc, Mutex};
+use wasmtime::Store;
 
 impl WasmEnv {
-    pub fn register_debug_wasm_imports(&self, store: &mut Store, imports: &mut Imports) {
+    pub fn register_debug_wasm_imports(&self, store: &mut Store<WasmStoreData>, imports: &mut Imports) {
         struct DebugEnv {
             error: Arc<Mutex<Option<WasmError>>>,
             memory: Arc<Mutex<Option<Memory>>>,

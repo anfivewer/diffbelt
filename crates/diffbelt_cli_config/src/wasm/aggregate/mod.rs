@@ -1,4 +1,5 @@
 use std::ops::DerefMut;
+use wasmtime::TypedFunc;
 
 use diffbelt_protos::error::map_flatbuffer_error_to_return_buffer;
 use diffbelt_protos::protos::transform::aggregate::{
@@ -10,7 +11,7 @@ use diffbelt_wasm_binding::error_code::ErrorCode;
 
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
-use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
+use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
 use crate::wasm::{WasmError, WasmModuleInstance};
 
 pub struct AggregateFunctions<'a> {
@@ -18,9 +19,9 @@ pub struct AggregateFunctions<'a> {
     bytes_slice: WasmSliceHolder<'a>,
     input_vector: WasmVecHolder<'a>,
     output_vector: WasmVecHolder<'a>,
-    map: TypedFunction<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
-    initial_accumulator: TypedFunction<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
-    reduce: TypedFunction<
+    map: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    initial_accumulator: TypedFunc<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    reduce: TypedFunc<
         (
             WasmPtr<u8>,
             i32,
@@ -30,7 +31,7 @@ pub struct AggregateFunctions<'a> {
         ),
         i32,
     >,
-    merge_accumulators: TypedFunction<
+    merge_accumulators: TypedFunc<
         (
             WasmPtr<u8>,
             i32,
@@ -40,7 +41,7 @@ pub struct AggregateFunctions<'a> {
         ),
         i32,
     >,
-    apply: TypedFunction<
+    apply: TypedFunc<
         (
             WasmPtr<u8>,
             i32,

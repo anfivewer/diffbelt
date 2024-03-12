@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
+use bytemuck::Pod;
 
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::PtrImpl;
@@ -8,32 +9,9 @@ use diffbelt_wasm_binding::ReplaceResult;
 #[derive(Copy, Clone, Debug)]
 pub struct WasmPtrImpl;
 
-#[derive(Clone, Debug)]
-pub struct WasmPtrCopy<T> {
-    native: <Memory32 as MemorySize>::Native,
-    _phantom: PhantomData<T>,
-}
-
-impl<T: Clone> Copy for WasmPtrCopy<T> {}
-
-impl<T> From<WasmPtr<T>> for WasmPtrCopy<T> {
-    fn from(value: WasmPtr<T>) -> Self {
-        Self {
-            native: <Memory32 as MemorySize>::offset_to_native(value.offset()),
-            _phantom: PhantomData::default(),
-        }
-    }
-}
-
-impl<T> From<WasmPtrCopy<T>> for WasmPtr<T> {
-    fn from(value: WasmPtrCopy<T>) -> Self {
-        Self::new(<Memory32 as MemorySize>::native_to_offset(value.native))
-    }
-}
-
 impl PtrImpl for WasmPtrImpl {
-    type Ptr<T: Clone> = WasmPtrCopy<T>;
-    type MutPtr<T: Clone> = WasmPtrCopy<T>;
+    type Ptr<T: Clone> = WasmPtr<T>;
+    type MutPtr<T: Clone> = WasmPtr<T>;
 }
 
 pub trait BytesVecFullTrait {
@@ -50,26 +28,17 @@ impl BytesVecFullTrait for BytesVecRawParts<WasmPtrImpl> {
     }
 }
 
-macro_rules! impl_value_type {
-    ($name:ident) => {
-        unsafe impl ValueType for $name {
-            fn zero_padding_bytes(&self, bytes: &mut [MaybeUninit<u8>]) {
-                for b in bytes.iter_mut() {
-                    b.write(0);
-                }
-            }
-        }
-    };
-}
-
+#[derive(Pod)]
 #[derive(Copy, Clone)]
 #[repr(transparent)]
 pub struct WasmReplaceResult(pub ReplaceResult<WasmPtrImpl>);
 
+#[derive(Pod)]
 #[derive(Copy, Clone, Debug)]
 #[repr(transparent)]
 pub struct WasmBytesVecRawParts(pub BytesVecRawParts<WasmPtrImpl>);
 
+#[derive(Pod)]
 #[derive(Copy, Clone, Debug)]
 #[repr(transparent)]
 pub struct WasmBytesSlice(pub BytesSlice<WasmPtrImpl>);
@@ -80,9 +49,22 @@ impl AsRef<BytesSlice<WasmPtrImpl>> for WasmBytesSlice {
     }
 }
 
-impl_value_type!(WasmReplaceResult);
-impl_value_type!(WasmBytesVecRawParts);
-impl_value_type!(WasmBytesSlice);
+#[repr(transparent)]
+#[derive(Copy)]
+pub struct WasmPtr<T: Sized> {
+    pub value: i32,
+    pub phantom: PhantomData<T>,
+}
 
-pub type WasmPtrToBytesSlice = i32;
-pub type WasmPtrToVecRawParts = i32;
+impl<T: Sized> Clone for WasmPtr<T> {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value,
+            phantom: Default::default(),
+        }
+    }
+}
+
+pub type WasmPtrToByte = WasmPtr<u8>;
+pub type WasmPtrToBytesSlice = WasmPtr<WasmBytesSlice>;
+pub type WasmPtrToVecRawParts = WasmPtr<WasmBytesVecRawParts>;

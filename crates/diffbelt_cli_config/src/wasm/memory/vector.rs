@@ -15,8 +15,9 @@ pub struct WasmVecHolder<'a> {
 impl WasmModuleInstance {
     pub fn alloc_vec_holder(&self) -> Result<WasmVecHolder<'_>, WasmError> {
         let mut store = self.store.try_borrow_mut()?;
+        let store = store.deref_mut();
 
-        let ptr = self.allocation.alloc_bytes_vec_raw_parts.call(&mut store)?;
+        let ptr = self.allocation.alloc_bytes_vec_raw_parts.call(store, ())?;
 
         Ok(WasmVecHolder {
             instance: self,
@@ -81,23 +82,21 @@ impl<'a> WasmVecHolder<'a> {
             .instance
             .allocation
             .ensure_vec_capacity
-            .call(&mut store, self.ptr, len)?;
+            .call(&mut store, (self.ptr, len))?;
 
         let view = self.instance.allocation.memory.view(&store);
-        let mut access = self.ptr.access(&view)?;
 
-        {
-            let raw_parts = access.as_mut();
-            raw_parts.0.len = len;
-        }
+        let memory = self.instance.allocation.memory.data_mut(&store);
+        let raw_parts = self.ptr.as_mut(memory)?;
+        raw_parts.0.len = len;
 
-        let vec_ptr = WasmPtr::from(access.as_ref().0.ptr);
+        let vec_ptr = raw_parts.0.ptr;
 
-        let vec_slice = vec_ptr.slice(&view, len_u32)?;
-        () = vec_slice.write_slice(slice)?;
+        let vec_slice = vec_ptr.slice()?;
+        () = vec_slice.write_slice(memory, slice)?;
 
         let wasm_slice = WasmBytesSlice(SliceRawParts {
-            ptr: vec_ptr.into(),
+            ptr: vec_ptr,
             len,
         });
 

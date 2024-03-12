@@ -5,6 +5,7 @@ use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
+use crate::wasm::types::WasmPtr;
 
 #[deprecated(note = "Use just WasmBytesSlice")]
 pub struct WasmBytesSliceResult<'a> {

@@ -36,7 +36,7 @@ impl WasmEnv {
     }
 
     pub fn handle_error<T>(
-        error: &Arc<Mutex<Option<WasmError>>>,
+        error: impl Into<&Arc<Mutex<Option<WasmError>>>>,
         result: Result<T, WasmError>,
     ) -> Option<T> {
         let wasm_err = match result {
@@ -46,7 +46,7 @@ impl WasmEnv {
             Err(x) => x,
         };
 
-        let Ok(mut lock) = error.try_lock() else {
+        let Ok(mut lock) = error.into().try_lock() else {
             // If cannot take mutex, then someone took it to set error
             return None;
         };

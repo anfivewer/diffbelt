@@ -25,12 +25,14 @@ use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{
     WasmBytesSlice, WasmBytesVecRawParts, WasmPtrToBytesSlice, WasmPtrToVecRawParts,
 };
+use crate::wasm::wasm_env::regex::RegexEnv;
 use crate::wasm::wasm_env::WasmEnv;
 use memory::vector::WasmVecHolder;
 
 pub mod aggregate;
 pub mod human_readable;
 pub mod memory;
+pub mod ptr;
 pub mod result;
 pub mod types;
 pub mod util;
@@ -64,6 +66,8 @@ pub enum WasmError {
     BorrowMut(#[from] BorrowMutError),
     #[error("{0:?}")]
     Flatbuffer(FlatbufferError),
+    #[error("BadPointer")]
+    BadPointer,
     #[error("{0:?}")]
     Unspecified(String),
 }
@@ -80,7 +84,15 @@ pub struct NewWasmInstanceOptions<'a> {
     pub config_path: &'a str,
 }
 
-pub struct WasmStoreData;
+pub struct WasmStoreData {
+    pub regex: Option<RegexEnv>,
+}
+
+impl WasmStoreData {
+    pub fn new() -> Self {
+        Self { regex: None }
+    }
+}
 
 pub struct WasmModuleInstance {
     error: Arc<Mutex<Option<WasmError>>>,
@@ -121,23 +133,10 @@ impl Wasm {
         let config = Config::new().async_support(true);
         let engine = Engine::new(&config)?;
 
-        let data = WasmStoreData;
+        let data = WasmStoreData::new();
 
         let mut store = Store::new(&engine, data);
         let wasm_mod = Module::new(&engine, &wat_bytes)?;
-
-        let mut memories = wasm_mod.exports().memories();
-        let Some(memory) = memories.next() else {
-            return Err(WasmError::Unspecified(
-                "Module does not exports memory".to_string(),
-            ));
-        };
-
-        if memories.next().is_some() {
-            return Err(WasmError::Unspecified(
-                "Module exports multiple memories".to_string(),
-            ));
-        }
 
         let mut linker = Linker::<WasmStoreData>::new(&engine);
 
@@ -149,9 +148,27 @@ impl Wasm {
 
         let instance = linker.instantiate_async(&store, &wasm_mod).await?;
 
-        let memory = instance
-            .get_memory(&store, "memory")
-            .ok_or_else(|| WasmError::Unspecified("no memory named \"memory\""))?;
+        let mut memory = None;
+
+        for export in instance.exports(&store) {
+            let Some(m) = export.into_memory() else {
+                continue;
+            };
+
+            let prev = memory.replace(m);
+
+            if prev.is_some() {
+                return Err(WasmError::Unspecified(
+                    "Module exports multiple memories".to_string(),
+                ));
+            }
+        }
+
+        let Some(memory) = memory else {
+            return Err(WasmError::Unspecified(
+                "Module does not exports memory".to_string(),
+            ));
+        };
 
         env.set_memory(memory);
 

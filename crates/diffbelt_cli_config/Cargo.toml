@@ -19,6 +19,7 @@ thiserror = "1.0.50"
 either = "1.9.0"
 dioxus-hooks = "0.4.0"
 enum_dispatch = "0.3.12"
+bytemuck = { version = "1.14.3", features = ["derive"] }
 
 [dependencies.diffbelt_util]
 path = "../diffbelt_util"

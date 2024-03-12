@@ -1,38 +1,38 @@
 use std::ops::DerefMut;
+use wasmtime::{Instance, Memory, Store, TypedFunc};
 
-use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts};
-use crate::wasm::WasmError;
+use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
+use crate::wasm::{WasmError, WasmStoreData};
 
-pub mod observe_context;
 pub mod slice;
 pub mod vector;
 
 #[derive(Clone)]
 pub struct Allocation {
-    pub alloc: TypedFunction<i32, WasmPtr<u8>>,
-    pub dealloc: TypedFunction<(WasmPtr<u8>, i32), ()>,
-    alloc_bytes_slice: TypedFunction<(), WasmPtr<WasmBytesSlice>>,
-    dealloc_bytes_slice: TypedFunction<WasmPtr<WasmBytesSlice>, ()>,
-    pub alloc_bytes_vec_raw_parts: TypedFunction<(), WasmPtr<WasmBytesVecRawParts>>,
-    pub dealloc_bytes_vec_raw_parts: TypedFunction<WasmPtr<WasmBytesVecRawParts>, ()>,
-    pub ensure_vec_capacity: TypedFunction<(WasmPtr<WasmBytesVecRawParts>, i32), ()>,
+    pub alloc: TypedFunc<i32, WasmPtr<u8>>,
+    pub dealloc: TypedFunc<(WasmPtr<u8>, i32), ()>,
+    alloc_bytes_slice: TypedFunc<(), WasmPtr<WasmBytesSlice>>,
+    dealloc_bytes_slice: TypedFunc<WasmPtr<WasmBytesSlice>, ()>,
+    pub alloc_bytes_vec_raw_parts: TypedFunc<(), WasmPtr<WasmBytesVecRawParts>>,
+    pub dealloc_bytes_vec_raw_parts: TypedFunc<WasmPtr<WasmBytesVecRawParts>, ()>,
+    pub ensure_vec_capacity: TypedFunc<(WasmPtr<WasmBytesVecRawParts>, i32), ()>,
     pub memory: Memory,
 }
 
 impl Allocation {
     pub fn new(
-        store: &(impl AsStoreRef + ?Sized),
+        store: &mut Store<WasmStoreData>,
         instance: &Instance,
         memory: Memory,
     ) -> Result<Self, WasmError> {
         macro_rules! get_function {
             ($name:ident, $name_text:literal) => {
-                let $name = instance
-                    .exports
-                    .get_typed_function(&store, $name_text)
-                    .map_err(export_error_context(|| {
-                        concat!($name_text, "()").to_string()
-                    }))?;
+                let $name =
+                    instance
+                        .get_typed_func(&store, $name_text)
+                        .map_err(export_error_context(|| {
+                            concat!($name_text, "()").to_string()
+                        }))?;
             };
         }
 
