@@ -1,22 +1,26 @@
 use either::Either;
+use std::ops::Deref;
 
-use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_u32, u32_to_usize};
+use diffbelt_util_no_std::cast::{
+    try_positive_i32_to_u32, try_positive_i32_to_usize, try_usize_to_i32, try_usize_to_u32,
+    u32_to_usize,
+};
 use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 
 use crate::wasm::memory::vector::WasmVecHolder;
-use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
 use crate::wasm::types::WasmPtr;
+use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
 
 #[deprecated(note = "Use just WasmBytesSlice")]
 pub struct WasmBytesSliceResult<'a> {
     pub instance: &'a WasmModuleInstance,
     pub ptr: WasmPtr<u8>,
-    pub len: u32,
+    pub len: usize,
 }
 
 pub struct WasmBytesSliceOwnedUnsafe {
     pub ptr: WasmPtr<u8>,
-    pub len: u32,
+    pub len: usize,
 }
 
 impl<'a> WasmBytesSliceResult<'a> {
@@ -25,14 +29,14 @@ impl<'a> WasmBytesSliceResult<'a> {
         holder: &WasmVecHolder,
     ) -> Result<Self, WasmError> {
         let store = instance.store.try_borrow()?;
-        let view = instance.allocation.memory.view(&store);
+        let store = store.deref();
+        let memory = instance.allocation.memory.data(store);
 
-        let raw_parts = holder.ptr.access(&view)?;
-        let raw_parts = raw_parts.as_ref();
+        let raw_parts = holder.ptr.access(memory)?;
 
         let BytesVecRawParts::<WasmPtrImpl> { ptr, len, .. } = raw_parts.0;
 
-        let len = try_positive_i32_to_u32(len)
+        let len = try_positive_i32_to_usize(len)
             .ok_or_else(|| WasmError::Unspecified(format!("view_to_vec_holder: len {len}")))?;
 
         Ok(Self {
@@ -43,18 +47,18 @@ impl<'a> WasmBytesSliceResult<'a> {
     }
 
     pub fn bytes_offset_to_ptr(&self, offset: usize) -> Result<WasmPtr<u8>, WasmError> {
-        let offset_u32 = try_usize_to_u32(offset).ok_or_else(|| {
+        let offset_i32 = try_usize_to_i32(offset).ok_or_else(|| {
             WasmError::Unspecified(format!("bytes_offset_to_ptr: offset too big {offset}"))
         })?;
 
-        if offset >= u32_to_usize(self.len) {
+        if offset >= self.len {
             return Err(WasmError::Unspecified(format!(
                 "bytes_offset_to_ptr: offset {offset}, but len is {}",
                 self.len
             )));
         }
 
-        let ptr = self.ptr.add_offset(offset_u32)?;
+        let ptr = self.ptr.add_offset(offset_i32)?;
 
         Ok(ptr)
     }
@@ -64,10 +68,10 @@ impl<'a> WasmBytesSliceResult<'a> {
         &self,
         fun: F,
     ) -> Result<T, Either<E, WasmError>> {
-        self.instance.enter_memory_observe_context(|observer| {
-            let slice = observer.slice_view(self.ptr, self.len)?;
+        self.instance.enter_memory_observe_context(|memory| {
+            let slice = self.ptr.slice()?.slice(memory, self.len)?;
 
-            fun(slice.as_ref())
+            fun(slice)
         })
     }
 

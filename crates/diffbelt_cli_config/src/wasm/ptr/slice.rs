@@ -1,4 +1,4 @@
-use crate::wasm::types::WasmPtr;
+use crate::wasm::types::{WasmBytesSlice, WasmPtr};
 use crate::wasm::WasmError;
 use bytemuck::Pod;
 use diffbelt_util_no_std::cast::try_positive_i32_to_usize;
@@ -29,7 +29,18 @@ impl<T: Pod> WasmSlice<T> {
         let m = bytes.get(start..).ok_or_else(|| {
             WasmError::Unspecified(format!("WasmSlice::at, invalid range at {start}"))
         })?;
-        let data: &T = bytemuck::cast_ref(m);
+        let data: &T = bytemuck::from_bytes(m);
+        Ok(data)
+    }
+
+    pub fn slice(&self, bytes: &[u8], len: usize) -> Result<&[T], WasmError> {
+        let size = mem::size_of::<T>();
+        let start = self.ptr;
+        let end = start + len * size;
+        let m = bytes.get(start..end).ok_or_else(|| {
+            WasmError::Unspecified(format!("WasmSlice::slice, invalid range at {start}..{end}"))
+        })?;
+        let data: &[T] = bytemuck::cast_slice(m);
         Ok(data)
     }
 
@@ -39,7 +50,7 @@ impl<T: Pod> WasmSlice<T> {
         let m = bytes.get_mut(start..).ok_or_else(|| {
             WasmError::Unspecified(format!("WasmSlice::at, invalid range at {start}"))
         })?;
-        let data: &mut T = bytemuck::cast_mut(m);
+        let data: &mut T = bytemuck::from_bytes_mut(m);
         Ok(data)
     }
 
@@ -65,5 +76,16 @@ impl<T: Pod> WasmSlice<T> {
         })?;
         data_slice.copy_from_slice(data);
         Ok(())
+    }
+}
+
+impl WasmBytesSlice {
+    pub fn access(&self, memory: &[u8]) -> Result<&[u8], WasmError> {
+        let len = try_positive_i32_to_usize(self.0.len).ok_or_else(|| {
+            WasmError::Unspecified(format!("WasmBytesSlice::access, len {}", self.0.len))
+        })?;
+        let slice = self.0.ptr.slice()?;
+        let slice = slice.slice(memory, len)?;
+        Ok(slice)
     }
 }

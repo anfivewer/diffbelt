@@ -32,13 +32,13 @@ macro_rules! impl_human_readable_call {
             let store = store.deref_mut();
 
             {
-                let view = self.instance.allocation.memory.view(store);
-                () = self.slice_holder.ptr.write(&view, slice)?;
+                let memory = self.instance.allocation.memory.data_mut(store);
+                () = self.slice_holder.ptr.write(memory, slice)?;
             }
 
             let error_code = self
                 .$field
-                .call(store, self.slice_holder.ptr, buffer_holder.ptr)?;
+                .call(store, (self.slice_holder.ptr, buffer_holder.ptr))?;
             let error_code = ErrorCode::from_repr(error_code);
 
             let ErrorCode::Ok = error_code else {
@@ -53,8 +53,9 @@ macro_rules! impl_human_readable_call {
             };
 
             let slice = {
-                let view = self.instance.allocation.memory.view(store);
-                self.slice_holder.ptr.read(&view)?
+                let memory = self.instance.allocation.memory.data(store);
+                let slice = self.slice_holder.ptr.access(memory)?;
+                *slice
             };
 
             Ok(slice)
@@ -72,12 +73,13 @@ impl<'a> HumanReadableFunctions<'a> {
     ) -> Result<Self, WasmError> {
         let slice_holder = instance.alloc_slice_holder()?;
 
-        let store = instance.store.try_borrow()?;
+        let mut store = instance.store.try_borrow_mut()?;
+        let store = store.deref_mut();
 
-        let key_to_bytes = instance.typed_function_with_store(&store, key_to_bytes)?;
-        let bytes_to_key = instance.typed_function_with_store(&store, bytes_to_key)?;
-        let value_to_bytes = instance.typed_function_with_store(&store, value_to_bytes)?;
-        let bytes_to_value = instance.typed_function_with_store(&store, bytes_to_value)?;
+        let key_to_bytes = instance.instance.get_typed_func(store, key_to_bytes)?;
+        let bytes_to_key = instance.instance.get_typed_func(store, bytes_to_key)?;
+        let value_to_bytes = instance.instance.get_typed_func(store, value_to_bytes)?;
+        let bytes_to_value = instance.instance.get_typed_func(store, bytes_to_value)?;
 
         Ok(Self {
             instance,

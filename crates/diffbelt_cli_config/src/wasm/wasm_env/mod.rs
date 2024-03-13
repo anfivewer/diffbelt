@@ -1,3 +1,4 @@
+use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 use wasmtime::{Linker, Memory, Store};
 
@@ -35,8 +36,8 @@ impl WasmEnv {
         self.register_regex_wasm_imports(store, linker);
     }
 
-    pub fn handle_error<'a, T>(
-        error: impl Into<&'a mut Option<WasmError>>,
+    pub fn handle_error<T>(
+        error: &Arc<Mutex<Option<WasmError>>>,
         result: Result<T, WasmError>,
     ) -> Option<T> {
         let wasm_err = match result {
@@ -46,9 +47,16 @@ impl WasmEnv {
             Err(x) => x,
         };
 
-        if error.is_some() {
+        let Ok(mut lock) = error.try_lock() else {
+            // If cannot take mutex, then someone took it to set error
+            return None;
+        };
+
+        if lock.is_some() {
             return None;
         }
+
+        let error = lock.deref_mut();
 
         *error = Some(wasm_err);
 

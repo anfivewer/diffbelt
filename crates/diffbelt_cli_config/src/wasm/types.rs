@@ -35,12 +35,12 @@ impl BytesVecFullTrait for BytesVecRawParts<WasmPtrImpl> {
 pub struct WasmReplaceResult(pub ReplaceResult<WasmPtrImpl>);
 
 #[derive(Pod, Zeroable)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 #[repr(transparent)]
 pub struct WasmBytesVecRawParts(pub BytesVecRawParts<WasmPtrImpl>);
 
 #[derive(Pod, Zeroable)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 #[repr(transparent)]
 pub struct WasmBytesSlice(pub BytesSlice<WasmPtrImpl>);
 

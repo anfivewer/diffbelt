@@ -27,12 +27,7 @@ impl Allocation {
     ) -> Result<Self, WasmError> {
         macro_rules! get_function {
             ($name:ident, $name_text:literal) => {
-                let $name =
-                    instance
-                        .get_typed_func(&store, $name_text)
-                        .map_err(export_error_context(|| {
-                            concat!($name_text, "()").to_string()
-                        }))?;
+                let $name = instance.get_typed_func(store, $name_text)?;
             };
         }
 

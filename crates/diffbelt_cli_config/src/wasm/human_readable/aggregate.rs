@@ -25,12 +25,13 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
     ) -> Result<Self, WasmError> {
         let slice_holder = instance.alloc_slice_holder()?;
 
-        let store = instance.store.try_borrow()?;
+        let mut store = instance.store.try_borrow_mut()?;
+        let store = store.deref_mut();
 
         let mapped_key_from_bytes =
-            instance.typed_function_with_store(&store, mapped_key_from_bytes)?;
+            instance.instance.get_typed_func(store, mapped_key_from_bytes)?;
         let mapped_value_from_bytes =
-            instance.typed_function_with_store(&store, mapped_value_from_bytes)?;
+            instance.instance.get_typed_func(store, mapped_value_from_bytes)?;
 
         Ok(Self {
             instance,

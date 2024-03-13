@@ -1,20 +1,21 @@
 use either::Either;
 use std::ops::DerefMut;
 
-use crate::wasm::types::{WasmBytesSlice, WasmPtrToBytesSlice};
+use crate::wasm::types::{WasmBytesSlice, WasmPtr, WasmPtrToBytesSlice};
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::{WasmError, WasmModuleInstance};
 
 pub struct WasmSliceHolder<'a> {
     pub instance: &'a WasmModuleInstance,
-    pub ptr: WasmPtrToBytesSlice,
+    pub ptr: WasmPtr<WasmBytesSlice>,
 }
 
 impl WasmModuleInstance {
     pub fn alloc_slice_holder(&self) -> Result<WasmSliceHolder<'_>, WasmError> {
         let mut store = self.store.try_borrow_mut()?;
+        let store = store.deref_mut();
 
-        let ptr = self.allocation.alloc_bytes_slice.call(&mut store)?;
+        let ptr = self.allocation.alloc_bytes_slice.call(store, ())?;
 
         Ok(WasmSliceHolder {
             instance: self,
@@ -29,10 +30,10 @@ impl WasmBytesSlice {
         instance: &WasmModuleInstance,
         fun: F,
     ) -> Result<T, Either<E, WasmError>> {
-        instance.enter_memory_observe_context(|observer| {
-            let slice = observer.bytes_slice_view(self)?;
+        instance.enter_memory_observe_context(|memory| {
+            let slice = self.access(memory)?;
 
-            fun(slice.as_ref())
+            fun(slice)
         })
     }
 }

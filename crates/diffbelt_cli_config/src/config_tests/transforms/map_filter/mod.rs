@@ -260,13 +260,13 @@ impl<'a> MapFilterTransformTest<'a> {
                 let mut expected_iter = expected.iter();
 
                 for (key, value) in actual {
-                    let key = memory.bytes_slice_view(key.0)?;
-                    let value = value.as_ref().map(|x| memory.bytes_slice_view(x.0));
+                    let key = key.0.access(memory)?;
+                    let value = value.as_ref().map(|x| x.0.access(memory));
                     let value = lift_result_from_option(value)?;
 
-                    let key = from_utf8(key.as_ref())?;
+                    let key = from_utf8(key)?;
                     let key = key.trim();
-                    let value = value.as_ref().map(|x| from_utf8(x.as_ref()));
+                    let value = value.as_ref().map(|x| from_utf8(x));
                     let value = lift_result_from_option(value)?;
                     let value = value.map(|x| x.trim());
 

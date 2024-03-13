@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use wasmtime::TypedFunc;
 
 use diffbelt_protos::error::map_flatbuffer_error_to_return_buffer;
@@ -66,14 +66,18 @@ impl<'a> AggregateFunctions<'a> {
         let input_vector = instance.alloc_vec_holder()?;
         let output_vector = instance.alloc_vec_holder()?;
 
-        let store = instance.store.try_borrow()?;
+        let mut store = instance.store.try_borrow_mut()?;
+        let store = store.deref_mut();
 
-        let map = instance.typed_function_with_store(&store, map)?;
-        let initial_accumulator =
-            instance.typed_function_with_store(&store, initial_accumulator)?;
-        let reduce = instance.typed_function_with_store(&store, reduce)?;
-        let merge_accumulators = instance.typed_function_with_store(&store, merge_accumulators)?;
-        let apply = instance.typed_function_with_store(&store, apply)?;
+        let map = instance.instance.get_typed_func(store, map)?;
+        let initial_accumulator = instance
+            .instance
+            .get_typed_func(store, initial_accumulator)?;
+        let reduce = instance.instance.get_typed_func(store, reduce)?;
+        let merge_accumulators = instance
+            .instance
+            .get_typed_func(store, merge_accumulators)?;
+        let apply = instance.instance.get_typed_func(store, apply)?;
 
         Ok(Self {
             instance,
@@ -101,13 +105,13 @@ impl<'a> AggregateFunctions<'a> {
         let store = store.deref_mut();
 
         {
-            let view = self.instance.allocation.memory.view(store);
-            () = self.bytes_slice.ptr.write(&view, wasm_slice)?;
+            let memory = self.instance.allocation.memory.data_mut(store);
+            () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
         }
 
         let error_code = self
             .map
-            .call(store, self.bytes_slice.ptr, self.output_vector.ptr)?;
+            .call(store, (self.bytes_slice.ptr, self.output_vector.ptr))?;
 
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {
@@ -118,8 +122,8 @@ impl<'a> AggregateFunctions<'a> {
         };
 
         let buffer = self.instance.enter_memory_observe_context(|memory| {
-            let output = memory.bytes_slice_slice_view(self.bytes_slice.ptr)?;
-            let output = output.as_ref();
+            let output = self.bytes_slice.ptr.access(memory)?;
+            let output = output.access(memory)?;
 
             let mut buffer = buffer_holder
                 .take()
