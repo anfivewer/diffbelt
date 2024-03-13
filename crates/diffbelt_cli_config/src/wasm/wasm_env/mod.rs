@@ -31,12 +31,12 @@ impl WasmEnv {
         store: &mut Store<WasmStoreData>,
         linker: &mut Linker<WasmStoreData>,
     ) {
-        self.register_debug_wasm_imports(store, linker);
+        self.register_debug_wasm_imports(linker);
         self.register_regex_wasm_imports(store, linker);
     }
 
-    pub fn handle_error<T>(
-        error: impl Into<&Arc<Mutex<Option<WasmError>>>>,
+    pub fn handle_error<'a, T>(
+        error: impl Into<&'a mut Option<WasmError>>,
         result: Result<T, WasmError>,
     ) -> Option<T> {
         let wasm_err = match result {
@@ -46,16 +46,11 @@ impl WasmEnv {
             Err(x) => x,
         };
 
-        let Ok(mut lock) = error.into().try_lock() else {
-            // If cannot take mutex, then someone took it to set error
-            return None;
-        };
-
-        if lock.is_some() {
+        if error.is_some() {
             return None;
         }
 
-        lock.replace(wasm_err);
+        *error = Some(wasm_err);
 
         None
     }

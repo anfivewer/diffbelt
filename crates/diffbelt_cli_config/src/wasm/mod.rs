@@ -9,7 +9,7 @@ use diffbelt_protos::error::FlatbufferError;
 use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
 use serde::Deserialize;
 use thiserror::Error;
-use wasmtime::{Config, Engine, Instance, Linker, Module, Store, TypedFunc};
+use wasmtime::{Config, Engine, Instance, Linker, Memory, Module, Store, TypedFunc};
 
 use diffbelt_util::Wrap;
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
@@ -69,6 +69,8 @@ pub enum WasmError {
     #[error("BadPointer")]
     BadPointer,
     #[error("{0:?}")]
+    WasmTime(#[from] wasmtime::Error),
+    #[error("{0:?}")]
     Unspecified(String),
 }
 
@@ -85,12 +87,26 @@ pub struct NewWasmInstanceOptions<'a> {
 }
 
 pub struct WasmStoreData {
+    pub inner: Arc<Mutex<WasmStoreDataInner>>,
+}
+
+pub struct WasmStoreDataInner {
+    pub error: Option<WasmError>,
+    pub memory: Option<Memory>,
+    pub allocation: Option<Allocation>,
     pub regex: Option<RegexEnv>,
 }
 
 impl WasmStoreData {
     pub fn new() -> Self {
-        Self { regex: None }
+        Self {
+            inner: Wrap::wrap(WasmStoreDataInner {
+                error: None,
+                memory: None,
+                allocation: None,
+                regex: None,
+            }),
+        }
     }
 }
 
@@ -130,7 +146,8 @@ impl Wasm {
             WasmError::Io(err)
         })?;
 
-        let config = Config::new().async_support(true);
+        let mut config = Config::new();
+        config.async_support(true);
         let engine = Engine::new(&config)?;
 
         let data = WasmStoreData::new();
@@ -146,11 +163,11 @@ impl Wasm {
 
         env.register_imports(&mut store, &mut linker);
 
-        let instance = linker.instantiate_async(&store, &wasm_mod).await?;
+        let instance = linker.instantiate_async(&mut store, &wasm_mod).await?;
 
         let mut memory = None;
 
-        for export in instance.exports(&store) {
+        for export in instance.exports(&mut store) {
             let Some(m) = export.into_memory() else {
                 continue;
             };
@@ -172,7 +189,7 @@ impl Wasm {
 
         env.set_memory(memory);
 
-        let allocation = Allocation::new(&store, &instance, memory)?;
+        let allocation = Allocation::new(&mut store, &instance, memory)?;
 
         env.set_allocation(allocation.clone());
 

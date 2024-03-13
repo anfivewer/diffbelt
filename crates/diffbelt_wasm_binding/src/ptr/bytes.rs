@@ -1,5 +1,6 @@
 use alloc::string::{FromUtf8Error, String};
 use alloc::vec::Vec;
+use bytemuck::{Pod, Zeroable};
 use core::ptr;
 use core::str::{from_utf8, Utf8Error};
 
@@ -7,7 +8,7 @@ use diffbelt_protos::{FlatbuffersType, OwnedSerialized};
 use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32};
 
 use crate::ptr::slice::SliceRawParts;
-use crate::ptr::{NativePtrImpl, PtrImpl};
+use crate::ptr::{ConstPtr, MutPtr, NativePtrImpl, PtrImpl};
 
 pub type BytesSlice<P = NativePtrImpl> = SliceRawParts<u8, P>;
 
@@ -22,8 +23,8 @@ pub struct BytesVecWidePtr {
     pub capacity: i32,
 }
 
-#[derive(Copy, Clone, Debug)]
-#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, Debug)]
+#[repr(C, packed)]
 pub struct BytesVecRawParts<P: PtrImpl = NativePtrImpl> {
     pub ptr: P::MutPtr<u8>,
     pub len: i32,
@@ -32,7 +33,8 @@ pub struct BytesVecRawParts<P: PtrImpl = NativePtrImpl> {
 
 impl BytesVecRawParts<NativePtrImpl> {
     pub unsafe fn into_empty_vec(self) -> Vec<u8> {
-        Vec::from_raw_parts(self.ptr, 0, self.capacity as usize)
+        let ptr = self.ptr.as_mut_ptr();
+        Vec::from_raw_parts(ptr, 0, self.capacity as usize)
     }
 }
 
@@ -58,7 +60,11 @@ impl From<Vec<u8>> for BytesVecRawParts {
         let capacity = checked_usize_to_i32(capacity);
         let ptr = vec.leak() as *mut [u8] as *mut u8;
 
-        Self { ptr, len, capacity }
+        Self {
+            ptr: MutPtr::from(ptr),
+            len,
+            capacity,
+        }
     }
 }
 
@@ -81,7 +87,7 @@ impl SliceRawParts<u8> {
 impl From<&BytesVecRawParts> for SliceRawParts<u8> {
     fn from(value: &BytesVecRawParts) -> Self {
         Self {
-            ptr: value.ptr,
+            ptr: ConstPtr::from(value.ptr),
             len: value.len,
         }
     }
@@ -90,7 +96,7 @@ impl From<&BytesVecRawParts> for SliceRawParts<u8> {
 impl BytesVecRawParts {
     pub fn null() -> Self {
         Self {
-            ptr: ptr::null_mut(),
+            ptr: MutPtr::from(ptr::null_mut()),
             len: -1,
             capacity: -1,
         }
@@ -102,7 +108,7 @@ impl BytesVecRawParts {
         let len = checked_positive_i32_to_usize(len);
         let capacity = checked_positive_i32_to_usize(capacity);
 
-        Vec::from_raw_parts(ptr, len, capacity)
+        Vec::from_raw_parts(ptr.as_mut_ptr(), len, capacity)
     }
 
     pub unsafe fn into_string(self) -> Result<String, FromUtf8Error> {

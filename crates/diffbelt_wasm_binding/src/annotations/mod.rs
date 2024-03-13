@@ -1,3 +1,4 @@
+use bytemuck::{Pod, Zeroable};
 use core::marker::PhantomData;
 
 pub mod serializer;
@@ -16,6 +17,10 @@ pub struct Annotated<Value, Annotation> {
     pub value: Value,
     phantom: PhantomData<Annotation>,
 }
+
+impl<Value: Copy, Annotation> Copy for Annotated<Value, Annotation> {}
+unsafe impl<Value: Zeroable, Annotation> Zeroable for Annotated<Value, Annotation> {}
+unsafe impl<Value: Pod, Annotation: 'static> Pod for Annotated<Value, Annotation> {}
 
 impl<Value, Annotation> AnnotatedTrait for Annotated<Value, Annotation> {
     type Value = Value;

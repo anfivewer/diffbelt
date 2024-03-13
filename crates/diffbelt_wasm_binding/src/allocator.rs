@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use core::ptr;
 
 use crate::ptr::bytes::{BytesSlice, BytesVecPtr, BytesVecRawParts, BytesVecWidePtr};
+use crate::ptr::{ConstPtr, MutPtr};
 
 #[no_mangle]
 extern "C" fn alloc(capacity: i32) -> BytesVecPtr {
@@ -23,7 +24,7 @@ unsafe extern "C" fn dealloc(ptr: BytesVecWidePtr) {
 #[no_mangle]
 extern "C" fn alloc_bytes_slice() -> *mut BytesSlice {
     let b = Box::new(BytesSlice {
-        ptr: ptr::null(),
+        ptr: ConstPtr::from(ptr::null()),
         len: 0,
     });
     Box::leak(b)
@@ -38,7 +39,7 @@ unsafe extern "C" fn dealloc_bytes_slice(ptr: *mut BytesSlice) {
 #[no_mangle]
 extern "C" fn alloc_bytes_vec_raw_parts() -> *mut BytesVecRawParts {
     let b = Box::new(BytesVecRawParts {
-        ptr: ptr::null_mut(),
+        ptr: MutPtr::from(ptr::null_mut()),
         len: 0,
         capacity: 0,
     });

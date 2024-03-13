@@ -7,7 +7,7 @@ use diffbelt_protos::protos::transform::aggregate::{
     AggregateTargetInfo,
 };
 
-pub trait Aggregate<SourceKey, SourceValue, MappedValue, Accumulator, TargetKey, TargetValue> {
+pub trait Aggregate<SourceKey, SourceValue, MappedValue, Accumulator: 'static, TargetKey, TargetValue> {
     extern "C" fn map(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,

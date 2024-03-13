@@ -3,21 +3,24 @@ use alloc::string::String;
 use core::marker::PhantomData;
 use core::str::from_utf8_unchecked;
 use core::{ptr, slice};
+use bytemuck::{Pod, Zeroable};
 
 use thiserror_no_std::Error;
 
 use crate::ptr::bytes::BytesVecRawParts;
-use crate::ptr::{NativePtrImpl, PtrImpl};
+use crate::ptr::{ConstPtr, NativePtrImpl, PtrImpl};
 
+#[derive(Pod, Zeroable)]
 #[derive(Copy, Clone)]
-#[repr(C)]
-pub struct RegexCapture {
-    capture: *const u8,
-    capture_len: i32,
+#[repr(C, packed)]
+pub struct RegexCapture<P: PtrImpl = NativePtrImpl> {
+    pub capture: P::Ptr<u8>,
+    pub capture_len: i32,
 }
 
+#[derive(Pod, Zeroable)]
 #[derive(Copy, Clone)]
-#[repr(C)]
+#[repr(C, packed)]
 pub struct ReplaceResult<P: PtrImpl = NativePtrImpl> {
     pub is_same: i32,
     pub s: BytesVecRawParts<P>,
@@ -113,7 +116,7 @@ impl Regex {
 
     pub fn alloc_captures<const MAX_CAPTURES: usize>() -> [RegexCapture; MAX_CAPTURES] {
         [RegexCapture {
-            capture: ptr::null(),
+            capture: ConstPtr::from(ptr::null()),
             capture_len: 0,
         }; MAX_CAPTURES]
     }
@@ -210,10 +213,10 @@ impl<'s, 'mem> Captures<'s, 'mem> {
         let RegexCapture {
             capture,
             capture_len,
-        } = self.mem.get(index)?;
+        } = *self.mem.get(index)?;
 
         let s = unsafe {
-            let slice = slice::from_raw_parts(*capture, *capture_len as usize);
+            let slice = slice::from_raw_parts(capture.as_ptr(), capture_len as usize);
             from_utf8_unchecked(slice)
         };
 

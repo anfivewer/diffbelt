@@ -1,32 +1,23 @@
+use crate::wasm::types::WasmPtr;
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::{WasmError, WasmStoreData};
-use std::sync::{Arc, Mutex};
-use wasmtime::Store;
+use std::ops::DerefMut;
+use wasmtime::{AsContext, Caller, Linker, Store};
 
 impl WasmEnv {
-    pub fn register_debug_wasm_imports(&self, store: &mut Store<WasmStoreData>, imports: &mut Imports) {
-        struct DebugEnv {
-            error: Arc<Mutex<Option<WasmError>>>,
-            memory: Arc<Mutex<Option<Memory>>>,
-        }
-
-        let env = FunctionEnv::new(
-            store,
-            DebugEnv {
-                error: self.error.clone(),
-                memory: self.memory.clone(),
-            },
-        );
-
-        fn print(mut env_mut: FunctionEnvMut<DebugEnv>, s: WasmPtr<u8>, s_size: i32) -> () {
-            let (env, store) = env_mut.data_and_store_mut();
-            let DebugEnv { error, memory } = env;
+    pub fn register_debug_wasm_imports(
+        &self,
+        linker: &mut Linker<WasmStoreData>,
+    ) {
+        fn print(mut caller: Caller<WasmStoreData>, s: WasmPtr<u8>, s_size: i32) -> () {
+            let mut state = caller.data().inner.borrow_mut();
+            let state = state.deref_mut();
 
             let result = (|| {
-                let view = WasmEnv::memory_view(memory, &store)?;
+                let memory = state.memory.as_ref().expect("no memory");
 
-                let s = ptr_to_utf8(&view, s, s_size).unwrap();
+                let s = ptr_to_utf8(caller.as_context(), memory, s, s_size).unwrap();
                 let s = s.as_str().unwrap();
 
                 println!("WASM: {s}");
@@ -34,13 +25,9 @@ impl WasmEnv {
                 Ok::<_, WasmError>(())
             })();
 
-            () = WasmEnv::handle_error(error, result).unwrap_or(());
+            () = WasmEnv::handle_error(state.error, result).unwrap_or(());
         }
 
-        imports.define(
-            "debug",
-            "print",
-            Function::new_typed_with_env(store, &env, print),
-        );
+        linker.func_wrap("debug", "print", print)?;
     }
 }
