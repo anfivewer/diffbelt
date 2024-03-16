@@ -8,6 +8,7 @@ use diffbelt_util_no_std::cast::{
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 use std::ops::{Deref, DerefMut};
+use wasmtime::AsContextMut;
 
 pub struct WasmVecHolder<'a> {
     pub instance: &'a WasmModuleInstance,
@@ -55,9 +56,10 @@ impl<'a> WasmVecHolder<'a> {
         let memory = self.instance.allocation.memory.data(store);
         let raw_parts = self.ptr.access(memory)?;
         let raw_parts = raw_parts.0;
+        let raw_parts_len = raw_parts.len;
 
-        let len = try_positive_i32_to_usize(raw_parts.len)
-            .ok_or_else(|| WasmError::Unspecified(format!("access_vec: len {}", raw_parts.len)))?;
+        let len = try_positive_i32_to_usize(raw_parts_len)
+            .ok_or_else(|| WasmError::Unspecified(format!("access_vec: len {}", raw_parts_len)))?;
 
         let result = WasmBytesSliceResult {
             instance: self.instance,
@@ -78,15 +80,14 @@ impl<'a> WasmVecHolder<'a> {
         let len = try_usize_to_i32(slice.len()).ok_or_else(|| {
             WasmError::Unspecified(format!("replace_vec_with_slice: slice len {}", slice.len()))
         })?;
-        let len_u32 = unchecked_i32_to_u32(len);
 
         () = self
             .instance
             .allocation
             .ensure_vec_capacity
-            .call(store, (self.ptr, len))?;
+            .call(store.as_context_mut(), (self.ptr, len))?;
 
-        let memory = self.instance.allocation.memory.data_mut(store);
+        let memory = self.instance.allocation.memory.data_mut(store.as_context_mut());
         let raw_parts = self.ptr.as_mut(memory)?;
         raw_parts.0.len = len;
 

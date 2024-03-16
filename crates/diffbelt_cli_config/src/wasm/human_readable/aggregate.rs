@@ -2,7 +2,7 @@ use crate::impl_human_readable_call;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use std::ops::DerefMut;
-use wasmtime::TypedFunc;
+use wasmtime::{AsContextMut, TypedFunc};
 
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
@@ -28,10 +28,12 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
         let mut store = instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
 
-        let mapped_key_from_bytes =
-            instance.instance.get_typed_func(store, mapped_key_from_bytes)?;
-        let mapped_value_from_bytes =
-            instance.instance.get_typed_func(store, mapped_value_from_bytes)?;
+        let mapped_key_from_bytes = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), mapped_key_from_bytes)?;
+        let mapped_value_from_bytes = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), mapped_value_from_bytes)?;
 
         Ok(Self {
             instance,

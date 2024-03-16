@@ -17,12 +17,17 @@ impl<T: Pod> WasmPtr<T> {
 }
 
 impl<T: Pod> WasmPtr<T> {
-    pub fn access(&self, bytes: &[u8]) -> Result<&T, WasmError> {
+    pub fn access<'a>(&self, bytes: &'a [u8]) -> Result<&'a T, WasmError> {
         let slice = self.slice()?;
         slice.at(bytes, 0)
     }
 
-    pub fn as_mut(&self, bytes: &mut [u8]) -> Result<&mut T, WasmError> {
+    pub fn read(&self, bytes: &[u8]) -> Result<T, WasmError> {
+        let value = self.access(bytes)?;
+        Ok(*value)
+    }
+
+    pub fn as_mut<'a>(&self, bytes: &'a mut [u8]) -> Result<&'a mut T, WasmError> {
         let slice = self.slice()?;
         slice.at_mut(bytes, 0)
     }

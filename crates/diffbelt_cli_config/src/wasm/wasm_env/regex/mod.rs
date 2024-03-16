@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use std::cmp::min;
 use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use diffbelt_util::Wrap;
@@ -10,6 +11,7 @@ use diffbelt_util_no_std::cast::{
     try_positive_i32_to_usize, try_usize_to_i32, unchecked_i32_to_u32, unchecked_usize_to_i32,
     unchecked_usize_to_u32, usize_to_u64,
 };
+use diffbelt_util_no_std::temporary_collection::vec::{TempVecType, TemporaryVec};
 use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 use diffbelt_wasm_binding::{RegexCapture, ReplaceResult};
 use regex::Regex;
@@ -27,9 +29,17 @@ pub struct WasmRegex {
     regex: Regex,
 }
 
+type WasmRegexCapture = RegexCapture<WasmPtrImpl>;
+
+struct WasmRegexCaptureTemp;
+impl TempVecType for WasmRegexCaptureTemp {
+    type Item<'a> = WasmRegexCapture;
+}
+
 pub struct RegexEnv {
     regexps: Vec<WasmRegex>,
     free_regexps: VecDeque<i32>,
+    temp_captures_vec: TemporaryVec<WasmRegexCaptureTemp>,
 }
 
 impl WasmEnv {
@@ -37,30 +47,30 @@ impl WasmEnv {
         &self,
         store: &mut Store<WasmStoreData>,
         linker: &mut Linker<WasmStoreData>,
-    ) {
+    ) -> Result<(), WasmError> {
         {
-            let mut state = store.data().inner.borrow_mut();
+            let mut state = store.data().inner.lock().expect("lock");
             let state = state.deref_mut();
 
-            *state.regex = Some(RegexEnv {
+            state.regex = Some(RegexEnv {
                 regexps: Vec::new(),
                 free_regexps: VecDeque::new(),
+                temp_captures_vec: TemporaryVec::new(),
             });
         }
 
         fn regex_new(mut caller: Caller<'_, WasmStoreData>, s: WasmPtrToByte, s_size: i32) -> i32 {
-            let state = caller.data().inner.clone();
-            let mut state = state.borrow_mut();
+            let mut state = caller.data().inner.lock().expect("lock");
             let state = state.deref_mut();
 
             // TODO: use free_regexps
 
             let memory = state.memory.expect("no memory");
 
-            let RegexEnv { regexps, .. } = state.regex.as_ref().expect("RegexEnv");
+            let RegexEnv { regexps, .. } = state.regex.as_mut().expect("RegexEnv");
 
             let result = (|| {
-                let s = ptr_to_utf8(caller.as_context(), &memory, s, s_size)?;
+                let s = ptr_to_utf8(caller.as_context(), memory, s, s_size)?;
                 let s = s.as_str().unwrap();
 
                 let regex = Regex::new(s).map_err(WasmError::Regex)?;
@@ -69,13 +79,12 @@ impl WasmEnv {
                     WasmError::Unspecified("More than i32::MAX regexps".to_string())
                 })?;
 
-                let mut regexps = regexps.lock().expect("lock");
                 regexps.push(WasmRegex { regex });
 
                 Ok::<_, WasmError>(index)
             })();
 
-            let Some(index) = WasmEnv::handle_error(state, result) else {
+            let Some(index) = WasmEnv::handle_error(&caller.data().error, result) else {
                 return -1;
             };
 
@@ -83,16 +92,12 @@ impl WasmEnv {
         }
 
         fn regex_free(mut caller: Caller<'_, WasmStoreData>, ptr: i32) {
-            let state = caller.data().inner.clone();
-            let mut state = state.borrow_mut();
+            let mut state = caller.data().inner.lock().expect("lock");
             let state = state.deref_mut();
-            let RegexEnv { free_regexps, .. } = state.regex.as_ref().expect("RegexEnv");
+            let RegexEnv { free_regexps, .. } = state.regex.as_mut().expect("RegexEnv");
 
-            let mut free_regexps = free_regexps.lock().expect("lock");
             free_regexps.push_back(ptr);
         }
-
-        type WasmRegexCapture = RegexCapture<WasmPtrImpl>;
 
         fn regex_captures(
             mut caller: Caller<'_, WasmStoreData>,
@@ -103,10 +108,14 @@ impl WasmEnv {
             max_captures_count: i32,
         ) -> i32 {
             let state = caller.data().inner.clone();
-            let mut state = state.borrow_mut();
+            let mut state = state.lock().expect("lock");
             let state = state.deref_mut();
             let memory = state.memory.expect("no memory");
-            let RegexEnv { regexps, .. } = state.regex.as_ref().expect("RegexEnv");
+            let RegexEnv {
+                regexps,
+                temp_captures_vec,
+                ..
+            } = state.regex.as_mut().expect("RegexEnv");
 
             let result = (|| {
                 let index = try_positive_i32_to_usize(index).ok_or_else(|| {
@@ -124,9 +133,6 @@ impl WasmEnv {
                     ))
                 })?;
 
-                let mut memory_lock = memory.lock().expect("lock");
-                let memory = memory_lock.as_ref().expect("no memory");
-
                 let s = ptr_to_utf8(caller.as_context(), memory, s_ptr, s_size)?;
                 let s = s.as_str()?;
 
@@ -138,9 +144,8 @@ impl WasmEnv {
                 let captures_count = min(captures_count, max_captures_count);
 
                 let captures_slice = captures_ptr.slice()?;
-
-                let memory_bytes = memory_lock.as_mut().expect("no_memory");
-                let memory_bytes = memory_bytes.data_mut(&caller);
+                let mut captures_to_write_holder = temp_captures_vec.temp();
+                let captures_to_write = captures_to_write_holder.as_mut();
 
                 for (i, capture) in captures.iter().enumerate() {
                     if i >= captures_count {
@@ -148,38 +153,40 @@ impl WasmEnv {
                     }
 
                     let Some(m) = capture else {
-                        () = captures_slice.write_at(
-                            memory_bytes,
-                            i,
-                            WasmRegexCapture {
-                                capture: WasmPtr::null(),
-                                capture_len: 0,
-                            },
-                        )?;
+                        captures_to_write.push(WasmRegexCapture {
+                            capture: WasmPtr::null(),
+                            capture_len: 0,
+                        });
                         continue;
                     };
 
-                    let capture_ptr = s_ptr
-                        .clone()
-                        .add_offset(unchecked_usize_to_u32(m.start()))?;
+                    let offset = try_usize_to_i32(m.start()).ok_or_else(|| {
+                        WasmError::Unspecified(format!(
+                            "regex_captures too big offset {}",
+                            m.start()
+                        ))
+                    })?;
+                    let capture_ptr = s_ptr.clone().add_offset(offset)?;
                     let capture_len = m.len();
 
-                    () = captures_slice.write_at(
-                        memory_bytes,
-                        i,
-                        WasmRegexCapture {
-                            capture: capture_ptr,
-                            capture_len: try_usize_to_i32(capture_len).ok_or_else(|| {
-                                WasmError::Unspecified(format!("Regex capture size: {capture_len}"))
-                            })?,
-                        },
-                    )?;
+                    captures_to_write.push(WasmRegexCapture {
+                        capture: capture_ptr,
+                        capture_len: try_usize_to_i32(capture_len).ok_or_else(|| {
+                            WasmError::Unspecified(format!("Regex capture size: {capture_len}"))
+                        })?,
+                    });
+                }
+
+                let memory_bytes = memory.data_mut(caller.as_context_mut());
+
+                for (i, capture) in captures_to_write.drain(..).enumerate() {
+                    () = captures_slice.write_at(memory_bytes, i, capture)?;
                 }
 
                 Ok::<_, WasmError>(unchecked_usize_to_i32(captures_count))
             })();
 
-            let Some(captures_count) = WasmEnv::handle_error(state, result) else {
+            let Some(captures_count) = WasmEnv::handle_error(&caller.data().error, result) else {
                 return -1;
             };
 
@@ -215,7 +222,7 @@ impl WasmEnv {
             replace_result_ptr: WasmPtr<WasmReplaceResult>,
         ) -> () {
             let state = caller.data().inner.clone();
-            let mut state = state.borrow_mut();
+            let mut state = state.lock().expect("lock");
             let state = state.deref_mut();
             let memory = state.memory.expect("no memory");
             let allocation = state.allocation.as_ref().expect("no allocation");
@@ -234,10 +241,10 @@ impl WasmEnv {
                         ))
                     })?;
 
-                    let source = ptr_to_utf8(caller.as_context(), &memory, source_ptr, source_len)?;
+                    let source = ptr_to_utf8(caller.as_context(), memory, source_ptr, source_len)?;
                     let source = source.as_str()?;
 
-                    let target = ptr_to_utf8(caller.as_context(), &memory, target_ptr, target_len)?;
+                    let target = ptr_to_utf8(caller.as_context(), memory, target_ptr, target_len)?;
                     let target = target.as_str()?;
 
                     let result = Mode::do_replace(&regex.regex, source, target);
@@ -280,18 +287,18 @@ impl WasmEnv {
                 })
             })();
 
-            let Some(result) = WasmEnv::handle_error(state, result) else {
+            let Some(result) = WasmEnv::handle_error(&caller.data().error, result) else {
                 return ();
             };
 
             let result = (|| {
                 () = replace_result_ptr
-                    .write(memory.data_mut(&mut caller), WasmReplaceResult(result))?;
+                    .write(memory.data_mut(caller.as_context_mut()), WasmReplaceResult(result))?;
 
                 Ok::<(), WasmError>(())
             })();
 
-            () = WasmEnv::handle_error(state, result).unwrap_or(());
+            () = WasmEnv::handle_error(&caller.data().error, result).unwrap_or(());
         }
 
         linker.func_wrap("Regex", "new", regex_new)?;
@@ -299,5 +306,7 @@ impl WasmEnv {
         linker.func_wrap("Regex", "captures", regex_captures)?;
         linker.func_wrap("Regex", "replace_one", regex_replace::<ReplaceOneImpl>)?;
         linker.func_wrap("Regex", "replace_all", regex_replace::<ReplaceAllImpl>)?;
+
+        Ok(())
     }
 }

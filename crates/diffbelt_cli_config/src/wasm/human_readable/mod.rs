@@ -3,7 +3,7 @@ pub mod aggregate;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use std::ops::DerefMut;
-use wasmtime::TypedFunc;
+use wasmtime::{AsContextMut, TypedFunc};
 
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
@@ -32,13 +32,13 @@ macro_rules! impl_human_readable_call {
             let store = store.deref_mut();
 
             {
-                let memory = self.instance.allocation.memory.data_mut(store);
+                let memory = self.instance.allocation.memory.data_mut(store.as_context_mut());
                 () = self.slice_holder.ptr.write(memory, slice)?;
             }
 
             let error_code = self
                 .$field
-                .call(store, (self.slice_holder.ptr, buffer_holder.ptr))?;
+                .call(store.as_context_mut(), (self.slice_holder.ptr, buffer_holder.ptr))?;
             let error_code = ErrorCode::from_repr(error_code);
 
             let ErrorCode::Ok = error_code else {
@@ -76,10 +76,18 @@ impl<'a> HumanReadableFunctions<'a> {
         let mut store = instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
 
-        let key_to_bytes = instance.instance.get_typed_func(store, key_to_bytes)?;
-        let bytes_to_key = instance.instance.get_typed_func(store, bytes_to_key)?;
-        let value_to_bytes = instance.instance.get_typed_func(store, value_to_bytes)?;
-        let bytes_to_value = instance.instance.get_typed_func(store, bytes_to_value)?;
+        let key_to_bytes = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), key_to_bytes)?;
+        let bytes_to_key = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), bytes_to_key)?;
+        let value_to_bytes = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), value_to_bytes)?;
+        let bytes_to_value = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), bytes_to_value)?;
 
         Ok(Self {
             instance,

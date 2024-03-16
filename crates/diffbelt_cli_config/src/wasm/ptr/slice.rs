@@ -23,7 +23,7 @@ impl<T: Pod> WasmPtr<T> {
 }
 
 impl<T: Pod> WasmSlice<T> {
-    pub fn at(&self, bytes: &[u8], offset: usize) -> Result<&T, WasmError> {
+    pub fn at<'a>(&self, bytes: &'a [u8], offset: usize) -> Result<&'a T, WasmError> {
         let size = mem::size_of::<T>();
         let start = self.ptr + offset * size;
         let m = bytes.get(start..).ok_or_else(|| {
@@ -33,7 +33,7 @@ impl<T: Pod> WasmSlice<T> {
         Ok(data)
     }
 
-    pub fn slice(&self, bytes: &[u8], len: usize) -> Result<&[T], WasmError> {
+    pub fn slice<'a>(&self, bytes: &'a [u8], len: usize) -> Result<&'a [T], WasmError> {
         let size = mem::size_of::<T>();
         let start = self.ptr;
         let end = start + len * size;
@@ -44,7 +44,7 @@ impl<T: Pod> WasmSlice<T> {
         Ok(data)
     }
 
-    pub fn at_mut(&self, bytes: &mut [u8], offset: usize) -> Result<&mut T, WasmError> {
+    pub fn at_mut<'a>(&self, bytes: &'a mut [u8], offset: usize) -> Result<&'a mut T, WasmError> {
         let size = mem::size_of::<T>();
         let start = self.ptr + offset * size;
         let m = bytes.get_mut(start..).ok_or_else(|| {
@@ -80,11 +80,13 @@ impl<T: Pod> WasmSlice<T> {
 }
 
 impl WasmBytesSlice {
-    pub fn access(&self, memory: &[u8]) -> Result<&[u8], WasmError> {
-        let len = try_positive_i32_to_usize(self.0.len).ok_or_else(|| {
-            WasmError::Unspecified(format!("WasmBytesSlice::access, len {}", self.0.len))
+    pub fn access<'a>(&self, memory: &'a [u8]) -> Result<&'a [u8], WasmError> {
+        let ptr = self.0.ptr;
+        let len = self.0.len;
+        let len = try_positive_i32_to_usize(len).ok_or_else(|| {
+            WasmError::Unspecified(format!("WasmBytesSlice::access, len {}", len))
         })?;
-        let slice = self.0.ptr.slice()?;
+        let slice = ptr.slice()?;
         let slice = slice.slice(memory, len)?;
         Ok(slice)
     }

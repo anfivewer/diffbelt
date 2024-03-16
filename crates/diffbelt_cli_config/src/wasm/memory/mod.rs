@@ -1,5 +1,5 @@
 use std::ops::DerefMut;
-use wasmtime::{Instance, Memory, Store, TypedFunc};
+use wasmtime::{AsContextMut, Instance, Memory, Store, TypedFunc};
 
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
 use crate::wasm::{WasmError, WasmStoreData};
@@ -27,7 +27,7 @@ impl Allocation {
     ) -> Result<Self, WasmError> {
         macro_rules! get_function {
             ($name:ident, $name_text:literal) => {
-                let $name = instance.get_typed_func(store, $name_text)?;
+                let $name = instance.get_typed_func(store.as_context_mut(), $name_text)?;
             };
         }
 

@@ -1,5 +1,5 @@
 use std::io::ErrorKind;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::Utf8Error;
@@ -9,12 +9,17 @@ use diffbelt_protos::error::FlatbufferError;
 use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
 use serde::Deserialize;
 use thiserror::Error;
-use wasmtime::{Config, Engine, Instance, Linker, Memory, Module, Store, TypedFunc};
+use wasmtime::{
+    AsContext, AsContextMut, Config, Engine, Instance, Linker, Memory, Module, Store, TypedFunc,
+};
 
 use diffbelt_util::Wrap;
-use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, try_usize_to_i32, unchecked_i32_to_u32};
+use diffbelt_util_no_std::cast::{
+    try_positive_i32_to_u32, try_positive_i32_to_usize, try_usize_to_i32, unchecked_i32_to_u32,
+};
 use diffbelt_util_no_std::impl_from_either;
 use diffbelt_wasm_binding::error_code::ErrorCode;
+use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use memory::Allocation;
 pub use types::WasmPtrImpl;
 
@@ -87,11 +92,11 @@ pub struct NewWasmInstanceOptions<'a> {
 }
 
 pub struct WasmStoreData {
+    pub error: Arc<Mutex<Option<WasmError>>>,
     pub inner: Arc<Mutex<WasmStoreDataInner>>,
 }
 
 pub struct WasmStoreDataInner {
-    pub error: Option<WasmError>,
     pub memory: Option<Memory>,
     pub allocation: Option<Allocation>,
     pub regex: Option<RegexEnv>,
@@ -100,8 +105,8 @@ pub struct WasmStoreDataInner {
 impl WasmStoreData {
     pub fn new() -> Self {
         Self {
+            error: Wrap::wrap(None),
             inner: Wrap::wrap(WasmStoreDataInner {
-                error: None,
                 memory: None,
                 allocation: None,
                 regex: None,
@@ -206,9 +211,10 @@ impl WasmModuleInstance {
     pub fn map_filter_function(&self, name: &str) -> Result<MapFilterFunction<'_>, WasmError> {
         let slice = self.alloc_slice_holder()?;
 
-        let store = self.store.try_borrow()?;
+        let mut store = self.store.try_borrow_mut()?;
+        let store = store.deref_mut();
 
-        let fun = self.typed_function_with_store(&store, name)?;
+        let fun = self.instance.get_typed_func(store, name)?;
 
         Ok(MapFilterFunction {
             instance: self,
@@ -248,21 +254,35 @@ impl MapFilterFunction<'_> {
             WasmError::Unspecified(format!("Input length too big: {}", inputs.len()))
         })?;
 
-        let ptr = self.instance.allocation.alloc.call(store, inputs_len_i32)?;
+        // FIXME: where is dealloc?
+        let ptr = self
+            .instance
+            .allocation
+            .alloc
+            .call(store.as_context_mut(), inputs_len_i32)?;
 
         {
-            let view = self.instance.allocation.memory.view(store);
-            let slice = ptr.slice(&view, unchecked_i32_to_u32(inputs_len_i32))?;
-            () = slice.write_slice(inputs)?;
+            let memory = self
+                .instance
+                .allocation
+                .memory
+                .data_mut(store.as_context_mut());
+            let ptr_slice = ptr.slice()?;
+            () = ptr_slice.write_slice(memory, inputs)?;
 
-            let mut input_slice_def = self.slice.ptr.access(&view)?;
-            let input_slice_def = input_slice_def.as_mut();
-
-            input_slice_def.0.ptr = ptr.into();
-            input_slice_def.0.len = inputs_len_i32;
+            () = self.slice.ptr.write(
+                memory,
+                WasmBytesSlice(BytesSlice {
+                    ptr,
+                    len: inputs_len_i32,
+                }),
+            )?;
         }
 
-        let error_code = { self.fun.call(store, self.slice.ptr, result_buffer.ptr)? };
+        let error_code = {
+            self.fun
+                .call(store.as_context_mut(), (self.slice.ptr, result_buffer.ptr))?
+        };
 
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {
@@ -273,21 +293,18 @@ impl MapFilterFunction<'_> {
         };
 
         let slice_def = {
-            let view = self.instance.allocation.memory.view(store);
-
-            let input_slice_def = self.slice.ptr.access(&view)?;
-            let input_slice_def = input_slice_def.as_ref();
-
-            *input_slice_def
+            let memory = self.instance.allocation.memory.data(store.as_context());
+            self.slice.ptr.read(memory)?
         };
 
-        let result_len = try_positive_i32_to_u32(slice_def.0.len).ok_or_else(|| {
-            WasmError::Unspecified(format!("map_filter call result len: {}", slice_def.0.len))
+        let result_len = slice_def.0.len;
+        let result_len = try_positive_i32_to_usize(result_len).ok_or_else(|| {
+            WasmError::Unspecified(format!("map_filter call result len: {}", result_len))
         })?;
 
         Ok(WasmBytesSliceResult {
             instance: self.instance,
-            ptr: slice_def.0.ptr.into(),
+            ptr: slice_def.0.ptr,
             len: result_len,
         })
     }

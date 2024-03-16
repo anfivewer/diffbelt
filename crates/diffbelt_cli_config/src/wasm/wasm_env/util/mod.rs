@@ -6,7 +6,7 @@ use wasmtime::{Memory, StoreContext};
 
 pub struct WasmUtf8Holder<'a> {
     ctx: StoreContext<'a, WasmStoreData>,
-    memory: &'a Memory,
+    memory: Memory,
     start: usize,
     end: usize,
 }
@@ -24,13 +24,13 @@ impl WasmUtf8Holder<'_> {
     }
 }
 
-pub fn ptr_to_utf8<'a>(
-    ctx: StoreContext<'a, WasmStoreData>,
-    memory: &'a Memory,
+pub fn ptr_to_utf8(
+    ctx: StoreContext<WasmStoreData>,
+    memory: Memory,
     ptr: WasmPtrToByte,
     len: i32,
-) -> Result<WasmUtf8Holder<'a>, WasmError> {
-    let ptr = ptr.0;
+) -> Result<WasmUtf8Holder, WasmError> {
+    let ptr = ptr.value;
     let ptr = try_positive_i32_to_usize(ptr)
         .ok_or_else(|| WasmError::Unspecified(format!("ptr_to_utf8 got ptr {ptr}")))?;
     let len = try_positive_i32_to_usize(len)

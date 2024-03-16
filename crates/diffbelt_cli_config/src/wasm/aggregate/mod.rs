@@ -1,5 +1,5 @@
 use std::ops::{Deref, DerefMut};
-use wasmtime::TypedFunc;
+use wasmtime::{AsContextMut, TypedFunc};
 
 use diffbelt_protos::error::map_flatbuffer_error_to_return_buffer;
 use diffbelt_protos::protos::transform::aggregate::{
@@ -69,15 +69,21 @@ impl<'a> AggregateFunctions<'a> {
         let mut store = instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
 
-        let map = instance.instance.get_typed_func(store, map)?;
+        let map = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), map)?;
         let initial_accumulator = instance
             .instance
-            .get_typed_func(store, initial_accumulator)?;
-        let reduce = instance.instance.get_typed_func(store, reduce)?;
+            .get_typed_func(store.as_context_mut(), initial_accumulator)?;
+        let reduce = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), reduce)?;
         let merge_accumulators = instance
             .instance
-            .get_typed_func(store, merge_accumulators)?;
-        let apply = instance.instance.get_typed_func(store, apply)?;
+            .get_typed_func(store.as_context_mut(), merge_accumulators)?;
+        let apply = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), apply)?;
 
         Ok(Self {
             instance,
@@ -105,13 +111,18 @@ impl<'a> AggregateFunctions<'a> {
         let store = store.deref_mut();
 
         {
-            let memory = self.instance.allocation.memory.data_mut(store);
+            let memory = self
+                .instance
+                .allocation
+                .memory
+                .data_mut(store.as_context_mut());
             () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
         }
 
-        let error_code = self
-            .map
-            .call(store, (self.bytes_slice.ptr, self.output_vector.ptr))?;
+        let error_code = self.map.call(
+            store.as_context_mut(),
+            (self.bytes_slice.ptr, self.output_vector.ptr),
+        )?;
 
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {
