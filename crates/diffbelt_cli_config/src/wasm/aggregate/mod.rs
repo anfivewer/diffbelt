@@ -54,7 +54,7 @@ pub struct AggregateFunctions<'a> {
 }
 
 impl<'a> AggregateFunctions<'a> {
-    pub fn new(
+    pub async fn new(
         instance: &'a WasmModuleInstance,
         map: &str,
         initial_accumulator: &str,
@@ -62,9 +62,9 @@ impl<'a> AggregateFunctions<'a> {
         merge_accumulators: &str,
         apply: &str,
     ) -> Result<Self, WasmError> {
-        let bytes_slice = instance.alloc_slice_holder()?;
-        let input_vector = instance.alloc_vec_holder()?;
-        let output_vector = instance.alloc_vec_holder()?;
+        let bytes_slice = instance.alloc_slice_holder().await?;
+        let input_vector = instance.alloc_vec_holder().await?;
+        let output_vector = instance.alloc_vec_holder().await?;
 
         let mut store = instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
@@ -98,14 +98,14 @@ impl<'a> AggregateFunctions<'a> {
         })
     }
 
-    pub fn call_map(
+    pub async fn call_map(
         &self,
-        input: FlatbufferAnnotated<&[u8], AggregateMapMultiInput>,
+        input: FlatbufferAnnotated<&[u8], AggregateMapMultiInput<'static>>,
         buffer_holder: &mut Option<Vec<u8>>,
     ) -> Result<OwnedSerialized<AggregateMapMultiOutput>, WasmError> {
         let wasm_slice = self
             .input_vector
-            .replace_with_slice_and_return_slice(input.value)?;
+            .replace_with_slice_and_return_slice(input.value).await?;
 
         let mut store = self.instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
@@ -119,10 +119,10 @@ impl<'a> AggregateFunctions<'a> {
             () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
         }
 
-        let error_code = self.map.call(
+        let error_code = self.map.call_async(
             store.as_context_mut(),
             (self.bytes_slice.ptr, self.output_vector.ptr),
-        )?;
+        ).await?;
 
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {

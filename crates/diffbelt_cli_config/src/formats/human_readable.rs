@@ -15,7 +15,7 @@ pub enum HumanReadableError {
     Wasm(#[from] WasmError),
 }
 
-pub fn get_collection_human_readable<'a>(
+pub async fn get_collection_human_readable<'a>(
     instance: &'a WasmModuleInstance,
     wasm_module_name: &str,
     collection: &Collection,
@@ -35,7 +35,7 @@ pub fn get_collection_human_readable<'a>(
         hr.bytes_to_key.as_str(),
         hr.value_to_bytes.as_str(),
         hr.bytes_to_value.as_str(),
-    )?;
+    ).await?;
 
     Ok(hr)
 }

@@ -1,3 +1,4 @@
+use crate::wasm::memory::DeallocType;
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtrToVecRawParts};
 use crate::wasm::wasm_env::WasmEnv;
@@ -16,11 +17,15 @@ pub struct WasmVecHolder<'a> {
 }
 
 impl WasmModuleInstance {
-    pub fn alloc_vec_holder(&self) -> Result<WasmVecHolder<'_>, WasmError> {
+    pub async fn alloc_vec_holder(&self) -> Result<WasmVecHolder<'_>, WasmError> {
         let mut store = self.store.try_borrow_mut()?;
         let store = store.deref_mut();
 
-        let ptr = self.allocation.alloc_bytes_vec_raw_parts.call(store, ())?;
+        let ptr = self
+            .allocation
+            .alloc_bytes_vec_raw_parts
+            .call_async(store, ())
+            .await?;
 
         Ok(WasmVecHolder {
             instance: self,
@@ -70,7 +75,7 @@ impl<'a> WasmVecHolder<'a> {
         Ok(result)
     }
 
-    pub fn replace_with_slice_and_return_slice(
+    pub async fn replace_with_slice_and_return_slice(
         &self,
         slice: &[u8],
     ) -> Result<WasmBytesSlice, WasmError> {
@@ -85,9 +90,14 @@ impl<'a> WasmVecHolder<'a> {
             .instance
             .allocation
             .ensure_vec_capacity
-            .call(store.as_context_mut(), (self.ptr, len))?;
+            .call_async(store.as_context_mut(), (self.ptr, len))
+            .await?;
 
-        let memory = self.instance.allocation.memory.data_mut(store.as_context_mut());
+        let memory = self
+            .instance
+            .allocation
+            .memory
+            .data_mut(store.as_context_mut());
         let raw_parts = self.ptr.as_mut(memory)?;
         raw_parts.0.len = len;
 
@@ -101,8 +111,8 @@ impl<'a> WasmVecHolder<'a> {
         Ok(wasm_slice)
     }
 
-    pub fn replace_with_slice(&self, slice: &[u8]) -> Result<(), WasmError> {
-        _ = self.replace_with_slice_and_return_slice(slice)?;
+    pub async fn replace_with_slice(&self, slice: &[u8]) -> Result<(), WasmError> {
+        _ = self.replace_with_slice_and_return_slice(slice).await?;
 
         Ok(())
     }
@@ -110,19 +120,12 @@ impl<'a> WasmVecHolder<'a> {
 
 impl Drop for WasmVecHolder<'_> {
     fn drop(&mut self) {
-        let result = (|| {
-            let mut store = self.instance.store.try_borrow_mut()?;
-            let store = store.deref_mut();
-
-            () = self
-                .instance
-                .allocation
-                .dealloc_bytes_vec_raw_parts
-                .call(store, self.ptr)?;
-
-            Ok::<(), WasmError>(())
-        })();
-
-        () = WasmEnv::handle_error(&self.instance.error, result).unwrap_or(());
+        let mut pending_deallocs = self
+            .instance
+            .allocation
+            .pending_deallocs
+            .lock()
+            .expect("lock");
+        pending_deallocs.push(DeallocType::VecHolder { ptr: self.ptr });
     }
 }

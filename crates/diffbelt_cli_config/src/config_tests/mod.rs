@@ -210,11 +210,13 @@ impl CliConfig {
             let wasm_modules: Vec<&WasmModuleInstance> =
                 wasm_modules.iter().map(|(_, wasm)| wasm.deref()).collect();
 
-            let transform_test =
-                match_ok!(<TransformTestCreatorImpl as TransformTestCreator>::create(
+            let transform_test = match_ok!(
+                <TransformTestCreatorImpl as TransformTestCreator>::create(
                     initial_data,
                     wasm_modules
-                ));
+                )
+                .await
+            );
 
             let mut single_tests = Vec::with_capacity(tests.len());
 
@@ -240,11 +242,14 @@ impl CliConfig {
                     output: expected_value,
                 } = test;
 
-                let comparison = match_ok!(<TransformTestImpl as TransformTest>::test(
-                    &transform_test,
-                    &vars,
-                    &expected_value
-                ));
+                let comparison = match_ok!(
+                    <TransformTestImpl as TransformTest>::test(
+                        &transform_test,
+                        &vars,
+                        &expected_value
+                    )
+                    .await
+                );
 
                 single_tests.push(SingleTestResult {
                     name: name.clone(),

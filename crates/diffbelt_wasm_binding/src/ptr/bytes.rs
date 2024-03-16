@@ -124,7 +124,7 @@ unsafe extern "C" fn ensure_vec_capacity(parts: *mut BytesVecRawParts, len: i32)
     let len = checked_positive_i32_to_usize(len);
 
     if vec.capacity() < len {
-        vec.reserve(len - vec.capacity());
+        vec.reserve(len - vec.len());
     }
 
     unsafe { *parts = vec.into() };

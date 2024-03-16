@@ -9,8 +9,8 @@ use crate::config_tests::error::YamlTestVarsError;
 use crate::config_tests::value::parse_scalar;
 use crate::wasm::human_readable::HumanReadableFunctions;
 
-pub fn yaml_test_vars_to_map_filter_input(
-    human_readable_functions: &HumanReadableFunctions,
+pub async fn yaml_test_vars_to_map_filter_input(
+    human_readable_functions: &HumanReadableFunctions<'_>,
     node: &YamlNode,
 ) -> Result<OwnedSerialized<'static, MapFilterMultiInput<'static>>, YamlTestVarsError> {
     let mut serializer = Serializer::new();
@@ -25,8 +25,8 @@ pub fn yaml_test_vars_to_map_filter_input(
 
     let instance = human_readable_functions.instance;
 
-    let input_vec_holder = instance.alloc_vec_holder()?;
-    let output_vec_holder = instance.alloc_vec_holder()?;
+    let input_vec_holder = instance.alloc_vec_holder().await?;
+    let output_vec_holder = instance.alloc_vec_holder().await?;
 
     for (key, value) in map {
         let key = key.as_str().ok_or_else(|| {

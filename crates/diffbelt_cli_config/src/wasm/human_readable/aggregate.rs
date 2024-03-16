@@ -18,12 +18,12 @@ pub struct AggregateHumanReadableFunctions<'a> {
 }
 
 impl<'a> AggregateHumanReadableFunctions<'a> {
-    pub fn new(
+    pub async fn new(
         instance: &'a WasmModuleInstance,
         mapped_key_from_bytes: &str,
         mapped_value_from_bytes: &str,
     ) -> Result<Self, WasmError> {
-        let slice_holder = instance.alloc_slice_holder()?;
+        let slice_holder = instance.alloc_slice_holder().await?;
 
         let mut store = instance.store.try_borrow_mut()?;
         let store = store.deref_mut();

@@ -26,7 +26,7 @@ impl<T: Pod> WasmSlice<T> {
     pub fn at<'a>(&self, bytes: &'a [u8], offset: usize) -> Result<&'a T, WasmError> {
         let size = mem::size_of::<T>();
         let start = self.ptr + offset * size;
-        let m = bytes.get(start..).ok_or_else(|| {
+        let m = bytes.get(start..(start + size)).ok_or_else(|| {
             WasmError::Unspecified(format!("WasmSlice::at, invalid range at {start}"))
         })?;
         let data: &T = bytemuck::from_bytes(m);
@@ -47,7 +47,7 @@ impl<T: Pod> WasmSlice<T> {
     pub fn at_mut<'a>(&self, bytes: &'a mut [u8], offset: usize) -> Result<&'a mut T, WasmError> {
         let size = mem::size_of::<T>();
         let start = self.ptr + offset * size;
-        let m = bytes.get_mut(start..).ok_or_else(|| {
+        let m = bytes.get_mut(start..(start + size)).ok_or_else(|| {
             WasmError::Unspecified(format!("WasmSlice::at, invalid range at {start}"))
         })?;
         let data: &mut T = bytemuck::from_bytes_mut(m);

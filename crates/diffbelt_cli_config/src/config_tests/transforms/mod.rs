@@ -25,7 +25,7 @@ pub struct TransformTestPreCreateOptions<'a, T> {
 pub trait TransformTestCreator<'a>: Sized {
     fn required_wasm_modules(&self) -> Result<Vec<Cow<'a, str>>, TestError>;
 
-    fn create(
+    async fn create(
         self,
         wasm_modules: Vec<&'a WasmModuleInstance>,
     ) -> Result<TransformTestImpl<'a>, TestError>;
@@ -39,7 +39,7 @@ pub enum TransformTestCreatorImpl<'a> {
 
 #[enum_dispatch]
 pub trait TransformTest<'a>: Sized {
-    fn test(
+    async fn test(
         &self,
         input: &Rc<YamlNode>,
         expected_output: &Rc<YamlNode>,
@@ -55,10 +55,10 @@ pub enum TransformTestImpl<'a> {
 #[macro_export]
 macro_rules! call_human_readable_conversion {
     ($value:expr, $human_readable:ident, $method:ident, $input_vec_holder:ident, $output_vec_holder:ident) => {{
-        () = $input_vec_holder.replace_with_slice($value)?;
+        () = $input_vec_holder.replace_with_slice($value).await?;
         let slice = $human_readable
             .instance
             .vec_to_bytes_slice(&$input_vec_holder)?;
-        $human_readable.$method(slice, &$output_vec_holder)?
+        $human_readable.$method(slice, &$output_vec_holder).await?
     }};
 }

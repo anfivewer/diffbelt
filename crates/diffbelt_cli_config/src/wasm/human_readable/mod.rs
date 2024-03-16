@@ -1,15 +1,15 @@
-pub mod aggregate;
+use std::ops::DerefMut;
+
+use wasmtime::{AsContextMut, TypedFunc};
 
 use diffbelt_wasm_binding::error_code::ErrorCode;
-use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
-use std::ops::DerefMut;
-use wasmtime::{AsContextMut, TypedFunc};
 
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
-use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
-use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
+use crate::wasm::{WasmError, WasmModuleInstance};
+
+pub mod aggregate;
 
 pub struct HumanReadableFunctions<'a> {
     pub instance: &'a WasmModuleInstance,
@@ -23,22 +23,30 @@ pub struct HumanReadableFunctions<'a> {
 #[macro_export]
 macro_rules! impl_human_readable_call {
     ($fn_name:ident, $field:ident, $fn_name_str:literal) => {
-        pub fn $fn_name(
+        pub async fn $fn_name(
             &self,
             slice: WasmBytesSlice,
-            buffer_holder: &WasmVecHolder,
+            buffer_holder: &WasmVecHolder<'_>,
         ) -> Result<WasmBytesSlice, WasmError> {
             let mut store = self.instance.store.try_borrow_mut()?;
             let store = store.deref_mut();
 
             {
-                let memory = self.instance.allocation.memory.data_mut(store.as_context_mut());
+                let memory = self
+                    .instance
+                    .allocation
+                    .memory
+                    .data_mut(store.as_context_mut());
                 () = self.slice_holder.ptr.write(memory, slice)?;
             }
 
             let error_code = self
                 .$field
-                .call(store.as_context_mut(), (self.slice_holder.ptr, buffer_holder.ptr))?;
+                .call_async(
+                    store.as_context_mut(),
+                    (self.slice_holder.ptr, buffer_holder.ptr),
+                )
+                .await?;
             let error_code = ErrorCode::from_repr(error_code);
 
             let ErrorCode::Ok = error_code else {
@@ -64,14 +72,14 @@ macro_rules! impl_human_readable_call {
 }
 
 impl<'a> HumanReadableFunctions<'a> {
-    pub fn new(
+    pub async fn new(
         instance: &'a WasmModuleInstance,
         key_to_bytes: &str,
         bytes_to_key: &str,
         value_to_bytes: &str,
         bytes_to_value: &str,
     ) -> Result<Self, WasmError> {
-        let slice_holder = instance.alloc_slice_holder()?;
+        let slice_holder = instance.alloc_slice_holder().await?;
 
         let mut store = instance.store.try_borrow_mut()?;
         let store = store.deref_mut();

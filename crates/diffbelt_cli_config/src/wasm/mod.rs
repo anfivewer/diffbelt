@@ -28,7 +28,7 @@ use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{
-    WasmBytesSlice, WasmBytesVecRawParts, WasmPtrToBytesSlice, WasmPtrToVecRawParts,
+    WasmBytesSlice, WasmBytesVecRawParts, WasmPtr, WasmPtrToBytesSlice, WasmPtrToVecRawParts,
 };
 use crate::wasm::wasm_env::regex::RegexEnv;
 use crate::wasm::wasm_env::WasmEnv;
@@ -92,6 +92,7 @@ pub struct NewWasmInstanceOptions<'a> {
 }
 
 pub struct WasmStoreData {
+    // FIXME: use it somewhere and check error
     pub error: Arc<Mutex<Option<WasmError>>>,
     pub inner: Arc<Mutex<WasmStoreDataInner>>,
 }
@@ -198,6 +199,15 @@ impl Wasm {
 
         env.set_allocation(allocation.clone());
 
+        {
+            let state = store.data_mut();
+            let mut state = state.inner.lock().expect("lock");
+            let state = state.deref_mut();
+
+            state.memory = Some(memory);
+            state.allocation = Some(allocation.clone());
+        }
+
         Ok(WasmModuleInstance {
             error,
             store: RefCell::new(store),
@@ -208,8 +218,11 @@ impl Wasm {
 }
 
 impl WasmModuleInstance {
-    pub fn map_filter_function(&self, name: &str) -> Result<MapFilterFunction<'_>, WasmError> {
-        let slice = self.alloc_slice_holder()?;
+    pub async fn map_filter_function(
+        &self,
+        name: &str,
+    ) -> Result<MapFilterFunction<'_>, WasmError> {
+        let slice = self.alloc_slice_holder().await?;
 
         let mut store = self.store.try_borrow_mut()?;
         let store = store.deref_mut();
@@ -223,7 +236,7 @@ impl WasmModuleInstance {
         })
     }
 
-    pub fn human_readable_functions(
+    pub async fn human_readable_functions(
         &self,
         key_to_bytes: &str,
         bytes_to_key: &str,
@@ -237,15 +250,16 @@ impl WasmModuleInstance {
             value_to_bytes,
             bytes_to_value,
         )
+        .await
     }
 }
 
 impl MapFilterFunction<'_> {
     /// `inputs` should be encoded by [`diffbelt_protos::protos::transform::map_filter::MapFilterMultiInput`]
-    pub fn call(
+    pub async fn call(
         &self,
         inputs: &[u8],
-        result_buffer: &WasmVecHolder,
+        result_buffer: &WasmVecHolder<'_>,
     ) -> Result<WasmBytesSliceResult, WasmError> {
         let mut store = self.instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
@@ -259,7 +273,8 @@ impl MapFilterFunction<'_> {
             .instance
             .allocation
             .alloc
-            .call(store.as_context_mut(), inputs_len_i32)?;
+            .call_async(store.as_context_mut(), inputs_len_i32)
+            .await?;
 
         {
             let memory = self
@@ -281,7 +296,8 @@ impl MapFilterFunction<'_> {
 
         let error_code = {
             self.fun
-                .call(store.as_context_mut(), (self.slice.ptr, result_buffer.ptr))?
+                .call_async(store.as_context_mut(), (self.slice.ptr, result_buffer.ptr))
+                .await?
         };
 
         let error_code = ErrorCode::from_repr(error_code);

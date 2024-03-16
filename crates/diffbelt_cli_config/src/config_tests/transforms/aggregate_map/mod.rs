@@ -63,7 +63,7 @@ impl<'a> TransformTestCreator<'a> for AggregateMapTransformTestCreator<'a> {
         ])
     }
 
-    fn create(
+    async fn create(
         self,
         wasm_modules: Vec<&'a WasmModuleInstance>,
     ) -> Result<TransformTestImpl<'a>, TestError> {
@@ -111,7 +111,7 @@ impl<'a> TransformTestCreator<'a> for AggregateMapTransformTestCreator<'a> {
             source_human_readable.bytes_to_key.as_str(),
             source_human_readable.value_to_bytes.as_str(),
             source_human_readable.bytes_to_value.as_str(),
-        )?;
+        ).await?;
 
         let aggregate_human_readable = AggregateHumanReadableFunctions::new(
             human_readable_wasm,
@@ -133,7 +133,8 @@ impl<'a> TransformTestCreator<'a> for AggregateMapTransformTestCreator<'a> {
                     )
                 })?
                 .as_str(),
-        )?;
+        )
+        .await?;
 
         let aggregate = AggregateFunctions::new(
             map_wasm,
@@ -142,7 +143,8 @@ impl<'a> TransformTestCreator<'a> for AggregateMapTransformTestCreator<'a> {
             data.reduce.method_name.as_str(),
             data.merge_accumulators.method_name.as_str(),
             data.apply.method_name.as_str(),
-        )?;
+        )
+        .await?;
 
         Ok(TransformTestImpl::AggregateMap(AggregateMapTransformTest {
             source_human_readable,
@@ -167,9 +169,10 @@ type ActualOutput<'a> = Vec<(WasmVecHolder<'a>, Option<WasmVecHolder<'a>>)>;
 type ExpectedOutput<'a> = Vec<(&'a str, Option<&'a str>)>;
 
 impl<'a> AggregateMapTransformTest<'a> {
-    fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Input, TestError> {
+    async fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Input, TestError> {
         let serialized =
-            yaml_test_vars_to_aggregate_map_input(&self.source_human_readable, vars.as_ref())?;
+            yaml_test_vars_to_aggregate_map_input(&self.source_human_readable, vars.as_ref())
+                .await?;
 
         Ok(serialized)
     }
@@ -199,12 +202,12 @@ impl<'a> AggregateMapTransformTest<'a> {
 }
 
 impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
-    fn test(
+    async fn test(
         &self,
         input: &Rc<YamlNode>,
         expected_output: &Rc<YamlNode>,
     ) -> Result<Option<AssertError>, TestError> {
-        let input = self.input_from_test_vars(&input)?;
+        let input = self.input_from_test_vars(&input).await?;
         let output = self.input_to_output(input)?;
         let actual_output = self.output_to_actual_output(output)?;
         let expected_output = self.expected_output_from_test_vars(&expected_output)?;

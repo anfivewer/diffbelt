@@ -17,7 +17,7 @@ impl<T> PooledBuffer for Vec<T> {
             return;
         }
 
-        buffer.reserve(capacity - buffer.capacity())
+        buffer.reserve(capacity - buffer.len());
     }
 
     fn clear(buffer: &mut Self::Item) {

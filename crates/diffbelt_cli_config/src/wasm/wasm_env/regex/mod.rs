@@ -2,6 +2,7 @@ use bytemuck::{Pod, Zeroable};
 use std::borrow::Cow;
 use std::cmp::min;
 use std::collections::VecDeque;
+use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -212,8 +213,28 @@ impl WasmEnv {
             }
         }
 
-        fn regex_replace<Mode: ReplaceImpl>(
-            mut caller: Caller<'_, WasmStoreData>,
+        fn regex_replace<'a, Mode: ReplaceImpl + 'static>(
+            caller: Caller<'a, WasmStoreData>,
+            ptr: i32,
+            source_ptr: WasmPtr<u8>,
+            source_len: i32,
+            target_ptr: WasmPtr<u8>,
+            target_len: i32,
+            replace_result_ptr: WasmPtr<WasmReplaceResult>,
+        ) -> Box<dyn Future<Output = ()> + Send + 'a> {
+            Box::new(regex_replace_impl::<Mode>(
+                caller,
+                ptr,
+                source_ptr,
+                source_len,
+                target_ptr,
+                target_len,
+                replace_result_ptr,
+            ))
+        }
+
+        async fn regex_replace_impl<'a, Mode: ReplaceImpl + 'static>(
+            mut caller: Caller<'a, WasmStoreData>,
             ptr: i32,
             source_ptr: WasmPtr<u8>,
             source_len: i32,
@@ -222,78 +243,97 @@ impl WasmEnv {
             replace_result_ptr: WasmPtr<WasmReplaceResult>,
         ) -> () {
             let state = caller.data().inner.clone();
-            let mut state = state.lock().expect("lock");
-            let state = state.deref_mut();
-            let memory = state.memory.expect("no memory");
-            let allocation = state.allocation.as_ref().expect("no allocation");
-            let RegexEnv { regexps, .. } = state.regex.as_ref().expect("RegexEnv");
 
-            let result = (|| {
-                let result = {
-                    let ptr = try_positive_i32_to_usize(ptr).ok_or_else(|| {
-                        WasmError::Unspecified(format!("Tried to get regexp at {ptr}"))
-                    })?;
+            let mut ctx = caller.as_context_mut();
 
-                    let regex = regexps.get(ptr).ok_or_else(|| {
+            let result = (|| async move {
+                let (memory, alloc, result_bytes_len_i32, result) = {
+                    let mut state_lock = state.lock().expect("lock");
+                    let state = state_lock.deref_mut();
+                    let memory = state.memory.expect("no memory");
+                    let allocation = state.allocation.as_ref().expect("no allocation");
+                    let RegexEnv { regexps, .. } = state.regex.as_ref().expect("RegexEnv");
+
+                    let result = {
+                        let ptr = try_positive_i32_to_usize(ptr).ok_or_else(|| {
+                            WasmError::Unspecified(format!("Tried to get regexp at {ptr}"))
+                        })?;
+
+                        let regex = regexps.get(ptr).ok_or_else(|| {
+                            WasmError::Unspecified(format!(
+                                "Tried to get regexp at {ptr}, there is only {} of them",
+                                regexps.len()
+                            ))
+                        })?;
+
+                        let source = ptr_to_utf8(ctx.as_context(), memory, source_ptr, source_len)?;
+                        let source = source.as_str()?;
+
+                        let target = ptr_to_utf8(ctx.as_context(), memory, target_ptr, target_len)?;
+                        let target = target.as_str()?;
+
+                        let result = Mode::do_replace(&regex.regex, source, target);
+
+                        // TODO: check that `result` is Borrowed and that it has same address as `source`,
+                        //       calculate start/end offsets and return partial
+                        if result.as_ref() == source {
+                            return Ok::<_, WasmError>((
+                                memory,
+                                ReplaceResult::<WasmPtrImpl> {
+                                    is_same: 1,
+                                    s: BytesVecFullTrait::null(),
+                                },
+                            ));
+                        }
+
+                        result.into_owned()
+                    };
+
+                    let result_bytes_len_i32 = try_usize_to_i32(result.len()).ok_or_else(|| {
                         WasmError::Unspecified(format!(
-                            "Tried to get regexp at {ptr}, there is only {} of them",
-                            regexps.len()
+                            "regex_replace result too big: {}",
+                            result.len()
                         ))
                     })?;
 
-                    let source = ptr_to_utf8(caller.as_context(), memory, source_ptr, source_len)?;
-                    let source = source.as_str()?;
+                    let alloc = allocation.alloc;
 
-                    let target = ptr_to_utf8(caller.as_context(), memory, target_ptr, target_len)?;
-                    let target = target.as_str()?;
-
-                    let result = Mode::do_replace(&regex.regex, source, target);
-
-                    // TODO: check that `result` is Borrowed and that it has same address as `source`,
-                    //       calculate start/end offsets and return partial
-                    if result.as_ref() == source {
-                        return Ok::<_, WasmError>(ReplaceResult::<WasmPtrImpl> {
-                            is_same: 1,
-                            s: BytesVecFullTrait::null(),
-                        });
-                    }
-
-                    result.into_owned()
+                    (memory, alloc, result_bytes_len_i32, result)
                 };
 
-                let result = result.as_bytes();
-
-                let result_bytes_len_i32 = try_usize_to_i32(result.len()).ok_or_else(|| {
-                    WasmError::Unspecified(format!(
-                        "regex_replace result too big: {}",
-                        result.len()
-                    ))
-                })?;
-
-                let vec_ptr = allocation.alloc.call(&mut caller, result_bytes_len_i32)?;
+                let vec_ptr = alloc
+                    .call_async(ctx.as_context_mut(), result_bytes_len_i32)
+                    .await?;
 
                 {
                     let vec_slice = vec_ptr.slice()?;
-                    () = vec_slice.write_slice(memory.data_mut(&mut caller), result)?;
+                    () = vec_slice
+                        .write_slice(memory.data_mut(ctx.as_context_mut()), result.as_bytes())?;
                 }
 
-                Ok(ReplaceResult::<WasmPtrImpl> {
-                    is_same: 0,
-                    s: BytesVecRawParts {
-                        ptr: vec_ptr.into(),
-                        len: result_bytes_len_i32,
-                        capacity: result_bytes_len_i32,
+                Ok((
+                    memory,
+                    ReplaceResult::<WasmPtrImpl> {
+                        is_same: 0,
+                        s: BytesVecRawParts {
+                            ptr: vec_ptr.into(),
+                            len: result_bytes_len_i32,
+                            capacity: result_bytes_len_i32,
+                        },
                     },
-                })
-            })();
+                ))
+            })()
+            .await;
 
-            let Some(result) = WasmEnv::handle_error(&caller.data().error, result) else {
+            let Some((memory, result)) = WasmEnv::handle_error(&caller.data().error, result) else {
                 return ();
             };
 
             let result = (|| {
-                () = replace_result_ptr
-                    .write(memory.data_mut(caller.as_context_mut()), WasmReplaceResult(result))?;
+                () = replace_result_ptr.write(
+                    memory.data_mut(caller.as_context_mut()),
+                    WasmReplaceResult(result),
+                )?;
 
                 Ok::<(), WasmError>(())
             })();
@@ -304,8 +344,8 @@ impl WasmEnv {
         linker.func_wrap("Regex", "new", regex_new)?;
         linker.func_wrap("Regex", "free", regex_free)?;
         linker.func_wrap("Regex", "captures", regex_captures)?;
-        linker.func_wrap("Regex", "replace_one", regex_replace::<ReplaceOneImpl>)?;
-        linker.func_wrap("Regex", "replace_all", regex_replace::<ReplaceAllImpl>)?;
+        linker.func_wrap6_async("Regex", "replace_one", regex_replace::<ReplaceOneImpl>)?;
+        linker.func_wrap6_async("Regex", "replace_all", regex_replace::<ReplaceAllImpl>)?;
 
         Ok(())
     }

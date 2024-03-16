@@ -9,6 +9,7 @@ use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::lift_result_from_option;
 use diffbelt_util_no_std::cast::checked_usize_to_i32;
+use diffbelt_util_no_std::option::AsyncOptionUtil;
 use diffbelt_util_no_std::slice::get_slice_offset_in_other_slice;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_yaml::YamlNode;
@@ -65,7 +66,7 @@ impl<'a> TransformTestCreator<'a> for MapFilterTransformTestCreator<'a> {
         ])
     }
 
-    fn create(
+    async fn create(
         self,
         wasm_modules: Vec<&'a WasmModuleInstance>,
     ) -> Result<TransformTestImpl<'a>, TestError> {
@@ -94,20 +95,26 @@ impl<'a> TransformTestCreator<'a> for MapFilterTransformTestCreator<'a> {
             .as_ref()
             .expect("already checked");
 
-        let source_hr = source_wasm.human_readable_functions(
-            source_collection_hr.key_to_bytes.as_str(),
-            source_collection_hr.bytes_to_key.as_str(),
-            source_collection_hr.value_to_bytes.as_str(),
-            source_collection_hr.bytes_to_value.as_str(),
-        )?;
-        let target_hr = target_wasm.human_readable_functions(
-            target_collection_hr.key_to_bytes.as_str(),
-            target_collection_hr.bytes_to_key.as_str(),
-            target_collection_hr.value_to_bytes.as_str(),
-            target_collection_hr.bytes_to_value.as_str(),
-        )?;
+        let source_hr = source_wasm
+            .human_readable_functions(
+                source_collection_hr.key_to_bytes.as_str(),
+                source_collection_hr.bytes_to_key.as_str(),
+                source_collection_hr.value_to_bytes.as_str(),
+                source_collection_hr.bytes_to_value.as_str(),
+            )
+            .await?;
+        let target_hr = target_wasm
+            .human_readable_functions(
+                target_collection_hr.key_to_bytes.as_str(),
+                target_collection_hr.bytes_to_key.as_str(),
+                target_collection_hr.value_to_bytes.as_str(),
+                target_collection_hr.bytes_to_value.as_str(),
+            )
+            .await?;
 
-        let map_filter = transform_wasm.map_filter_function(data.method_name.as_str())?;
+        let map_filter = transform_wasm
+            .map_filter_function(data.method_name.as_str())
+            .await?;
 
         Ok(TransformTestImpl::MapFilter(MapFilterTransformTest {
             source_human_readable: source_hr,
@@ -135,17 +142,20 @@ type ActualOutput<'a> = Vec<(
 type ExpectedOutput<'a> = Vec<(&'a str, Option<&'a str>)>;
 
 impl<'a> MapFilterTransformTest<'a> {
-    fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Input, TestError> {
+    async fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Input, TestError> {
         let serialized =
-            yaml_test_vars_to_map_filter_input(&self.source_human_readable, vars.as_ref())?;
+            yaml_test_vars_to_map_filter_input(&self.source_human_readable, vars.as_ref()).await?;
 
         Ok(serialized)
     }
 
-    fn input_to_output(&'a self, input: Input) -> Result<Output, TestError> {
-        let result_holder = self.map_filter.instance.alloc_vec_holder()?;
+    async fn input_to_output(&'a self, input: Input<'_>) -> Result<Output, TestError> {
+        let result_holder = self.map_filter.instance.alloc_vec_holder().await?;
 
-        let bytes_result = self.map_filter.call(input.as_bytes(), &result_holder)?;
+        let bytes_result = self
+            .map_filter
+            .call(input.as_bytes(), &result_holder)
+            .await?;
 
         let update_record_slices = bytes_result.observe_bytes(|bytes| {
             let multi_output =
@@ -204,7 +214,7 @@ impl<'a> MapFilterTransformTest<'a> {
         Ok((result_holder, update_record_slices))
     }
 
-    fn output_to_actual_output(&self, output: Output) -> Result<ActualOutput, TestError> {
+    async fn output_to_actual_output(&self, output: Output<'_>) -> Result<ActualOutput, TestError> {
         let (result_bytes_holder, update_record_slices) = output;
 
         let instance = self.target_human_readable.instance;
@@ -212,23 +222,27 @@ impl<'a> MapFilterTransformTest<'a> {
         let mut kv_holders = Vec::with_capacity(update_record_slices.len());
 
         for (key, value) in update_record_slices {
-            let key_vec_holder = instance.alloc_vec_holder()?;
+            let key_vec_holder = instance.alloc_vec_holder().await?;
 
             let key_slice = self
                 .target_human_readable
-                .call_bytes_to_key(WasmBytesSlice(key), &key_vec_holder)?;
+                .call_bytes_to_key(WasmBytesSlice(key), &key_vec_holder)
+                .await?;
 
             let key = (key_slice, key_vec_holder);
 
-            let value = value.map(|value| {
-                let value_vec_holder = instance.alloc_vec_holder()?;
+            let value = value
+                .map_async(|value| async move {
+                    let value_vec_holder = instance.alloc_vec_holder().await?;
 
-                let value_slice = self
-                    .target_human_readable
-                    .call_bytes_to_value(WasmBytesSlice(value), &value_vec_holder)?;
+                    let value_slice = self
+                        .target_human_readable
+                        .call_bytes_to_value(WasmBytesSlice(value), &value_vec_holder)
+                        .await?;
 
-                Ok::<_, TestError>((value_slice, value_vec_holder))
-            });
+                    Ok::<_, TestError>((value_slice, value_vec_holder))
+                })
+                .await;
             let value = lift_result_from_option(value)?;
 
             kv_holders.push((key, value));
@@ -320,14 +334,14 @@ impl<'a> MapFilterTransformTest<'a> {
 }
 
 impl<'a> TransformTest<'a> for MapFilterTransformTest<'a> {
-    fn test(
+    async fn test(
         &self,
         input: &Rc<YamlNode>,
         expected_output: &Rc<YamlNode>,
     ) -> Result<Option<AssertError>, TestError> {
-        let input = self.input_from_test_vars(&input)?;
-        let output = self.input_to_output(input)?;
-        let actual_output = self.output_to_actual_output(output)?;
+        let input = self.input_from_test_vars(&input).await?;
+        let output = self.input_to_output(input).await?;
+        let actual_output = self.output_to_actual_output(output).await?;
         let expected_output = self.expected_output_from_test_vars(&expected_output)?;
         let comparison =
             self.compare_actual_and_expected_output(&actual_output, &expected_output)?;

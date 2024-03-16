@@ -1,5 +1,7 @@
 use std::ops::DerefMut;
+use std::sync::{Arc, Mutex};
 use wasmtime::{AsContextMut, Instance, Memory, Store, TypedFunc};
+use diffbelt_util::Wrap;
 
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
 use crate::wasm::{WasmError, WasmStoreData};
@@ -7,8 +9,16 @@ use crate::wasm::{WasmError, WasmStoreData};
 pub mod slice;
 pub mod vector;
 
+pub enum DeallocType {
+    Bytes { ptr: WasmPtr<u8>, len: i32 },
+    BytesSlice { ptr: WasmPtr<WasmBytesSlice> },
+    VecHolder { ptr: WasmPtr<WasmBytesVecRawParts> },
+}
+
 #[derive(Clone)]
 pub struct Allocation {
+    // FIXME: dealloc them :)
+    pub pending_deallocs: Arc<Mutex<Vec<DeallocType>>>,
     pub alloc: TypedFunc<i32, WasmPtr<u8>>,
     pub dealloc: TypedFunc<(WasmPtr<u8>, i32), ()>,
     alloc_bytes_slice: TypedFunc<(), WasmPtr<WasmBytesSlice>>,
@@ -40,6 +50,7 @@ impl Allocation {
         get_function!(ensure_vec_capacity, "ensure_vec_capacity");
 
         Ok(Self {
+            pending_deallocs: Wrap::wrap(Vec::with_capacity(8)),
             alloc,
             dealloc,
             alloc_bytes_slice,

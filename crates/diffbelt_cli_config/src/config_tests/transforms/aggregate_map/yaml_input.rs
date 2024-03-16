@@ -10,15 +10,15 @@ use crate::config_tests::error::YamlTestVarsError;
 use crate::config_tests::value::{parse_scalar, Scalar};
 use crate::wasm::human_readable::HumanReadableFunctions;
 
-pub fn yaml_test_vars_to_aggregate_map_input(
-    source_human_readable: &HumanReadableFunctions,
+pub async fn yaml_test_vars_to_aggregate_map_input(
+    source_human_readable: &HumanReadableFunctions<'_>,
     node: &YamlNode,
 ) -> Result<OwnedSerialized<'static, AggregateMapMultiInput<'static>>, YamlTestVarsError> {
     let mut serializer = Serializer::new();
 
     let instance = source_human_readable.instance;
-    let input_vec_holder = instance.alloc_vec_holder()?;
-    let output_vec_holder = instance.alloc_vec_holder()?;
+    let input_vec_holder = instance.alloc_vec_holder().await?;
+    let output_vec_holder = instance.alloc_vec_holder().await?;
 
     let source_items = node
         .as_sequence()
