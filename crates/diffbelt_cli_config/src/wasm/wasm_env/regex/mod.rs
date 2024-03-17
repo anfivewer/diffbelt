@@ -1,26 +1,20 @@
-use bytemuck::{Pod, Zeroable};
 use std::borrow::Cow;
 use std::cmp::min;
 use std::collections::VecDeque;
 use std::future::Future;
-use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::ops::DerefMut;
 
-use diffbelt_util::Wrap;
 use diffbelt_util_no_std::cast::{
-    try_positive_i32_to_usize, try_usize_to_i32, unchecked_i32_to_u32, unchecked_usize_to_i32,
-    unchecked_usize_to_u32, usize_to_u64,
+    try_positive_i32_to_usize, try_usize_to_i32, unchecked_usize_to_i32,
 };
 use diffbelt_util_no_std::temporary_collection::vec::{TempVecType, TemporaryVec};
 use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 use diffbelt_wasm_binding::{RegexCapture, ReplaceResult};
 use regex::Regex;
-use wasmtime::{AsContext, AsContextMut, Caller, Linker, Memory, Store};
+use wasmtime::{AsContext, AsContextMut, Caller, Linker, Store};
 
-use crate::wasm::memory::Allocation;
 use crate::wasm::types::{
-    BytesVecFullTrait, WasmPtr, WasmPtrImpl, WasmPtrToByte, WasmPtrToBytesSlice, WasmReplaceResult,
+    BytesVecFullTrait, WasmPtr, WasmPtrImpl, WasmPtrToByte, WasmReplaceResult,
 };
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
@@ -60,7 +54,7 @@ impl WasmEnv {
             });
         }
 
-        fn regex_new(mut caller: Caller<'_, WasmStoreData>, s: WasmPtrToByte, s_size: i32) -> i32 {
+        fn regex_new(caller: Caller<'_, WasmStoreData>, s: WasmPtrToByte, s_size: i32) -> i32 {
             let mut state = caller.data().inner.lock().expect("lock");
             let state = state.deref_mut();
 
@@ -92,7 +86,7 @@ impl WasmEnv {
             index
         }
 
-        fn regex_free(mut caller: Caller<'_, WasmStoreData>, ptr: i32) {
+        fn regex_free(caller: Caller<'_, WasmStoreData>, ptr: i32) {
             let mut state = caller.data().inner.lock().expect("lock");
             let state = state.deref_mut();
             let RegexEnv { free_regexps, .. } = state.regex.as_mut().expect("RegexEnv");

@@ -1,14 +1,9 @@
 use std::future::Future;
 
-use diffbelt_cli_config::wasm::memory::vector::WasmVecHolder;
-use diffbelt_cli_config::wasm::{MapFilterFunction, WasmModuleInstance};
-use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
-use diffbelt_protos::{deserialize, OwnedSerialized};
-use diffbelt_transforms::base::action::function_eval::{FunctionEvalAction, MapFilterEvalAction};
-use diffbelt_transforms::base::input::function_eval::{
-    FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput,
-};
-use diffbelt_util::errors::NoStdErrorWrap;
+use diffbelt_cli_config::wasm::WasmModuleInstance;
+
+use diffbelt_transforms::base::action::function_eval::FunctionEvalAction;
+use diffbelt_transforms::base::input::function_eval::{FunctionEvalInput, FunctionEvalInputBody};
 
 use crate::commands::errors::TransformEvalError;
 use crate::commands::transform::run::function_eval_handler::FunctionEvalHandler;
@@ -29,17 +24,17 @@ impl FunctionEvalHandler for AggregateEvalHandler {
         F: Fn(Result<FunctionEvalInput<FunctionEvalInputBody>, TransformEvalError>) -> Fut,
     >(
         &self,
-        action: FunctionEvalAction,
-        emit_input: &F,
+        _action: FunctionEvalAction,
+        _emit_input: &F,
     ) {
         /*
-    AggregateMap(AggregateMapEvalAction),
-    AggregateTargetInfo(AggregateTargetInfoEvalAction),
-    AggregateInitialAccumulator(AggregateInitialAccumulatorEvalAction),
-    AggregateReduce(AggregateReduceEvalAction),
-    AggregateMerge(AggregateMergeEvalAction),
-    AggregateApply(AggregateApplyEvalAction),
-         */
+        AggregateMap(AggregateMapEvalAction),
+        AggregateTargetInfo(AggregateTargetInfoEvalAction),
+        AggregateInitialAccumulator(AggregateInitialAccumulatorEvalAction),
+        AggregateReduce(AggregateReduceEvalAction),
+        AggregateMerge(AggregateMergeEvalAction),
+        AggregateApply(AggregateApplyEvalAction),
+             */
 
         todo!()
     }

@@ -1,7 +1,7 @@
 use crate::wasm::types::WasmPtr;
 use crate::wasm::WasmError;
 use bytemuck::Pod;
-use diffbelt_util_no_std::cast::try_usize_to_u32;
+
 use wasmtime::component::__internal::StoreOpaque;
 use wasmtime::{ValRaw, ValType, WasmTy};
 
@@ -58,7 +58,7 @@ unsafe impl<T: Pod + Send> WasmTy for WasmPtr<T> {
         ValType::I32
     }
 
-    fn compatible_with_store(&self, store: &StoreOpaque) -> bool {
+    fn compatible_with_store(&self, _store: &StoreOpaque) -> bool {
         true
     }
 

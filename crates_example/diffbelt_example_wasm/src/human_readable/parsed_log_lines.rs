@@ -5,14 +5,13 @@ use core::str::{from_utf8, Utf8Error};
 
 use thiserror_no_std::Error;
 
-use crate::human_readable::noop;
 use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineBuilder};
 use diffbelt_protos::{deserialize, InvalidFlatbuffer, Serializer};
 use diffbelt_wasm_binding::annotations::{Annotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::{AggregateHumanReadable, HumanReadable};
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
-use diffbelt_wasm_binding::{debug_print, debug_print_string, Regex};
+use diffbelt_wasm_binding::{debug_print_string, Regex};
 
 use crate::util::run_error_coded::run_error_coded;
 
@@ -53,8 +52,6 @@ impl HumanReadable for ParsedLogLinesKv {
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         bytes: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        debug_print("start");
-
         lazy_static::lazy_static! {
             static ref LOG_LEVEL_RE: Regex = Regex::new(r"^logLevel: ([A-Z]).*\n").expect("Cannot build LOG_LEVEL_RE");
             static ref TS_STR_RE: Regex = Regex::new(r"^tsStr: (.+)\n").expect("Cannot build TS_STR_RE");
@@ -71,32 +68,22 @@ impl HumanReadable for ParsedLogLinesKv {
         run_error_coded(|| -> Result<ErrorCode, LogLinesError> {
             let value = unsafe { (&*input_and_output.value).as_str() }?;
 
-            debug_print(value);
+            let q = from_utf8(value.as_bytes())
+                .map_or_else(|err| Some(err), |_| None)
+                .map(|x| format!("{:#?}", x));
+            let _q = q.as_ref().map(|x| x.as_str()).unwrap_or("No error");
 
             let q = from_utf8(value.as_bytes())
                 .map_or_else(|err| Some(err), |_| None)
                 .map(|x| format!("{:#?}", x));
-            let q = q.as_ref().map(|x| x.as_str()).unwrap_or("No error");
-
-            debug_print(q);
-
-            format!("initial {value}");
-
-            let q = from_utf8(value.as_bytes())
-                .map_or_else(|err| Some(err), |_| None)
-                .map(|x| format!("{:#?}", x));
-            let q = q.as_ref().map(|x| x.as_str()).unwrap_or("No error");
-
-            debug_print(q);
+            let _q = q.as_ref().map(|x| x.as_str()).unwrap_or("No error");
 
             let buffer = unsafe { (&*bytes).into_empty_vec() };
             let mut serializer = Serializer::<ParsedLogLine>::from_vec(buffer);
 
-            let mut builder = ParsedLogLineBuilder::new(serializer.buffer_builder());
+            let _builder = ParsedLogLineBuilder::new(serializer.buffer_builder());
 
             let mut mem = Regex::alloc_captures::<2>();
-
-            debug_print_string(format!("initial {value}"));
 
             let log_level_captures = LOG_LEVEL_RE.captures(value, &mut mem).expect("parsing");
             let offset = log_level_captures.get(0).expect("capture").len();

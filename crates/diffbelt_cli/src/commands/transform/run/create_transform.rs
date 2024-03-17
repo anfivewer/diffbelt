@@ -30,7 +30,7 @@ pub async fn create_transform(
 ) -> Result<TransformEvaluator, CommandError> {
     let diffbelt_cli_config::transforms::Transform {
         name: _,
-        source: from_collection_name,
+        source: _from_collection_name,
         intermediate,
         target: _,
         reader_name: _,
@@ -88,7 +88,7 @@ async fn create_map_filter_transform(
     transform_direction: TransformDirection<'_>,
     verbose: bool,
 ) -> Result<TransformEvaluator, CommandError> {
-    let mut transform = MapFilterTransform::new(
+    let transform = MapFilterTransform::new(
         Box::from(transform_direction.from_collection_name),
         Box::from(transform_direction.to_collection_name),
         Box::from(transform_direction.reader_name),
@@ -105,8 +105,10 @@ async fn create_map_filter_transform(
     let wasm_instance = Box::new(wasm_instance);
     let wasm_instance = Box::leak(wasm_instance);
 
-    let map_filter = wasm_instance.map_filter_function(map_filter_wasm.method_name.as_str())?;
-    let vec_holder = wasm_instance.alloc_vec_holder()?;
+    let map_filter = wasm_instance
+        .map_filter_function(map_filter_wasm.method_name.as_str())
+        .await?;
+    let vec_holder = wasm_instance.alloc_vec_holder().await?;
 
     let handler = MapFilterEvalHandler {
         verbose,
@@ -122,7 +124,7 @@ async fn create_map_filter_transform(
 }
 
 async fn create_aggregate_transform(
-    aggregate: &Aggregate,
+    _aggregate: &Aggregate,
 ) -> Result<TransformEvaluator, CommandError> {
     todo!()
 }

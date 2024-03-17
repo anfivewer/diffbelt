@@ -22,5 +22,5 @@ members = [
 	"crates/diffbelt_yaml",
 ]
 exclude = [
-	"crates/diffbelt_example_wasm",
+	"crates_example/diffbelt_example_wasm",
 ]

@@ -20,11 +20,11 @@ use crate::commands::transform::run::function_eval_handler::FunctionEvalHandler;
 use crate::state::CliState;
 use crate::CommandResult;
 
+mod aggregate_eval;
 mod create_transform;
 mod function_eval_handler;
 mod map_filter_eval;
 mod parse;
-mod aggregate_eval;
 
 #[derive(Args, Debug)]
 pub struct Run {
@@ -54,7 +54,7 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
         intermediate,
         target,
         reader_name,
-        map_filter: map_filter_wasm,
+        map_filter: _map_filter_wasm,
         aggregate,
         percentiles,
         unique_count,

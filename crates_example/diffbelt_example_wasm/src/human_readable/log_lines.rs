@@ -8,8 +8,6 @@ use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 
-use crate::human_readable::noop;
-
 struct LogLinesKv;
 
 #[derive(Error, Debug)]

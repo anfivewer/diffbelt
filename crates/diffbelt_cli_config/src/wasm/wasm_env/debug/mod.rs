@@ -3,14 +3,14 @@ use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::{WasmError, WasmStoreData};
 use std::ops::DerefMut;
-use wasmtime::{AsContext, Caller, Linker, Store};
+use wasmtime::{AsContext, Caller, Linker};
 
 impl WasmEnv {
     pub fn register_debug_wasm_imports(
         &self,
         linker: &mut Linker<WasmStoreData>,
     ) -> Result<(), WasmError> {
-        fn print(mut caller: Caller<WasmStoreData>, s: WasmPtr<u8>, s_size: i32) -> () {
+        fn print(caller: Caller<WasmStoreData>, s: WasmPtr<u8>, s_size: i32) -> () {
             let mut state = caller.data().inner.lock().expect("lock");
             let state = state.deref_mut();
 

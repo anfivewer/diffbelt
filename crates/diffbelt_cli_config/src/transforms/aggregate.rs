@@ -11,7 +11,6 @@ pub struct Aggregate {
     pub human_readable: Option<AggregateHumanReadable>,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct AggregateHumanReadable {
     pub wasm: String,

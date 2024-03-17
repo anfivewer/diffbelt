@@ -24,7 +24,10 @@ use crate::base::input::diffbelt_call::DiffbeltCallInput;
 use crate::base::input::function_eval::{FunctionEvalInput, MapFilterEvalInput};
 use crate::base::input::Input;
 use crate::map_filter::state::{AwaitingForGenerationStartState, ProcessingState, State};
-use crate::transform::{ActionInputHandlerAction, ActionInputHandlerActionsVec, ActionInputHandlerResult, HandlerResult, Transform, TransformInputs, WithTransformInputs};
+use crate::transform::{
+    ActionInputHandlerAction, ActionInputHandlerActionsVec, ActionInputHandlerResult,
+    HandlerResult, Transform, TransformInputs, WithTransformInputs,
+};
 use crate::{input_handler, TransformRunResult};
 
 mod state;

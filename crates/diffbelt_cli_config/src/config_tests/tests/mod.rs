@@ -4,7 +4,7 @@ use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
 use diffbelt_yaml::parse_yaml;
 
 use crate::config_tests::run::run_tests;
-use crate::config_tests::{SingleTestResult, TestResult};
+
 use crate::CliConfig;
 
 #[test]

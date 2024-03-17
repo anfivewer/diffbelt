@@ -30,12 +30,14 @@ pub async fn get_collection_human_readable<'a>(
         return Err(HumanReadableError::MultipleWasmModulesAreNotSupportedYet);
     }
 
-    let hr = instance.human_readable_functions(
-        hr.key_to_bytes.as_str(),
-        hr.bytes_to_key.as_str(),
-        hr.value_to_bytes.as_str(),
-        hr.bytes_to_value.as_str(),
-    ).await?;
+    let hr = instance
+        .human_readable_functions(
+            hr.key_to_bytes.as_str(),
+            hr.bytes_to_key.as_str(),
+            hr.value_to_bytes.as_str(),
+            hr.bytes_to_value.as_str(),
+        )
+        .await?;
 
     Ok(hr)
 }

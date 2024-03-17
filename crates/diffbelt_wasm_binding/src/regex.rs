@@ -1,25 +1,23 @@
 use alloc::borrow::Cow;
 use alloc::string::String;
+use bytemuck::{Pod, Zeroable};
 use core::marker::PhantomData;
 use core::str::from_utf8_unchecked;
 use core::{ptr, slice};
-use bytemuck::{Pod, Zeroable};
 
 use thiserror_no_std::Error;
 
 use crate::ptr::bytes::BytesVecRawParts;
 use crate::ptr::{ConstPtr, NativePtrImpl, PtrImpl};
 
-#[derive(Pod, Zeroable)]
-#[derive(Copy, Clone)]
+#[derive(Pod, Zeroable, Copy, Clone)]
 #[repr(C, packed)]
 pub struct RegexCapture<P: PtrImpl = NativePtrImpl> {
     pub capture: P::Ptr<u8>,
     pub capture_len: i32,
 }
 
-#[derive(Pod, Zeroable)]
-#[derive(Copy, Clone)]
+#[derive(Pod, Zeroable, Copy, Clone)]
 #[repr(C, packed)]
 pub struct ReplaceResult<P: PtrImpl = NativePtrImpl> {
     pub is_same: i32,

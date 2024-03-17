@@ -46,8 +46,11 @@ impl FunctionEvalHandler for MapFilterEvalHandler {
             output_buffer: mut outputs_buffer,
         } = action;
 
-        let result = (|| {
-            let output = self.map_filter.call(input.as_bytes(), &self.vec_holder)?;
+        let result = (|| async move {
+            let output = self
+                .map_filter
+                .call(input.as_bytes(), &self.vec_holder)
+                .await?;
 
             () = output.observe_bytes(|bytes| {
                 // just validate
@@ -74,7 +77,8 @@ impl FunctionEvalHandler for MapFilterEvalHandler {
                     action_input_buffer: input.into_vec(),
                 }),
             })
-        })();
+        })()
+        .await;
 
         () = emit_input(result).await;
     }

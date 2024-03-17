@@ -1,11 +1,9 @@
 use crate::wasm::memory::DeallocType;
 use crate::wasm::result::WasmBytesSliceResult;
-use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtrToVecRawParts};
-use crate::wasm::wasm_env::WasmEnv;
+use crate::wasm::types::{WasmBytesSlice, WasmPtrToVecRawParts};
+
 use crate::wasm::{WasmError, WasmModuleInstance};
-use diffbelt_util_no_std::cast::{
-    try_positive_i32_to_u32, try_positive_i32_to_usize, try_usize_to_i32, unchecked_i32_to_u32,
-};
+use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 use std::ops::{Deref, DerefMut};

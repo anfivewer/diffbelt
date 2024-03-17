@@ -1,7 +1,6 @@
 use crate::call_human_readable_conversion;
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiInput, AggregateMapMultiInputArgs, AggregateMapSource, AggregateMapSourceArgs,
-    AggregateMapSourceBuilder,
 };
 use diffbelt_protos::{OwnedSerialized, Serializer, WIPOffset};
 use diffbelt_yaml::YamlNode;

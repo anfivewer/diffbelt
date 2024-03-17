@@ -1,7 +1,6 @@
-use std::ops::DerefMut;
+use diffbelt_util::Wrap;
 use std::sync::{Arc, Mutex};
 use wasmtime::{AsContextMut, Instance, Memory, Store, TypedFunc};
-use diffbelt_util::Wrap;
 
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
 use crate::wasm::{WasmError, WasmStoreData};

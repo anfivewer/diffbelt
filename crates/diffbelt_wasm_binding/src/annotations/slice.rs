@@ -1,6 +1,6 @@
-use core::str::Utf8Error;
 use crate::annotations::Annotated;
 use crate::ptr::bytes::BytesSlice;
+use core::str::Utf8Error;
 
 impl Annotated<BytesSlice, &str> {
     #[inline(always)]

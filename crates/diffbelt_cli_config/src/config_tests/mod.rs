@@ -6,12 +6,8 @@ use serde::Deserialize;
 use diffbelt_yaml::YamlNodeRc;
 use error::{AssertError, TestError};
 
-use crate::config_tests::transforms::aggregate_map::{
-    AggregateMapTransformTest, AggregateMapTransformTestCreator,
-};
-use crate::config_tests::transforms::map_filter::{
-    MapFilterTransformTest, MapFilterTransformTestCreator,
-};
+use crate::config_tests::transforms::aggregate_map::AggregateMapTransformTestCreator;
+use crate::config_tests::transforms::map_filter::MapFilterTransformTestCreator;
 use crate::config_tests::transforms::{
     TransformTest, TransformTestCreator, TransformTestCreatorImpl, TransformTestImpl,
     TransformTestPreCreateOptions,

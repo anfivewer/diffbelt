@@ -1,13 +1,13 @@
 use crate::impl_human_readable_call;
 use diffbelt_wasm_binding::error_code::ErrorCode;
-use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
+
 use std::ops::DerefMut;
 use wasmtime::{AsContextMut, TypedFunc};
 
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
-use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
+use crate::wasm::{WasmError, WasmModuleInstance};
 
 pub struct AggregateHumanReadableFunctions<'a> {
     pub instance: &'a WasmModuleInstance,

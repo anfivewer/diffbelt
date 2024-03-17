@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 use wasmtime::{AsContextMut, TypedFunc};
 
 use diffbelt_protos::error::map_flatbuffer_error_to_return_buffer;
@@ -105,7 +105,8 @@ impl<'a> AggregateFunctions<'a> {
     ) -> Result<OwnedSerialized<AggregateMapMultiOutput>, WasmError> {
         let wasm_slice = self
             .input_vector
-            .replace_with_slice_and_return_slice(input.value).await?;
+            .replace_with_slice_and_return_slice(input.value)
+            .await?;
 
         let mut store = self.instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
@@ -119,10 +120,13 @@ impl<'a> AggregateFunctions<'a> {
             () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
         }
 
-        let error_code = self.map.call_async(
-            store.as_context_mut(),
-            (self.bytes_slice.ptr, self.output_vector.ptr),
-        ).await?;
+        let error_code = self
+            .map
+            .call_async(
+                store.as_context_mut(),
+                (self.bytes_slice.ptr, self.output_vector.ptr),
+            )
+            .await?;
 
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {

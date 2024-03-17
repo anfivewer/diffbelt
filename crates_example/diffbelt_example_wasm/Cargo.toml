@@ -18,14 +18,14 @@ lazy_static = { version = "1.4.0", default-features = false, features = ["spin_n
 thiserror-no-std = { version = "2.0.2", default-features = false }
 
 [dependencies.diffbelt_util_no_std]
-path = "../diffbelt_util_no_std"
+path = "../../crates/diffbelt_util_no_std"
 
 [dependencies.diffbelt_wasm_binding]
-path = "../diffbelt_wasm_binding"
+path = "../../crates/diffbelt_wasm_binding"
 features = ["panic"]
 
 [dependencies.diffbelt_protos]
-path = "../diffbelt_protos"
+path = "../../crates/diffbelt_protos"
 
 [dependencies.diffbelt_example_protos]
-path = "../diffbelt_example_protos"
+path = "../../crates/diffbelt_example_protos"

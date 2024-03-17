@@ -5,7 +5,7 @@ use diffbelt_protos::OwnedSerialized;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_yaml::YamlNode;
 use std::borrow::Cow;
-use std::ops::Deref;
+
 use std::rc::Rc;
 
 use crate::config_tests::error::{AssertError, TestError};
@@ -15,7 +15,7 @@ use crate::config_tests::transforms::{
     TransformTestPreCreateOptions,
 };
 use crate::transforms::aggregate::Aggregate;
-use crate::transforms::wasm::WasmMethodDef;
+
 use crate::wasm::aggregate::AggregateFunctions;
 use crate::wasm::human_readable::aggregate::AggregateHumanReadableFunctions;
 use crate::wasm::human_readable::HumanReadableFunctions;
@@ -78,10 +78,10 @@ impl<'a> TransformTestCreator<'a> for AggregateMapTransformTestCreator<'a> {
             source_wasm,
             human_readable_wasm,
             map_wasm,
-            initial_accumulator_wasm,
-            reduce_wasm,
-            merge_accumulators_wasm,
-            apply_wasm,
+            _initial_accumulator_wasm,
+            _reduce_wasm,
+            _merge_accumulators_wasm,
+            _apply_wasm,
         ) = unsafe {
             (
                 wasm_modules.get_unchecked(0),
@@ -96,7 +96,7 @@ impl<'a> TransformTestCreator<'a> for AggregateMapTransformTestCreator<'a> {
 
         let TransformTestPreCreateOptions {
             source_collection,
-            target_collection,
+            target_collection: _,
             data,
         } = self.data;
 
@@ -106,12 +106,14 @@ impl<'a> TransformTestCreator<'a> for AggregateMapTransformTestCreator<'a> {
             .expect("already checked");
         let aggregate_human_readable = data.human_readable.as_ref().expect("already checked");
 
-        let source_human_readable = source_wasm.human_readable_functions(
-            source_human_readable.key_to_bytes.as_str(),
-            source_human_readable.bytes_to_key.as_str(),
-            source_human_readable.value_to_bytes.as_str(),
-            source_human_readable.bytes_to_value.as_str(),
-        ).await?;
+        let source_human_readable = source_wasm
+            .human_readable_functions(
+                source_human_readable.key_to_bytes.as_str(),
+                source_human_readable.bytes_to_key.as_str(),
+                source_human_readable.value_to_bytes.as_str(),
+                source_human_readable.bytes_to_value.as_str(),
+            )
+            .await?;
 
         let aggregate_human_readable = AggregateHumanReadableFunctions::new(
             human_readable_wasm,
@@ -177,25 +179,25 @@ impl<'a> AggregateMapTransformTest<'a> {
         Ok(serialized)
     }
 
-    fn input_to_output(&'a self, input: Input) -> Result<Output<'a>, TestError> {
+    fn input_to_output(&'a self, _input: Input) -> Result<Output<'a>, TestError> {
         todo!()
     }
 
-    fn output_to_actual_output(&self, output: Output<'a>) -> Result<ActualOutput<'a>, TestError> {
+    fn output_to_actual_output(&self, _output: Output<'a>) -> Result<ActualOutput<'a>, TestError> {
         todo!()
     }
 
     fn expected_output_from_test_vars(
         &self,
-        vars: &'a Rc<YamlNode>,
+        _vars: &'a Rc<YamlNode>,
     ) -> Result<ExpectedOutput<'a>, TestError> {
         todo!()
     }
 
     fn compare_actual_and_expected_output(
         &self,
-        actual: &ActualOutput<'a>,
-        expected: &ExpectedOutput<'a>,
+        _actual: &ActualOutput<'a>,
+        _expected: &ExpectedOutput<'a>,
     ) -> Result<Option<AssertError>, TestError> {
         todo!()
     }

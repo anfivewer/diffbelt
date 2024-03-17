@@ -20,8 +20,8 @@ pub async fn yaml_test_vars_to_map_filter_input(
         .ok_or_else(|| YamlTestVarsError::Unspecified("vars should be a mapping".to_string()))?;
 
     let mut source_key_offset = None;
-    let mut source_old_value_offset = None;
-    let mut source_new_value_offset = None;
+    let source_old_value_offset = None;
+    let source_new_value_offset = None;
 
     let instance = human_readable_functions.instance;
 

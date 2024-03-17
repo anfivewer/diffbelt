@@ -61,12 +61,12 @@ impl<T: Pod> From<*mut T> for MutPtr<T> {
 
 impl<T: Pod> ConstPtr<T> {
     pub fn as_ptr(self) -> *const T {
-        self.value as (*const T)
+        self.value as *const T
     }
 }
 
 impl<T: Pod> MutPtr<T> {
     pub fn as_mut_ptr(self) -> *mut T {
-        self.value as (*mut T)
+        self.value as *mut T
     }
 }

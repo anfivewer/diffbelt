@@ -16,3 +16,5 @@ pub use debug_print::*;
 pub use regex::*;
 
 extern crate alloc;
+
+extern crate self as diffbelt_wasm_binding;
