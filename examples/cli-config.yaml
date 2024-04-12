@@ -458,7 +458,7 @@ tests:
       input:
         - source_key: 2023-02-20T21:42:48.822Z.000 worker258688
           source_old_value: !none
-          source_new_value: |-
+          source_new_value: |
             logLevel: S (83)
             tsStr: 2023-02-20T21:42:48.822Z.000
             tsMs: 1676929368822
@@ -471,18 +471,20 @@ tests:
             extra:
               some extra 2
               another extra 2
+
         - source_key: 2023-02-21T21:42:48.822Z.000 main
           source_old_value: !none
-          source_new_value: |-
+          source_new_value: |
             logLevel: S (83)
             tsStr: 2023-02-20T21:42:48.822Z.000
             tsMs: 1677015768822
             tsMicro: 0
             loggerKey: main:middlewares
             logKey: noTranslation
+
         - source_key: 2023-02-22T21:42:48.822Z.000 master4242
           source_old_value: !none
-          source_new_value: |-
+          source_new_value: |
             logLevel: S (83)
             tsStr: 2023-02-20T21:42:48.822Z.000
             tsMs: 1677102168822
@@ -492,6 +494,7 @@ tests:
             props:
               updateType: edited_message
               ms: 27
+
       output:
         - target_key: 2023-02-20
           mapped_value: worker#:middlewares::handleFull::S

@@ -43,7 +43,5 @@ pub fn parse_scalar(scalar: &YamlNode) -> Result<Scalar, ScalarParseError> {
         )));
     };
 
-    let s = s.trim();
-
     Ok(Scalar::String(s))
 }

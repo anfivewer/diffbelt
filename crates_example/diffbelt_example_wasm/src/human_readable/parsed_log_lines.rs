@@ -1,7 +1,7 @@
 use alloc::format;
 use alloc::string::{FromUtf8Error, String};
 use core::fmt::Write;
-use core::str::{from_utf8, Utf8Error};
+use core::str::Utf8Error;
 
 use thiserror_no_std::Error;
 
@@ -68,58 +68,104 @@ impl HumanReadable for ParsedLogLinesKv {
         run_error_coded(|| -> Result<ErrorCode, LogLinesError> {
             let value = unsafe { (&*input_and_output.value).as_str() }?;
 
-            let q = from_utf8(value.as_bytes())
-                .map_or_else(|err| Some(err), |_| None)
-                .map(|x| format!("{:#?}", x));
-            let _q = q.as_ref().map(|x| x.as_str()).unwrap_or("No error");
-
-            let q = from_utf8(value.as_bytes())
-                .map_or_else(|err| Some(err), |_| None)
-                .map(|x| format!("{:#?}", x));
-            let _q = q.as_ref().map(|x| x.as_str()).unwrap_or("No error");
-
             let buffer = unsafe { (&*bytes).into_empty_vec() };
             let mut serializer = Serializer::<ParsedLogLine>::from_vec(buffer);
 
             let _builder = ParsedLogLineBuilder::new(serializer.buffer_builder());
 
-            let mut mem = Regex::alloc_captures::<2>();
+            let mut mem = Regex::alloc_captures::<3>();
 
-            let log_level_captures = LOG_LEVEL_RE.captures(value, &mut mem).expect("parsing");
-            let offset = log_level_captures.get(0).expect("capture").len();
+            let captures = LOG_LEVEL_RE.captures(value, &mut mem).expect("parsing");
 
-            debug_print_string(format!(
-                "logLevel {}, rest: ({}) {}",
-                log_level_captures.get(1).expect("capture"),
-                offset,
-                value,
-            ));
+            debug_print_string(format!("logLevel {}", captures.get(1).expect("capture"),));
 
-            let ts_str_captures = TS_STR_RE
+            let mut offset = captures.get(0).expect("capture").len();
+
+            let captures = TS_STR_RE
                 .captures(&value[offset..], &mut mem)
                 .expect("parsing");
 
-            debug_print_string(format!(
-                "tsStr {}",
-                ts_str_captures.get(1).expect("capture")
-            ));
+            offset += captures.get(0).expect("capture").len();
 
-            /*
-            logLevel: S (83)
-            tsStr: 2023-02-20T21:42:48.822Z.000
-            tsMs: 1676929368822
-            tsMicro: 0
-            loggerKey: worker258688:middlewares
-            logKey: handleFull
-            props:
-              updateType: edited_message
-              ms: 27
-            extra:
-              some extra 2
-              another extra 2
-                         */
+            debug_print_string(format!("tsStr {}", captures.get(1).expect("capture")));
 
-            // Ok::<_, LogLinesError>(ErrorCode::Ok)
+            let captures = TS_MS_RE
+                .captures(&value[offset..], &mut mem)
+                .expect("parsing");
+
+            offset += captures.get(0).expect("capture").len();
+
+            debug_print_string(format!("tsMs {}", captures.get(1).expect("capture")));
+
+            let captures = TS_MICRO_RE
+                .captures(&value[offset..], &mut mem)
+                .expect("parsing");
+
+            offset += captures.get(0).expect("capture").len();
+
+            debug_print_string(format!("tsMicro {}", captures.get(1).expect("capture")));
+
+            let captures = LOGGER_KEY_RE
+                .captures(&value[offset..], &mut mem)
+                .expect("parsing");
+
+            offset += captures.get(0).expect("capture").len();
+
+            debug_print_string(format!("loggerKey {}", captures.get(1).expect("capture")));
+
+            let captures = LOG_KEY_RE
+                .captures(&value[offset..], &mut mem)
+                .expect("parsing");
+
+            offset += captures.get(0).expect("capture").len();
+
+            debug_print_string(format!("logKey {}", captures.get(1).expect("capture")));
+
+            let captures = PROPS_START_RE.captures(&value[offset..], &mut mem);
+
+            if let Some(captures) = captures {
+                offset += captures.get(0).expect("capture").len();
+
+                loop {
+                    let captures = PROP_RE.captures(&value[offset..], &mut mem);
+
+                    if let Some(captures) = captures {
+                        let key = captures.get(1).expect("capture");
+                        let value = captures.get(2).expect("capture");
+
+                        debug_print_string(format!("prop {key}: {value}"));
+
+                        offset += captures.get(0).expect("capture").len();
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            let captures = EXTRA_START_RE.captures(&value[offset..], &mut mem);
+
+            if let Some(captures) = captures {
+                offset += captures.get(0).expect("capture").len();
+
+                loop {
+                    let captures = EXTRA_RE.captures(&value[offset..], &mut mem);
+
+                    if let Some(captures) = captures {
+                        let value = captures.get(1).expect("capture");
+
+                        offset += captures.get(0).expect("capture").len();
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            let is_no_more = &value[offset..].is_empty();
+
+            if !is_no_more {
+                panic!("not parsed {}", &value[offset..]);
+            }
+
             todo!()
         })
     }
