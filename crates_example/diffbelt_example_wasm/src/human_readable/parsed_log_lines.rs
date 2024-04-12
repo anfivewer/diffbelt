@@ -1,17 +1,18 @@
-use alloc::format;
 use alloc::string::{FromUtf8Error, String};
 use core::fmt::Write;
+use core::mem::forget;
 use core::str::Utf8Error;
 
 use thiserror_no_std::Error;
 
-use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineBuilder};
+use alloc::vec::Vec;
+use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineArgs, Prop, PropArgs};
 use diffbelt_protos::{deserialize, InvalidFlatbuffer, Serializer};
 use diffbelt_wasm_binding::annotations::{Annotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::{AggregateHumanReadable, HumanReadable};
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
-use diffbelt_wasm_binding::{debug_print_string, Regex};
+use diffbelt_wasm_binding::Regex;
 
 use crate::util::run_error_coded::run_error_coded;
 
@@ -71,13 +72,16 @@ impl HumanReadable for ParsedLogLinesKv {
             let buffer = unsafe { (&*bytes).into_empty_vec() };
             let mut serializer = Serializer::<ParsedLogLine>::from_vec(buffer);
 
-            let _builder = ParsedLogLineBuilder::new(serializer.buffer_builder());
-
             let mut mem = Regex::alloc_captures::<3>();
 
             let captures = LOG_LEVEL_RE.captures(value, &mut mem).expect("parsing");
 
-            debug_print_string(format!("logLevel {}", captures.get(1).expect("capture"),));
+            let log_level = captures
+                .get(1)
+                .expect("capture")
+                .chars()
+                .next()
+                .expect("log_level char") as u8;
 
             let mut offset = captures.get(0).expect("capture").len();
 
@@ -87,7 +91,7 @@ impl HumanReadable for ParsedLogLinesKv {
 
             offset += captures.get(0).expect("capture").len();
 
-            debug_print_string(format!("tsStr {}", captures.get(1).expect("capture")));
+            let ts_str = captures.get(1).expect("capture");
 
             let captures = TS_MS_RE
                 .captures(&value[offset..], &mut mem)
@@ -95,7 +99,8 @@ impl HumanReadable for ParsedLogLinesKv {
 
             offset += captures.get(0).expect("capture").len();
 
-            debug_print_string(format!("tsMs {}", captures.get(1).expect("capture")));
+            let ts_ms = captures.get(1).expect("capture");
+            let ts_ms = ts_ms.parse::<u64>().expect("ts_ms parse");
 
             let captures = TS_MICRO_RE
                 .captures(&value[offset..], &mut mem)
@@ -103,7 +108,8 @@ impl HumanReadable for ParsedLogLinesKv {
 
             offset += captures.get(0).expect("capture").len();
 
-            debug_print_string(format!("tsMicro {}", captures.get(1).expect("capture")));
+            let ts_micro = captures.get(1).expect("capture");
+            let ts_micro = ts_micro.parse::<u16>().expect("ts_micro parse");
 
             let captures = LOGGER_KEY_RE
                 .captures(&value[offset..], &mut mem)
@@ -111,7 +117,7 @@ impl HumanReadable for ParsedLogLinesKv {
 
             offset += captures.get(0).expect("capture").len();
 
-            debug_print_string(format!("loggerKey {}", captures.get(1).expect("capture")));
+            let logger_key = captures.get(1).expect("capture");
 
             let captures = LOG_KEY_RE
                 .captures(&value[offset..], &mut mem)
@@ -119,9 +125,11 @@ impl HumanReadable for ParsedLogLinesKv {
 
             offset += captures.get(0).expect("capture").len();
 
-            debug_print_string(format!("logKey {}", captures.get(1).expect("capture")));
+            let log_key = captures.get(1).expect("capture");
 
             let captures = PROPS_START_RE.captures(&value[offset..], &mut mem);
+
+            let mut props = Vec::new();
 
             if let Some(captures) = captures {
                 offset += captures.get(0).expect("capture").len();
@@ -133,7 +141,16 @@ impl HumanReadable for ParsedLogLinesKv {
                         let key = captures.get(1).expect("capture");
                         let value = captures.get(2).expect("capture");
 
-                        debug_print_string(format!("prop {key}: {value}"));
+                        let key = serializer.create_string(key);
+                        let value = serializer.create_string(value);
+
+                        props.push(Prop::create(
+                            serializer.buffer_builder(),
+                            &PropArgs {
+                                key: Some(key),
+                                value: Some(value),
+                            },
+                        ));
 
                         offset += captures.get(0).expect("capture").len();
                     } else {
@@ -144,6 +161,8 @@ impl HumanReadable for ParsedLogLinesKv {
 
             let captures = EXTRA_START_RE.captures(&value[offset..], &mut mem);
 
+            let mut extras = Vec::new();
+
             if let Some(captures) = captures {
                 offset += captures.get(0).expect("capture").len();
 
@@ -152,6 +171,8 @@ impl HumanReadable for ParsedLogLinesKv {
 
                     if let Some(captures) = captures {
                         let value = captures.get(1).expect("capture");
+
+                        extras.push(serializer.create_string(value));
 
                         offset += captures.get(0).expect("capture").len();
                     } else {
@@ -166,7 +187,35 @@ impl HumanReadable for ParsedLogLinesKv {
                 panic!("not parsed {}", &value[offset..]);
             }
 
-            todo!()
+            let ts_str = serializer.create_string(ts_str);
+            let logger_key = serializer.create_string(logger_key);
+            let log_key = serializer.create_string(log_key);
+            let props = serializer.create_vector(&props);
+            let extras = serializer.create_vector(&extras);
+
+            let parsed_log_line = ParsedLogLine::create(
+                serializer.buffer_builder(),
+                &ParsedLogLineArgs {
+                    log_level,
+                    timestamp_string: Some(ts_str),
+                    timestamp_milliseconds: ts_ms,
+                    timestamp_microseconds: ts_micro,
+                    logger_key: Some(logger_key),
+                    log_key: Some(log_key),
+                    props: Some(props),
+                    extra: Some(extras),
+                },
+            );
+
+            let parsed_log_line = serializer.finish(parsed_log_line);
+
+            unsafe {
+                *input_and_output.value = BytesSlice::from(parsed_log_line.as_bytes());
+            }
+
+            forget(parsed_log_line);
+
+            Ok(ErrorCode::Ok)
         })
     }
 
