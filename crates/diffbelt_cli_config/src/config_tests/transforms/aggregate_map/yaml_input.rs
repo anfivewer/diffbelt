@@ -24,7 +24,8 @@ pub async fn yaml_test_vars_to_aggregate_map_input(
         .ok_or_else(|| YamlTestVarsError::Unspecified("input should be a sequence".to_string()))?;
 
     let source_items_len = source_items.items.len();
-    serializer.start_vector::<WIPOffset<AggregateMapMultiInput>>(source_items_len);
+
+    let mut source_items_wip = Vec::with_capacity(source_items_len);
 
     for source_item in source_items {
         let source_item = source_item.as_mapping().ok_or_else(|| {
@@ -116,10 +117,10 @@ pub async fn yaml_test_vars_to_aggregate_map_input(
             },
         );
 
-        serializer.push(item);
+        source_items_wip.push(item);
     }
 
-    let items = serializer.end_vector(source_items_len);
+    let items = serializer.create_vector(&source_items_wip);
 
     let input = AggregateMapMultiInput::create(
         serializer.buffer_builder(),

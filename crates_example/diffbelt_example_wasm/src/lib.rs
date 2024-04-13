@@ -1,6 +1,7 @@
 #![cfg_attr(all(target_arch = "wasm32", not(test)), no_std)]
 
 extern crate alloc;
+extern crate core;
 
 #[cfg(all(target_arch = "wasm32", not(test)))]
 define_panic_handler!();

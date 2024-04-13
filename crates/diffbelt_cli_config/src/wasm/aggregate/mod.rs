@@ -102,39 +102,41 @@ impl<'a> AggregateFunctions<'a> {
         &self,
         input: FlatbufferAnnotated<&[u8], AggregateMapMultiInput<'static>>,
         buffer_holder: &mut Option<Vec<u8>>,
-    ) -> Result<OwnedSerialized<AggregateMapMultiOutput>, WasmError> {
+    ) -> Result<OwnedSerialized<'static, AggregateMapMultiOutput<'static>>, WasmError> {
         let wasm_slice = self
             .input_vector
             .replace_with_slice_and_return_slice(input.value)
             .await?;
 
-        let mut store = self.instance.store.try_borrow_mut()?;
-        let store = store.deref_mut();
-
         {
-            let memory = self
-                .instance
-                .allocation
-                .memory
-                .data_mut(store.as_context_mut());
-            () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
+            let mut store = self.instance.store.try_borrow_mut()?;
+            let store = store.deref_mut();
+
+            {
+                let memory = self
+                    .instance
+                    .allocation
+                    .memory
+                    .data_mut(store.as_context_mut());
+                () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
+            }
+
+            let error_code = self
+                .map
+                .call_async(
+                    store.as_context_mut(),
+                    (self.bytes_slice.ptr, self.output_vector.ptr),
+                )
+                .await?;
+
+            let error_code = ErrorCode::from_repr(error_code);
+            let ErrorCode::Ok = error_code else {
+                return Err(WasmError::Unspecified(format!(
+                    "MapFilterFunction error code {:?}",
+                    error_code
+                )));
+            };
         }
-
-        let error_code = self
-            .map
-            .call_async(
-                store.as_context_mut(),
-                (self.bytes_slice.ptr, self.output_vector.ptr),
-            )
-            .await?;
-
-        let error_code = ErrorCode::from_repr(error_code);
-        let ErrorCode::Ok = error_code else {
-            return Err(WasmError::Unspecified(format!(
-                "MapFilterFunction error code {:?}",
-                error_code
-            )));
-        };
 
         let buffer = self.instance.enter_memory_observe_context(|memory| {
             let output = self.bytes_slice.ptr.access(memory)?;

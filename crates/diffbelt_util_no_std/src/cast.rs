@@ -49,6 +49,11 @@ pub fn u8_to_u64(value: u8) -> u64 {
 }
 
 #[inline(always)]
+pub fn u8_to_char(value: u8) -> char {
+    value as char
+}
+
+#[inline(always)]
 pub fn u8_to_usize(value: u8) -> usize {
     value as usize
 }

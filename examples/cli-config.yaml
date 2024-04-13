@@ -495,10 +495,49 @@ tests:
               updateType: edited_message
               ms: 27
 
+        - source_key: 2023-02-22T21:42:48.822Z.000 master4242
+          source_old_value: |
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1677102168822
+            tsMicro: 0
+            loggerKey: master4242:middlewares
+            logKey: handleFull
+            props:
+              updateType: edited_message
+              ms: 27
+          source_new_value: !none
+
+        - source_key: 2023-02-22T21:42:48.822Z.000 master4242
+          source_old_value: |
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1677102168822
+            tsMicro: 0
+            loggerKey: master4242:middlewares
+            logKey: handleFull
+            props:
+              updateType: edited_message
+              ms: 27
+          source_new_value: |
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1677102168822
+            tsMicro: 0
+            loggerKey: master4242:something
+            logKey: newKey
+            props:
+              updateType: edited_message
+              ms: 27
+
       output:
         - target_key: 2023-02-20
-          mapped_value: worker#:middlewares::handleFull::S
+          mapped_value: +worker#:middlewares::handleFull::S
         - target_key: 2023-02-21
-          mapped_value: main:middlewares::noTranslation::S
+          mapped_value: +main:middlewares::noTranslation::S
         - target_key: 2023-02-22
-          mapped_value: master#:middlewares::handleFull::S
+          mapped_value: +master#:middlewares::handleFull::S
+        - target_key: 2023-02-22
+          mapped_value: |-
+            -master#:middlewares::handleFull::S
+            +master#:something::newKey::S

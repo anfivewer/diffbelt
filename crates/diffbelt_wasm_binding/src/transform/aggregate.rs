@@ -22,10 +22,7 @@ pub trait Aggregate<
             Annotated<AggregateMapMultiInput, (SourceKey, SourceValue)>,
             Annotated<AggregateMapMultiOutput, (TargetKey, MappedValue)>,
         >,
-        buffer: FlatbufferAnnotated<
-            *mut BytesVecRawParts,
-            Annotated<AggregateMapMultiOutput, (TargetKey, MappedValue)>,
-        >,
+        buffer: *mut BytesVecRawParts,
     ) -> ErrorCode;
 
     extern "C" fn initial_accumulator(

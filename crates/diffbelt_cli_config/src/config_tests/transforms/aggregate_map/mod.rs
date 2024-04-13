@@ -1,11 +1,14 @@
 mod yaml_input;
 
-use diffbelt_protos::protos::transform::aggregate::AggregateMapMultiInput;
+use diffbelt_protos::protos::transform::aggregate::{
+    AggregateMapMultiInput, AggregateMapMultiOutput,
+};
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_yaml::YamlNode;
 use std::borrow::Cow;
 
+use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 use std::rc::Rc;
 
 use crate::config_tests::error::{AssertError, TestError};
@@ -163,10 +166,7 @@ pub struct AggregateMapTransformTest<'a> {
 }
 
 type Input = OwnedSerialized<'static, AggregateMapMultiInput<'static>>;
-type Output<'a> = (
-    WasmVecHolder<'a>,
-    Vec<(BytesSlice<WasmPtrImpl>, Option<BytesSlice<WasmPtrImpl>>)>,
-);
+type Output = OwnedSerialized<'static, AggregateMapMultiOutput<'static>>;
 type ActualOutput<'a> = Vec<(WasmVecHolder<'a>, Option<WasmVecHolder<'a>>)>;
 type ExpectedOutput<'a> = Vec<(&'a str, Option<&'a str>)>;
 
@@ -179,11 +179,16 @@ impl<'a> AggregateMapTransformTest<'a> {
         Ok(serialized)
     }
 
-    fn input_to_output(&'a self, _input: Input) -> Result<Output<'a>, TestError> {
-        todo!()
+    async fn input_to_output(&self, input: Input) -> Result<Output, TestError> {
+        let result = self
+            .aggregate
+            .call_map(FlatbufferAnnotated::from(input.as_bytes()), &mut None)
+            .await?;
+
+        Ok(result)
     }
 
-    fn output_to_actual_output(&self, _output: Output<'a>) -> Result<ActualOutput<'a>, TestError> {
+    fn output_to_actual_output(&self, _output: Output) -> Result<ActualOutput<'a>, TestError> {
         todo!()
     }
 
@@ -210,7 +215,7 @@ impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
         expected_output: &Rc<YamlNode>,
     ) -> Result<Option<AssertError>, TestError> {
         let input = self.input_from_test_vars(&input).await?;
-        let output = self.input_to_output(input)?;
+        let output = self.input_to_output(input).await?;
         let actual_output = self.output_to_actual_output(output)?;
         let expected_output = self.expected_output_from_test_vars(&expected_output)?;
         let comparison =
