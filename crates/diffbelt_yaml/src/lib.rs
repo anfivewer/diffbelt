@@ -1,19 +1,12 @@
-pub mod node_helpers;
-pub mod serde;
-#[cfg(test)]
-mod tests;
-
-pub use crate::serde::decode_yaml;
-use diffbelt_util_no_std::cast::{
-    checked_positive_i32_to_usize, checked_positive_isize_to_usize, usize_to_u64,
-};
 use std::ffi::CStr;
+use std::fmt::Write;
 use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::slice::from_raw_parts;
 use std::str::from_utf8;
+
 use thiserror::Error;
 use unsafe_libyaml::{
     yaml_document_delete, yaml_document_t, yaml_encoding_t, yaml_mark_t, yaml_node_item_t,
@@ -21,6 +14,18 @@ use unsafe_libyaml::{
     yaml_parser_load, yaml_parser_set_encoding, yaml_parser_set_input_string, yaml_parser_t,
     yaml_stack_t,
 };
+
+use diffbelt_util_no_std::cast::{
+    checked_positive_i32_to_usize, checked_positive_isize_to_usize, usize_to_u64,
+};
+
+pub use crate::serde::decode_yaml;
+
+pub mod node_helpers;
+pub mod serde;
+mod serialization;
+#[cfg(test)]
+mod tests;
 
 #[derive(Error, Debug)]
 pub enum YamlParsingError {
@@ -35,6 +40,14 @@ pub enum YamlParsingError {
     // TODO: use streaming parsed variant, show error position
     #[error("Parsing")]
     Parsing,
+}
+
+#[derive(Error, Debug)]
+pub enum YamlSerializationError {
+    #[error("EmitterInitializationFailed")]
+    EmitterInitializationFailed,
+    #[error("EmitterOpenFailed")]
+    EmitterOpenFailed,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

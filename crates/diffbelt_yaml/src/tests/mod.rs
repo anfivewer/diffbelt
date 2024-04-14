@@ -1,6 +1,7 @@
 use crate::parse_yaml;
 
 mod multiline;
+mod serialization;
 
 #[test]
 fn parse_cli_config() {
