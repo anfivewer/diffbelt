@@ -48,6 +48,12 @@ pub enum YamlSerializationError {
     EmitterInitializationFailed,
     #[error("EmitterOpenFailed")]
     EmitterOpenFailed,
+    #[error("EmitterFlushFailed")]
+    EmitterFlushFailed,
+    #[error("EmitterEmitFailed")]
+    EmitterEmitFailed,
+    #[error("Unknown")]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
