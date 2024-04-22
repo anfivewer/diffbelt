@@ -273,7 +273,8 @@ impl<'a> AggregateMapTransformTest<'a> {
 
         () = seq.serialize(&mut result)?;
 
-        Ok(result)
+        // Ok(result)
+        todo!("call aggregate.human_readable.mapped_key_from_bytes, mapped_value_from_bytes, not just interpret them as strings")
     }
 
     fn expected_output_from_test_vars(
