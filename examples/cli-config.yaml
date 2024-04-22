@@ -501,7 +501,7 @@ tests:
             tsStr: 2023-02-20T21:42:48.822Z.000
             tsMs: 1677102168822
             tsMicro: 0
-            loggerKey: master4242:middlewares
+            loggerKey: without_colon
             logKey: handleFull
             props:
               updateType: edited_message
@@ -538,7 +538,7 @@ tests:
         - target_key: 2023-02-22
           mapped_value: +master#:middlewares::handleFull::S
         - target_key: 2023-02-22
-          mapped_value: -master#:middlewares::handleFull::S
+          mapped_value: -without_colon::handleFull::S
         - target_key: 2023-02-22
           mapped_value: |-
             -master#:middlewares::handleFull::S

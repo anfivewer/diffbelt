@@ -1,8 +1,8 @@
-use crate::types::{ParsedLogLinesKey, ParsedLogLinesValue};
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
 use core::str::from_utf8;
+
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput,
     AggregateMapMultiOutputArgs, AggregateMapOutput, AggregateMapOutputArgs, AggregateReduceInput,
@@ -17,6 +17,8 @@ use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 use diffbelt_wasm_binding::transform::aggregate::Aggregate;
 use diffbelt_wasm_binding::Regex;
+
+use crate::types::{ParsedLogLinesKey, ParsedLogLinesValue};
 
 struct ParsedLogLinesDay;
 
@@ -178,11 +180,11 @@ fn map_source_value(
         .expect("cannot write");
 
     lazy_static::lazy_static! {
-        static ref LOGGER_KEY_RE: Regex = Regex::new(r"^(.*)\d*$").expect("Cannot build LOGGER_KEY_RE");
+        static ref LOGGER_KEY_RE: Regex = Regex::new(r"^(.*?)\d+(:.*)?$").expect("Cannot build LOGGER_KEY_RE");
     }
 
     let logger_key = LOGGER_KEY_RE
-        .replace_one(value.logger_key().expect("no log key"), "$1")
+        .replace_one(value.logger_key().expect("no log key"), "$1#$2")
         .expect("logger_key regexp");
 
     () = output.write_str(logger_key.as_ref()).expect("cannot write");

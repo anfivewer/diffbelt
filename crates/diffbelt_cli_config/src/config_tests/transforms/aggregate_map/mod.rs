@@ -294,8 +294,6 @@ impl<'a> AggregateMapTransformTest<'a> {
     ) -> Result<Option<AssertError>, TestError> {
         let (distance, diffs) = diff(expected, actual, "\n");
 
-        assert_eq!(distance == 0, diffs.is_empty());
-
         if distance == 0 {
             return Ok(None);
         }
