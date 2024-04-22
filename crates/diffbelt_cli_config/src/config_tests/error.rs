@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::str::Utf8Error;
+use text_diff::Difference;
 
 use thiserror::Error;
 
@@ -7,6 +8,7 @@ use diffbelt_protos::InvalidFlatbuffer;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util_no_std::impl_from_either;
 use diffbelt_util_no_std::slice::SliceOffsetError;
+use diffbelt_yaml::YamlSerializationError;
 
 use crate::config_tests::value::{ScalarParseError, YamlValueConstructionError};
 use crate::formats::human_readable::HumanReadableError;
@@ -18,6 +20,9 @@ pub enum AssertError {
         message: Cow<'static, str>,
         expected: Option<String>,
         actual: Option<String>,
+    },
+    HasDiff {
+        diffs: Vec<Difference>,
     },
 }
 
@@ -49,6 +54,8 @@ pub enum TestError {
     HumanReadable(#[from] HumanReadableError),
     #[error(transparent)]
     YamlTestVars(#[from] YamlTestVarsError),
+    #[error(transparent)]
+    YamlSerialization(#[from] YamlSerializationError),
 }
 
 impl_from_either!(TestError);

@@ -26,7 +26,7 @@ pub(crate) unsafe fn emit_sequence(
     let result = yaml_emitter_emit(ctx.emitter, event);
     () = check_error(result.ok, ctx.emitter)?;
 
-    for node in sequence.items.as_ref() {
+    for node in &sequence.items {
         () = node.serialize_node(ctx)?;
     }
 

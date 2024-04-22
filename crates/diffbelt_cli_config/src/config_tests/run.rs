@@ -1,8 +1,12 @@
+use text_diff::Difference;
+use thiserror::Error;
+
+use diffbelt_yaml::YamlParsingError;
+
+use crate::config_tests::error::AssertError;
 use crate::config_tests::{SingleTestResult, TestResult};
 use crate::errors::ConfigParsingError;
 use crate::CliConfig;
-use diffbelt_yaml::YamlParsingError;
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum RunTestsError {
@@ -45,7 +49,36 @@ pub async fn run_tests(config: &CliConfig) -> Result<bool, RunTestsError> {
             };
 
             if let Some(err) = result {
-                println!("[FAIL] {function_name} > {name}:\n{:#?}", err);
+                println!("[FAIL] {function_name} > {name}:");
+
+                match err {
+                    AssertError::ValueMissmatch { .. } => {
+                        println!("{err:#?}");
+                    }
+                    AssertError::HasDiff { diffs } => {
+                        fn print_diff_line(prefix: &str, s: &str) {
+                            let lines = s.split("\n");
+                            for line in lines {
+                                println!("{prefix}{line}");
+                            }
+                        }
+
+                        for difference in diffs {
+                            match difference {
+                                Difference::Same(s) => {
+                                    print_diff_line("    ", &s);
+                                }
+                                Difference::Add(s) => {
+                                    print_diff_line("  + ", &s);
+                                }
+                                Difference::Rem(s) => {
+                                    print_diff_line("  - ", &s);
+                                }
+                            }
+                        }
+                    }
+                }
+
                 is_ok = false;
             } else {
                 println!("[ OK ] {function_name} > {name}");

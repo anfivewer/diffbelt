@@ -111,7 +111,7 @@ pub struct YamlScalar {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct YamlSequence {
-    pub items: Rc<Vec<Rc<YamlNode>>>,
+    pub items: Vec<Rc<YamlNode>>,
 }
 
 struct ParsingState {
@@ -119,6 +119,12 @@ struct ParsingState {
 }
 
 impl YamlSequence {
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            items: Vec::with_capacity(capacity),
+        }
+    }
+
     unsafe fn from_yaml_stack_t(
         state: &mut ParsingState,
         root_stack: *const yaml_stack_t<yaml_node_t>,
@@ -131,7 +137,7 @@ impl YamlSequence {
 
         if stack.top == stack.start {
             return Ok(Self {
-                items: Rc::new(items),
+                items,
             });
         }
 
@@ -149,7 +155,7 @@ impl YamlSequence {
         }
 
         Ok(Self {
-            items: Rc::new(items),
+            items,
         })
     }
 }
@@ -170,6 +176,12 @@ pub struct YamlMapping {
 }
 
 impl YamlMapping {
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            items: Vec::with_capacity(capacity),
+        }
+    }
+
     unsafe fn from_yaml_stack_t(
         state: &mut ParsingState,
         root_stack: *const yaml_stack_t<yaml_node_t>,

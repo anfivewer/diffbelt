@@ -538,6 +538,8 @@ tests:
         - target_key: 2023-02-22
           mapped_value: +master#:middlewares::handleFull::S
         - target_key: 2023-02-22
+          mapped_value: -master#:middlewares::handleFull::S
+        - target_key: 2023-02-22
           mapped_value: |-
             -master#:middlewares::handleFull::S
             +master#:something::newKey::S

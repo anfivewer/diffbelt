@@ -5,11 +5,14 @@ use diffbelt_protos::protos::transform::aggregate::{
 };
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
-use diffbelt_yaml::YamlNode;
+use diffbelt_yaml::{YamlMapping, YamlMark, YamlNode, YamlNodeValue, YamlScalar, YamlSequence};
 use std::borrow::Cow;
 
+use diffbelt_util::option::lift_result_from_option;
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 use std::rc::Rc;
+use std::str::from_utf8;
+use text_diff::diff;
 
 use crate::config_tests::error::{AssertError, TestError};
 use crate::config_tests::transforms::aggregate_map::yaml_input::yaml_test_vars_to_aggregate_map_input;
@@ -167,8 +170,8 @@ pub struct AggregateMapTransformTest<'a> {
 
 type Input = OwnedSerialized<'static, AggregateMapMultiInput<'static>>;
 type Output = OwnedSerialized<'static, AggregateMapMultiOutput<'static>>;
-type ActualOutput<'a> = Vec<(WasmVecHolder<'a>, Option<WasmVecHolder<'a>>)>;
-type ExpectedOutput<'a> = Vec<(&'a str, Option<&'a str>)>;
+type ActualOutput<'a> = String;
+type ExpectedOutput<'a> = String;
 
 impl<'a> AggregateMapTransformTest<'a> {
     async fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Input, TestError> {
@@ -188,23 +191,116 @@ impl<'a> AggregateMapTransformTest<'a> {
         Ok(result)
     }
 
-    fn output_to_actual_output(&self, _output: Output) -> Result<ActualOutput<'a>, TestError> {
-        todo!()
+    fn output_to_actual_output(&self, output: Output) -> Result<ActualOutput<'a>, TestError> {
+        let output = output.data();
+
+        let Some(items) = output.items() else {
+            return Err(TestError::Unspecified(
+                "No AggregateMapMultiOutput::items".to_string(),
+            ));
+        };
+
+        let mut seq = YamlSequence::with_capacity(items.len());
+
+        let target_key_scalar = Rc::new(YamlNode {
+            value: YamlNodeValue::Scalar(YamlScalar {
+                value: Rc::from("target_key"),
+            }),
+            tag: None,
+            start_mark: YamlMark::empty(),
+        });
+        let mapped_value_scalar = Rc::new(YamlNode {
+            value: YamlNodeValue::Scalar(YamlScalar {
+                value: Rc::from("mapped_value"),
+            }),
+            tag: None,
+            start_mark: YamlMark::empty(),
+        });
+
+        for item in items {
+            let Some(target_key) = item.target_key() else {
+                return Err(TestError::Unspecified(
+                    "No AggregateMapOutput::target_key".to_string(),
+                ));
+            };
+            let mapped_value = item.mapped_value();
+
+            let target_key = from_utf8(target_key.bytes())?;
+            let mapped_value = mapped_value.map(|x| from_utf8(x.bytes()));
+            let mapped_value = lift_result_from_option(mapped_value)?;
+
+            let mut mapping =
+                YamlMapping::with_capacity(if mapped_value.is_some() { 2 } else { 1 });
+
+            let target_key = Rc::new(YamlNode {
+                value: YamlNodeValue::Scalar(YamlScalar {
+                    value: Rc::from(target_key),
+                }),
+                tag: None,
+                start_mark: YamlMark::empty(),
+            });
+
+            mapping.items.push((target_key_scalar.clone(), target_key));
+
+            if let Some(mapped_value) = mapped_value {
+                let mapped_value = Rc::new(YamlNode {
+                    value: YamlNodeValue::Scalar(YamlScalar {
+                        value: Rc::from(mapped_value),
+                    }),
+                    tag: None,
+                    start_mark: YamlMark::empty(),
+                });
+
+                mapping
+                    .items
+                    .push((mapped_value_scalar.clone(), mapped_value));
+            }
+
+            seq.items.push(Rc::new(YamlNode {
+                value: YamlNodeValue::Mapping(mapping),
+                tag: None,
+                start_mark: YamlMark::empty(),
+            }));
+        }
+
+        let seq = YamlNode {
+            value: YamlNodeValue::Sequence(seq),
+            tag: None,
+            start_mark: YamlMark::empty(),
+        };
+
+        let mut result = String::new();
+
+        () = seq.serialize(&mut result)?;
+
+        Ok(result)
     }
 
     fn expected_output_from_test_vars(
         &self,
-        _vars: &'a Rc<YamlNode>,
+        vars: &'a Rc<YamlNode>,
     ) -> Result<ExpectedOutput<'a>, TestError> {
-        todo!()
+        let mut result = String::new();
+
+        () = vars.serialize(&mut result)?;
+
+        Ok(result)
     }
 
     fn compare_actual_and_expected_output(
         &self,
-        _actual: &ActualOutput<'a>,
-        _expected: &ExpectedOutput<'a>,
+        actual: &ActualOutput<'a>,
+        expected: &ExpectedOutput<'a>,
     ) -> Result<Option<AssertError>, TestError> {
-        todo!()
+        let (distance, diffs) = diff(expected, actual, "\n");
+
+        assert_eq!(distance == 0, diffs.is_empty());
+
+        if distance == 0 {
+            return Ok(None);
+        }
+
+        Ok(Some(AssertError::HasDiff { diffs }))
     }
 }
 
