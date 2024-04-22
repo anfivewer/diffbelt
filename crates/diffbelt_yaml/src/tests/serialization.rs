@@ -2,10 +2,17 @@ use crate::parse_yaml;
 
 #[test]
 fn test_serialization() {
-    let config = r#"multiline: |
+    let config = r#"simple: value
+multiline: >
   test
+
   passed
-"#;
+some seq:
+- 1
+- "'with map'":
+    test: passed
+    '"quoted"': kek
+- 3"#;
 
     let docs = parse_yaml(config).expect("parsed");
 

@@ -1,11 +1,10 @@
 use std::ffi::CStr;
-use std::fmt::Write;
 use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::slice::from_raw_parts;
-use std::str::from_utf8;
+use std::str::{from_utf8, Utf8Error};
 
 use thiserror::Error;
 use unsafe_libyaml::{
@@ -46,12 +45,10 @@ pub enum YamlParsingError {
 pub enum YamlSerializationError {
     #[error("EmitterInitializationFailed")]
     EmitterInitializationFailed,
-    #[error("EmitterOpenFailed")]
-    EmitterOpenFailed,
-    #[error("EmitterFlushFailed")]
-    EmitterFlushFailed,
-    #[error("EmitterEmitFailed")]
-    EmitterEmitFailed,
+    #[error("Unspecified({0})")]
+    Unspecified(String),
+    #[error("Utf8({0:?})")]
+    Utf8(#[from] Utf8Error),
     #[error("Unknown")]
     Unknown,
 }
