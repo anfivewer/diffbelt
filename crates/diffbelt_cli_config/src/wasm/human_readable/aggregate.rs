@@ -12,7 +12,7 @@ use crate::wasm::{WasmError, WasmModuleInstance};
 pub struct AggregateHumanReadableFunctions<'a> {
     pub instance: &'a WasmModuleInstance,
     slice_holder: WasmSliceHolder<'a>,
-    mapped_key_from_bytes: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    target_key_from_bytes: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
     mapped_value_from_bytes:
         TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
 }
@@ -20,7 +20,7 @@ pub struct AggregateHumanReadableFunctions<'a> {
 impl<'a> AggregateHumanReadableFunctions<'a> {
     pub async fn new(
         instance: &'a WasmModuleInstance,
-        mapped_key_from_bytes: &str,
+        target_key_from_bytes: &str,
         mapped_value_from_bytes: &str,
     ) -> Result<Self, WasmError> {
         let slice_holder = instance.alloc_slice_holder().await?;
@@ -28,9 +28,9 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
         let mut store = instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
 
-        let mapped_key_from_bytes = instance
+        let target_key_from_bytes = instance
             .instance
-            .get_typed_func(store.as_context_mut(), mapped_key_from_bytes)?;
+            .get_typed_func(store.as_context_mut(), target_key_from_bytes)?;
         let mapped_value_from_bytes = instance
             .instance
             .get_typed_func(store.as_context_mut(), mapped_value_from_bytes)?;
@@ -38,15 +38,15 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
         Ok(Self {
             instance,
             slice_holder,
-            mapped_key_from_bytes,
+            target_key_from_bytes,
             mapped_value_from_bytes,
         })
     }
 
     impl_human_readable_call!(
-        call_mapped_key_from_bytes,
-        mapped_key_from_bytes,
-        "call_mapped_key_from_bytes"
+        call_target_key_from_bytes,
+        target_key_from_bytes,
+        "call_target_key_from_bytes"
     );
     impl_human_readable_call!(
         call_mapped_value_from_bytes,

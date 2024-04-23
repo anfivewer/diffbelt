@@ -24,7 +24,7 @@ pub trait HumanReadable {
 }
 
 pub trait AggregateHumanReadable {
-    extern "C" fn mapped_key_from_bytes(
+    extern "C" fn target_key_from_bytes(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode;

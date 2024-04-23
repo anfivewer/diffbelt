@@ -14,6 +14,6 @@ pub struct Aggregate {
 #[derive(Debug, Deserialize)]
 pub struct AggregateHumanReadable {
     pub wasm: String,
-    pub mapped_key_from_bytes: Option<String>,
+    pub target_key_from_bytes: Option<String>,
     pub mapped_value_from_bytes: Option<String>,
 }

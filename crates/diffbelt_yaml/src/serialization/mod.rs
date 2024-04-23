@@ -12,7 +12,6 @@ use unsafe_libyaml::{
 };
 
 use diffbelt_util_no_std::cast::u64_to_usize;
-use diffbelt_util_no_std::temporary_collection::vec::TempVecType;
 
 use crate::serialization::mapping::emit_mapping;
 use crate::serialization::scalar::emit_scalar;

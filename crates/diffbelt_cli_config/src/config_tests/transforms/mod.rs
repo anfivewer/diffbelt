@@ -54,7 +54,7 @@ pub enum TransformTestImpl<'a> {
 
 #[macro_export]
 macro_rules! call_human_readable_conversion {
-    ($value:expr, $human_readable:ident, $method:ident, $input_vec_holder:ident, $output_vec_holder:ident) => {{
+    ($value:expr, $human_readable:expr, $method:ident, $input_vec_holder:ident, $output_vec_holder:ident) => {{
         () = $input_vec_holder.replace_with_slice($value).await?;
         let slice = $human_readable
             .instance

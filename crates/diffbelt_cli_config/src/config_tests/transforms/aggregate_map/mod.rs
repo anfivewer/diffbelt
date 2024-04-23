@@ -3,18 +3,19 @@ mod yaml_input;
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiInput, AggregateMapMultiOutput,
 };
-use diffbelt_protos::OwnedSerialized;
+use diffbelt_protos::{OwnedSerialized, Vector};
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_yaml::{YamlMapping, YamlMark, YamlNode, YamlNodeValue, YamlScalar, YamlSequence};
 use std::borrow::Cow;
 
+use crate::call_human_readable_conversion;
 use diffbelt_util::option::lift_result_from_option;
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 use std::rc::Rc;
 use std::str::from_utf8;
 use text_diff::diff;
 
-use crate::config_tests::error::{AssertError, TestError};
+use crate::config_tests::error::{AssertError, TestError, YamlTestVarsError};
 use crate::config_tests::transforms::aggregate_map::yaml_input::yaml_test_vars_to_aggregate_map_input;
 use crate::config_tests::transforms::{
     TransformTest, TransformTestCreator, TransformTestCreatorImpl, TransformTestImpl,
@@ -124,11 +125,11 @@ impl<'a> TransformTestCreator<'a> for AggregateMapTransformTestCreator<'a> {
         let aggregate_human_readable = AggregateHumanReadableFunctions::new(
             human_readable_wasm,
             aggregate_human_readable
-                .mapped_key_from_bytes
+                .target_key_from_bytes
                 .as_ref()
                 .ok_or_else(|| {
                     TestError::Unspecified(
-                        "No mapped_key_from_bytes human readable function".to_string(),
+                        "No target_key_from_bytes human readable function".to_string(),
                     )
                 })?
                 .as_str(),
@@ -191,7 +192,7 @@ impl<'a> AggregateMapTransformTest<'a> {
         Ok(result)
     }
 
-    fn output_to_actual_output(&self, output: Output) -> Result<ActualOutput<'a>, TestError> {
+    async fn output_to_actual_output(&self, output: Output) -> Result<ActualOutput<'a>, TestError> {
         let output = output.data();
 
         let Some(items) = output.items() else {
@@ -217,17 +218,48 @@ impl<'a> AggregateMapTransformTest<'a> {
             start_mark: YamlMark::empty(),
         });
 
+        let aggregate_hr_instance = self.aggregate_human_readable.instance;
+
+        let input_vec_holder = aggregate_hr_instance.alloc_vec_holder().await?;
+        let output_vec_holder = aggregate_hr_instance.alloc_vec_holder().await?;
+
         for item in items {
             let Some(target_key) = item.target_key() else {
                 return Err(TestError::Unspecified(
                     "No AggregateMapOutput::target_key".to_string(),
                 ));
             };
+
+            let target_key = call_human_readable_conversion!(
+                target_key.bytes(),
+                self.aggregate_human_readable,
+                call_target_key_from_bytes,
+                input_vec_holder,
+                output_vec_holder
+            )
+            .observe_bytes(aggregate_hr_instance, |bytes| {
+                Ok::<_, TestError>(String::from(from_utf8(bytes)?))
+            })?;
+
             let mapped_value = item.mapped_value();
 
-            let target_key = from_utf8(target_key.bytes())?;
-            let mapped_value = mapped_value.map(|x| from_utf8(x.bytes()));
-            let mapped_value = lift_result_from_option(mapped_value)?;
+            let mapped_value = match mapped_value {
+                None => None,
+                Some(x) => {
+                    let mapped_value = call_human_readable_conversion!(
+                        x.bytes(),
+                        self.aggregate_human_readable,
+                        call_mapped_value_from_bytes,
+                        input_vec_holder,
+                        output_vec_holder
+                    )
+                    .observe_bytes(aggregate_hr_instance, |bytes| {
+                        Ok::<_, TestError>(String::from(from_utf8(bytes)?))
+                    })?;
+
+                    Some(mapped_value)
+                }
+            };
 
             let mut mapping =
                 YamlMapping::with_capacity(if mapped_value.is_some() { 2 } else { 1 });
@@ -273,8 +305,7 @@ impl<'a> AggregateMapTransformTest<'a> {
 
         () = seq.serialize(&mut result)?;
 
-        // Ok(result)
-        todo!("call aggregate.human_readable.mapped_key_from_bytes, mapped_value_from_bytes, not just interpret them as strings")
+        Ok(result)
     }
 
     fn expected_output_from_test_vars(
@@ -311,7 +342,7 @@ impl<'a> TransformTest<'a> for AggregateMapTransformTest<'a> {
     ) -> Result<Option<AssertError>, TestError> {
         let input = self.input_from_test_vars(&input).await?;
         let output = self.input_to_output(input).await?;
-        let actual_output = self.output_to_actual_output(output)?;
+        let actual_output = self.output_to_actual_output(output).await?;
         let expected_output = self.expected_output_from_test_vars(&expected_output)?;
         let comparison =
             self.compare_actual_and_expected_output(&actual_output, &expected_output)?;

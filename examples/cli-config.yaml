@@ -76,7 +76,7 @@ transforms:
       apply: example.aggregateApply
       human_readable:
         wasm: example
-        mapped_key_from_bytes: parsedLogLinesMappedKeyFromBytes
+        target_key_from_bytes: parsedLogLinesTargetKeyFromBytes
         mapped_value_from_bytes: parsedLogLinesMappedValueFromBytes
 
 #  - source: parsed-log-lines

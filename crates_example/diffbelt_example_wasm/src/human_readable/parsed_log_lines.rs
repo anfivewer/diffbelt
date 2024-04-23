@@ -295,8 +295,8 @@ impl HumanReadable for ParsedLogLinesKv {
 }
 
 impl AggregateHumanReadable for ParsedLogLinesKv {
-    #[export_name = "parsedLogLinesMappedKeyFromBytes"]
-    extern "C" fn mapped_key_from_bytes(
+    #[export_name = "parsedLogLinesTargetKeyFromBytes"]
+    extern "C" fn target_key_from_bytes(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
