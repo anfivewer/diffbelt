@@ -2,16 +2,20 @@
 
 extern crate alloc;
 
-use crate::error::{FlatbufferError, InvalidFlatbufferWithBuffer};
 use alloc::vec::Vec;
 use core::marker::PhantomData;
+
 use flatbuffers::{
     FlatBufferBuilder, Follow, ForwardsUOffset, Push, Verifiable, Verifier, VerifierOptions,
 };
 pub use flatbuffers::{InvalidFlatbuffer, Vector, WIPOffset};
 
+use crate::error::{FlatbufferError, InvalidFlatbufferWithBuffer};
+
 pub mod error;
 pub mod protos;
+#[cfg(test)]
+mod tests;
 pub mod util;
 
 pub trait FlatbuffersType<'fbb>: Follow<'fbb> + Verifiable + 'fbb {}

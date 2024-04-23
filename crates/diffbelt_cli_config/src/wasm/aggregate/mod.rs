@@ -25,16 +25,12 @@ pub struct AggregateFunctions<'a> {
         (
             WasmPtr<u8>,
             i32,
-            WasmPtr<u8>,
-            i32,
             WasmPtr<WasmBytesVecRawParts>,
         ),
         i32,
     >,
     merge_accumulators: TypedFunc<
         (
-            WasmPtr<u8>,
-            i32,
             WasmPtr<WasmBytesSlice>,
             i32,
             WasmPtr<WasmBytesVecRawParts>,
@@ -43,10 +39,8 @@ pub struct AggregateFunctions<'a> {
     >,
     apply: TypedFunc<
         (
-            WasmPtr<u8>,
-            i32,
-            WasmPtr<u8>,
-            i32,
+            WasmPtr<WasmBytesVecRawParts>,
+            WasmPtr<WasmBytesSlice>,
             WasmPtr<WasmBytesVecRawParts>,
         ),
         i32,

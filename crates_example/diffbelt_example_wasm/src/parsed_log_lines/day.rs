@@ -110,50 +110,39 @@ impl<'t>
 
     #[export_name = "aggregateInitialAccumulator"]
     extern "C" fn initial_accumulator(
-        _target_info: FlatbufferAnnotated<
+        target_info: FlatbufferAnnotated<
             BytesSlice,
-            Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
+            Annotated<AggregateTargetInfo, (TargetKey<'t>, TargetValue<'t>)>,
         >,
-        _accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
         todo!()
     }
 
     #[export_name = "aggregateReduce"]
     extern "C" fn reduce(
-        _target_info: FlatbufferAnnotated<
-            BytesSlice,
-            Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
-        >,
-        _input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue>>,
-        _accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue<'t>>>,
+        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
         todo!()
     }
 
     #[export_name = "aggregateMergeAccumulators"]
     extern "C" fn merge_accumulators(
-        _target_info: FlatbufferAnnotated<
-            BytesSlice,
-            Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
-        >,
-        _input: SliceRawParts<Annotated<BytesSlice, Accumulator>>,
-        _accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        input: SliceRawParts<Annotated<BytesSlice, Accumulator>>,
+        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
         todo!()
     }
 
     #[export_name = "aggregateApply"]
     extern "C" fn apply(
-        _target_info: FlatbufferAnnotated<
-            BytesSlice,
-            Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
+        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        output: FlatbufferAnnotated<
+            *mut BytesSlice,
+            Annotated<AggregateApplyOutput, TargetValue<'t>>,
         >,
-        _accumulator: Annotated<BytesSlice, Accumulator>,
-        _output: FlatbufferAnnotated<
-            *mut BytesVecRawParts,
-            Annotated<AggregateApplyOutput, TargetValue>,
-        >,
+        buffer: *mut BytesVecRawParts,
     ) -> ErrorCode {
         todo!()
     }
