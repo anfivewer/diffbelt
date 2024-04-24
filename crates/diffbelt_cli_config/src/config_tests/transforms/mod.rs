@@ -12,8 +12,10 @@ use enum_dispatch::enum_dispatch;
 use std::borrow::Cow;
 use std::rc::Rc;
 
+mod aggregate_initial_accumulator;
 pub mod aggregate_map;
 pub mod map_filter;
+mod aggregate_util;
 
 pub struct TransformTestPreCreateOptions<'a, T> {
     pub source_collection: &'a Collection,
@@ -60,5 +62,64 @@ macro_rules! call_human_readable_conversion {
             .instance
             .vec_to_bytes_slice(&$input_vec_holder)?;
         $human_readable.$method(slice, &$output_vec_holder).await?
+    }};
+}
+
+#[macro_export]
+macro_rules! yaml_test_vars_input_required {
+    (
+        name: $name:literal,
+        value: $value:expr,
+        $serializer:ident,
+        human_readable: $human_readable:ident.$method:ident,
+        $input_vec_holder:ident,
+        $output_vec_holder:ident,
+        output_offset: $output_offset:ident,
+    ) => {{
+        let value = $value.ok_or_else(|| {
+            crate::config_tests::error::YamlTestVarsError::Unspecified(
+                concat!($name, " should be a string").to_string(),
+            )
+        })?;
+
+        () = call_human_readable_conversion!(
+            value.as_bytes(),
+            $human_readable,
+            $method,
+            $input_vec_holder,
+            $output_vec_holder
+        )
+        .observe_bytes(instance, |bytes| {
+            $output_offset = Some($serializer.create_vector(bytes));
+
+            Ok::<_, crate::config_tests::error::YamlTestVarsError>(())
+        })?;
+    }};
+}
+
+#[macro_export]
+macro_rules! yaml_test_vars_input_optional {
+    (
+        $value:expr,
+        $serializer:ident,
+        human_readable: $human_readable:ident.$method:ident,
+        $input_vec_holder:ident,
+        $output_vec_holder:ident,
+        output_offset: $output_offset:ident,
+    ) => {{
+        if let Scalar::String(value) = $value {
+            () = call_human_readable_conversion!(
+                value.as_bytes(),
+                $human_readable,
+                $method,
+                $input_vec_holder,
+                $output_vec_holder
+            )
+            .observe_bytes(instance, |bytes| {
+                $output_offset = Some($serializer.create_vector(bytes));
+
+                Ok::<_, crate::config_tests::error::YamlTestVarsError>(())
+            })?;
+        }
     }};
 }

@@ -6,6 +6,7 @@ use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiInput, AggregateMapMultiOutput,
 };
 use diffbelt_protos::OwnedSerialized;
+use diffbelt_util::option::lift_result_from_option;
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 
@@ -21,22 +22,9 @@ pub struct AggregateFunctions<'a> {
     output_vector: WasmVecHolder<'a>,
     map: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
     initial_accumulator: TypedFunc<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
-    reduce: TypedFunc<
-        (
-            WasmPtr<u8>,
-            i32,
-            WasmPtr<WasmBytesVecRawParts>,
-        ),
-        i32,
-    >,
-    merge_accumulators: TypedFunc<
-        (
-            WasmPtr<WasmBytesSlice>,
-            i32,
-            WasmPtr<WasmBytesVecRawParts>,
-        ),
-        i32,
-    >,
+    reduce: TypedFunc<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    merge_accumulators:
+        Option<TypedFunc<(WasmPtr<WasmBytesSlice>, i32, WasmPtr<WasmBytesVecRawParts>), i32>>,
     apply: TypedFunc<
         (
             WasmPtr<WasmBytesVecRawParts>,
@@ -53,7 +41,7 @@ impl<'a> AggregateFunctions<'a> {
         map: &str,
         initial_accumulator: &str,
         reduce: &str,
-        merge_accumulators: &str,
+        merge_accumulators: Option<&str>,
         apply: &str,
     ) -> Result<Self, WasmError> {
         let bytes_slice = instance.alloc_slice_holder().await?;
@@ -72,9 +60,14 @@ impl<'a> AggregateFunctions<'a> {
         let reduce = instance
             .instance
             .get_typed_func(store.as_context_mut(), reduce)?;
-        let merge_accumulators = instance
-            .instance
-            .get_typed_func(store.as_context_mut(), merge_accumulators)?;
+
+        let merge_accumulators = merge_accumulators.map(|merge_accumulators| {
+            instance
+                .instance
+                .get_typed_func(store.as_context_mut(), merge_accumulators)
+        });
+        let merge_accumulators = lift_result_from_option(merge_accumulators)?;
+
         let apply = instance
             .instance
             .get_typed_func(store.as_context_mut(), apply)?;

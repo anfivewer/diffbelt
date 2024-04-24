@@ -33,4 +33,9 @@ pub trait AggregateHumanReadable {
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode;
+
+    extern "C" fn accumulator_from_bytes(
+        input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        buffer: Annotated<*mut BytesVecRawParts, &str>,
+    ) -> ErrorCode;
 }

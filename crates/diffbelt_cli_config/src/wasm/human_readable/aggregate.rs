@@ -15,6 +15,7 @@ pub struct AggregateHumanReadableFunctions<'a> {
     target_key_from_bytes: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
     mapped_value_from_bytes:
         TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    accumulator_from_bytes: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
 }
 
 impl<'a> AggregateHumanReadableFunctions<'a> {
@@ -22,6 +23,7 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
         instance: &'a WasmModuleInstance,
         target_key_from_bytes: &str,
         mapped_value_from_bytes: &str,
+        accumulator_from_bytes: &str,
     ) -> Result<Self, WasmError> {
         let slice_holder = instance.alloc_slice_holder().await?;
 
@@ -34,12 +36,16 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
         let mapped_value_from_bytes = instance
             .instance
             .get_typed_func(store.as_context_mut(), mapped_value_from_bytes)?;
+        let accumulator_from_bytes = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), accumulator_from_bytes)?;
 
         Ok(Self {
             instance,
             slice_holder,
             target_key_from_bytes,
             mapped_value_from_bytes,
+            accumulator_from_bytes,
         })
     }
 
@@ -52,5 +58,10 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
         call_mapped_value_from_bytes,
         mapped_value_from_bytes,
         "call_mapped_value_from_bytes"
+    );
+    impl_human_readable_call!(
+        call_accumulator_from_bytes,
+        accumulator_from_bytes,
+        "call_accumulator_from_bytes"
     );
 }

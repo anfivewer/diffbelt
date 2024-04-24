@@ -69,15 +69,17 @@ transforms:
     target: parsed-log-lines:1d
     reader_name: parsed-log-lines
     aggregate:
-      map: example.aggregateMap
-      initial_accumulator: example.aggregateInitialAccumulator
-      reduce: example.aggregateReduce
-      merge_accumulators: example.aggregateMergeAccumulators
-      apply: example.aggregateApply
+      wasm: example
+      map: aggregateMap
+      initial_accumulator: aggregateInitialAccumulator
+      reduce: aggregateReduce
+      merge_accumulators: aggregateMergeAccumulators
+      apply: aggregateApply
       human_readable:
         wasm: example
         target_key_from_bytes: parsedLogLinesTargetKeyFromBytes
         mapped_value_from_bytes: parsedLogLinesMappedValueFromBytes
+        accumulator_from_bytes: parsedLogLinesAccumulatorFromBytes
 
 #  - source: parsed-log-lines
 #    target: parsed-log-lines:1d
@@ -543,3 +545,24 @@ tests:
           mapped_value: |-
             -master#:middlewares::handleFull::S
             +master#:something::newKey::S
+
+  transforms.parsed_lines_1d.initial_accumulator:
+    - name: empty
+      input:
+        target_key: 2023-02-21
+        target_old_value: !none
+      output:
+        count: 0
+    - name: few
+      input:
+        target_key: 2024-04-25
+        target_old_value:
+          count: 4
+          items:
+            worker#:middlewares::handleFull::S: 3
+            main:middlewares::noTranslation::S: 1
+      output:
+        count: 4
+        items:
+          main:middlewares::noTranslation::S: 1
+          worker#:middlewares::handleFull::S: 3

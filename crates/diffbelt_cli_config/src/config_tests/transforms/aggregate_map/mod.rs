@@ -1,34 +1,33 @@
-mod yaml_input;
+use std::borrow::Cow;
+use std::rc::Rc;
+use std::str::from_utf8;
+
+use text_diff::diff;
 
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiInput, AggregateMapMultiOutput,
 };
-use diffbelt_protos::{OwnedSerialized, Vector};
-use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
+use diffbelt_protos::OwnedSerialized;
+use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 use diffbelt_yaml::{YamlMapping, YamlMark, YamlNode, YamlNodeValue, YamlScalar, YamlSequence};
-use std::borrow::Cow;
 
 use crate::call_human_readable_conversion;
-use diffbelt_util::option::lift_result_from_option;
-use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
-use std::rc::Rc;
-use std::str::from_utf8;
-use text_diff::diff;
-
-use crate::config_tests::error::{AssertError, TestError, YamlTestVarsError};
+use crate::config_tests::error::{AssertError, TestError};
 use crate::config_tests::transforms::aggregate_map::yaml_input::yaml_test_vars_to_aggregate_map_input;
+use crate::config_tests::transforms::aggregate_util::{
+    create_test_aggregate_functions, require_wasm_modules_aggregate,
+};
 use crate::config_tests::transforms::{
     TransformTest, TransformTestCreator, TransformTestCreatorImpl, TransformTestImpl,
     TransformTestPreCreateOptions,
 };
 use crate::transforms::aggregate::Aggregate;
-
 use crate::wasm::aggregate::AggregateFunctions;
 use crate::wasm::human_readable::aggregate::AggregateHumanReadableFunctions;
 use crate::wasm::human_readable::HumanReadableFunctions;
-use crate::wasm::memory::vector::WasmVecHolder;
-use crate::wasm::types::WasmPtrImpl;
 use crate::wasm::WasmModuleInstance;
+
+mod yaml_input;
 
 pub struct AggregateMapTransformTestCreator<'a> {
     data: TransformTestPreCreateOptions<'a, &'a Aggregate>,
@@ -52,108 +51,24 @@ impl<'a> TransformTestCreator<'a> for AggregateMapTransformTestCreator<'a> {
             data,
         } = self.data;
 
-        let Some(source) = &source_collection.human_readable else {
-            return Err(TestError::SourceHasNoHumanReadableFunctions);
-        };
-        let Some(aggregate) = &data.human_readable else {
-            return Err(TestError::AggregateHasNoHumanReadableFunctions);
-        };
-
-        Ok(vec![
-            Cow::Borrowed(source.wasm.as_str()),
-            Cow::Borrowed(aggregate.wasm.as_str()),
-            Cow::Borrowed(data.map.module_name.as_str()),
-            Cow::Borrowed(data.initial_accumulator.module_name.as_str()),
-            Cow::Borrowed(data.reduce.module_name.as_str()),
-            Cow::Borrowed(data.merge_accumulators.module_name.as_str()),
-            Cow::Borrowed(data.apply.module_name.as_str()),
-        ])
+        require_wasm_modules_aggregate(Some(source_collection), None, data)
     }
 
     async fn create(
         self,
         wasm_modules: Vec<&'a WasmModuleInstance>,
     ) -> Result<TransformTestImpl<'a>, TestError> {
-        if wasm_modules.len() != 7 {
-            return Err(TestError::Panic(format!(
-                "wasm_module has wrong size: {}",
-                wasm_modules.len()
-            )));
-        }
-
-        let (
-            source_wasm,
-            human_readable_wasm,
-            map_wasm,
-            _initial_accumulator_wasm,
-            _reduce_wasm,
-            _merge_accumulators_wasm,
-            _apply_wasm,
-        ) = unsafe {
-            (
-                wasm_modules.get_unchecked(0),
-                wasm_modules.get_unchecked(1),
-                wasm_modules.get_unchecked(2),
-                wasm_modules.get_unchecked(3),
-                wasm_modules.get_unchecked(4),
-                wasm_modules.get_unchecked(5),
-                wasm_modules.get_unchecked(6),
-            )
-        };
-
         let TransformTestPreCreateOptions {
             source_collection,
             target_collection: _,
             data,
         } = self.data;
 
-        let source_human_readable = source_collection
-            .human_readable
-            .as_ref()
-            .expect("already checked");
-        let aggregate_human_readable = data.human_readable.as_ref().expect("already checked");
+        let (source_human_readable, _, aggregate, aggregate_human_readable) =
+            create_test_aggregate_functions(Some(source_collection), None, data, wasm_modules)
+                .await?;
 
-        let source_human_readable = source_wasm
-            .human_readable_functions(
-                source_human_readable.key_to_bytes.as_str(),
-                source_human_readable.bytes_to_key.as_str(),
-                source_human_readable.value_to_bytes.as_str(),
-                source_human_readable.bytes_to_value.as_str(),
-            )
-            .await?;
-
-        let aggregate_human_readable = AggregateHumanReadableFunctions::new(
-            human_readable_wasm,
-            aggregate_human_readable
-                .target_key_from_bytes
-                .as_ref()
-                .ok_or_else(|| {
-                    TestError::Unspecified(
-                        "No target_key_from_bytes human readable function".to_string(),
-                    )
-                })?
-                .as_str(),
-            aggregate_human_readable
-                .mapped_value_from_bytes
-                .as_ref()
-                .ok_or_else(|| {
-                    TestError::Unspecified(
-                        "No mapped_value_from_bytes human readable function".to_string(),
-                    )
-                })?
-                .as_str(),
-        )
-        .await?;
-
-        let aggregate = AggregateFunctions::new(
-            map_wasm,
-            data.map.method_name.as_str(),
-            data.initial_accumulator.method_name.as_str(),
-            data.reduce.method_name.as_str(),
-            data.merge_accumulators.method_name.as_str(),
-            data.apply.method_name.as_str(),
-        )
-        .await?;
+        let source_human_readable = source_human_readable.expect("was required");
 
         Ok(TransformTestImpl::AggregateMap(AggregateMapTransformTest {
             source_human_readable,
