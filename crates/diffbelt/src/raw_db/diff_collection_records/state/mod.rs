@@ -6,7 +6,7 @@ use crate::common::{
 };
 use crate::raw_db::diff_collection_records::DiffCursorState;
 use crate::raw_db::RawDbError;
-use crate::util::bytes::to_u32_be_unchecked;
+use crate::util::bytes::read_u32_be;
 use diffbelt_util_no_std::cast::u32_to_usize;
 use rocksdb::{BoundColumnFamily, Direction, IteratorMode, ReadOptions};
 use std::collections::BTreeSet;
@@ -105,7 +105,7 @@ impl<'a> DiffState<'a> {
                 return Ok(DiffStateNewResult::Empty);
             }
 
-            let count = u32_to_usize(to_u32_be_unchecked(&value));
+            let count = u32_to_usize(read_u32_be(&value));
 
             if count > total_count_in_generations_limit {
                 return Ok(DiffStateNewResult::State((
@@ -136,7 +136,7 @@ impl<'a> DiffState<'a> {
                 break;
             }
 
-            let count = u32_to_usize(to_u32_be_unchecked(&value));
+            let count = u32_to_usize(read_u32_be(&value));
 
             if total_count + count > total_count_in_generations_limit {
                 break;

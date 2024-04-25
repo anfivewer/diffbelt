@@ -1,5 +1,5 @@
 use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut};
-use crate::util::bytes::{read_u24, write_u24};
+use crate::util::bytes::{read_u24, write_u24_be};
 use diffbelt_util_no_std::cast::{u32_to_usize, u8_to_usize};
 use std::ops::Deref;
 
@@ -115,7 +115,7 @@ impl OwnedGenerationKey {
             offset += generation_id_bytes.len();
         }
 
-        write_u24(&mut value, offset, key_bytes.len() as u32);
+        write_u24_be(&mut value, offset, key_bytes.len() as u32);
         offset += 3;
         {
             (&mut value[offset..(offset + key_bytes.len())]).copy_from_slice(key_bytes);

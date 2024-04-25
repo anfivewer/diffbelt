@@ -40,11 +40,11 @@ pub(crate) fn require_wasm_modules_aggregate<'a>(
     };
 
     if let Some(collection) = target_collection {
-        let Some(source) = &collection.human_readable else {
+        let Some(target) = &collection.human_readable else {
             return Err(TestError::TargetHasNoHumanReadableFunctions);
         };
 
-        modules.push(Cow::Borrowed(source.wasm.as_str()));
+        modules.push(Cow::Borrowed(target.wasm.as_str()));
     };
 
     let Some(aggregate_human_readable) = &data.human_readable else {

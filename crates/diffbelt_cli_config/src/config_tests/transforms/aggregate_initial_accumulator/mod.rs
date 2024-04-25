@@ -63,13 +63,13 @@ impl<'a> TransformTestCreator<'a> for AggregateInitialAccumulatorTransformTestCr
         wasm_modules: Vec<&'a WasmModuleInstance>,
     ) -> Result<TransformTestImpl<'a>, TestError> {
         let TransformTestPreCreateOptions {
-            source_collection,
-            target_collection: _,
+            source_collection: _,
+            target_collection,
             data,
         } = self.data;
 
         let (_, target_human_readable, aggregate, aggregate_human_readable) =
-            create_test_aggregate_functions(Some(source_collection), None, data, wasm_modules)
+            create_test_aggregate_functions(None, Some(target_collection), data, wasm_modules)
                 .await?;
 
         let target_human_readable = target_human_readable.expect("was required");

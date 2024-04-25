@@ -13,3 +13,13 @@ table ParsedLogLine {
     props: [Prop];
     extra: [string];
 }
+
+table LogTypeWithCount {
+    name: string;
+    count: uint64;
+}
+
+table ParsedLogLine1d {
+    count: uint64;
+    log_types: [LogTypeWithCount];
+}

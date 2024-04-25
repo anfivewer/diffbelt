@@ -2,7 +2,7 @@ use crate::common::constants::{
     MAX_COLLECTION_KEY_LENGTH, MAX_GENERATION_ID_LENGTH, MAX_PHANTOM_ID_LENGTH,
 };
 use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
-use crate::util::bytes::{read_u24, write_u24};
+use crate::util::bytes::{read_u24, write_u24_be};
 use diffbelt_util_no_std::cast::{u32_to_usize, u8_to_usize};
 use std::ops::Range;
 
@@ -254,7 +254,7 @@ impl OwnedRecordKey {
         // reserved for the future, if we will want to change keys format
         value[0] = 0;
 
-        write_u24(&mut value, 1, key_bytes.len() as u32);
+        write_u24_be(&mut value, 1, key_bytes.len() as u32);
 
         let mut offset = 4usize;
 

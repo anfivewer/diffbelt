@@ -17,6 +17,12 @@ collections:
       bytes_to_value: parsedLogLinesBytesToValue
 
   - name: parsed-log-lines:1d
+    human_readable:
+      wasm: example
+      key_to_bytes: parsedLogLines1dKeyToBytes
+      bytes_to_key: parsedLogLines1dBytesToKey
+      value_to_bytes: parsedLogLines1dValueToBytes
+      bytes_to_value: parsedLogLines1dBytesToValue
 
   - name: kicks
   - name: kicks:1h
