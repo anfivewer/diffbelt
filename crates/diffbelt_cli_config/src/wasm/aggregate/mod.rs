@@ -3,7 +3,7 @@ use wasmtime::{AsContextMut, TypedFunc};
 
 use diffbelt_protos::error::map_flatbuffer_error_to_return_buffer;
 use diffbelt_protos::protos::transform::aggregate::{
-    AggregateMapMultiInput, AggregateMapMultiOutput,
+    AggregateMapMultiInput, AggregateMapMultiOutput, AggregateTargetInfo,
 };
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_util::option::lift_result_from_option;
@@ -119,7 +119,7 @@ impl<'a> AggregateFunctions<'a> {
             let error_code = ErrorCode::from_repr(error_code);
             let ErrorCode::Ok = error_code else {
                 return Err(WasmError::Unspecified(format!(
-                    "MapFilterFunction error code {:?}",
+                    "AggregateFunctions::map error code {:?}",
                     error_code
                 )));
             };
@@ -143,5 +143,48 @@ impl<'a> AggregateFunctions<'a> {
             .map_err(map_flatbuffer_error_to_return_buffer(buffer_holder))?;
 
         Ok(result)
+    }
+
+    pub async fn call_initial_accumulator(
+        &self,
+        input: FlatbufferAnnotated<&[u8], AggregateTargetInfo<'static>>,
+        accumulator_holder: &WasmVecHolder<'a>,
+    ) -> Result<(), WasmError> {
+        let wasm_slice = self
+            .input_vector
+            .replace_with_slice_and_return_slice(input.value)
+            .await?;
+
+        {
+            let mut store = self.instance.store.try_borrow_mut()?;
+            let store = store.deref_mut();
+
+            {
+                let memory = self
+                    .instance
+                    .allocation
+                    .memory
+                    .data_mut(store.as_context_mut());
+                () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
+            }
+
+            let error_code = self
+                .initial_accumulator
+                .call_async(
+                    store.as_context_mut(),
+                    (wasm_slice.0.ptr, wasm_slice.0.len, accumulator_holder.ptr),
+                )
+                .await?;
+
+            let error_code = ErrorCode::from_repr(error_code);
+            let ErrorCode::Ok = error_code else {
+                return Err(WasmError::Unspecified(format!(
+                    "AggregateFunctions::initial_accumulator error code {:?}",
+                    error_code
+                )));
+            };
+        }
+
+        Ok(())
     }
 }

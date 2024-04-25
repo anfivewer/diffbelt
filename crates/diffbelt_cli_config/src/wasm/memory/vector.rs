@@ -6,6 +6,7 @@ use crate::wasm::{WasmError, WasmModuleInstance};
 use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
+use either::Either;
 use std::ops::{Deref, DerefMut};
 use wasmtime::AsContextMut;
 
@@ -52,6 +53,45 @@ impl WasmModuleInstance {
 }
 
 impl<'a> WasmVecHolder<'a> {
+    pub fn read_slice(&self) -> Result<WasmBytesSlice, WasmError> {
+        let store = self.instance.store.try_borrow()?;
+        let store = store.deref();
+
+        let memory = self.instance.allocation.memory.data(store);
+        let raw_parts = self.ptr.access(memory)?;
+
+        Ok(WasmBytesSlice(BytesSlice {
+            ptr: raw_parts.0.ptr,
+            len: raw_parts.0.len,
+        }))
+    }
+
+    pub fn observe_slice<T, E: From<WasmError>, F: FnOnce(&[u8]) -> Result<T, E>>(
+        &self,
+        instance: &WasmModuleInstance,
+        fun: F,
+    ) -> Result<T, Either<E, WasmError>> {
+        instance.enter_memory_observe_context(|memory| {
+            let raw_parts = self.ptr.access(memory)?;
+
+            let ptr = try_positive_i32_to_usize(raw_parts.0.ptr.value).ok_or_else(|| {
+                WasmError::Unspecified(format!(
+                    "WasmVecHolder::observe_slice ptr {}",
+                    raw_parts.0.ptr.value
+                ))
+            })?;
+            let len = try_positive_i32_to_usize(raw_parts.0.len).ok_or_else(|| {
+                WasmError::Unspecified(format!(
+                    "WasmVecHolder::observe_slice len {}",
+                    raw_parts.0.len
+                ))
+            })?;
+
+            fun(&memory[ptr..(ptr + len)])
+        })
+    }
+
+    #[deprecated(note = "use read_slice()/observe_slice()")]
     pub fn access(&self) -> Result<WasmBytesSliceResult<'a>, WasmError> {
         let store = self.instance.store.try_borrow()?;
         let store = store.deref();

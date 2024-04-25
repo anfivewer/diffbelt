@@ -23,13 +23,16 @@ pub struct BytesVecWidePtr {
     pub capacity: i32,
 }
 
-#[derive(Pod, Zeroable, Copy, Clone, Debug)]
-#[repr(C, packed)]
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
 pub struct BytesVecRawParts<P: PtrImpl = NativePtrImpl> {
     pub ptr: P::MutPtr<u8>,
     pub len: i32,
     pub capacity: i32,
 }
+
+unsafe impl <P: PtrImpl> Zeroable for BytesVecRawParts<P> {}
+unsafe impl <P: PtrImpl + Copy + 'static> Pod for BytesVecRawParts<P> {}
 
 impl BytesVecRawParts<NativePtrImpl> {
     pub unsafe fn into_empty_vec(self) -> Vec<u8> {

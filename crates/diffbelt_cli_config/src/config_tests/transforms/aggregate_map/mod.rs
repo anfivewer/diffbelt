@@ -86,8 +86,8 @@ pub struct AggregateMapTransformTest<'a> {
 
 type Input = OwnedSerialized<'static, AggregateMapMultiInput<'static>>;
 type Output = OwnedSerialized<'static, AggregateMapMultiOutput<'static>>;
-type ActualOutput<'a> = String;
-type ExpectedOutput<'a> = String;
+type ActualOutput = String;
+type ExpectedOutput = String;
 
 impl<'a> AggregateMapTransformTest<'a> {
     async fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Input, TestError> {
@@ -107,7 +107,7 @@ impl<'a> AggregateMapTransformTest<'a> {
         Ok(result)
     }
 
-    async fn output_to_actual_output(&self, output: Output) -> Result<ActualOutput<'a>, TestError> {
+    async fn output_to_actual_output(&self, output: Output) -> Result<ActualOutput, TestError> {
         let output = output.data();
 
         let Some(items) = output.items() else {
@@ -226,7 +226,7 @@ impl<'a> AggregateMapTransformTest<'a> {
     fn expected_output_from_test_vars(
         &self,
         vars: &'a Rc<YamlNode>,
-    ) -> Result<ExpectedOutput<'a>, TestError> {
+    ) -> Result<ExpectedOutput, TestError> {
         let mut result = String::new();
 
         () = vars.serialize(&mut result)?;
@@ -236,8 +236,8 @@ impl<'a> AggregateMapTransformTest<'a> {
 
     fn compare_actual_and_expected_output(
         &self,
-        actual: &ActualOutput<'a>,
-        expected: &ExpectedOutput<'a>,
+        actual: &ActualOutput,
+        expected: &ExpectedOutput,
     ) -> Result<Option<AssertError>, TestError> {
         let (distance, diffs) = diff(expected, actual, "\n");
 

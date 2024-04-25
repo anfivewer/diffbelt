@@ -11,8 +11,9 @@ use diffbelt_yaml::YamlNode;
 use enum_dispatch::enum_dispatch;
 use std::borrow::Cow;
 use std::rc::Rc;
+use crate::config_tests::transforms::aggregate_initial_accumulator::{AggregateInitialAccumulatorTransformTest, AggregateInitialAccumulatorTransformTestCreator};
 
-mod aggregate_initial_accumulator;
+pub mod aggregate_initial_accumulator;
 pub mod aggregate_map;
 pub mod map_filter;
 mod aggregate_util;
@@ -37,6 +38,7 @@ pub trait TransformTestCreator<'a>: Sized {
 pub enum TransformTestCreatorImpl<'a> {
     MapFilter(MapFilterTransformTestCreator<'a>),
     AggregateMap(AggregateMapTransformTestCreator<'a>),
+    AggregateInitialAccumulator(AggregateInitialAccumulatorTransformTestCreator<'a>),
 }
 
 #[enum_dispatch]
@@ -52,6 +54,7 @@ pub trait TransformTest<'a>: Sized {
 pub enum TransformTestImpl<'a> {
     MapFilter(MapFilterTransformTest<'a>),
     AggregateMap(AggregateMapTransformTest<'a>),
+    AggregateInitialAccumulator(AggregateInitialAccumulatorTransformTest<'a>),
 }
 
 #[macro_export]
@@ -89,7 +92,7 @@ macro_rules! yaml_test_vars_input_required {
             $input_vec_holder,
             $output_vec_holder
         )
-        .observe_bytes(instance, |bytes| {
+        .observe_bytes($human_readable.instance, |bytes| {
             $output_offset = Some($serializer.create_vector(bytes));
 
             Ok::<_, crate::config_tests::error::YamlTestVarsError>(())
@@ -115,7 +118,7 @@ macro_rules! yaml_test_vars_input_optional {
                 $input_vec_holder,
                 $output_vec_holder
             )
-            .observe_bytes(instance, |bytes| {
+            .observe_bytes($human_readable.instance, |bytes| {
                 $output_offset = Some($serializer.create_vector(bytes));
 
                 Ok::<_, crate::config_tests::error::YamlTestVarsError>(())
