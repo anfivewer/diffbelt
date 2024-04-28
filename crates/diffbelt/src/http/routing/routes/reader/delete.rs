@@ -1,12 +1,10 @@
-use crate::collection::methods::delete_reader::DeleteReaderOptions;
 use std::sync::Arc;
 
+use crate::collection::methods::delete_reader::DeleteReaderOptions;
 use crate::collection::Collection;
-
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
 use crate::http::routing::response::Response;
-
 use crate::http::util::response::create_ok_no_error_json_response;
 
 pub async fn delete_reader(

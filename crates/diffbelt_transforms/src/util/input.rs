@@ -1,3 +1,7 @@
+use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
+use diffbelt_types::collection::get_record::GetResponseJsonData;
+use diffbelt_types::collection::put_many::PutManyResponseJsonData;
+
 use crate::base::error::TransformError;
 use crate::base::input::diffbelt_call::{DiffbeltCallInput, DiffbeltResponseBody};
 use crate::base::input::function_eval::{
@@ -6,9 +10,6 @@ use crate::base::input::function_eval::{
     FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput,
 };
 use crate::base::input::InputType;
-use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
-use diffbelt_types::collection::get_record::GetResponseJsonData;
-use diffbelt_types::collection::put_many::PutManyResponseJsonData;
 
 macro_rules! input_type_into_diffbelt {
     ( $method_name:ident, $t:ty, $body_variant:ident ) => {

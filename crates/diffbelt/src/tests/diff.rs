@@ -1,6 +1,7 @@
+use std::collections::{HashMap, HashSet};
+
 use crate::collection::methods::diff::{DiffOk, DiffOptions, ReadDiffCursorOptions};
 use crate::collection::methods::put::CollectionPutManyOptions;
-
 use crate::collection::Collection;
 use crate::common::generation_id::GenerationIdSource;
 use crate::common::{
@@ -13,7 +14,6 @@ use crate::tests::temp_database::TempDatabase;
 use crate::tests::util::manual_generation::wrap_generation;
 use crate::util::bytes::{from_u32_be, increment};
 use crate::util::tokio_runtime::create_main_tokio_runtime;
-use std::collections::{HashMap, HashSet};
 
 const PACK_LIMIT: usize = 20;
 

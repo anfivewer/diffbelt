@@ -1,5 +1,6 @@
-use crate::raw_db::{RawDb, RawDbError};
 use rocksdb::Options;
+
+use crate::raw_db::{RawDb, RawDbError};
 
 impl RawDb {
     pub fn destroy(path: &str) -> Result<(), RawDbError> {

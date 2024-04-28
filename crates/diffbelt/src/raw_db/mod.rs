@@ -1,8 +1,7 @@
-use rocksdb::{ColumnFamilyDescriptor, MergeOperands, Options, DB, DEFAULT_COLUMN_FAMILY_NAME};
-
 use std::cmp::Ordering;
-
 use std::sync::Arc;
+
+use rocksdb::{ColumnFamilyDescriptor, MergeOperands, Options, DB, DEFAULT_COLUMN_FAMILY_NAME};
 
 pub mod commit_generation;
 pub mod contains_existing_collection_record;

@@ -1,14 +1,13 @@
-use crate::context::Context;
+use regex::Regex;
 
+use crate::context::Context;
+use crate::http::custom_errors::no_such_collection_error;
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
 use crate::http::routing::routes::collection::delete::delete_collection;
 use crate::http::routing::routes::collection::get::get_collection;
 use crate::http::routing::{PatternRouteFnResult, PatternRouteOptions};
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
-
-use crate::http::custom_errors::no_such_collection_error;
-use regex::Regex;
 
 fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
     Box::pin(async move {

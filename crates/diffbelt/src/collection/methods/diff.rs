@@ -1,11 +1,11 @@
+use std::marker::PhantomData;
+
 use crate::collection::cursor::diff::get_pack::GetPackOptions;
 use crate::collection::cursor::diff::{DiffCursorNewOptions, DiffCursorPack};
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
-use crate::common::{KeyValueDiff, OwnedGenerationId};
-use std::marker::PhantomData;
-
 use crate::common::generation_id::GenerationIdSource;
+use crate::common::{KeyValueDiff, OwnedGenerationId};
 use crate::database::cursors::diff::{
     AddDiffCursorContinuationData, AddDiffCursorData, DiffCursor,
 };
@@ -17,7 +17,6 @@ use crate::messages::cursors::{
     DatabaseCollectionSpecificCursorsTask, FinishCursorTask, FullyFinishCursorTask,
     GetCursorByPublicIdTask,
 };
-
 use crate::util::async_sync_call::async_sync_call;
 
 type CursorId = Box<str>;

@@ -1,9 +1,9 @@
-use crate::wasm::types::WasmPtr;
-use crate::wasm::WasmError;
 use bytemuck::Pod;
-
 use wasmtime::component::__internal::StoreOpaque;
 use wasmtime::{ValRaw, ValType, WasmTy};
+
+use crate::wasm::types::WasmPtr;
+use crate::wasm::WasmError;
 
 pub mod slice;
 

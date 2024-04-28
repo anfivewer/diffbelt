@@ -1,13 +1,14 @@
+use std::borrow::Cow;
+
+use diffbelt_util::option::lift_result_from_option;
+
 use crate::config_tests::error::TestError;
-use crate::config_tests::transforms::TransformTestPreCreateOptions;
 use crate::transforms::aggregate::{Aggregate, AggregateHumanReadable};
 use crate::wasm::aggregate::AggregateFunctions;
 use crate::wasm::human_readable::aggregate::AggregateHumanReadableFunctions;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::WasmModuleInstance;
 use crate::Collection;
-use diffbelt_util::option::lift_result_from_option;
-use std::borrow::Cow;
 
 async fn create_aggregate_human_readable<'a>(
     human_readable: &'a WasmModuleInstance,
@@ -126,7 +127,6 @@ pub(crate) async fn create_test_aggregate_functions<'a>(
 
     let aggregate_human_readable_wasm = {
         let index = wasm_module_index;
-        wasm_module_index += 1;
         wasm_modules.get(index).ok_or_else(|| {
             TestError::Panic(format!(
                 "wasm_module has wrong size: {}",

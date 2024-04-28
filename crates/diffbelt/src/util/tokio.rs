@@ -1,10 +1,11 @@
-use crate::util::tokio_runtime::create_single_thread_tokio_runtime;
 use std::future::Future;
+use std::thread;
+
+use tokio::task::{JoinError, LocalSet};
 
 #[cfg(feature = "debug_prints")]
 use crate::util::debug_print::debug_print;
-use std::thread;
-use tokio::task::{JoinError, LocalSet};
+use crate::util::tokio_runtime::create_single_thread_tokio_runtime;
 
 pub fn spawn(f: impl Future<Output = ()> + Send + 'static) {
     tokio::spawn(f);
@@ -66,13 +67,14 @@ pub async fn spawn_async_thread_local<
 
 #[cfg(test)]
 mod tests {
-    use crate::common::NeverEq;
-    use crate::util::tokio_runtime::create_main_tokio_runtime;
-
-    use crate::util::tokio::spawn_async_thread_local;
     use std::time::Duration;
+
     use tokio::sync::{oneshot, watch};
     use tokio::time::sleep;
+
+    use crate::common::NeverEq;
+    use crate::util::tokio::spawn_async_thread_local;
+    use crate::util::tokio_runtime::create_main_tokio_runtime;
 
     #[test]
     fn channels_between_threads() {

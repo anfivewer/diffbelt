@@ -4,14 +4,15 @@ use std::collections::VecDeque;
 use std::future::Future;
 use std::ops::DerefMut;
 
+use regex::Regex;
+use wasmtime::{AsContext, AsContextMut, Caller, Linker, Store};
+
 use diffbelt_util_no_std::cast::{
     try_positive_i32_to_usize, try_usize_to_i32, unchecked_usize_to_i32,
 };
 use diffbelt_util_no_std::temporary_collection::vec::{TempVecType, TemporaryVec};
 use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 use diffbelt_wasm_binding::{RegexCapture, ReplaceResult};
-use regex::Regex;
-use wasmtime::{AsContext, AsContextMut, Caller, Linker, Store};
 
 use crate::wasm::types::{
     BytesVecFullTrait, WasmPtr, WasmPtrImpl, WasmPtrToByte, WasmReplaceResult,

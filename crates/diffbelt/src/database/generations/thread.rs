@@ -1,10 +1,14 @@
+use std::sync::Arc;
+use std::time::Duration;
+
+use tokio::sync::mpsc;
+use tokio::time::sleep;
+
 use crate::common::OwnedGenerationId;
 use crate::database::generations::collection::{
     InnerGenerationsCollection, InnerGenerationsCollectionId, NextGenerationLocked,
     NextGenerationScheduleAction,
 };
-use std::sync::Arc;
-
 use crate::database::DatabaseInner;
 use crate::messages::generations::{
     AbortManualGenerationTask, CommitManualGenerationError, CommitManualGenerationTask,
@@ -15,9 +19,6 @@ use crate::messages::generations::{
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::indexed_container::IndexedContainer;
-use std::time::Duration;
-use tokio::sync::mpsc;
-use tokio::time::sleep;
 
 struct GenerationsThreadState {
     database: Arc<DatabaseInner>,

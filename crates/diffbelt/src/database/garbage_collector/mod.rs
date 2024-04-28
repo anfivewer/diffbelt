@@ -1,9 +1,9 @@
-mod collection;
-mod thread;
-
 use crate::database::garbage_collector::thread::run;
 use crate::messages::garbage_collector::DatabaseGarbageCollectorTask;
 use crate::util::async_task_thread::AsyncTaskThread;
+
+mod collection;
+mod thread;
 
 pub async fn start_garbage_collector_task_thread() -> AsyncTaskThread<DatabaseGarbageCollectorTask>
 {

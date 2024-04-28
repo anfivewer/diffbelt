@@ -1,3 +1,11 @@
+use std::convert::Infallible;
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+use hyper::http::HeaderValue;
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Response, Server, StatusCode};
+
 use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::request::HyperRequestWrapped;
@@ -5,13 +13,6 @@ use crate::http::routing::response::{
     BaseResponse, BytesVecResponse, Response as ResponseByRoute, StaticStrResponse, StringResponse,
 };
 use crate::http::routing::StaticRouteOptions;
-use hyper::http::HeaderValue;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server, StatusCode};
-use std::convert::Infallible;
-
-use std::net::SocketAddr;
-use std::sync::Arc;
 
 async fn handle_request(
     context: Arc<Context>,

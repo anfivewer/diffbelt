@@ -3,9 +3,6 @@
 extern crate alloc;
 extern crate core;
 
-#[cfg(all(target_arch = "wasm32", not(test)))]
-define_panic_handler!();
-
 use alloc::vec::Vec;
 use core::str::from_utf8;
 
@@ -19,12 +16,14 @@ use diffbelt_wasm_binding::annotations::serializer::{
 use diffbelt_wasm_binding::annotations::{FlatbufferAnnotated, InputOutputAnnotated};
 #[cfg(all(target_arch = "wasm32", not(test)))]
 use diffbelt_wasm_binding::define_panic_handler;
-
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::transform::map_filter::MapFilter;
 
 use crate::log_lines::parse_log_line_header;
+
+#[cfg(all(target_arch = "wasm32", not(test)))]
+define_panic_handler!();
 
 mod date;
 mod global_allocator;

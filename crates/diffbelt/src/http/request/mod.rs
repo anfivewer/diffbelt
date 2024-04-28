@@ -1,7 +1,9 @@
-use diffbelt_util::http::read_full_body::{into_full_body_as_read, IntoFullBodyAsReadReturn};
-use hyper::{Body, Request as HyperRequest};
-pub use request_trait::*;
 use std::borrow::Cow;
+
+use hyper::{Body, Request as HyperRequest};
+
+use diffbelt_util::http::read_full_body::{into_full_body_as_read, IntoFullBodyAsReadReturn};
+pub use request_trait::*;
 
 mod request_trait;
 

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::str::Utf8Error;
-use text_diff::Difference;
 
+use text_diff::Difference;
 use thiserror::Error;
 
 use diffbelt_protos::InvalidFlatbuffer;

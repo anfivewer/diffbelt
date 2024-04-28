@@ -1,9 +1,9 @@
+use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
+
 use crate::common::{IsByteArray, OwnedPhantomId};
 use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
-
 use crate::util::str_serialization::StrSerializationType;
-use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
 
 pub trait EncodedPhantomIdJsonDataTrait: Sized {
     fn new(phantom_id: OwnedPhantomId, encoding: StrSerializationType) -> Self;

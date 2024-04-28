@@ -2,9 +2,11 @@ mod generated;
 
 pub mod transform {
     pub mod map_filter {
-        pub use super::super::generated::transform::map_filter_generated::*;
         use core::fmt::{Display, Formatter, Write};
+
         use diffbelt_util_no_std::fmt::bytes::fmt_bytes_as_str_or_hex;
+
+        pub use super::super::generated::transform::map_filter_generated::*;
 
         impl Display for MapFilterInput<'_> {
             fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {

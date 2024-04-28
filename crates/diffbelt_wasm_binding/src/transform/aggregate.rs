@@ -1,11 +1,12 @@
-use crate::annotations::{Annotated, FlatbufferAnnotated, InputOutputAnnotated};
-use crate::error_code::ErrorCode;
-use crate::ptr::bytes::{BytesSlice, BytesVecRawParts};
-use crate::ptr::slice::SliceRawParts;
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput, AggregateReduceInput,
     AggregateTargetInfo,
 };
+
+use crate::annotations::{Annotated, FlatbufferAnnotated, InputOutputAnnotated};
+use crate::error_code::ErrorCode;
+use crate::ptr::bytes::{BytesSlice, BytesVecRawParts};
+use crate::ptr::slice::SliceRawParts;
 
 pub trait Aggregate<
     SourceKey,

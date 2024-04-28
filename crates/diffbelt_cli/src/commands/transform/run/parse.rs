@@ -1,7 +1,7 @@
-use crate::commands::transform::run::RunSubcommand;
 use clap::error::ErrorKind;
 use clap::{ArgMatches, Command, Error, FromArgMatches, Subcommand};
 
+use crate::commands::transform::run::RunSubcommand;
 use crate::global::get_global_config;
 
 impl FromArgMatches for RunSubcommand {

@@ -1,6 +1,8 @@
-use crate::http::errors::HttpError;
-use diffbelt_util::http::read_full_body::FullBody;
 use serde::de::DeserializeOwned;
+
+use diffbelt_util::http::read_full_body::FullBody;
+
+use crate::http::errors::HttpError;
 
 pub fn read_json<R: DeserializeOwned>(body: FullBody) -> Result<R, HttpError> {
     // TODO: report more information from error

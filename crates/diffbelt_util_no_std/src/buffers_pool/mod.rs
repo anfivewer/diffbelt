@@ -1,6 +1,6 @@
-pub mod impls;
-
 use alloc::vec::Vec;
+
+pub mod impls;
 
 pub trait PooledBuffer {
     type Item;

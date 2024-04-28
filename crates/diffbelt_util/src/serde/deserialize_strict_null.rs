@@ -11,9 +11,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::serde::deserialize_strict_null::deserialize_strict_null;
     use serde::{Deserialize, Serialize};
     use serde_with::skip_serializing_none;
+
+    use crate::serde::deserialize_strict_null::deserialize_strict_null;
 
     #[derive(Deserialize, Debug)]
     struct WithStrictNull {

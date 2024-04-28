@@ -1,5 +1,6 @@
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
+
 use wasmtime::{Linker, Memory, Store};
 
 use diffbelt_util::Wrap;
@@ -13,15 +14,13 @@ pub mod regex;
 mod util;
 
 pub struct WasmEnv {
-    error: Arc<Mutex<Option<WasmError>>>,
     memory: Arc<Mutex<Option<Memory>>>,
     allocation: Arc<Mutex<Option<Allocation>>>,
 }
 
 impl WasmEnv {
-    pub fn new(error: Arc<Mutex<Option<WasmError>>>) -> Self {
+    pub fn new() -> Self {
         Self {
-            error,
             memory: Wrap::wrap(None),
             allocation: Wrap::wrap(None),
         }
@@ -31,9 +30,10 @@ impl WasmEnv {
         &self,
         store: &mut Store<WasmStoreData>,
         linker: &mut Linker<WasmStoreData>,
-    ) {
-        self.register_debug_wasm_imports(linker);
-        self.register_regex_wasm_imports(store, linker);
+    ) -> Result<(), WasmError> {
+        () = self.register_debug_wasm_imports(linker)?;
+        () = self.register_regex_wasm_imports(store, linker)?;
+        Ok(())
     }
 
     pub fn handle_error<T>(

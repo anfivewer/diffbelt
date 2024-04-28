@@ -1,21 +1,18 @@
-use diffbelt_macro::fn_box_pin_async;
 use regex::Regex;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 
+use diffbelt_macro::fn_box_pin_async;
+
 use crate::context::Context;
-
 use crate::http::data::reader_record::ReaderRecordJsonData;
-
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
 use crate::http::routing::routes::reader::create::create_reader;
 use crate::http::routing::routes::reader::list::list_readers;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
-
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 use crate::http::util::get_collection::get_collection;
-
 use crate::http::validation::ContentTypeValidation;
 
 #[skip_serializing_none]

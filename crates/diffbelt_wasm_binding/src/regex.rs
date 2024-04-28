@@ -1,10 +1,10 @@
 use alloc::borrow::Cow;
 use alloc::string::String;
-use bytemuck::{Pod, Zeroable};
 use core::marker::PhantomData;
 use core::str::from_utf8_unchecked;
 use core::{ptr, slice};
 
+use bytemuck::{Pod, Zeroable};
 use thiserror_no_std::Error;
 
 use crate::ptr::bytes::BytesVecRawParts;

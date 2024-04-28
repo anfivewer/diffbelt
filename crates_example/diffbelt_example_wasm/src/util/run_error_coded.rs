@@ -1,5 +1,6 @@
 use alloc::format;
 use core::fmt::Debug;
+
 use diffbelt_wasm_binding::debug_print_string;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 

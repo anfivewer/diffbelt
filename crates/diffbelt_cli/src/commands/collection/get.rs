@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
+use diffbelt_types::collection::get::GetCollectionResponseJsonData;
+
 use crate::commands::collection::Collection;
 use crate::format::generation_id::format_generation_id;
 use crate::state::CliState;
 use crate::CommandResult;
-use diffbelt_types::collection::get::GetCollectionResponseJsonData;
-use std::sync::Arc;
 
 pub async fn get_collection_command(command: &Collection, state: Arc<CliState>) -> CommandResult {
     let response = state.client.get_collection(&command.name).await.unwrap();

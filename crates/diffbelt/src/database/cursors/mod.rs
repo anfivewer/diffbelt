@@ -1,8 +1,9 @@
+use std::sync::Arc;
+
 use crate::database::config::DatabaseConfig;
 use crate::database::cursors::thread::run;
 use crate::messages::cursors::DatabaseCollectionCursorsTask;
 use crate::util::async_task_thread::AsyncTaskThread;
-use std::sync::Arc;
 
 pub mod collection;
 pub mod diff;

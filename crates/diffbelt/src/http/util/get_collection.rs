@@ -1,7 +1,8 @@
+use std::sync::Arc;
+
 use crate::collection::Collection;
 use crate::context::Context;
 use crate::http::errors::HttpError;
-use std::sync::Arc;
 
 pub async fn get_collection(
     context: &Context,

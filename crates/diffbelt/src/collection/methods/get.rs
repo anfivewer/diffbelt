@@ -1,12 +1,9 @@
 use crate::collection::methods::errors::CollectionMethodError;
-
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::collection::Collection;
-
 use crate::common::{
     KeyValue, OwnedCollectionKey, OwnedCollectionValue, OwnedGenerationId, OwnedPhantomId,
 };
-
 use crate::raw_db::get_collection_record::GetCollectionRecordOptions;
 
 pub struct CollectionGetOptions {

@@ -1,8 +1,10 @@
+use std::fmt::{Display, Formatter};
+
+use thiserror::Error;
+
 use diffbelt_yaml::serde::error::YamlDecodingError;
 use diffbelt_yaml::serde::Mark;
 use diffbelt_yaml::YamlMark;
-use std::fmt::{Display, Formatter};
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ConfigParsingError {

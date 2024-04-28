@@ -1,5 +1,6 @@
-use crate::errors::{ConfigParsingError, ExpectedError};
 use diffbelt_yaml::{YamlMapping, YamlNode, YamlSequence};
+
+use crate::errors::{ConfigParsingError, ExpectedError};
 
 pub fn expect_map(yaml: &YamlNode) -> Result<&YamlMapping, ConfigParsingError> {
     yaml.as_mapping().ok_or_else(|| {

@@ -1,5 +1,6 @@
-use crate::collection::cursor::query::QueryCursorPack;
+use std::sync::Arc;
 
+use crate::collection::cursor::query::QueryCursorPack;
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::database::config::DatabaseConfig;
@@ -7,7 +8,6 @@ use crate::database::cursors::query::QueryCursor;
 use crate::raw_db::query_collection_records::{
     QueryCollectionRecordsOptions, QueryCollectionRecordsResult,
 };
-use std::sync::Arc;
 
 pub struct GetPackOptions {
     pub db: CollectionRawDb,

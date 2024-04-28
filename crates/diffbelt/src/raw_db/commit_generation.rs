@@ -1,8 +1,9 @@
+use rocksdb::WriteBatchWithTransaction;
+
 use crate::collection::constants::COLLECTION_CF_META;
 use crate::common::{GenerationId, IsByteArray};
 use crate::raw_db::update_reader::RawDbUpdateReaderOptions;
 use crate::raw_db::{RawDb, RawDbError};
-use rocksdb::WriteBatchWithTransaction;
 
 pub struct RawDbUpdateReader<'a> {
     pub reader_name: &'a str,

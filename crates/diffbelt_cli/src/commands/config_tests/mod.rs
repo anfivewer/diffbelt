@@ -1,9 +1,12 @@
+use std::sync::Arc;
+
+use clap::Parser;
+
+use diffbelt_cli_config::config_tests::run::run_tests;
+
 use crate::commands::errors::CommandError;
 use crate::state::CliState;
 use crate::CommandResult;
-use clap::Parser;
-use diffbelt_cli_config::config_tests::run::run_tests;
-use std::sync::Arc;
 
 #[derive(Parser, Debug)]
 pub struct Test;

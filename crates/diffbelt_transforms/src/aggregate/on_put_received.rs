@@ -1,9 +1,10 @@
+use std::collections::VecDeque;
+use std::mem;
+
 use diffbelt_protos::protos::transform::aggregate::{AggregateReduceItem, AggregateReduceItemArgs};
 use diffbelt_protos::Serializer;
 use diffbelt_types::collection::put_many::PutManyResponseJsonData;
 use diffbelt_util_no_std::cast::usize_to_u64;
-use std::collections::VecDeque;
-use std::mem;
 
 use crate::aggregate::context::{ApplyingPutContext, HandlerContext};
 use crate::aggregate::on_target_record_received::handle_received_target_record;

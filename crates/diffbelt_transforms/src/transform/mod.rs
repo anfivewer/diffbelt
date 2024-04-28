@@ -1,14 +1,15 @@
-mod r#trait;
+use generational_arena::{Arena, Index};
+
+use diffbelt_util_no_std::buffers_pool::BuffersPool;
+use diffbelt_util_no_std::cast::{u64_to_usize, usize_to_u64};
+pub use r#trait::{Transform, TransformImpl};
 
 use crate::base::action::{Action, ActionType};
 use crate::base::error::TransformError;
 use crate::base::input::{Input, InputType};
 use crate::TransformRunResult;
-use diffbelt_util_no_std::buffers_pool::BuffersPool;
-use diffbelt_util_no_std::cast::{u64_to_usize, usize_to_u64};
-use generational_arena::{Arena, Index};
 
-pub use r#trait::{Transform, TransformImpl};
+mod r#trait;
 
 pub type HandlerResult<This, Context> =
     Result<ActionInputHandlerResult<This, Context>, TransformError>;

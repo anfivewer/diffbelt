@@ -1,8 +1,9 @@
-use crate::CommandResult;
-use clap::{Parser, Subcommand};
 use std::sync::Arc;
 
+use clap::{Parser, Subcommand};
+
 use crate::state::CliState;
+use crate::CommandResult;
 
 #[derive(Parser, Debug)]
 pub struct Collections {

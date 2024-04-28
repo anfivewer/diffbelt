@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 use crate::collection::methods::commit_generation::CommitGenerationOptions;
 use crate::collection::methods::put::CollectionPutManyOptions;
 use crate::collection::methods::query::QueryOptions;
@@ -7,12 +9,10 @@ use crate::common::{
     KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey, OwnedCollectionValue,
     OwnedGenerationId,
 };
+use crate::database::config::DatabaseConfig;
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
 use crate::util::tokio_runtime::create_main_tokio_runtime;
-use std::num::NonZeroUsize;
-
-use crate::database::config::DatabaseConfig;
 
 #[test]
 fn cursors_count_test() {

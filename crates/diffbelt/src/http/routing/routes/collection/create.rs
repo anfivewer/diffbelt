@@ -1,24 +1,21 @@
-use crate::common::constants::MAX_COLLECTION_NAME_LENGTH;
+use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
+use crate::common::constants::MAX_COLLECTION_NAME_LENGTH;
 use crate::context::Context;
 use crate::database::create_collection::{CreateCollectionError, CreateCollectionOptions};
 use crate::http::constants::CREATE_COLLECTION_REQUEST_MAX_BYTES;
-use crate::http::errors::HttpError;
-
-use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
-
-use crate::http::util::read_body::read_limited_body;
-use crate::http::util::read_json::read_json;
-use crate::http::util::response::create_ok_json_response;
-use crate::http::validation::ContentTypeValidation;
-
 use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode,
     EncodedGenerationIdJsonData,
 };
+use crate::http::errors::HttpError;
+use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
+use crate::http::util::read_body::read_limited_body;
+use crate::http::util::read_json::read_json;
+use crate::http::util::response::create_ok_json_response;
+use crate::http::validation::ContentTypeValidation;
 use crate::util::str_serialization::StrSerializationType;
-use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]

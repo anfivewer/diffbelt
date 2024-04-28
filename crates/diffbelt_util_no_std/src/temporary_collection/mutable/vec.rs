@@ -1,10 +1,11 @@
-use crate::temporary_collection::mutable::{
-    TemporaryMutRefCollection, TemporaryMutRefCollectionType,
-};
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 use core::mem;
 use core::mem::ManuallyDrop;
+
+use crate::temporary_collection::mutable::{
+    TemporaryMutRefCollection, TemporaryMutRefCollectionType,
+};
 
 pub struct MutRefVec<T: ?Sized> {
     phantom: PhantomData<T>,

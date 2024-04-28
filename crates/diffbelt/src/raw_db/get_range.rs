@@ -1,5 +1,6 @@
-use crate::raw_db::{RawDb, RawDbError};
 use rocksdb::{Direction, IteratorMode, ReadOptions};
+
+use crate::raw_db::{RawDb, RawDbError};
 
 impl RawDb {
     pub async fn get_range_cf(

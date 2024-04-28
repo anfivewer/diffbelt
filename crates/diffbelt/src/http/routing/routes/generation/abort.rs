@@ -1,19 +1,16 @@
-use diffbelt_macro::fn_box_pin_async;
 use regex::Regex;
 use serde::Deserialize;
 
-use crate::collection::methods::abort_generation::AbortGenerationOptions;
+use diffbelt_macro::fn_box_pin_async;
 
+use crate::collection::methods::abort_generation::AbortGenerationOptions;
 use crate::context::Context;
 use crate::http::constants::READER_REQUEST_MAX_BYTES;
-
 use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_into_generation_id, EncodedGenerationIdJsonData,
 };
-
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
-
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 use crate::http::util::get_collection::get_collection;
 use crate::http::util::read_body::read_limited_body;

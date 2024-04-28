@@ -1,8 +1,8 @@
-use crate::common::{KeyValueDiff, OwnedCollectionValue};
-use crate::http::data::encoded_value::{EncodedValueJsonData, EncodedValueJsonDataTrait};
-
-use crate::http::data::encoded_key::{EncodedKeyJsonData, EncodedKeyJsonDataTrait};
 pub use diffbelt_types::collection::diff::KeyValueDiffJsonData;
+
+use crate::common::{KeyValueDiff, OwnedCollectionValue};
+use crate::http::data::encoded_key::{EncodedKeyJsonData, EncodedKeyJsonDataTrait};
+use crate::http::data::encoded_value::{EncodedValueJsonData, EncodedValueJsonDataTrait};
 
 impl From<KeyValueDiff> for KeyValueDiffJsonData {
     fn from(kv: KeyValueDiff) -> Self {

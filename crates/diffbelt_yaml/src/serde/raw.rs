@@ -1,11 +1,13 @@
-use crate::serde::error::{ExpectError, YamlDecodingError};
-use crate::serde::static_trespass::{save_yaml_node, take_yaml_node};
-use crate::{YamlNode, YamlNodeRc};
+use std::fmt::Formatter;
+use std::rc::Rc;
+
 use serde::de::value::{BorrowedStrDeserializer, U64Deserializer};
 use serde::de::{DeserializeSeed, Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
-use std::fmt::Formatter;
-use std::rc::Rc;
+
+use crate::serde::error::{ExpectError, YamlDecodingError};
+use crate::serde::static_trespass::{save_yaml_node, take_yaml_node};
+use crate::{YamlNode, YamlNodeRc};
 
 pub const RAW_YAML_NODE: &str = "__diffbelt_yaml_raw_yaml_node__private_struct";
 pub const RAW_YAML_NODE_VALUE: &str = "__diffbelt_yaml_raw_yaml_node__private_value";

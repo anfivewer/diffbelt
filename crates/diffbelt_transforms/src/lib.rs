@@ -1,3 +1,5 @@
+pub use transform::{Transform, TransformImpl};
+
 use crate::base::action::Action;
 
 pub mod aggregate;
@@ -7,8 +9,6 @@ pub mod map_filter;
 mod tests;
 mod transform;
 pub mod util;
-
-pub use transform::{Transform, TransformImpl};
 
 #[derive(Debug)]
 pub enum TransformRunResult {

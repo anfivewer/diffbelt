@@ -13,7 +13,6 @@ members = [
 	"crates/diffbelt_http_client",
 	"crates/diffbelt_macro",
 	"crates/diffbelt_transforms",
-	"crates/diffbelt_callstack",
 
 	"crates/diffbelt_example_protos",
 	# Cannot be included yet, we need force target

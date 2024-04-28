@@ -1,6 +1,5 @@
 use crate::common::{GenerationId, KeyValue, OwnedGenerationId, OwnedPhantomId};
 use crate::database::cursors::query::QueryCursor;
-
 use crate::database::cursors::storage::CursorPublicId;
 use crate::raw_db::query_collection_records::LastAndNextRecordKey;
 

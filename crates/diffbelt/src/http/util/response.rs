@@ -1,6 +1,7 @@
+use serde::Serialize;
+
 use crate::http::errors::HttpError;
 use crate::http::routing::response::{BaseResponse, BytesVecResponse, Response, StaticStrResponse};
-use serde::Serialize;
 
 pub fn create_ok_static_str_json_response<E>(str: &'static str) -> Result<Response, E> {
     Ok(Response::StaticStr(StaticStrResponse {

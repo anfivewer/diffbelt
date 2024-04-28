@@ -1,12 +1,11 @@
-use crate::collection::methods::errors::CollectionMethodError;
-use crate::collection::Collection;
-
-use crate::collection::util::reader_value::ReaderValue;
-use crate::common::reader::ReaderRecord;
+use std::str::from_utf8;
 
 use crate::collection::constants::COLLECTION_CF_META;
+use crate::collection::methods::errors::CollectionMethodError;
+use crate::collection::util::reader_value::ReaderValue;
+use crate::collection::Collection;
+use crate::common::reader::ReaderRecord;
 use crate::util::tokio::spawn_blocking_async;
-use std::str::from_utf8;
 
 pub struct ListReadersOk {
     pub items: Vec<ReaderRecord>,

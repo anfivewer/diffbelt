@@ -1,3 +1,11 @@
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::Arc;
+
+use tokio::sync::oneshot;
+use tokio::task::spawn_local;
+
 use crate::common::collection::CollectionName;
 use crate::database::config::DatabaseConfig;
 use crate::database::garbage_collector::collection::GarbageCollectorCollection;
@@ -7,12 +15,6 @@ use crate::messages::garbage_collector::{
 };
 use crate::util::async_task_thread::TaskPoller;
 use crate::util::auto_sender_on_drop::AutoSenderOnDrop;
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::sync::Arc;
-use tokio::sync::oneshot;
-use tokio::task::spawn_local;
 
 struct GarbageCollectorState {
     config: Arc<DatabaseConfig>,

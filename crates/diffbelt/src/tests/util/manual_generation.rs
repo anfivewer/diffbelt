@@ -1,8 +1,9 @@
+use std::future::Future;
+
 use crate::collection::methods::commit_generation::CommitGenerationOptions;
 use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::collection::Collection;
 use crate::common::GenerationId;
-use std::future::Future;
 
 pub async fn wrap_generation(
     collection: &Collection,

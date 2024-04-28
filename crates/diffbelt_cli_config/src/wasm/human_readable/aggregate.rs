@@ -1,9 +1,10 @@
-use crate::impl_human_readable_call;
-use diffbelt_wasm_binding::error_code::ErrorCode;
-
 use std::ops::DerefMut;
+
 use wasmtime::{AsContextMut, TypedFunc};
 
+use diffbelt_wasm_binding::error_code::ErrorCode;
+
+use crate::impl_human_readable_call;
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
@@ -15,7 +16,8 @@ pub struct AggregateHumanReadableFunctions<'a> {
     target_key_from_bytes: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
     mapped_value_from_bytes:
         TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
-    accumulator_from_bytes: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    accumulator_from_bytes:
+        TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
 }
 
 impl<'a> AggregateHumanReadableFunctions<'a> {

@@ -1,3 +1,9 @@
+use serde::Serialize;
+use serde_with::skip_serializing_none;
+
+pub use diffbelt_types::collection::diff::ReaderDiffFromDefJsonData;
+use diffbelt_types::common::reader::UpdateReaderJsonData;
+
 use crate::collection::CommitGenerationUpdateReader;
 use crate::common::reader::ReaderRecord;
 use crate::common::GenerationId;
@@ -8,10 +14,6 @@ use crate::http::data::encoded_generation_id::{
 use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
 use crate::util::str_serialization::StrSerializationType;
-pub use diffbelt_types::collection::diff::ReaderDiffFromDefJsonData;
-use diffbelt_types::common::reader::UpdateReaderJsonData;
-use serde::Serialize;
-use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
 #[derive(Serialize)]

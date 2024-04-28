@@ -1,5 +1,6 @@
-use bytemuck::{Pod, Zeroable};
 use core::marker::PhantomData;
+
+use bytemuck::{Pod, Zeroable};
 
 pub mod serializer;
 pub mod slice;

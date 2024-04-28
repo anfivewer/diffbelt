@@ -16,10 +16,11 @@ use crate::config_tests::transforms::{
 use crate::wasm::{NewWasmInstanceOptions, WasmModuleInstance};
 use crate::CliConfig;
 
+pub mod compare;
 pub mod error;
 pub mod run;
 #[cfg(test)]
-pub(crate) mod tests;
+mod tests;
 pub mod transforms;
 pub mod value;
 

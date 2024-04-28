@@ -1,8 +1,10 @@
-use crate::serde::{Deserializer, WithMark};
-use crate::{decode_yaml, parse_yaml, YamlMark, YamlNodeRc};
+use std::rc::Rc;
+
 use serde::de::Error;
 use serde::Deserialize;
-use std::rc::Rc;
+
+use crate::serde::{Deserializer, WithMark};
+use crate::{decode_yaml, parse_yaml, YamlMark, YamlNodeRc};
 
 #[derive(Debug, Deserialize)]
 struct SimpleStruct {

@@ -1,27 +1,24 @@
+use std::ops::Deref;
+use std::str::from_utf8;
+use std::sync::Arc;
+use std::time::Duration;
+
+use tokio::time::timeout;
+
 use crate::collection::methods::commit_generation::CommitGenerationOptions;
 use crate::collection::methods::get::CollectionGetOptions;
 use crate::collection::methods::put::{CollectionPutManyOptions, CollectionPutOptions};
 use crate::collection::methods::start_generation::StartGenerationOptions;
+use crate::collection::Collection;
 use crate::common::{
     GenerationId, KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey,
     OwnedCollectionValue, OwnedGenerationId,
 };
-
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::database::open::DatabaseOpenOptions;
 use crate::database::Database;
-
 use crate::tests::temp_dir::TempDir;
 use crate::util::tokio_runtime::create_main_tokio_runtime;
-
-use std::ops::Deref;
-
-use std::time::Duration;
-
-use crate::collection::Collection;
-use std::str::from_utf8;
-use std::sync::Arc;
-use tokio::time::timeout;
 
 #[test]
 fn database_test() {

@@ -2,8 +2,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
 use core::str::from_utf8;
-use diffbelt_example_protos::protos::log_line::{ParsedLogLine1d, ParsedLogLine1dArgs};
 
+use diffbelt_example_protos::protos::log_line::{ParsedLogLine1d, ParsedLogLine1dArgs};
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput,
     AggregateMapMultiOutputArgs, AggregateMapOutput, AggregateMapOutputArgs, AggregateReduceInput,
@@ -11,14 +11,14 @@ use diffbelt_protos::protos::transform::aggregate::{
 };
 use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
 use diffbelt_util_no_std::bytes::write_u32_be;
-use diffbelt_util_no_std::cast::{checked_usize_to_i32, try_usize_to_u32, u8_to_char};
+use diffbelt_util_no_std::cast::{try_usize_to_u32, u8_to_char};
 use diffbelt_wasm_binding::annotations::serializer::InputAnnotated;
 use diffbelt_wasm_binding::annotations::{Annotated, FlatbufferAnnotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 use diffbelt_wasm_binding::transform::aggregate::Aggregate;
-use diffbelt_wasm_binding::{debug_print_string, Regex};
+use diffbelt_wasm_binding::Regex;
 
 use crate::types::{ParsedLogLinesKey, ParsedLogLinesValue};
 
@@ -138,11 +138,8 @@ impl<'t>
                     },
                 );
 
-                let SerializedRawParts {
-                    mut buffer,
-                    head,
-                    len,
-                } = serializer.finish(result).into_owned().into_raw_parts();
+                let SerializedRawParts { buffer, head, len } =
+                    serializer.finish(result).into_owned().into_raw_parts();
 
                 let head = try_usize_to_u32(head).expect("too big head");
                 let len = try_usize_to_u32(len).expect("too big len");
@@ -174,28 +171,28 @@ impl<'t>
 
     #[export_name = "aggregateReduce"]
     extern "C" fn reduce(
-        input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue<'t>>>,
-        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        _input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue<'t>>>,
+        _accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
         todo!()
     }
 
     #[export_name = "aggregateMergeAccumulators"]
     extern "C" fn merge_accumulators(
-        input: SliceRawParts<Annotated<BytesSlice, Accumulator>>,
-        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        _input: SliceRawParts<Annotated<BytesSlice, Accumulator>>,
+        _accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
         todo!()
     }
 
     #[export_name = "aggregateApply"]
     extern "C" fn apply(
-        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
-        output: FlatbufferAnnotated<
+        _accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        _output: FlatbufferAnnotated<
             *mut BytesSlice,
             Annotated<AggregateApplyOutput, TargetValue<'t>>,
         >,
-        buffer: *mut BytesVecRawParts,
+        _buffer: *mut BytesVecRawParts,
     ) -> ErrorCode {
         todo!()
     }

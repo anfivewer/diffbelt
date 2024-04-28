@@ -1,11 +1,13 @@
+use std::sync::Arc;
+
+use tokio::task::spawn_blocking;
+
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::OwnedGenerationId;
 use crate::messages::readers::{DatabaseCollectionReadersTask, UpdateReaderTask};
 use crate::raw_db::update_reader::RawDbUpdateReaderOptions;
 use crate::util::async_sync_call::async_sync_call;
-use std::sync::Arc;
-use tokio::task::spawn_blocking;
 
 pub struct UpdateReaderOptions {
     pub reader_name: String,

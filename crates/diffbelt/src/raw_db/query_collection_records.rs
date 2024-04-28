@@ -1,6 +1,5 @@
 use crate::collection::util::record_key::{OwnedRecordKey, RecordKey};
 use crate::common::{GenerationId, KeyValue, OwnedCollectionValue, PhantomId};
-
 use crate::raw_db::query::{
     ContinuationState, QueryDirectionForward, QueryKeyValue, QueryOptions, QueryState,
 };

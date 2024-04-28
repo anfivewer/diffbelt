@@ -1,5 +1,6 @@
-use either::Either;
 use std::ops::Deref;
+
+use either::Either;
 
 use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
 use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;

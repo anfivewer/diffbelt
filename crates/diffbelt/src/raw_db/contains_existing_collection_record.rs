@@ -1,8 +1,9 @@
+use rocksdb::{Direction, IteratorMode, ReadOptions};
+
 use crate::collection::util::record_key::{OwnedRecordKey, RecordKey};
 use crate::common::IsByteArray;
 use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::decrement;
-use rocksdb::{Direction, IteratorMode, ReadOptions};
 
 pub struct ContainsExistingCollectionRecordOptions<'a> {
     pub record_key: RecordKey<'a>,

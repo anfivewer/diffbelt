@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+
 use enum_as_inner::EnumAsInner;
 use flatbuffers::InvalidFlatbuffer;
 use thiserror_no_std::Error;

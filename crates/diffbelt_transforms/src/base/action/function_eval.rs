@@ -1,9 +1,10 @@
+use enum_as_inner::EnumAsInner;
+
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiInput, AggregateReduceInput, AggregateTargetInfo,
 };
 use diffbelt_protos::protos::transform::map_filter::MapFilterMultiInput;
 use diffbelt_protos::OwnedSerialized;
-use enum_as_inner::EnumAsInner;
 
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::common::target_info::TargetInfoId;

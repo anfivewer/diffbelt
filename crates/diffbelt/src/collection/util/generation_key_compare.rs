@@ -1,7 +1,8 @@
+use std::cmp::Ordering;
+
 use crate::collection::util::record_key_compare::{
     record_key_compare_byte_sized, record_key_compare_u24_sized,
 };
-use std::cmp::Ordering;
 
 /*
     1 -- reserved byte

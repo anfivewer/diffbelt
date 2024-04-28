@@ -1,9 +1,11 @@
+use hyper::{Body, Method, Request};
+
+use diffbelt_types::collection::get::GetCollectionResponseJsonData;
+use diffbelt_util::http::read_full_body::into_full_body_as_read;
+
 use crate::client::DiffbeltClient;
 use crate::constants::MAX_GET_COLLECTION_RESPONSE_BYTES;
 use crate::errors::DiffbeltClientError;
-use diffbelt_types::collection::get::GetCollectionResponseJsonData;
-use diffbelt_util::http::read_full_body::into_full_body_as_read;
-use hyper::{Body, Method, Request};
 
 impl DiffbeltClient {
     pub async fn get_collection(

@@ -1,6 +1,7 @@
-use diffbelt_cli_config::CliConfig;
 use std::cell::RefCell;
 use std::rc::Rc;
+
+use diffbelt_cli_config::CliConfig;
 
 thread_local! {
     static CLI_CONFIG: RefCell<Option<Rc<CliConfig>>> = RefCell::new(None);

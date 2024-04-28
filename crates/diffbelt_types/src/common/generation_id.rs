@@ -1,6 +1,7 @@
-use crate::value_encoding_into_bytes;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+
+use crate::value_encoding_into_bytes;
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Clone, Debug)]

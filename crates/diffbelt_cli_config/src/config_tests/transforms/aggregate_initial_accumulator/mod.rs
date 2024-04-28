@@ -2,15 +2,13 @@ use std::borrow::Cow;
 use std::rc::Rc;
 use std::str::from_utf8;
 
-use text_diff::diff;
-
+use crate::config_tests::compare::compare_strings;
 use diffbelt_protos::protos::transform::aggregate::AggregateTargetInfo;
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 use diffbelt_yaml::YamlNode;
 
 use crate::config_tests::error::{AssertError, TestError};
-use crate::config_tests::tests::compare::compare_strings;
 use crate::config_tests::transforms::aggregate_initial_accumulator::yaml_input::yaml_test_vars_to_aggregate_initial_accumulator_input;
 use crate::config_tests::transforms::aggregate_util::{
     create_test_aggregate_functions, require_wasm_modules_aggregate,

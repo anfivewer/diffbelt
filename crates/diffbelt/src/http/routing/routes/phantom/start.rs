@@ -1,18 +1,16 @@
-use diffbelt_macro::fn_box_pin_async;
-use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
 use regex::Regex;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 
+use diffbelt_macro::fn_box_pin_async;
+use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
+
 use crate::context::Context;
 use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonDataTrait;
-
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
-
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 use crate::http::util::get_collection::get_collection;
-
 use crate::http::util::response::create_ok_json_response;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
 use crate::util::str_serialization::StrSerializationType;

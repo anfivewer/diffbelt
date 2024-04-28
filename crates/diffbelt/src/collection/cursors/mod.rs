@@ -1,4 +1,7 @@
 #[cfg(test)]
+use std::marker::PhantomData;
+
+#[cfg(test)]
 use crate::collection::Collection;
 #[cfg(test)]
 use crate::messages::cursors::DatabaseCollectionSpecificCursorsTask;
@@ -6,8 +9,6 @@ use crate::messages::cursors::DatabaseCollectionSpecificCursorsTask;
 use crate::messages::cursors::{DatabaseCollectionCursorsTask, GetCollectionCursorsCountTask};
 #[cfg(test)]
 use crate::util::async_sync_call::async_sync_call;
-#[cfg(test)]
-use std::marker::PhantomData;
 
 #[cfg(test)]
 impl Collection {

@@ -1,7 +1,9 @@
+use std::rc::Rc;
+
+use serde::de::{DeserializeSeed, MapAccess};
+
 use crate::serde::error::{ExpectError, YamlDecodingError};
 use crate::{YamlMapping, YamlNode};
-use serde::de::{DeserializeSeed, MapAccess};
-use std::rc::Rc;
 
 pub struct YamlMappingDe<'de, I: Iterator<Item = &'de (Rc<YamlNode>, Rc<YamlNode>)>> {
     pub mapping: &'de YamlMapping,

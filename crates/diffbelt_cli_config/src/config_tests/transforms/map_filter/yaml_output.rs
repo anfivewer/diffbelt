@@ -1,6 +1,7 @@
+use diffbelt_yaml::YamlNode;
+
 use crate::config_tests::error::YamlTestVarsError;
 use crate::config_tests::value::parse_scalar;
-use diffbelt_yaml::YamlNode;
 
 pub fn yaml_test_output_to_map_filter_expected_output(
     node: &YamlNode,

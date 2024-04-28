@@ -1,14 +1,13 @@
-use diffbelt_macro::fn_box_pin_async;
 use regex::Regex;
 
-use crate::context::Context;
+use diffbelt_macro::fn_box_pin_async;
 
+use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
 use crate::http::routing::routes::diff::abort::abort_cursor;
 use crate::http::routing::routes::diff::next::read_cursor;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
-
 use crate::http::util::common_groups::{id_with_name_group, IdWithNameGroup};
 use crate::http::util::get_collection::get_collection;
 

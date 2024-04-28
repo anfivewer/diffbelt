@@ -1,11 +1,13 @@
-mod run;
-mod run_parse;
+use std::sync::Arc;
+
+use clap::{Parser, Subcommand};
 
 use crate::commands::transform::run::{run_transform_command, Run};
 use crate::state::CliState;
 use crate::CommandResult;
-use clap::{Parser, Subcommand};
-use std::sync::Arc;
+
+mod run;
+mod run_parse;
 
 #[derive(Parser, Debug)]
 pub struct Transform {

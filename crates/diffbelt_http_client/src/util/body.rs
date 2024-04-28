@@ -1,5 +1,6 @@
-use diffbelt_transforms::base::action::diffbelt_call::DiffbeltRequestBody;
 use hyper::Body;
+
+use diffbelt_transforms::base::action::diffbelt_call::DiffbeltRequestBody;
 
 pub enum ExpectedResponseType {
     Ok,

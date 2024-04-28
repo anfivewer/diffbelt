@@ -1,8 +1,9 @@
 use core::marker::PhantomData;
 use core::mem;
 
-use crate::temporary_collection::immutable::{TemporaryRefCollection, TemporaryRefCollectionType};
 use hashbrown::HashMap;
+
+use crate::temporary_collection::immutable::{TemporaryRefCollection, TemporaryRefCollectionType};
 
 pub struct RefHashMap<K: ?Sized + 'static, V: ?Sized + 'static> {
     phantom: PhantomData<(&'static K, &'static V)>,

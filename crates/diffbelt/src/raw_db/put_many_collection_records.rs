@@ -1,12 +1,12 @@
+use rocksdb::WriteBatchWithTransaction;
+
+use crate::collection::constants::{COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE};
 use crate::collection::util::generation_key::OwnedGenerationKey;
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{IsByteArray, OwnedCollectionValue};
-use crate::raw_db::{RawDb, RawDbError};
-
-use crate::collection::constants::{COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE};
 use crate::raw_db::put_collection_record::unwrap_option_ref_or;
+use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::ONE_U32_BE;
-use rocksdb::WriteBatchWithTransaction;
 
 pub struct PutManyCollectionRecordsItem {
     pub record_key: OwnedRecordKey,

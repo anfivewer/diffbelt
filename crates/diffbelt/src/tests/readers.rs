@@ -1,14 +1,10 @@
-use crate::common::OwnedGenerationId;
-
-use crate::database::create_collection::CreateCollectionOptions;
-
-use crate::util::tokio_runtime::create_main_tokio_runtime;
-
 use crate::collection::methods::create_reader::CreateReaderOptions;
 use crate::collection::methods::update_reader::UpdateReaderOptions;
-
 use crate::common::reader::ReaderRecord;
+use crate::common::OwnedGenerationId;
+use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
+use crate::util::tokio_runtime::create_main_tokio_runtime;
 
 #[test]
 fn readers_test() {

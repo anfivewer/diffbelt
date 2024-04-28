@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
+use tokio::sync::{oneshot, watch, RwLock};
+
 use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::common::collection::CollectionName;
 use crate::common::OwnedGenerationId;
 use crate::database::DatabaseInner;
 use crate::util::auto_sender_on_drop::AutoSenderOnDrop;
-use std::sync::Arc;
-use tokio::sync::{oneshot, watch, RwLock};
 
 pub enum GarbageCollectorCommonError {
     SuchCollectionAlreadyExists,

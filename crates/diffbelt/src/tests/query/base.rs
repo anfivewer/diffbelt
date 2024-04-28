@@ -1,3 +1,7 @@
+use std::collections::BTreeMap;
+
+use futures::future::BoxFuture;
+
 use crate::collection::methods::commit_generation::CommitGenerationOptions;
 use crate::collection::methods::put::CollectionPutManyOptions;
 use crate::collection::methods::query::{QueryOk, QueryOptions, ReadQueryCursorOptions};
@@ -10,9 +14,6 @@ use crate::common::{
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
 use crate::util::tokio_runtime::create_main_tokio_runtime;
-use std::collections::BTreeMap;
-
-use futures::future::BoxFuture;
 
 #[test]
 fn query_test() {

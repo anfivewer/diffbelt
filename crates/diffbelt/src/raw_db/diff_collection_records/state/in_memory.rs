@@ -1,9 +1,8 @@
-use crate::common::OwnedCollectionKey;
-
-use crate::raw_db::RawDbError;
-
 use std::collections::btree_set::IntoIter as BTreeSetIntoIter;
 use std::collections::BTreeSet;
+
+use crate::common::OwnedCollectionKey;
+use crate::raw_db::RawDbError;
 
 pub struct InMemoryChangedKeysIter {
     iterator: BTreeSetIntoIter<OwnedCollectionKey>,

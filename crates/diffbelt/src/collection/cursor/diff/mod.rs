@@ -1,6 +1,5 @@
-use crate::common::{KeyValueDiff, OwnedGenerationId};
-
 use crate::common::generation_id::GenerationIdSource;
+use crate::common::{KeyValueDiff, OwnedGenerationId};
 use crate::database::cursors::diff::DiffCursor;
 use crate::database::cursors::storage::CursorPublicId;
 use crate::raw_db::diff_collection_records::DiffCursorState;

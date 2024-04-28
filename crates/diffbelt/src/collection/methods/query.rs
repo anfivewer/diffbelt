@@ -1,14 +1,13 @@
-use crate::collection::methods::errors::CollectionMethodError;
-use crate::collection::Collection;
 use std::marker::PhantomData;
 
 use crate::collection::cursor::query::get_pack::GetPackOptions;
 use crate::collection::cursor::query::{QueryCursorNewOptions, QueryCursorPack};
+use crate::collection::methods::errors::CollectionMethodError;
+use crate::collection::Collection;
 use crate::common::{KeyValue, OwnedGenerationId, OwnedPhantomId};
 use crate::database::cursors::query::{
     AddQueryCursorContinuationData, AddQueryCursorData, QueryCursor,
 };
-
 use crate::database::cursors::storage::{
     CursorPublicId, CursorRef, CursorRefCursor, CursorRefEmpty,
 };

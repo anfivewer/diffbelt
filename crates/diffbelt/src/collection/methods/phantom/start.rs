@@ -2,9 +2,7 @@ use crate::collection::constants::COLLECTION_CF_META;
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::common::{IsByteArray, IsByteArrayMut, OwnedPhantomId};
-
 use crate::util::bytes::increment;
-
 use crate::util::tokio::spawn_blocking_async;
 
 impl Collection {

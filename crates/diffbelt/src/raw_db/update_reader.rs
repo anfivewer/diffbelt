@@ -1,8 +1,9 @@
-use crate::collection::constants::COLLECTION_CF_META;
-use crate::collection::util::reader_value::{OwnedReaderValue, ReaderValue};
-use rocksdb::{BoundColumnFamily, WriteBatchWithTransaction};
 use std::sync::Arc;
 
+use rocksdb::{BoundColumnFamily, WriteBatchWithTransaction};
+
+use crate::collection::constants::COLLECTION_CF_META;
+use crate::collection::util::reader_value::{OwnedReaderValue, ReaderValue};
 use crate::common::reader::ReaderState;
 use crate::common::{GenerationId, IsByteArray};
 use crate::raw_db::{RawDb, RawDbError};

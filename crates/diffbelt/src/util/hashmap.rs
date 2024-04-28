@@ -1,6 +1,7 @@
-use hashbrown::Equivalent;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+
+use hashbrown::Equivalent;
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct ArcStringPair(pub Arc<str>, pub Arc<str>);

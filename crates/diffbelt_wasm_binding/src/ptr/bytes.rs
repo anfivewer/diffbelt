@@ -1,8 +1,9 @@
 use alloc::string::{FromUtf8Error, String};
 use alloc::vec::Vec;
-use bytemuck::{Pod, Zeroable};
 use core::ptr;
 use core::str::{from_utf8, Utf8Error};
+
+use bytemuck::{Pod, Zeroable};
 
 use diffbelt_protos::{FlatbuffersType, OwnedSerialized};
 use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32};
@@ -31,8 +32,8 @@ pub struct BytesVecRawParts<P: PtrImpl = NativePtrImpl> {
     pub capacity: i32,
 }
 
-unsafe impl <P: PtrImpl> Zeroable for BytesVecRawParts<P> {}
-unsafe impl <P: PtrImpl + Copy + 'static> Pod for BytesVecRawParts<P> {}
+unsafe impl<P: PtrImpl> Zeroable for BytesVecRawParts<P> {}
+unsafe impl<P: PtrImpl + Copy + 'static> Pod for BytesVecRawParts<P> {}
 
 impl BytesVecRawParts<NativePtrImpl> {
     pub unsafe fn into_empty_vec(self) -> Vec<u8> {

@@ -1,3 +1,10 @@
+use std::borrow::Cow;
+use std::mem;
+use std::ops::Deref;
+
+use diffbelt_types::collection::generation::CommitGenerationRequestJsonData;
+use diffbelt_types::common::reader::UpdateReaderJsonData;
+
 use crate::aggregate::context::HandlerContext;
 use crate::aggregate::state::State;
 use crate::aggregate::AggregateTransform;
@@ -6,11 +13,6 @@ use crate::base::action::ActionType;
 use crate::base::input::diffbelt_call::DiffbeltCallInput;
 use crate::input_handler;
 use crate::transform::{ActionInputHandlerResult, HandlerResult};
-use diffbelt_types::collection::generation::CommitGenerationRequestJsonData;
-use diffbelt_types::common::reader::UpdateReaderJsonData;
-use std::borrow::Cow;
-use std::mem;
-use std::ops::Deref;
 
 impl AggregateTransform {
     pub fn on_finish(&mut self) -> HandlerResult<Self, HandlerContext> {

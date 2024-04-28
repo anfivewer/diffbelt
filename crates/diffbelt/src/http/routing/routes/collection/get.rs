@@ -1,21 +1,19 @@
-use crate::collection::Collection;
+use std::ops::Deref;
+use std::sync::Arc;
 
+use serde::Serialize;
+use serde_with::skip_serializing_none;
+
+use crate::collection::Collection;
+use crate::database::generations::collection::GenerationIdNextGenerationIdPair;
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
+};
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
 use crate::http::routing::response::Response;
 use crate::http::util::response::create_ok_json_response;
 use crate::util::str_serialization::StrSerializationType;
-
-use serde::Serialize;
-use serde_with::skip_serializing_none;
-
-use std::ops::Deref;
-
-use crate::database::generations::collection::GenerationIdNextGenerationIdPair;
-use crate::http::data::encoded_generation_id::{
-    encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
-};
-use std::sync::Arc;
 
 struct GenerationIdPart {
     generation_id: Option<EncodedGenerationIdJsonData>,

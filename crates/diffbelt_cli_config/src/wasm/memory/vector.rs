@@ -1,14 +1,16 @@
-use crate::wasm::memory::DeallocType;
-use crate::wasm::result::WasmBytesSliceResult;
-use crate::wasm::types::{WasmBytesSlice, WasmPtrToVecRawParts};
+use std::ops::{Deref, DerefMut};
 
-use crate::wasm::{WasmError, WasmModuleInstance};
+use either::Either;
+use wasmtime::AsContextMut;
+
 use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
-use either::Either;
-use std::ops::{Deref, DerefMut};
-use wasmtime::AsContextMut;
+
+use crate::wasm::memory::DeallocType;
+use crate::wasm::result::WasmBytesSliceResult;
+use crate::wasm::types::{WasmBytesSlice, WasmPtrToVecRawParts};
+use crate::wasm::{WasmError, WasmModuleInstance};
 
 pub struct WasmVecHolder<'a> {
     pub instance: &'a WasmModuleInstance,

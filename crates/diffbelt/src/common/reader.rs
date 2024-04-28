@@ -1,5 +1,6 @@
-use crate::common::OwnedGenerationId;
 use std::sync::Arc;
+
+use crate::common::OwnedGenerationId;
 
 pub type ReaderName = Arc<str>;
 

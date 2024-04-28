@@ -1,5 +1,7 @@
-use crate::collection::constants::COLLECTION_CF_META;
+use std::str::from_utf8;
+use std::sync::Arc;
 
+use crate::collection::constants::COLLECTION_CF_META;
 use crate::collection::open::CollectionOpenError;
 use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::collection::util::reader_value::ReaderValue;
@@ -10,8 +12,6 @@ use crate::messages::readers::{
 };
 use crate::util::async_sync_call::async_sync_call;
 use crate::util::tokio::spawn_blocking_async;
-use std::str::from_utf8;
-use std::sync::Arc;
 
 pub async fn init_readers(
     collection_name: CollectionName,

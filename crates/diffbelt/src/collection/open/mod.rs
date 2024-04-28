@@ -1,49 +1,49 @@
-mod init_readers;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
 
-use crate::collection::util::generation_key_compare::generation_key_compare_fn;
-use crate::collection::util::meta_merge::{meta_full_merge, meta_partial_merge};
-use crate::collection::util::phantom_key_compare::phantom_key_compare_fn;
-use crate::collection::util::record_key_compare::record_key_compare_fn;
-use crate::collection::Collection;
-use crate::common::{IsByteArray, OwnedGenerationId, OwnedPhantomId};
+use tokio::pin;
+use tokio::sync::{oneshot, RwLock};
 
 use crate::collection::constants::{
     COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE, COLLECTION_CF_META,
     COLLECTION_CF_PHANTOMS,
 };
 use crate::collection::open::init_readers::init_readers;
+use crate::collection::util::collection_raw_db::wrap_collection_raw_db;
+use crate::collection::util::generation_key_compare::generation_key_compare_fn;
 use crate::collection::util::generation_size_merge::{
     generation_size_full_merge, generation_size_partial_merge,
 };
+use crate::collection::util::meta_merge::{meta_full_merge, meta_partial_merge};
+use crate::collection::util::phantom_key_compare::phantom_key_compare_fn;
+use crate::collection::util::record_key_compare::record_key_compare_fn;
+use crate::collection::Collection;
+use crate::common::{IsByteArray, OwnedGenerationId, OwnedPhantomId};
 use crate::database::config::DatabaseConfig;
 use crate::database::DatabaseInner;
 use crate::messages::cursors::{
     DatabaseCollectionCursorsTask, DropCollectionCursorsTask, NewCollectionCursorsTask,
 };
+use crate::messages::garbage_collector::{
+    DatabaseGarbageCollectorTask, GarbageCollectorCommonError, GarbageCollectorNewCollectionTask,
+};
 use crate::messages::generations::{
     DatabaseCollectionGenerationsTask, DropCollectionGenerationsTask, NewCollectionGenerationsTask,
     NewCollectionGenerationsTaskResponse,
+};
+use crate::messages::readers::{
+    DatabaseCollectionReadersTask, ReaderNewCollectionTask, ReaderNewCollectionTaskResponse,
 };
 use crate::raw_db::{
     RawDb, RawDbColumnFamily, RawDbComparator, RawDbError, RawDbMerge, RawDbOpenError, RawDbOptions,
 };
 use crate::util::async_spawns::watch_is_true_or_end;
 use crate::util::async_sync_call::async_sync_call;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::pin;
-
-use crate::collection::util::collection_raw_db::wrap_collection_raw_db;
-use crate::messages::garbage_collector::{
-    DatabaseGarbageCollectorTask, GarbageCollectorCommonError, GarbageCollectorNewCollectionTask,
-};
-use crate::messages::readers::{
-    DatabaseCollectionReadersTask, ReaderNewCollectionTask, ReaderNewCollectionTaskResponse,
-};
 #[cfg(feature = "debug_prints")]
 use crate::util::debug_print::debug_print;
-use tokio::sync::{oneshot, RwLock};
+
+mod init_readers;
 
 pub struct CollectionOpenOptions<'a> {
     pub config: Arc<DatabaseConfig>,

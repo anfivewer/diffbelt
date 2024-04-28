@@ -1,12 +1,13 @@
-use crate::context::Context;
-use crate::http::errors::HttpError;
-use crate::http::routing::response::Response;
-use futures::future::BoxFuture;
-use regex::{Captures, Regex};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use futures::future::BoxFuture;
+use regex::{Captures, Regex};
+
+use crate::context::Context;
+use crate::http::errors::HttpError;
 use crate::http::request::{HyperRequestWrapped, Request};
+use crate::http::routing::response::Response;
 
 pub mod register_routes;
 pub mod response;

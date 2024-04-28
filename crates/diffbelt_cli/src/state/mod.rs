@@ -1,11 +1,13 @@
-use crate::commands::errors::CommandError;
-use diffbelt_cli_config::CliConfig;
-use diffbelt_http_client::client::DiffbeltClient;
-use diffbelt_util_no_std::cast::checked_usize_to_i32;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+
+use diffbelt_cli_config::CliConfig;
+use diffbelt_http_client::client::DiffbeltClient;
+use diffbelt_util_no_std::cast::checked_usize_to_i32;
+
+use crate::commands::errors::CommandError;
 
 pub struct CliState {
     pub client: Arc<DiffbeltClient>,

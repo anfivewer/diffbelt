@@ -1,4 +1,5 @@
 use std::future::Future;
+
 use tokio::sync::oneshot;
 
 pub async fn async_sync_call<T, Fut: Future<Output = ()>, F: FnOnce(oneshot::Sender<T>) -> Fut>(

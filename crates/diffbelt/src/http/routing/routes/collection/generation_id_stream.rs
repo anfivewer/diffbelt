@@ -1,27 +1,26 @@
-use crate::context::Context;
 use std::ops::Deref;
 use std::time::Duration;
 
-use crate::http::errors::HttpError;
-use crate::http::request::Request;
-
-use crate::http::routing::{PatternRouteFnResult, PatternRouteOptions};
-use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
-
-use crate::common::OwnedGenerationId;
-use crate::http::custom_errors::no_such_collection_error;
-use crate::http::data::encoded_generation_id::{
-    encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
-};
-use crate::http::routing::response::Response;
-use crate::http::util::response::create_ok_json_response;
-use crate::http::validation::MethodsValidation;
-use crate::util::str_serialization::StrSerializationType;
 use regex::Regex;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 use tokio::select;
 use tokio::time::{sleep, Instant};
+
+use crate::common::OwnedGenerationId;
+use crate::context::Context;
+use crate::http::custom_errors::no_such_collection_error;
+use crate::http::data::encoded_generation_id::{
+    encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
+};
+use crate::http::errors::HttpError;
+use crate::http::request::Request;
+use crate::http::routing::response::Response;
+use crate::http::routing::{PatternRouteFnResult, PatternRouteOptions};
+use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
+use crate::http::util::response::create_ok_json_response;
+use crate::http::validation::MethodsValidation;
+use crate::util::str_serialization::StrSerializationType;
 
 #[skip_serializing_none]
 #[derive(Serialize)]

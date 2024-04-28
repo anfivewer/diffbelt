@@ -1,6 +1,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
+
 use diffbelt_example_protos::protos::log_line::{
     LogTypeWithCount, LogTypeWithCountArgs, ParsedLogLine1d, ParsedLogLine1dArgs,
 };
@@ -110,8 +111,8 @@ impl HumanReadable for ParsedLogLines1dKv {
 
     #[export_name = "parsedLogLines1dBytesToValue"]
     extern "C" fn bytes_to_human_readable_value(
-        input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
-        buffer: Annotated<*mut BytesVecRawParts, &str>,
+        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        _buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
         todo!("parsedLogLines1dBytesToValue")
     }

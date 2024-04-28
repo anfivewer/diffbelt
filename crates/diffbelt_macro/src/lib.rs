@@ -1,7 +1,8 @@
-use crate::pin_box_future::{wrap_with_box_pin_async, wrap_with_pin_box_future};
-use crate::tokens_util::{collect_except_last, find_fn_arrow, remove_first_async};
 use proc_macro::{Delimiter, Group, TokenStream, TokenTree};
 use std::iter::once;
+
+use crate::pin_box_future::{wrap_with_box_pin_async, wrap_with_pin_box_future};
+use crate::tokens_util::{collect_except_last, find_fn_arrow, remove_first_async};
 
 mod pin_box_future;
 mod tokens_util;

@@ -1,10 +1,11 @@
+use enum_dispatch::enum_dispatch;
+
 use crate::base::action::Action;
 use crate::base::common::accumulator::AccumulatorId;
 use crate::base::error::TransformError;
 use crate::base::input::Input;
 use crate::map_filter::MapFilterTransform;
 use crate::TransformRunResult;
-use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch]
 pub trait Transform {

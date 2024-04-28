@@ -1,17 +1,15 @@
+use std::collections::BTreeMap;
+
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::methods::put::inner::{
     validate_put, CollectionPutInnerOptions, CollectionPutInnerResult, HandleIfNotPresentResolve,
     ResolvePutFn, ValidatePutOptions,
 };
-use std::collections::BTreeMap;
-
 use crate::collection::Collection;
-
 use crate::common::{KeyValueUpdate, OwnedGenerationId, OwnedPhantomId};
 use crate::messages::generations::{
     DatabaseCollectionGenerationsTask, LockNextGenerationIdTask, LockNextGenerationIdTaskResponse,
 };
-
 use crate::raw_db::put_many_collection_records::{
     PutManyCollectionRecordsItem, PutManyCollectionRecordsOptions,
 };

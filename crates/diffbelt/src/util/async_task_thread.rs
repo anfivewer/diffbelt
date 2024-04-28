@@ -1,8 +1,10 @@
-use crate::util::atomic_cleanup::AtomicCleanup;
-use crate::util::tokio::spawn_async_thread_local;
 use std::future::Future;
+
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
+
+use crate::util::atomic_cleanup::AtomicCleanup;
+use crate::util::tokio::spawn_async_thread_local;
 
 pub struct AsyncTaskThread<T: Send + 'static> {
     task_sender: mpsc::Sender<T>,

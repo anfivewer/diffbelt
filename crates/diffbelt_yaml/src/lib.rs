@@ -136,9 +136,7 @@ impl YamlSequence {
         let stack = &*stack;
 
         if stack.top == stack.start {
-            return Ok(Self {
-                items,
-            });
+            return Ok(Self { items });
         }
 
         let mut node_ptr = stack.start;
@@ -154,9 +152,7 @@ impl YamlSequence {
             node_ptr = node_ptr.add(1);
         }
 
-        Ok(Self {
-            items,
-        })
+        Ok(Self { items })
     }
 }
 

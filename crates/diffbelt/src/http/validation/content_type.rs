@@ -1,8 +1,8 @@
-use crate::http::errors::HttpError;
-use crate::http::request::Request;
-
 use regex::Regex;
 use regex::RegexBuilder;
+
+use crate::http::errors::HttpError;
+use crate::http::request::Request;
 
 pub trait ContentTypeValidation: Request {
     fn allow_only_utf8_json_by_default(&self) -> Result<(), HttpError>;

@@ -1,8 +1,11 @@
+use std::str::from_utf8;
+
+use wasmtime::{Memory, StoreContext};
+
+use diffbelt_util_no_std::cast::try_positive_i32_to_usize;
+
 use crate::wasm::types::WasmPtrToByte;
 use crate::wasm::{WasmError, WasmStoreData};
-use diffbelt_util_no_std::cast::try_positive_i32_to_usize;
-use std::str::from_utf8;
-use wasmtime::{Memory, StoreContext};
 
 pub struct WasmUtf8Holder<'a> {
     ctx: StoreContext<'a, WasmStoreData>,

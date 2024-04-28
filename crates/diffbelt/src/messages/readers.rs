@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use tokio::sync::{oneshot, watch, OwnedRwLockReadGuard, RwLock};
+
 use crate::common::collection::CollectionName;
 use crate::common::reader::ReaderName;
 use crate::common::OwnedGenerationId;
 use crate::database::DatabaseInner;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::{oneshot, watch, OwnedRwLockReadGuard, RwLock};
 
 pub struct ReaderNewCollectionTaskResponse {
     pub minimum_generation_id: watch::Receiver<OwnedGenerationId>,

@@ -1,5 +1,6 @@
-use crate::util::bytes::{from_u32_be, read_u32_be};
 use rocksdb::MergeOperands;
+
+use crate::util::bytes::{from_u32_be, read_u32_be};
 
 pub fn generation_size_full_merge(
     _key: &[u8],

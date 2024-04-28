@@ -1,19 +1,19 @@
-use crate::collection::{Collection, GetReaderGenerationIdError};
-use crate::common::OwnedGenerationId;
-use crate::raw_db::{RawDb, RawDbError};
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+
+use tokio::sync::{oneshot, watch, RwLock};
 
 use crate::collection::methods::errors::CollectionMethodError;
+use crate::collection::{Collection, GetReaderGenerationIdError};
+use crate::common::OwnedGenerationId;
+use crate::database::config::DatabaseConfig;
 use crate::database::constants::DATABASE_RAW_DB_CF;
 use crate::messages::cursors::DatabaseCollectionCursorsTask;
+use crate::messages::garbage_collector::DatabaseGarbageCollectorTask;
 use crate::messages::generations::DatabaseCollectionGenerationsTask;
 use crate::messages::readers::{DatabaseCollectionReadersTask, GetReadersPointingToCollectionTask};
+use crate::raw_db::{RawDb, RawDbError};
 use crate::util::async_task_thread::AsyncTaskThread;
-
-use crate::database::config::DatabaseConfig;
-use crate::messages::garbage_collector::DatabaseGarbageCollectorTask;
-use std::sync::Arc;
-use tokio::sync::{oneshot, watch, RwLock};
 
 pub struct DatabaseInner {
     pub config: Arc<DatabaseConfig>,

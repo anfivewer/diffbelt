@@ -1,6 +1,7 @@
-use crate::{YamlMapping, YamlNode, YamlNodeValue, YamlSequence};
 use std::ops::Deref;
 use std::rc::Rc;
+
+use crate::{YamlMapping, YamlNode, YamlNodeValue, YamlSequence};
 
 impl YamlNode {
     pub fn as_str(&self) -> Option<&str> {

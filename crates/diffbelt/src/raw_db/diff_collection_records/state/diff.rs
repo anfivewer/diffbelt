@@ -1,3 +1,5 @@
+use rocksdb::{DBIterator, Direction, IteratorMode};
+
 use crate::collection::util::record_key::{OwnedParsedRecordKey, OwnedRecordKey, ParsedRecordKey};
 use crate::common::{
     CollectionKey, GenerationId, IsByteArray, KeyValueDiff, OwnedCollectionKey,
@@ -8,7 +10,6 @@ use crate::raw_db::diff_collection_records::{DiffCollectionRecordsOk, DiffCursor
 use crate::raw_db::RawDbError;
 use crate::util::option::lift_result_from_option;
 use crate::util::owned_peek::OwnedPeek;
-use rocksdb::{DBIterator, Direction, IteratorMode};
 
 struct KeyProcessing {
     record_key: OwnedParsedRecordKey,

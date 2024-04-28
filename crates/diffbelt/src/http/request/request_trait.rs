@@ -1,5 +1,6 @@
-use diffbelt_util::http::read_full_body::IntoFullBodyAsReadReturn;
 use std::borrow::Cow;
+
+use diffbelt_util::http::read_full_body::IntoFullBodyAsReadReturn;
 
 pub trait Request {
     fn method(&self) -> &str;

@@ -1,7 +1,10 @@
-use crate::ptr::{ConstPtr, NativePtrImpl, PtrImpl};
-use bytemuck::{Pod, Zeroable};
 use core::ptr::slice_from_raw_parts;
+
+use bytemuck::{Pod, Zeroable};
+
 use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32};
+
+use crate::ptr::{ConstPtr, NativePtrImpl, PtrImpl};
 
 #[derive(Pod, Zeroable, Copy, Clone, Debug)]
 #[repr(C, packed)]

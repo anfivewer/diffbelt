@@ -1,9 +1,8 @@
+pub use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
+
 use crate::common::{GenerationId, IsByteArray, OwnedGenerationId};
 use crate::http::errors::HttpError;
-
 use crate::util::str_serialization::StrSerializationType;
-
-pub use diffbelt_types::common::generation_id::EncodedGenerationIdJsonData;
 
 pub fn encoded_generation_id_data_encode(
     generation_id: GenerationId<'_>,

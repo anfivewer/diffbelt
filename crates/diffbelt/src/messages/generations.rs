@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use tokio::sync::{oneshot, watch, RwLock};
+
 use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::collection::CommitGenerationUpdateReader;
 use crate::common::OwnedGenerationId;
@@ -7,8 +11,6 @@ use crate::database::generations::collection::{
 use crate::database::generations::next_generation_lock::GenerationIdLock;
 use crate::database::DatabaseInner;
 use crate::raw_db::RawDbError;
-use std::sync::Arc;
-use tokio::sync::{oneshot, watch, RwLock};
 
 pub struct NewCollectionGenerationsTaskResponse {
     pub collection_id: InnerGenerationsCollectionId,

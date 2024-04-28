@@ -1,9 +1,11 @@
+use std::ops::DerefMut;
+
+use wasmtime::{AsContext, Caller, Linker};
+
 use crate::wasm::types::WasmPtr;
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::{WasmError, WasmStoreData};
-use std::ops::DerefMut;
-use wasmtime::{AsContext, Caller, Linker};
 
 impl WasmEnv {
     pub fn register_debug_wasm_imports(

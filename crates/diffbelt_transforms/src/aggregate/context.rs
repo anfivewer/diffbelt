@@ -1,8 +1,10 @@
-use crate::aggregate::state::{TargetKeyMergingChunkId, TargetKeyReducingChunkId};
-use crate::base::error::TransformError;
+use std::rc::Rc;
+
 use enum_as_inner::EnumAsInner;
 use enum_kinds::EnumKind;
-use std::rc::Rc;
+
+use crate::aggregate::state::{TargetKeyMergingChunkId, TargetKeyReducingChunkId};
+use crate::base::error::TransformError;
 
 #[derive(Debug, EnumAsInner, EnumKind)]
 #[enum_kind(HandlerContextKind)]

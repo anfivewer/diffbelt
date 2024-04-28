@@ -1,5 +1,6 @@
-use crate::common::generation_id::EncodedGenerationIdJsonData;
 use serde::{Deserialize, Serialize};
+
+use crate::common::generation_id::EncodedGenerationIdJsonData;
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]

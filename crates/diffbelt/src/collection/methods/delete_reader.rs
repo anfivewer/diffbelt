@@ -1,7 +1,7 @@
+use std::sync::Arc;
+
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
-
-use std::sync::Arc;
 
 pub struct DeleteReaderOptions {
     pub reader_name: String,

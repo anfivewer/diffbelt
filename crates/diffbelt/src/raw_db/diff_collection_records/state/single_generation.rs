@@ -1,9 +1,9 @@
-use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
-use crate::common::{CollectionKey, GenerationId, IsByteArray, OwnedCollectionKey};
+use rocksdb::{Direction, IteratorMode, ReadOptions};
 
 use crate::collection::constants::COLLECTION_CF_GENERATIONS;
+use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
+use crate::common::{CollectionKey, GenerationId, IsByteArray, OwnedCollectionKey};
 use crate::raw_db::RawDbError;
-use rocksdb::{Direction, IteratorMode, ReadOptions};
 
 pub struct SingleGenerationChangedKeysIter<'a> {
     iterator: rocksdb::DBIterator<'a>,

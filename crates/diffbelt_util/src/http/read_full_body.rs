@@ -1,8 +1,9 @@
+use std::collections::VecDeque;
+use std::io::Read;
+
 use futures::future::BoxFuture;
 use hyper::body::{Buf, Bytes, HttpBody};
 use hyper::Body;
-use std::collections::VecDeque;
-use std::io::Read;
 
 #[derive(Debug)]
 pub enum BodyReadError {

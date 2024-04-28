@@ -1,5 +1,6 @@
-use diffbelt_util::http::read_full_body::BodyReadError;
 use thiserror::Error;
+
+use diffbelt_util::http::read_full_body::BodyReadError;
 
 #[derive(Error, Debug)]
 pub enum DiffbeltClientError {

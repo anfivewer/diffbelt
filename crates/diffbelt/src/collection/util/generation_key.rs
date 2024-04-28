@@ -1,7 +1,9 @@
+use std::ops::Deref;
+
+use diffbelt_util_no_std::cast::{u32_to_usize, u8_to_usize};
+
 use crate::common::{CollectionKey, GenerationId, IsByteArray, IsByteArrayMut};
 use crate::util::bytes::{read_u24, write_u24_be};
-use diffbelt_util_no_std::cast::{u32_to_usize, u8_to_usize};
-use std::ops::Deref;
 
 pub struct GenerationKey<'a> {
     pub value: &'a [u8],
@@ -131,9 +133,10 @@ impl OwnedGenerationKey {
 
 #[cfg(test)]
 mod tests {
+    use std::ops::Deref;
+
     use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
     use crate::common::{CollectionKey, IsByteArray, OwnedCollectionKey, OwnedGenerationId};
-    use std::ops::Deref;
 
     #[test]
     fn test_create_generation_key() {

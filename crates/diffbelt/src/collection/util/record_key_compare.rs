@@ -1,6 +1,8 @@
-use crate::util::bytes::read_u24;
-use diffbelt_util_no_std::cast::{u32_to_usize, u8_to_usize};
 use std::cmp::Ordering;
+
+use diffbelt_util_no_std::cast::{u32_to_usize, u8_to_usize};
+
+use crate::util::bytes::read_u24;
 
 /*
     1 -- reserved byte

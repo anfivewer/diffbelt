@@ -1,8 +1,8 @@
+use std::sync::Arc;
+
 use crate::config::Config;
 use crate::database::Database;
-
 use crate::http::routing::Routing;
-use std::sync::Arc;
 
 pub struct Context {
     pub config: Arc<Config>,

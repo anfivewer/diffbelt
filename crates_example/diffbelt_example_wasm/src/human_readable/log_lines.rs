@@ -1,9 +1,9 @@
 use alloc::string::FromUtf8Error;
 use core::str::Utf8Error;
 
-use diffbelt_wasm_binding::annotations::{Annotated, InputOutputAnnotated};
 use thiserror_no_std::Error;
 
+use diffbelt_wasm_binding::annotations::{Annotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};

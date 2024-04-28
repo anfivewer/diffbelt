@@ -4,7 +4,6 @@ use crate::collection::methods::put::inner::{
     HandleIfNotPresentResolve, ValidatePutOptions,
 };
 use crate::collection::Collection;
-
 use crate::common::{KeyValueUpdate, OwnedGenerationId, OwnedPhantomId};
 use crate::messages::generations::{
     DatabaseCollectionGenerationsTask, LockNextGenerationIdTask, LockNextGenerationIdTaskResponse,

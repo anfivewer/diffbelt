@@ -1,7 +1,13 @@
-use crate::collection::open::{CollectionOpenError, CollectionOpenOptions};
-use crate::collection::Collection;
+use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use protobuf::Message;
+use tokio::sync::{watch, Mutex, RwLock};
 
 use crate::collection::methods::errors::CollectionMethodError;
+use crate::collection::open::{CollectionOpenError, CollectionOpenOptions};
+use crate::collection::Collection;
 use crate::database::config::DatabaseConfig;
 use crate::database::constants::DATABASE_RAW_DB_CF;
 use crate::database::cursors::start_cursors_task_thread;
@@ -16,11 +22,6 @@ use crate::protos::database_meta::CollectionRecord;
 use crate::raw_db::{RawDb, RawDbError, RawDbOptions};
 use crate::util::async_spawns::run_when_watch_is_true_or_end;
 use crate::util::atomic_cleanup::AtomicCleanup;
-use protobuf::Message;
-use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::{watch, Mutex, RwLock};
 
 pub struct DatabaseOpenOptions<'a> {
     pub data_path: &'a PathBuf,

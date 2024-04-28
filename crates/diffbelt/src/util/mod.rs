@@ -1,3 +1,6 @@
+pub use diffbelt_util::tokio_runtime;
+pub use diffbelt_util_no_std::bytes;
+
 pub mod async_lock;
 pub mod async_spawns;
 pub mod async_sync_call;
@@ -5,7 +8,6 @@ pub mod async_task_thread;
 pub mod atomic_cleanup;
 pub mod auto_sender_on_drop;
 pub mod base62;
-pub use diffbelt_util_no_std::bytes;
 pub mod bytes_constants;
 pub mod hashmap;
 pub mod indexed_container;
@@ -13,4 +15,3 @@ pub mod option;
 pub mod owned_peek;
 pub mod str_serialization;
 pub mod tokio;
-pub use diffbelt_util::tokio_runtime;

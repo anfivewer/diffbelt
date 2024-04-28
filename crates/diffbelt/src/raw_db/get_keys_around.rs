@@ -1,3 +1,5 @@
+use rocksdb::DB;
+
 use crate::collection::util::record_key::RecordKey;
 use crate::common::{CollectionKey, GenerationId, OwnedCollectionKey, PhantomId};
 use crate::raw_db::query::{
@@ -5,7 +7,6 @@ use crate::raw_db::query::{
     QueryState,
 };
 use crate::raw_db::{RawDb, RawDbError};
-use rocksdb::DB;
 
 pub struct RawDbGetKeysAroundOptions<'a> {
     pub record_key: RecordKey<'a>,

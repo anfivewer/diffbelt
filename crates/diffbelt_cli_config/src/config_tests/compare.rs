@@ -1,5 +1,6 @@
 use text_diff::diff;
-use crate::config_tests::error::{AssertError, TestError};
+
+use crate::config_tests::error::AssertError;
 
 pub(crate) fn compare_strings(expected: &str, actual: &str) -> Option<AssertError> {
     let (distance, diffs) = diff(expected, actual, "\n");

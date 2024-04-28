@@ -1,8 +1,8 @@
+use std::sync::Arc;
+
 use crate::database::config::DatabaseConfig;
 use crate::database::cursors::collection::InnerCursorsCollection;
 use crate::database::cursors::storage::{CursorError, CursorType, InnerCursors};
-use std::sync::Arc;
-
 #[cfg(test)]
 use crate::messages::cursors::GetCollectionCursorsCountTask;
 use crate::messages::cursors::{

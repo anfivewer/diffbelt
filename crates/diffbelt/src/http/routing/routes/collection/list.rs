@@ -1,19 +1,17 @@
-use crate::context::Context;
 use std::sync::Arc;
 
 use futures::stream::FuturesOrdered;
 use futures::StreamExt;
 
-use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
-
-use crate::http::util::response::create_ok_json_response;
-use crate::http::validation::MethodsValidation;
-
-use crate::collection::Collection;
-
 use diffbelt_types::collection::list::{
     ListCollectionsItemJsonData, ListCollectionsResponseJsonData,
 };
+
+use crate::collection::Collection;
+use crate::context::Context;
+use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
+use crate::http::util::response::create_ok_json_response;
+use crate::http::validation::MethodsValidation;
 
 fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
     Box::pin(async move {

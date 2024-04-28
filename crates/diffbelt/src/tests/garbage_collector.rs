@@ -1,3 +1,8 @@
+use std::sync::Arc;
+use std::time::Duration;
+
+use tokio::time::sleep;
+
 use crate::collection::methods::commit_generation::CommitGenerationOptions;
 use crate::collection::methods::create_reader::CreateReaderOptions;
 use crate::collection::methods::get::{CollectionGetOk, CollectionGetOptions};
@@ -11,9 +16,6 @@ use crate::common::{
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
 use crate::util::tokio_runtime::create_main_tokio_runtime;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::time::sleep;
 
 #[test]
 fn garbage_collector_test() {

@@ -1,8 +1,9 @@
+pub use diffbelt_types::common::key_value::EncodedKeyJsonData;
+
 use crate::common::{IsByteArray, OwnedCollectionKey};
 use crate::http::errors::HttpError;
 use crate::http::util::encoding::StringDecoder;
 use crate::util::str_serialization::StrSerializationType;
-pub use diffbelt_types::common::key_value::EncodedKeyJsonData;
 
 pub trait EncodedKeyJsonDataTrait: Sized {
     fn encode(value: OwnedCollectionKey) -> Self;

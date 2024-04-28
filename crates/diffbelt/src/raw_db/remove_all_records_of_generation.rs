@@ -1,10 +1,10 @@
+use rocksdb::{Direction, IteratorMode, ReadOptions, WriteBatchWithTransaction};
+
 use crate::collection::constants::{COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE};
 use crate::collection::util::generation_key::{GenerationKey, OwnedGenerationKey};
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::raw_db::{RawDb, RawDbError};
-
-use rocksdb::{Direction, IteratorMode, ReadOptions, WriteBatchWithTransaction};
 
 pub struct RemoveAllRecordsOfGenerationSyncOptions<'a> {
     pub generation_id: GenerationId<'a>,

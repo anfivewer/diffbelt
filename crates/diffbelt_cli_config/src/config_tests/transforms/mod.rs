@@ -1,4 +1,14 @@
+use std::borrow::Cow;
+use std::rc::Rc;
+
+use enum_dispatch::enum_dispatch;
+
+use diffbelt_yaml::YamlNode;
+
 use crate::config_tests::error::{AssertError, TestError};
+use crate::config_tests::transforms::aggregate_initial_accumulator::{
+    AggregateInitialAccumulatorTransformTest, AggregateInitialAccumulatorTransformTestCreator,
+};
 use crate::config_tests::transforms::aggregate_map::{
     AggregateMapTransformTest, AggregateMapTransformTestCreator,
 };
@@ -7,16 +17,11 @@ use crate::config_tests::transforms::map_filter::{
 };
 use crate::wasm::WasmModuleInstance;
 use crate::Collection;
-use diffbelt_yaml::YamlNode;
-use enum_dispatch::enum_dispatch;
-use std::borrow::Cow;
-use std::rc::Rc;
-use crate::config_tests::transforms::aggregate_initial_accumulator::{AggregateInitialAccumulatorTransformTest, AggregateInitialAccumulatorTransformTestCreator};
 
 pub mod aggregate_initial_accumulator;
 pub mod aggregate_map;
-pub mod map_filter;
 mod aggregate_util;
+pub mod map_filter;
 
 pub struct TransformTestPreCreateOptions<'a, T> {
     pub source_collection: &'a Collection,
@@ -25,6 +30,7 @@ pub struct TransformTestPreCreateOptions<'a, T> {
 }
 
 #[enum_dispatch]
+#[allow(async_fn_in_trait)]
 pub trait TransformTestCreator<'a>: Sized {
     fn required_wasm_modules(&self) -> Result<Vec<Cow<'a, str>>, TestError>;
 
@@ -42,6 +48,7 @@ pub enum TransformTestCreatorImpl<'a> {
 }
 
 #[enum_dispatch]
+#[allow(async_fn_in_trait)]
 pub trait TransformTest<'a>: Sized {
     async fn test(
         &self,

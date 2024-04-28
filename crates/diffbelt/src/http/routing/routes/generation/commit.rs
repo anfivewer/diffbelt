@@ -1,16 +1,14 @@
+use regex::Regex;
+
 use diffbelt_macro::fn_box_pin_async;
 use diffbelt_types::collection::generation::CommitGenerationRequestJsonData;
 use diffbelt_types::common::reader::UpdateReaderJsonData;
-use regex::Regex;
 
 use crate::collection::methods::commit_generation::CommitGenerationOptions;
-
 use crate::context::Context;
 use crate::http::constants::READER_REQUEST_MAX_BYTES;
-
 use crate::http::data::encoded_generation_id::encoded_generation_id_data_into_generation_id;
 use crate::http::data::reader_record::UpdateReaderJsonDataTrait;
-
 use crate::http::errors::HttpError;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};

@@ -1,20 +1,19 @@
+use std::future::Future;
+use std::ops::DerefMut;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
-
+use crate::messages::garbage_collector::{
+    DatabaseGarbageCollectorTask, GarbageCollectorDropCollectionTask,
+};
 use crate::messages::generations::{
     DatabaseCollectionGenerationsTask, DropCollectionGenerationsTask,
 };
 use crate::raw_db::RawDb;
 use crate::util::async_sync_call::async_sync_call;
-
-use crate::messages::garbage_collector::{
-    DatabaseGarbageCollectorTask, GarbageCollectorDropCollectionTask,
-};
 use crate::util::tokio::spawn_blocking_async;
-use std::future::Future;
-use std::ops::DerefMut;
-use std::path::PathBuf;
-use std::sync::Arc;
 
 impl Collection {
     pub fn delete_collection(&self) -> impl Future<Output = Result<(), CollectionMethodError>> {

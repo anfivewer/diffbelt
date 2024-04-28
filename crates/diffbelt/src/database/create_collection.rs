@@ -1,11 +1,13 @@
+use std::sync::Arc;
+
+use protobuf::Message;
+
 use crate::collection::open::{CollectionOpenError, CollectionOpenOptions};
 use crate::collection::Collection;
 use crate::database::constants::DATABASE_RAW_DB_CF;
 use crate::database::Database;
 use crate::protos::database_meta::CollectionRecord;
 use crate::raw_db::RawDbError;
-use protobuf::Message;
-use std::sync::Arc;
 
 pub struct CreateCollectionOptions {
     pub is_manual: bool,

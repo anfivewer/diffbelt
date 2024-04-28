@@ -1,6 +1,6 @@
-use crate::collection::methods::diff::DiffOk;
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 
+use crate::collection::methods::diff::DiffOk;
 use crate::common::GenerationId;
 use crate::http::data::encoded_generation_id::encoded_generation_id_data_encode;
 use crate::http::data::key_value_diff::{KeyValueDiffJsonData, KeyValueDiffJsonDataTrait};

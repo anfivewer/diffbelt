@@ -1,8 +1,9 @@
+use std::sync::Arc;
+
 use crate::database::config::DatabaseConfig;
 use crate::database::open::DatabaseOpenOptions;
 use crate::database::Database;
 use crate::tests::temp_dir::TempDir;
-use std::sync::Arc;
 
 pub struct TempDatabase {
     temp_dir: Option<TempDir>,

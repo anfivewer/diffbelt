@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
+use tokio::task::spawn_blocking;
+
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::messages::readers::{DatabaseCollectionReadersTask, DeleteReaderTask};
 use crate::raw_db::update_reader::RawDbDeleteReaderOptions;
-use std::sync::Arc;
-use tokio::task::spawn_blocking;
 
 impl Collection {
     pub async fn inner_remove_reader(

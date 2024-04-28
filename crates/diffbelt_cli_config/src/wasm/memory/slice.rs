@@ -1,9 +1,9 @@
-use either::Either;
 use std::ops::DerefMut;
+
+use either::Either;
 
 use crate::wasm::memory::DeallocType;
 use crate::wasm::types::{WasmBytesSlice, WasmPtr};
-
 use crate::wasm::{WasmError, WasmModuleInstance};
 
 pub struct WasmSliceHolder<'a> {

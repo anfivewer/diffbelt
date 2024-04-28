@@ -1,20 +1,16 @@
-use crate::collection::methods::update_reader::UpdateReaderOptions;
 use std::sync::Arc;
 
-use crate::collection::Collection;
 use serde::Deserialize;
 
+use crate::collection::methods::update_reader::UpdateReaderOptions;
+use crate::collection::Collection;
 use crate::http::constants::READER_REQUEST_MAX_BYTES;
-
 use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_decode_opt, EncodedGenerationIdJsonData,
 };
-
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
-
 use crate::http::routing::response::Response;
-
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
 use crate::http::util::response::create_ok_no_error_json_response;

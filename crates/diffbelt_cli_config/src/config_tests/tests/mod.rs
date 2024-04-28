@@ -1,12 +1,9 @@
-pub mod compare;
-
 use std::rc::Rc;
 
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
 use diffbelt_yaml::parse_yaml;
 
 use crate::config_tests::run::run_tests;
-
 use crate::CliConfig;
 
 #[test]

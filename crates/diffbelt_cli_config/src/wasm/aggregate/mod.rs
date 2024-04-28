@@ -1,4 +1,5 @@
 use std::ops::DerefMut;
+
 use wasmtime::{AsContextMut, TypedFunc};
 
 use diffbelt_protos::error::map_flatbuffer_error_to_return_buffer;

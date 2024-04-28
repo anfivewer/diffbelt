@@ -1,10 +1,12 @@
+use std::ops::Range;
+
+use diffbelt_util_no_std::cast::{u32_to_usize, u8_to_usize};
+
 use crate::common::constants::{
     MAX_COLLECTION_KEY_LENGTH, MAX_GENERATION_ID_LENGTH, MAX_PHANTOM_ID_LENGTH,
 };
 use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::util::bytes::{read_u24, write_u24_be};
-use diffbelt_util_no_std::cast::{u32_to_usize, u8_to_usize};
-use std::ops::Range;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct RecordKey<'a> {

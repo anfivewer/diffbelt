@@ -5,7 +5,6 @@ use std::rc::Rc;
 use std::str::Utf8Error;
 use std::sync::{Arc, Mutex};
 
-use diffbelt_protos::error::FlatbufferError;
 use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
 use serde::Deserialize;
 use thiserror::Error;
@@ -13,11 +12,13 @@ use wasmtime::{
     AsContext, AsContextMut, Config, Engine, Instance, Linker, Memory, Module, Store, TypedFunc,
 };
 
+use diffbelt_protos::error::FlatbufferError;
 use diffbelt_util::Wrap;
 use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
 use diffbelt_util_no_std::impl_from_either;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
+use memory::vector::WasmVecHolder;
 use memory::Allocation;
 pub use types::WasmPtrImpl;
 
@@ -28,7 +29,6 @@ use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{WasmBytesSlice, WasmPtrToBytesSlice, WasmPtrToVecRawParts};
 use crate::wasm::wasm_env::regex::RegexEnv;
 use crate::wasm::wasm_env::WasmEnv;
-use memory::vector::WasmVecHolder;
 
 pub mod aggregate;
 pub mod human_readable;
@@ -113,7 +113,6 @@ impl WasmStoreData {
 }
 
 pub struct WasmModuleInstance {
-    error: Arc<Mutex<Option<WasmError>>>,
     store: RefCell<Store<WasmStoreData>>,
     instance: Instance,
     allocation: Allocation,
@@ -159,11 +158,9 @@ impl Wasm {
 
         let mut linker = Linker::<WasmStoreData>::new(&engine);
 
-        let error: Arc<Mutex<Option<WasmError>>> = Wrap::wrap(None);
+        let env = WasmEnv::new();
 
-        let env = WasmEnv::new(error.clone());
-
-        env.register_imports(&mut store, &mut linker);
+        () = env.register_imports(&mut store, &mut linker)?;
 
         let instance = linker.instantiate_async(&mut store, &wasm_mod).await?;
 
@@ -205,7 +202,6 @@ impl Wasm {
         }
 
         Ok(WasmModuleInstance {
-            error,
             store: RefCell::new(store),
             instance,
             allocation,
