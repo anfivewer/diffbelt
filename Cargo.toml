@@ -23,4 +23,5 @@ members = [
 ]
 exclude = [
 	"crates_example/diffbelt_example_wasm",
+	"crates_example/diffbelt_example_wasm_rebuild",
 ]

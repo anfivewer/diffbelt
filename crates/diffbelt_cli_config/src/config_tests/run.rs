@@ -57,6 +57,11 @@ pub async fn run_tests(config: &CliConfig) -> Result<bool, RunTestsError> {
                     }
                     AssertError::HasDiff { diffs } => {
                         fn print_diff_line(prefix: &str, s: &str) {
+                            if s == "\n" {
+                                println!("{prefix}");
+                                return;
+                            }
+
                             let lines = s.split("\n");
                             for line in lines {
                                 println!("{prefix}{line}");

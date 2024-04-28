@@ -93,7 +93,7 @@ pub struct AggregateInitialAccumulatorTransformTest<'a> {
 type Input = OwnedSerialized<'static, AggregateTargetInfo<'static>>;
 type Output<'a> = WasmVecHolder<'a>;
 type ActualOutput = String;
-type ExpectedOutput = String;
+type ExpectedOutput<'a> = &'a str;
 
 impl<'a> AggregateInitialAccumulatorTransformTest<'a> {
     async fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Input, TestError> {
@@ -136,19 +136,25 @@ impl<'a> AggregateInitialAccumulatorTransformTest<'a> {
         &self,
         vars: &'a Rc<YamlNode>,
     ) -> Result<ExpectedOutput, TestError> {
-        let mut result = String::new();
+        let output = vars.as_str().ok_or_else(|| {
+            TestError::Unspecified("initial_accumulator output should be a string".to_string())
+        })?;
 
-        () = vars.serialize(&mut result)?;
-
-        Ok(result)
+        Ok(output)
     }
 
     fn compare_actual_and_expected_output(
         &self,
         actual: &ActualOutput,
-        expected: &ExpectedOutput,
+        expected: &ExpectedOutput<'a>,
     ) -> Result<Option<AssertError>, TestError> {
         let (distance, diffs) = diff(expected, actual, "\n");
+
+        let (distance, diffs) = if distance != 0 && diffs.len() == 1 {
+            diff(expected, actual, "")
+        } else {
+            (distance, diffs)
+        };
 
         if distance == 0 {
             return Ok(None);

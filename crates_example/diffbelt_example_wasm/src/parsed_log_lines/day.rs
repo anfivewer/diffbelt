@@ -148,7 +148,8 @@ impl<'t>
 
         unsafe { *accumulator_ptr.value = BytesVecRawParts::from(buffer) };
 
-        ErrorCode::Ok
+        // ErrorCode::Ok
+        todo!("migrate data from TargetValue")
     }
 
     #[export_name = "aggregateReduce"]

@@ -666,6 +666,7 @@ dependencies = [
  "bytemuck",
  "chrono",
  "diffbelt_example_protos",
+ "diffbelt_example_wasm_rebuild",
  "diffbelt_protos",
  "diffbelt_util",
  "diffbelt_util_no_std",
@@ -692,6 +693,10 @@ version = "0.1.0"
 dependencies = [
  "flatbuffers",
 ]
+
+[[package]]
+name = "diffbelt_example_wasm_rebuild"
+version = "0.1.0"
 
 [[package]]
 name = "diffbelt_http_client"

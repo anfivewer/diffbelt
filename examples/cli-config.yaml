@@ -557,17 +557,17 @@ tests:
       input:
         target_key: 2023-02-21
         target_old_value: !none
-      output:
+      output: |
         count: 0
     - name: few
       input:
         target_key: 2024-04-25
-        target_old_value:
+        target_old_value: |
           count: 4
           items:
             worker#:middlewares::handleFull::S: 3
             main:middlewares::noTranslation::S: 1
-      output:
+      output: |
         count: 4
         items:
           main:middlewares::noTranslation::S: 1
