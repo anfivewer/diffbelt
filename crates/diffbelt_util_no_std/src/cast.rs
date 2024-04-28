@@ -151,6 +151,12 @@ pub fn unchecked_isize_to_usize(value: isize) -> usize {
     value as usize
 }
 
+#[inline(always)]
 pub fn div_u64_usize_to_f64(a: u64, b: usize) -> f64 {
     a as f64 / b as f64
+}
+
+#[inline(always)]
+pub fn ptr_as_usize<T>(ptr: *const T) -> usize {
+    ptr as usize
 }

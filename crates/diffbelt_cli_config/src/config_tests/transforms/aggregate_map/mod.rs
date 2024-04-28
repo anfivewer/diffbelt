@@ -13,6 +13,7 @@ use diffbelt_yaml::{YamlMapping, YamlMark, YamlNode, YamlNodeValue, YamlScalar, 
 
 use crate::call_human_readable_conversion;
 use crate::config_tests::error::{AssertError, TestError};
+use crate::config_tests::tests::compare::compare_strings;
 use crate::config_tests::transforms::aggregate_map::yaml_input::yaml_test_vars_to_aggregate_map_input;
 use crate::config_tests::transforms::aggregate_util::{
     create_test_aggregate_functions, require_wasm_modules_aggregate,
@@ -239,13 +240,7 @@ impl<'a> AggregateMapTransformTest<'a> {
         actual: &ActualOutput,
         expected: &ExpectedOutput,
     ) -> Result<Option<AssertError>, TestError> {
-        let (distance, diffs) = diff(expected, actual, "\n");
-
-        if distance == 0 {
-            return Ok(None);
-        }
-
-        Ok(Some(AssertError::HasDiff { diffs }))
+        Ok(compare_strings(expected, actual))
     }
 }
 

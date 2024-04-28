@@ -1,11 +1,15 @@
+use alloc::string::String;
 use alloc::vec::Vec;
+use core::fmt::Write;
 use diffbelt_example_protos::protos::log_line::{
     LogTypeWithCount, LogTypeWithCountArgs, ParsedLogLine1d, ParsedLogLine1dArgs,
 };
-use diffbelt_protos::{SerializedRawParts, Serializer};
+use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
+use diffbelt_util_no_std::bytes::read_u32_be;
+use diffbelt_util_no_std::cast::u32_to_usize;
 use diffbelt_wasm_binding::annotations::{Annotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
-use diffbelt_wasm_binding::human_readable::HumanReadable;
+use diffbelt_wasm_binding::human_readable::{AggregateHumanReadable, HumanReadable};
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::Regex;
 
@@ -110,5 +114,67 @@ impl HumanReadable for ParsedLogLines1dKv {
         buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
         todo!("parsedLogLines1dBytesToValue")
+    }
+}
+
+impl AggregateHumanReadable for ParsedLogLines1dKv {
+    #[export_name = "parsedLogLinesTargetKeyFromBytes"]
+    extern "C" fn target_key_from_bytes(
+        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        _buffer: Annotated<*mut BytesVecRawParts, &str>,
+    ) -> ErrorCode {
+        ErrorCode::Ok
+    }
+
+    #[export_name = "parsedLogLinesMappedValueFromBytes"]
+    extern "C" fn mapped_value_from_bytes(
+        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        _buffer: Annotated<*mut BytesVecRawParts, &str>,
+    ) -> ErrorCode {
+        ErrorCode::Ok
+    }
+
+    #[export_name = "parsedLogLinesAccumulatorFromBytes"]
+    extern "C" fn accumulator_from_bytes(
+        input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
+    ) -> ErrorCode {
+        let slice = unsafe { (*input_and_output.value).as_slice() };
+
+        let slice_tail = &slice[(slice.len() - 8)..];
+
+        let head = read_u32_be(slice_tail);
+        let len = read_u32_be(&slice_tail[4..]);
+
+        let serialized = &slice[u32_to_usize(head)..u32_to_usize(head + len)];
+        let serialized = deserialize::<ParsedLogLine1d>(serialized).expect("cannot parse");
+
+        let buffer = unsafe { (*buffer_ptr.value).into_empty_vec() };
+        let mut result = unsafe { String::from_utf8_unchecked(buffer) };
+
+        let count = serialized.count();
+
+        result
+            .write_fmt(format_args!("count: {count}\n"))
+            .expect("cannot write");
+
+        if let Some(log_types) = serialized.log_types() {
+            result.write_str("items:\n").expect("cannot write");
+
+            for log_type in log_types {
+                let name = log_type.name().expect("No log type name");
+                let count = log_type.count();
+
+                result
+                    .write_fmt(format_args!("  {name}: {count}\n"))
+                    .expect("cannot write");
+            }
+        }
+
+        let result = result.into_bytes();
+        unsafe { *input_and_output.value = BytesSlice::from(result.as_slice()) };
+        unsafe { *buffer_ptr.value = BytesVecRawParts::from(result) };
+
+        ErrorCode::Ok
     }
 }

@@ -1,3 +1,5 @@
+pub mod compare;
+
 use std::rc::Rc;
 
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;

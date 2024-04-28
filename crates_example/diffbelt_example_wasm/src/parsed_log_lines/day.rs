@@ -11,7 +11,7 @@ use diffbelt_protos::protos::transform::aggregate::{
 };
 use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
 use diffbelt_util_no_std::bytes::write_u32_be;
-use diffbelt_util_no_std::cast::{try_usize_to_u32, u8_to_char};
+use diffbelt_util_no_std::cast::{checked_usize_to_i32, try_usize_to_u32, u8_to_char};
 use diffbelt_wasm_binding::annotations::serializer::InputAnnotated;
 use diffbelt_wasm_binding::annotations::{Annotated, FlatbufferAnnotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
@@ -29,7 +29,7 @@ type SourceValue<'a> = ParsedLogLinesValue<'a>;
 type MappedValue<'a> = &'a str;
 type Accumulator = ();
 type TargetKey<'a> = &'a str;
-type TargetValue<'a> = &'a ();
+type TargetValue<'a> = ParsedLogLine1d<'a>;
 
 impl<'t>
     Aggregate<
@@ -112,31 +112,52 @@ impl<'t>
 
     #[export_name = "aggregateInitialAccumulator"]
     extern "C" fn initial_accumulator(
-        _target_info: FlatbufferAnnotated<
+        target_info: FlatbufferAnnotated<
             BytesSlice,
             Annotated<AggregateTargetInfo, (TargetKey<'t>, TargetValue<'t>)>,
         >,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
-        let buffer = unsafe { (*accumulator_ptr.value).into_empty_vec() };
-        let mut serializer = Serializer::from_vec(buffer);
+        let target_info = unsafe { target_info.value.as_slice() };
+        let target_info = deserialize::<AggregateTargetInfo>(target_info)
+            .expect("Cannot deserialize AggregateTargetInfo");
 
-        let result = ParsedLogLine1d::create(
-            serializer.buffer_builder(),
-            &ParsedLogLine1dArgs {
-                count: 0,
-                log_types: None,
-            },
-        );
+        let target_value = target_info.target_old_value().map(|bytes| bytes.bytes());
 
-        let SerializedRawParts {
-            mut buffer,
-            head,
-            len,
-        } = serializer.finish(result).into_owned().into_raw_parts();
+        let mut buffer = unsafe { (*accumulator_ptr.value).into_empty_vec() };
 
-        let head = try_usize_to_u32(head).expect("too big head");
-        let len = try_usize_to_u32(len).expect("too big len");
+        let (mut buffer, head, len) = match target_value {
+            None => {
+                let mut serializer = Serializer::from_vec(buffer);
+
+                let result = ParsedLogLine1d::create(
+                    serializer.buffer_builder(),
+                    &ParsedLogLine1dArgs {
+                        count: 0,
+                        log_types: None,
+                    },
+                );
+
+                let SerializedRawParts {
+                    mut buffer,
+                    head,
+                    len,
+                } = serializer.finish(result).into_owned().into_raw_parts();
+
+                let head = try_usize_to_u32(head).expect("too big head");
+                let len = try_usize_to_u32(len).expect("too big len");
+
+                (buffer, head, len)
+            }
+            Some(target_value) => {
+                buffer.extend_from_slice(target_value);
+                (
+                    buffer,
+                    0,
+                    try_usize_to_u32(target_value.len()).expect("too big len"),
+                )
+            }
+        };
 
         buffer.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
 
@@ -148,8 +169,7 @@ impl<'t>
 
         unsafe { *accumulator_ptr.value = BytesVecRawParts::from(buffer) };
 
-        // ErrorCode::Ok
-        todo!("migrate data from TargetValue")
+        ErrorCode::Ok
     }
 
     #[export_name = "aggregateReduce"]

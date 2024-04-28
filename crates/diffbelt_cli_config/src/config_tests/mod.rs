@@ -19,7 +19,7 @@ use crate::CliConfig;
 pub mod error;
 pub mod run;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 pub mod transforms;
 pub mod value;
 

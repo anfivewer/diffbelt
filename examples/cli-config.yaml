@@ -565,8 +565,8 @@ tests:
         target_old_value: |
           count: 4
           items:
-            worker#:middlewares::handleFull::S: 3
             main:middlewares::noTranslation::S: 1
+            worker#:middlewares::handleFull::S: 3
       output: |
         count: 4
         items:

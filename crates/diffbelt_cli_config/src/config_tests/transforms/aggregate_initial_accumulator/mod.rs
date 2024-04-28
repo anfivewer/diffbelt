@@ -10,6 +10,7 @@ use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 use diffbelt_yaml::YamlNode;
 
 use crate::config_tests::error::{AssertError, TestError};
+use crate::config_tests::tests::compare::compare_strings;
 use crate::config_tests::transforms::aggregate_initial_accumulator::yaml_input::yaml_test_vars_to_aggregate_initial_accumulator_input;
 use crate::config_tests::transforms::aggregate_util::{
     create_test_aggregate_functions, require_wasm_modules_aggregate,
@@ -148,19 +149,7 @@ impl<'a> AggregateInitialAccumulatorTransformTest<'a> {
         actual: &ActualOutput,
         expected: &ExpectedOutput<'a>,
     ) -> Result<Option<AssertError>, TestError> {
-        let (distance, diffs) = diff(expected, actual, "\n");
-
-        let (distance, diffs) = if distance != 0 && diffs.len() == 1 {
-            diff(expected, actual, "")
-        } else {
-            (distance, diffs)
-        };
-
-        if distance == 0 {
-            return Ok(None);
-        }
-
-        Ok(Some(AssertError::HasDiff { diffs }))
+        Ok(compare_strings(expected, actual))
     }
 }
 
