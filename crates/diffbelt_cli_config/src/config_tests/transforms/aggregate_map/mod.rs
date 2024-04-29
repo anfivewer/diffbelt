@@ -147,7 +147,7 @@ impl<'a> AggregateMapTransformTest<'a> {
             let target_key = call_human_readable_conversion!(
                 target_key.bytes(),
                 self.aggregate_human_readable,
-                call_target_key_from_bytes,
+                call_bytes_to_target_key,
                 input_vec_holder,
                 output_vec_holder
             )
@@ -163,7 +163,7 @@ impl<'a> AggregateMapTransformTest<'a> {
                     let mapped_value = call_human_readable_conversion!(
                         x.bytes(),
                         self.aggregate_human_readable,
-                        call_mapped_value_from_bytes,
+                        call_bytes_to_mapped_value,
                         input_vec_holder,
                         output_vec_holder
                     )

@@ -24,17 +24,17 @@ pub trait HumanReadable {
 }
 
 pub trait AggregateHumanReadable {
-    extern "C" fn target_key_from_bytes(
+    extern "C" fn bytes_to_target_key(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode;
 
-    extern "C" fn mapped_value_from_bytes(
+    extern "C" fn bytes_to_mapped_value(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode;
 
-    extern "C" fn accumulator_from_bytes(
+    extern "C" fn bytes_to_accumulator(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode;

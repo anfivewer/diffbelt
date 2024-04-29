@@ -122,7 +122,7 @@ impl<'a> AggregateInitialAccumulatorTransformTest<'a> {
 
         let result = self
             .aggregate_human_readable
-            .call_accumulator_from_bytes(slice, &output_slice)
+            .call_bytes_to_accumulator(slice, &output_slice)
             .await?
             .observe_bytes(self.aggregate_human_readable.instance, |result| {
                 Ok::<_, TestError>(String::from(from_utf8(result)?))

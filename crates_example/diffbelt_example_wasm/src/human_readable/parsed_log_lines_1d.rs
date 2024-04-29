@@ -120,7 +120,7 @@ impl HumanReadable for ParsedLogLines1dKv {
 
 impl AggregateHumanReadable for ParsedLogLines1dKv {
     #[export_name = "parsedLogLinesTargetKeyFromBytes"]
-    extern "C" fn target_key_from_bytes(
+    extern "C" fn bytes_to_target_key(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
@@ -128,7 +128,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
     }
 
     #[export_name = "parsedLogLinesMappedValueFromBytes"]
-    extern "C" fn mapped_value_from_bytes(
+    extern "C" fn bytes_to_mapped_value(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
@@ -136,7 +136,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
     }
 
     #[export_name = "parsedLogLinesAccumulatorFromBytes"]
-    extern "C" fn accumulator_from_bytes(
+    extern "C" fn bytes_to_accumulator(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {

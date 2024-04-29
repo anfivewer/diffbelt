@@ -16,9 +16,9 @@ async fn create_aggregate_human_readable<'a>(
 ) -> Result<AggregateHumanReadableFunctions<'a>, TestError> {
     let aggregate_human_readable = AggregateHumanReadableFunctions::new(
         human_readable,
-        aggregate_human_readable.target_key_from_bytes.as_str(),
-        aggregate_human_readable.mapped_value_from_bytes.as_str(),
-        aggregate_human_readable.accumulator_from_bytes.as_str(),
+        aggregate_human_readable.bytes_to_target_key.as_str(),
+        aggregate_human_readable.bytes_to_mapped_value.as_str(),
+        aggregate_human_readable.bytes_to_accumulator.as_str(),
     )
     .await?;
 
