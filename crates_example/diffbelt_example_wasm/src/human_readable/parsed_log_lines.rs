@@ -1,13 +1,12 @@
 use alloc::string::{FromUtf8Error, String};
 use alloc::vec::Vec;
 use core::fmt::Write;
-use core::mem::forget;
 use core::str::Utf8Error;
 
 use thiserror_no_std::Error;
 
 use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineArgs, Prop, PropArgs};
-use diffbelt_protos::{deserialize, InvalidFlatbuffer, Serializer};
+use diffbelt_protos::{deserialize, InvalidFlatbuffer, SerializedRawParts, Serializer};
 use diffbelt_wasm_binding::annotations::{Annotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;
@@ -51,7 +50,7 @@ impl HumanReadable for ParsedLogLinesKv {
     #[export_name = "parsedLogLinesValueToBytes"]
     extern "C" fn human_readable_value_to_bytes(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
-        bytes: *mut BytesVecRawParts,
+        buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode {
         lazy_static::lazy_static! {
             static ref LOG_LEVEL_RE: Regex = Regex::new(r"^logLevel: ([A-Z]).*\n").expect("Cannot build LOG_LEVEL_RE");
@@ -69,7 +68,7 @@ impl HumanReadable for ParsedLogLinesKv {
         run_error_coded(|| -> Result<ErrorCode, LogLinesError> {
             let value = unsafe { (&*input_and_output.value).as_str() }?;
 
-            let buffer = unsafe { (&*bytes).into_empty_vec() };
+            let buffer = unsafe { (&*buffer_ptr).into_empty_vec() };
             let mut serializer = Serializer::<ParsedLogLine>::from_vec(buffer);
 
             let mut mem = Regex::alloc_captures::<3>();
@@ -207,13 +206,15 @@ impl HumanReadable for ParsedLogLinesKv {
                 },
             );
 
-            let parsed_log_line = serializer.finish(parsed_log_line);
+            let SerializedRawParts { buffer, head, len } = serializer
+                .finish(parsed_log_line)
+                .into_owned()
+                .into_raw_parts();
 
             unsafe {
-                *input_and_output.value = BytesSlice::from(parsed_log_line.as_bytes());
+                *input_and_output.value = BytesSlice::from(&buffer[head..(head + len)]);
+                *buffer_ptr = BytesVecRawParts::from(buffer);
             }
-
-            forget(parsed_log_line);
 
             Ok(ErrorCode::Ok)
         })

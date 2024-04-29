@@ -23,7 +23,7 @@ pub trait Aggregate<
             Annotated<AggregateMapMultiInput, (SourceKey, SourceValue)>,
             Annotated<AggregateMapMultiOutput, (TargetKey, MappedValue)>,
         >,
-        buffer: *mut BytesVecRawParts,
+        buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode;
 
     extern "C" fn initial_accumulator(
@@ -31,12 +31,12 @@ pub trait Aggregate<
             BytesSlice,
             Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
         >,
-        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode;
 
     extern "C" fn reduce(
         input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue>>,
-        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode;
 
     /**
@@ -49,12 +49,12 @@ pub trait Aggregate<
      */
     extern "C" fn merge_accumulators(
         input: SliceRawParts<Annotated<BytesSlice, Accumulator>>,
-        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode;
 
     extern "C" fn apply(
         accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
         output: FlatbufferAnnotated<*mut BytesSlice, Annotated<AggregateApplyOutput, TargetValue>>,
-        buffer: *mut BytesVecRawParts,
+        buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode;
 }

@@ -12,6 +12,10 @@ use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{WasmBytesSlice, WasmPtrToVecRawParts};
 use crate::wasm::{WasmError, WasmModuleInstance};
 
+// FIXME: we cannot use any WasmVecHolder which was passed to wasm if function paniced/failed,
+//        we should mark them as broken and not try to dealloc and replace it with fresh one.
+//        Maybe there should be also ExitCode::SafeFail, which user provides, if vectors are stored
+//        back in a consistent state
 pub struct WasmVecHolder<'a> {
     pub instance: &'a WasmModuleInstance,
     pub ptr: WasmPtrToVecRawParts,

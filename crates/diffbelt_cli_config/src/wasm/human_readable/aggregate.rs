@@ -14,10 +14,10 @@ pub struct AggregateHumanReadableFunctions<'a> {
     pub instance: &'a WasmModuleInstance,
     slice_holder: WasmSliceHolder<'a>,
     bytes_to_target_key: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
-    bytes_to_mapped_value:
-        TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
-    bytes_to_accumulator:
-        TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    bytes_to_mapped_value: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    mapped_value_to_bytes: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    bytes_to_accumulator: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
+    accumulator_to_bytes: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
 }
 
 impl<'a> AggregateHumanReadableFunctions<'a> {
@@ -25,7 +25,9 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
         instance: &'a WasmModuleInstance,
         bytes_to_target_key: &str,
         bytes_to_mapped_value: &str,
+        mapped_value_to_bytes: &str,
         bytes_to_accumulator: &str,
+        accumulator_to_bytes: &str,
     ) -> Result<Self, WasmError> {
         let slice_holder = instance.alloc_slice_holder().await?;
 
@@ -38,16 +40,24 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
         let bytes_to_mapped_value = instance
             .instance
             .get_typed_func(store.as_context_mut(), bytes_to_mapped_value)?;
+        let mapped_value_to_bytes = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), mapped_value_to_bytes)?;
         let bytes_to_accumulator = instance
             .instance
             .get_typed_func(store.as_context_mut(), bytes_to_accumulator)?;
+        let accumulator_to_bytes = instance
+            .instance
+            .get_typed_func(store.as_context_mut(), accumulator_to_bytes)?;
 
         Ok(Self {
             instance,
             slice_holder,
             bytes_to_target_key,
             bytes_to_mapped_value,
+            mapped_value_to_bytes,
             bytes_to_accumulator,
+            accumulator_to_bytes,
         })
     }
 
@@ -62,8 +72,18 @@ impl<'a> AggregateHumanReadableFunctions<'a> {
         "call_bytes_to_mapped_value"
     );
     impl_human_readable_call!(
+        call_mapped_value_to_bytes,
+        mapped_value_to_bytes,
+        "call_mapped_value_to_bytes"
+    );
+    impl_human_readable_call!(
         call_bytes_to_accumulator,
         bytes_to_accumulator,
         "call_bytes_to_accumulator"
+    );
+    impl_human_readable_call!(
+        call_accumulator_to_bytes,
+        accumulator_to_bytes,
+        "call_accumulator_to_bytes"
     );
 }

@@ -17,9 +17,11 @@ use crate::config_tests::transforms::map_filter::{
 };
 use crate::wasm::WasmModuleInstance;
 use crate::Collection;
+use crate::config_tests::transforms::aggregate_reduce::{AggregateReduceTransformTest, AggregateReduceTransformTestCreator};
 
 pub mod aggregate_initial_accumulator;
 pub mod aggregate_map;
+pub mod aggregate_reduce;
 mod aggregate_util;
 pub mod map_filter;
 
@@ -45,6 +47,7 @@ pub enum TransformTestCreatorImpl<'a> {
     MapFilter(MapFilterTransformTestCreator<'a>),
     AggregateMap(AggregateMapTransformTestCreator<'a>),
     AggregateInitialAccumulator(AggregateInitialAccumulatorTransformTestCreator<'a>),
+    AggregateReduce(AggregateReduceTransformTestCreator<'a>),
 }
 
 #[enum_dispatch]
@@ -62,6 +65,7 @@ pub enum TransformTestImpl<'a> {
     MapFilter(MapFilterTransformTest<'a>),
     AggregateMap(AggregateMapTransformTest<'a>),
     AggregateInitialAccumulator(AggregateInitialAccumulatorTransformTest<'a>),
+    AggregateReduce(AggregateReduceTransformTest<'a>),
 }
 
 #[macro_export]

@@ -61,6 +61,17 @@ pub struct InputOutputAnnotated<Value, InputAnnotation, OutputAnnotation> {
     phantom: PhantomData<(InputAnnotation, OutputAnnotation)>,
 }
 
+impl<Value: Clone, InputAnnotation, OutputAnnotation>
+    InputOutputAnnotated<Value, InputAnnotation, OutputAnnotation>
+{
+    pub fn clone(&self) -> Self {
+        Self {
+            value: self.value.clone(),
+            phantom: PhantomData::default(),
+        }
+    }
+}
+
 impl<A, B, C> From<A> for InputOutputAnnotated<A, B, C> {
     fn from(value: A) -> Self {
         Self {

@@ -83,9 +83,11 @@ transforms:
       apply: aggregateApply
       human_readable:
         wasm: example
-        bytes_to_target_key: parsedLogLinesTargetKeyFromBytes
-        bytes_to_mapped_value: parsedLogLinesMappedValueFromBytes
-        bytes_to_accumulator: parsedLogLinesAccumulatorFromBytes
+        bytes_to_target_key: parsedLogLinesBytesToTargetKey
+        bytes_to_mapped_value: parsedLogLinesBytesToMappedValue
+        mapped_value_to_bytes: parsedLogLinesBytesToMappedValue
+        bytes_to_accumulator: parsedLogLinesBytesToAccumulator
+        accumulator_to_bytes: parsedLogLinesAccumulatorToBytes
 
 #  - source: parsed-log-lines
 #    target: parsed-log-lines:1d
@@ -572,3 +574,28 @@ tests:
         items:
           main:middlewares::noTranslation::S: 1
           worker#:middlewares::handleFull::S: 3
+
+  transforms.parsed_lines_1d.reduce:
+    - name: basic
+      input:
+        accumulator: |
+          count: 4
+          items:
+            main:middlewares::noTranslation::S: 1
+            worker#:middlewares::handleFull::S: 3
+        items:
+          - |-
+            -worker#:middlewares::handleFull::S
+            +master#:something::newKey::S
+          - |-
+            -main:middlewares::noTranslation::S
+          - |-
+            +master#:something::newKey::S
+          - |-
+            +master#:another::newKey::S
+      output: |
+        count: 5
+        items:
+          master#:another::newKey::S: 1
+          master#:something::newKey::S: 2
+          worker#:middlewares::handleFull::S: 2

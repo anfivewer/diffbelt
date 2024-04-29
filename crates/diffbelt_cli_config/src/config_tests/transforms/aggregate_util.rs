@@ -18,7 +18,9 @@ async fn create_aggregate_human_readable<'a>(
         human_readable,
         aggregate_human_readable.bytes_to_target_key.as_str(),
         aggregate_human_readable.bytes_to_mapped_value.as_str(),
+        aggregate_human_readable.mapped_value_to_bytes.as_str(),
         aggregate_human_readable.bytes_to_accumulator.as_str(),
+        aggregate_human_readable.accumulator_to_bytes.as_str(),
     )
     .await?;
 

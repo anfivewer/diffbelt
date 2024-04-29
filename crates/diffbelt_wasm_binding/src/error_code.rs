@@ -1,3 +1,4 @@
+#[derive(Eq, PartialEq)]
 #[derive(Debug)]
 #[repr(i32)]
 pub enum ErrorCode {

@@ -1,17 +1,21 @@
+use alloc::borrow::Cow;
+use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
 use core::str::from_utf8;
 
-use diffbelt_example_protos::protos::log_line::{ParsedLogLine1d, ParsedLogLine1dArgs};
+use diffbelt_example_protos::protos::log_line::{
+    LogTypeWithCount, LogTypeWithCountArgs, ParsedLogLine1d, ParsedLogLine1dArgs,
+};
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput,
     AggregateMapMultiOutputArgs, AggregateMapOutput, AggregateMapOutputArgs, AggregateReduceInput,
     AggregateTargetInfo,
 };
 use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
-use diffbelt_util_no_std::bytes::write_u32_be;
-use diffbelt_util_no_std::cast::{try_usize_to_u32, u8_to_char};
+use diffbelt_util_no_std::bytes::{read_u32_be, write_u32_be};
+use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize, u8_to_char};
 use diffbelt_wasm_binding::annotations::serializer::InputAnnotated;
 use diffbelt_wasm_binding::annotations::{Annotated, FlatbufferAnnotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
@@ -171,10 +175,124 @@ impl<'t>
 
     #[export_name = "aggregateReduce"]
     extern "C" fn reduce(
-        _input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue<'t>>>,
-        _accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue<'t>>>,
+        accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
-        todo!()
+        let accumulator = unsafe { (&*accumulator_ptr.value).into_vec() };
+
+        let accumulator_tail = &accumulator[(accumulator.len() - 8)..];
+
+        let head = read_u32_be(accumulator_tail);
+        let len = read_u32_be(&accumulator_tail[4..]);
+
+        let serialized = &accumulator[u32_to_usize(head)..u32_to_usize(head + len)];
+        let serialized =
+            deserialize::<ParsedLogLine1d>(serialized).expect("cannot parse accumulator");
+
+        let mut total_count = 0u64;
+        let mut log_types_map = BTreeMap::<Cow<str>, u64>::new();
+
+        if let Some(log_types) = serialized.log_types() {
+            for item in log_types {
+                let name = item.name().expect("item name is empty");
+                let count = item.count();
+
+                total_count += count;
+
+                log_types_map.insert(Cow::Owned(String::from(name)), count);
+            }
+        }
+
+        let input = unsafe { input.value.as_slice() };
+        let serialized = deserialize::<AggregateReduceInput>(input).expect("cannot parse items");
+
+        for item in serialized.items().expect("no items") {
+            let Some(mapped_value) = item.mapped_value() else {
+                continue;
+            };
+
+            let mapped_value = mapped_value.bytes();
+            let mapped_value = from_utf8(mapped_value).expect("mapped value is not a string");
+
+            for line in mapped_value.split('\n') {
+                let is_add = line.get(0..1).expect("no first char") == "+";
+                let is_remove = line.get(0..1).expect("no first char") == "-";
+
+                if is_add == is_remove {
+                    panic!("invalid line");
+                }
+
+                let name = line.get(1..).expect("no second char");
+
+                let count = match log_types_map.get_mut(name) {
+                    None => {
+                        log_types_map.insert(Cow::Owned(String::from(name)), 0);
+                        log_types_map.get_mut(name).expect("just inserted")
+                    }
+                    Some(count) => count,
+                };
+
+                if is_add {
+                    *count += 1;
+                    total_count += 1;
+                } else {
+                    *count -= 1;
+                    total_count -= 1;
+                }
+            }
+        }
+
+        let mut serializer = Serializer::from_vec(accumulator);
+        let mut items = Vec::with_capacity(log_types_map.len());
+
+        for (name, count) in log_types_map {
+            if count == 0 {
+                continue;
+            }
+
+            let name = serializer.create_string(name.as_ref());
+
+            items.push(LogTypeWithCount::create(
+                serializer.buffer_builder(),
+                &LogTypeWithCountArgs {
+                    name: Some(name),
+                    count,
+                },
+            ));
+        }
+
+        let log_types = serializer.create_vector(&items);
+
+        let result = ParsedLogLine1d::create(
+            serializer.buffer_builder(),
+            &ParsedLogLine1dArgs {
+                count: total_count,
+                log_types: Some(log_types),
+            },
+        );
+
+        let SerializedRawParts {
+            mut buffer,
+            head,
+            len,
+        } = serializer.finish(result).into_owned().into_raw_parts();
+
+        buffer.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
+
+        let buffer_len = buffer.len();
+        let buffer_tail = &mut buffer[(buffer_len - 8)..];
+
+        write_u32_be(buffer_tail, try_usize_to_u32(head).expect("head too big"));
+        write_u32_be(
+            &mut buffer_tail[4..],
+            try_usize_to_u32(len).expect("len too big"),
+        );
+
+        unsafe {
+            *accumulator_ptr.value = BytesVecRawParts::from(buffer);
+        }
+
+        ErrorCode::Ok
     }
 
     #[export_name = "aggregateMergeAccumulators"]
