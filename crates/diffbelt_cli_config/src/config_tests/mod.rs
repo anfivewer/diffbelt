@@ -8,6 +8,7 @@ use error::{AssertError, TestError};
 
 use crate::config_tests::transforms::aggregate_initial_accumulator::AggregateInitialAccumulatorTransformTestCreator;
 use crate::config_tests::transforms::aggregate_map::AggregateMapTransformTestCreator;
+use crate::config_tests::transforms::aggregate_merge_accumulators::AggregateMergeAccumulatorsTransformTestCreator;
 use crate::config_tests::transforms::aggregate_reduce::AggregateReduceTransformTestCreator;
 use crate::config_tests::transforms::map_filter::MapFilterTransformTestCreator;
 use crate::config_tests::transforms::{
@@ -181,6 +182,22 @@ impl CliConfig {
                             };
 
                             match_ok!(AggregateReduceTransformTestCreator::new(
+                                TransformTestPreCreateOptions {
+                                    source_collection,
+                                    target_collection,
+                                    data: aggregate,
+                                }
+                            ))
+                        }
+                        "merge_accumulators" => {
+                            let Some(aggregate) = transform.aggregate.as_ref() else {
+                                push_error!(format!(
+                                    "Transform {transform_name} does not contain aggregate"
+                                ));
+                                continue 'outer;
+                            };
+
+                            match_ok!(AggregateMergeAccumulatorsTransformTestCreator::new(
                                 TransformTestPreCreateOptions {
                                     source_collection,
                                     target_collection,

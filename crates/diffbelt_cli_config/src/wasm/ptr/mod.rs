@@ -1,4 +1,6 @@
 use bytemuck::Pod;
+use diffbelt_util_no_std::cast::{checked_usize_to_i32, try_usize_to_i32};
+use std::mem::size_of;
 use wasmtime::component::__internal::StoreOpaque;
 use wasmtime::{ValRaw, ValType, WasmTy};
 
@@ -39,9 +41,11 @@ impl<T: Pod> WasmPtr<T> {
     }
 
     pub fn add_offset(&self, offset: i32) -> Result<Self, WasmError> {
+        let size = checked_usize_to_i32(size_of::<T>());
+
         let ptr = self
             .value
-            .checked_add(offset)
+            .checked_add(offset * size)
             .ok_or_else(|| WasmError::Unspecified(format!("invalid offset {offset}")))?;
 
         Ok(Self {

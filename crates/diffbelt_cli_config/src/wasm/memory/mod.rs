@@ -4,7 +4,7 @@ use wasmtime::{AsContextMut, Instance, Memory, Store, TypedFunc};
 
 use diffbelt_util::Wrap;
 
-use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
+use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr, WasmVecRawParts};
 use crate::wasm::{WasmError, WasmStoreData};
 
 pub mod slice;
@@ -26,7 +26,13 @@ pub struct Allocation {
     dealloc_bytes_slice: TypedFunc<WasmPtr<WasmBytesSlice>, ()>,
     pub alloc_bytes_vec_raw_parts: TypedFunc<(), WasmPtr<WasmBytesVecRawParts>>,
     pub dealloc_bytes_vec_raw_parts: TypedFunc<WasmPtr<WasmBytesVecRawParts>, ()>,
+    pub alloc_vec_raw_parts_of_bytes_vec_raw_parts:
+        TypedFunc<(), WasmPtr<WasmVecRawParts<WasmBytesVecRawParts>>>,
+    pub dealloc_vec_raw_parts_of_bytes_vec_raw_parts:
+        TypedFunc<WasmPtr<WasmVecRawParts<WasmBytesVecRawParts>>, ()>,
     pub ensure_vec_capacity: TypedFunc<(WasmPtr<WasmBytesVecRawParts>, i32), ()>,
+    pub ensure_vec_of_bytes_vec_raw_parts_capacity:
+        TypedFunc<(WasmPtr<WasmVecRawParts<WasmBytesVecRawParts>>, i32), ()>,
     pub memory: Memory,
 }
 
@@ -48,7 +54,16 @@ impl Allocation {
         get_function!(dealloc_bytes_slice, "dealloc_bytes_slice");
         get_function!(alloc_bytes_vec_raw_parts, "alloc_bytes_vec_raw_parts");
         get_function!(dealloc_bytes_vec_raw_parts, "dealloc_bytes_vec_raw_parts");
+        get_function!(
+            alloc_vec_raw_parts_of_bytes_vec_raw_parts,
+            "alloc_vec_raw_parts_of_bytes_vec_raw_parts"
+        );
+        get_function!(
+            dealloc_vec_raw_parts_of_bytes_vec_raw_parts,
+            "dealloc_vec_raw_parts_of_bytes_vec_raw_parts"
+        );
         get_function!(ensure_vec_capacity, "ensure_vec_capacity");
+        get_function!(ensure_vec_of_bytes_vec_raw_parts_capacity, "ensure_vec_of_bytes_vec_raw_parts_capacity");
 
         Ok(Self {
             pending_deallocs: Wrap::wrap(Vec::with_capacity(8)),
@@ -58,7 +73,10 @@ impl Allocation {
             dealloc_bytes_slice,
             alloc_bytes_vec_raw_parts,
             dealloc_bytes_vec_raw_parts,
+            alloc_vec_raw_parts_of_bytes_vec_raw_parts,
+            dealloc_vec_raw_parts_of_bytes_vec_raw_parts,
             ensure_vec_capacity,
+            ensure_vec_of_bytes_vec_raw_parts_capacity,
             memory,
         })
     }

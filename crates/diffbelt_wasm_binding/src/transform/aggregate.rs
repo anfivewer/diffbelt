@@ -48,7 +48,7 @@ pub trait Aggregate<
      * Accumulator argument receives first accumulator.
      */
     extern "C" fn merge_accumulators(
-        input: SliceRawParts<Annotated<BytesSlice, Accumulator>>,
+        input: SliceRawParts<Annotated<BytesVecRawParts, Accumulator>>,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode;
 

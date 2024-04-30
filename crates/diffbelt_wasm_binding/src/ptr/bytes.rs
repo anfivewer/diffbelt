@@ -1,6 +1,7 @@
 use alloc::string::{FromUtf8Error, String};
 use alloc::vec::Vec;
 use core::ptr;
+use core::ptr::slice_from_raw_parts;
 use core::str::{from_utf8, Utf8Error};
 
 use bytemuck::{Pod, Zeroable};
@@ -26,17 +27,19 @@ pub struct BytesVecWidePtr {
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
-pub struct BytesVecRawParts<P: PtrImpl = NativePtrImpl> {
-    pub ptr: P::MutPtr<u8>,
+pub struct VecRawParts<T: Pod, P: PtrImpl = NativePtrImpl> {
+    pub ptr: P::MutPtr<T>,
     pub len: i32,
     pub capacity: i32,
 }
 
-unsafe impl<P: PtrImpl> Zeroable for BytesVecRawParts<P> {}
-unsafe impl<P: PtrImpl + Copy + 'static> Pod for BytesVecRawParts<P> {}
+unsafe impl<T: Pod, P: PtrImpl> Zeroable for VecRawParts<T, P> {}
+unsafe impl<T: Pod, P: PtrImpl + Copy + 'static> Pod for VecRawParts<T, P> {}
 
-impl BytesVecRawParts<NativePtrImpl> {
-    pub unsafe fn into_empty_vec(self) -> Vec<u8> {
+pub type BytesVecRawParts<P = NativePtrImpl> = VecRawParts<u8, P>;
+
+impl<T: Pod> VecRawParts<T, NativePtrImpl> {
+    pub unsafe fn into_empty_vec(self) -> Vec<T> {
         let ptr = self.ptr.as_mut_ptr();
         Vec::from_raw_parts(ptr, 0, self.capacity as usize)
     }
@@ -56,13 +59,13 @@ impl BytesVecWidePtr {
     }
 }
 
-impl From<Vec<u8>> for BytesVecRawParts {
-    fn from(vec: Vec<u8>) -> Self {
+impl<T: Pod> From<Vec<T>> for VecRawParts<T> {
+    fn from(vec: Vec<T>) -> Self {
         let len = vec.len();
         let len = checked_usize_to_i32(len);
         let capacity = vec.capacity();
         let capacity = checked_usize_to_i32(capacity);
-        let ptr = vec.leak() as *mut [u8] as *mut u8;
+        let ptr = vec.leak() as *mut [T] as *mut T;
 
         Self {
             ptr: MutPtr::from(ptr),
@@ -88,8 +91,8 @@ impl SliceRawParts<u8> {
     }
 }
 
-impl From<&BytesVecRawParts> for SliceRawParts<u8> {
-    fn from(value: &BytesVecRawParts) -> Self {
+impl<T: Pod> From<&VecRawParts<T>> for SliceRawParts<T> {
+    fn from(value: &VecRawParts<T>) -> Self {
         Self {
             ptr: ConstPtr::from(value.ptr),
             len: value.len,
@@ -97,7 +100,7 @@ impl From<&BytesVecRawParts> for SliceRawParts<u8> {
     }
 }
 
-impl BytesVecRawParts {
+impl<T: Pod> VecRawParts<T> {
     pub fn null() -> Self {
         Self {
             ptr: MutPtr::from(ptr::null_mut()),
@@ -106,7 +109,20 @@ impl BytesVecRawParts {
         }
     }
 
-    pub unsafe fn into_vec(self) -> Vec<u8> {
+    pub unsafe fn as_slice(&self) -> &[T] {
+        let Self {
+            ptr,
+            len,
+            capacity: _,
+        } = self;
+
+        let slice = slice_from_raw_parts(ptr.as_ptr(), checked_positive_i32_to_usize(*len));
+        let slice = &*slice;
+
+        slice
+    }
+
+    pub unsafe fn into_vec(self) -> Vec<T> {
         let Self { ptr, len, capacity } = self;
 
         let len = checked_positive_i32_to_usize(len);
@@ -114,7 +130,9 @@ impl BytesVecRawParts {
 
         Vec::from_raw_parts(ptr.as_mut_ptr(), len, capacity)
     }
+}
 
+impl VecRawParts<u8> {
     pub unsafe fn into_string(self) -> Result<String, FromUtf8Error> {
         let vec = self.into_vec();
         String::from_utf8(vec)
@@ -123,7 +141,23 @@ impl BytesVecRawParts {
 
 #[no_mangle]
 unsafe extern "C" fn ensure_vec_capacity(parts: *mut BytesVecRawParts, len: i32) {
-    let mut vec = (&*parts).into_empty_vec();
+    let mut vec = (&*parts).into_vec();
+
+    let len = checked_positive_i32_to_usize(len);
+
+    if vec.capacity() < len {
+        vec.reserve(len - vec.len());
+    }
+
+    unsafe { *parts = vec.into() };
+}
+
+#[no_mangle]
+unsafe extern "C" fn ensure_vec_of_bytes_vec_raw_parts_capacity(
+    parts: *mut VecRawParts<BytesVecRawParts>,
+    len: i32,
+) {
+    let mut vec = (&*parts).into_vec();
 
     let len = checked_positive_i32_to_usize(len);
 

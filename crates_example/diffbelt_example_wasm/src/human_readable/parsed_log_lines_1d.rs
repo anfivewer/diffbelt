@@ -40,9 +40,9 @@ impl HumanReadable for ParsedLogLines1dKv {
         buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode {
         lazy_static::lazy_static! {
-            static ref COUNT_RE: Regex = Regex::new(r"^count: (\d+)\n").expect("Cannot build COUNT_RE");
+            static ref COUNT_RE: Regex = Regex::new(r"^count: (-?\d+)\n").expect("Cannot build COUNT_RE");
             static ref ITEMS_RE: Regex = Regex::new(r"^items:\n").expect("Cannot build ITEMS_RE");
-            static ref ITEM_RE: Regex = Regex::new(r"^  (.*): (\d+)\n").expect("Cannot build ITEM_RE");
+            static ref ITEM_RE: Regex = Regex::new(r"^  (.*): (-?\d+)\n").expect("Cannot build ITEM_RE");
         }
 
         let buffer = unsafe { (*buffer_ptr).into_empty_vec() };
@@ -56,7 +56,7 @@ impl HumanReadable for ParsedLogLines1dKv {
             .captures(input, &mut captures_holder)
             .expect("No count");
         let count = captures.get(1).expect("capture");
-        let total_count = count.parse::<u64>().expect("Cannot parse count");
+        let total_count = count.parse::<i64>().expect("Cannot parse count");
 
         let input = &input[captures.get(0).expect("capture").len()..];
         let captures = ITEMS_RE
@@ -76,7 +76,7 @@ impl HumanReadable for ParsedLogLines1dKv {
 
             let name = captures.get(1).expect("No item name");
             let count = captures.get(2).expect("No item count");
-            let count = count.parse::<u64>().expect("Cannot parse count");
+            let count = count.parse::<i64>().expect("Cannot parse count");
 
             let name = serializer.create_string(name);
 

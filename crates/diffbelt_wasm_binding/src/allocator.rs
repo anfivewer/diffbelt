@@ -1,6 +1,7 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::ptr;
+use diffbelt_wasm_binding::ptr::bytes::VecRawParts;
 
 use crate::ptr::bytes::{BytesSlice, BytesVecPtr, BytesVecRawParts, BytesVecWidePtr};
 use crate::ptr::{ConstPtr, MutPtr};
@@ -52,6 +53,28 @@ unsafe extern "C" fn dealloc_bytes_vec_raw_parts(ptr: *mut BytesVecRawParts) {
 
     if parts_ref.capacity > 0 {
         let _: Vec<u8> = (*parts_ref).into_vec();
+    }
+
+    let b = Box::from_raw(ptr);
+    drop(b);
+}
+
+#[no_mangle]
+extern "C" fn alloc_vec_raw_parts_of_bytes_vec_raw_parts() -> *mut VecRawParts<BytesVecRawParts> {
+    let b = Box::new(VecRawParts {
+        ptr: MutPtr::from(ptr::null_mut()),
+        len: 0,
+        capacity: 0,
+    });
+    Box::leak(b)
+}
+
+#[no_mangle]
+unsafe extern "C" fn dealloc_vec_raw_parts_of_bytes_vec_raw_parts(ptr: *mut VecRawParts<BytesVecRawParts>) {
+    let parts_ref = &*ptr;
+
+    if parts_ref.capacity > 0 {
+        let _: Vec<BytesVecRawParts> = (*parts_ref).into_vec();
     }
 
     let b = Box::from_raw(ptr);

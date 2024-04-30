@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use bytemuck::{Pod, Zeroable};
 
-use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
+use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts, VecRawParts};
 use diffbelt_wasm_binding::ptr::PtrImpl;
 use diffbelt_wasm_binding::ReplaceResult;
 
@@ -36,6 +36,10 @@ pub struct WasmReplaceResult(pub ReplaceResult<WasmPtrImpl>);
 #[derive(Pod, Zeroable, Copy, Clone)]
 #[repr(transparent)]
 pub struct WasmBytesVecRawParts(pub BytesVecRawParts<WasmPtrImpl>);
+
+#[derive(Pod, Zeroable, Copy, Clone)]
+#[repr(transparent)]
+pub struct WasmVecRawParts<T: Pod>(pub VecRawParts<T, WasmPtrImpl>);
 
 #[derive(Pod, Zeroable, Copy, Clone)]
 #[repr(transparent)]

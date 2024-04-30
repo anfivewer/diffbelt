@@ -16,10 +16,10 @@ table ParsedLogLine {
 
 table LogTypeWithCount {
     name: string;
-    count: uint64;
+    count: int64;
 }
 
 table ParsedLogLine1d {
-    count: uint64;
+    count: int64;
     log_types: [LogTypeWithCount];
 }

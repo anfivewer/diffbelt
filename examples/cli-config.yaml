@@ -599,3 +599,31 @@ tests:
           master#:another::newKey::S: 1
           master#:something::newKey::S: 2
           worker#:middlewares::handleFull::S: 2
+
+  transforms.parsed_lines_1d.merge_accumulators:
+    - name: basic
+      input:
+          - |
+            count: 5
+            items:
+              master#:another::newKey::S: 1
+              master#:something::newKey::S: 2
+              worker#:middlewares::handleFull::S: 2
+          - |
+            count: 1
+            items:
+              master#:another::newKey::S: 1
+              worker#:middlewares::handleFull::S: -1
+          - |
+            count: 3
+            items:
+              master#:something::newKey2::S: 2
+              worker#:middlewares::handleFull::S: -1
+              master#:andAnother::newKey3::S: 1
+      output: |
+        count: 7
+        items:
+          master#:andAnother::newKey3::S: 1
+          master#:another::newKey::S: 2
+          master#:something::newKey2::S: 2
+          master#:something::newKey::S: 2

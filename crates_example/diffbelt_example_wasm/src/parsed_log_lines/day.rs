@@ -5,6 +5,7 @@ use alloc::vec::Vec;
 use core::fmt::Write;
 use core::str::from_utf8;
 
+use crate::parsed_log_lines::accumulator::DayAccumulator;
 use diffbelt_example_protos::protos::log_line::{
     LogTypeWithCount, LogTypeWithCountArgs, ParsedLogLine1d, ParsedLogLine1dArgs,
 };
@@ -22,7 +23,7 @@ use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 use diffbelt_wasm_binding::transform::aggregate::Aggregate;
-use diffbelt_wasm_binding::Regex;
+use diffbelt_wasm_binding::{debug_print_string, Regex};
 
 use crate::types::{ParsedLogLinesKey, ParsedLogLinesValue};
 
@@ -178,30 +179,8 @@ impl<'t>
         input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue<'t>>>,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
-        let accumulator = unsafe { (&*accumulator_ptr.value).into_vec() };
-
-        let accumulator_tail = &accumulator[(accumulator.len() - 8)..];
-
-        let head = read_u32_be(accumulator_tail);
-        let len = read_u32_be(&accumulator_tail[4..]);
-
-        let serialized = &accumulator[u32_to_usize(head)..u32_to_usize(head + len)];
-        let serialized =
-            deserialize::<ParsedLogLine1d>(serialized).expect("cannot parse accumulator");
-
-        let mut total_count = 0u64;
-        let mut log_types_map = BTreeMap::<Cow<str>, u64>::new();
-
-        if let Some(log_types) = serialized.log_types() {
-            for item in log_types {
-                let name = item.name().expect("item name is empty");
-                let count = item.count();
-
-                total_count += count;
-
-                log_types_map.insert(Cow::Owned(String::from(name)), count);
-            }
-        }
+        let accumulator_buffer = unsafe { (&*accumulator_ptr.value).into_vec() };
+        let mut accumulator = DayAccumulator::from_accumulator_bytes(&accumulator_buffer);
 
         let input = unsafe { input.value.as_slice() };
         let serialized = deserialize::<AggregateReduceInput>(input).expect("cannot parse items");
@@ -224,69 +203,11 @@ impl<'t>
 
                 let name = line.get(1..).expect("no second char");
 
-                let count = match log_types_map.get_mut(name) {
-                    None => {
-                        log_types_map.insert(Cow::Owned(String::from(name)), 0);
-                        log_types_map.get_mut(name).expect("just inserted")
-                    }
-                    Some(count) => count,
-                };
-
-                if is_add {
-                    *count += 1;
-                    total_count += 1;
-                } else {
-                    *count -= 1;
-                    total_count -= 1;
-                }
+                () = accumulator.update_log_type(name, is_add);
             }
         }
 
-        let mut serializer = Serializer::from_vec(accumulator);
-        let mut items = Vec::with_capacity(log_types_map.len());
-
-        for (name, count) in log_types_map {
-            if count == 0 {
-                continue;
-            }
-
-            let name = serializer.create_string(name.as_ref());
-
-            items.push(LogTypeWithCount::create(
-                serializer.buffer_builder(),
-                &LogTypeWithCountArgs {
-                    name: Some(name),
-                    count,
-                },
-            ));
-        }
-
-        let log_types = serializer.create_vector(&items);
-
-        let result = ParsedLogLine1d::create(
-            serializer.buffer_builder(),
-            &ParsedLogLine1dArgs {
-                count: total_count,
-                log_types: Some(log_types),
-            },
-        );
-
-        let SerializedRawParts {
-            mut buffer,
-            head,
-            len,
-        } = serializer.finish(result).into_owned().into_raw_parts();
-
-        buffer.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
-
-        let buffer_len = buffer.len();
-        let buffer_tail = &mut buffer[(buffer_len - 8)..];
-
-        write_u32_be(buffer_tail, try_usize_to_u32(head).expect("head too big"));
-        write_u32_be(
-            &mut buffer_tail[4..],
-            try_usize_to_u32(len).expect("len too big"),
-        );
+        let buffer = accumulator.serialize_to_buffer(accumulator_buffer);
 
         unsafe {
             *accumulator_ptr.value = BytesVecRawParts::from(buffer);
@@ -297,10 +218,28 @@ impl<'t>
 
     #[export_name = "aggregateMergeAccumulators"]
     extern "C" fn merge_accumulators(
-        _input: SliceRawParts<Annotated<BytesSlice, Accumulator>>,
-        _accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        input: SliceRawParts<Annotated<BytesVecRawParts, Accumulator>>,
+        accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
-        todo!()
+        let accumulator_buffer = unsafe { (&*accumulator_ptr.value).into_vec() };
+        let input = unsafe { input.as_slice() };
+
+        let mut accumulator = DayAccumulator::from_accumulator_bytes(&accumulator_buffer);
+
+        for item in input {
+            let bytes = unsafe { item.value.as_slice() };
+            let serialized = DayAccumulator::parsed_log_line_1d_from_bytes(bytes);
+
+            accumulator.update_with_parsed_log_lines_1d(serialized);
+        }
+
+        let buffer = accumulator.serialize_to_buffer(accumulator_buffer);
+
+        unsafe {
+            *accumulator_ptr.value = BytesVecRawParts::from(buffer);
+        }
+
+        ErrorCode::Ok
     }
 
     #[export_name = "aggregateApply"]
