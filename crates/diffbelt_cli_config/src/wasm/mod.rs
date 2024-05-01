@@ -71,6 +71,8 @@ pub enum WasmError {
     BadPointer,
     #[error("{0:?}")]
     WasmTime(#[from] wasmtime::Error),
+    #[error("Aggregate::apply error code {0:?}")]
+    AggregateApplyErrorCode(ErrorCode),
     #[error("{0:?}")]
     Unspecified(String),
 }

@@ -59,35 +59,42 @@ impl HumanReadable for ParsedLogLines1dKv {
         let total_count = count.parse::<i64>().expect("Cannot parse count");
 
         let input = &input[captures.get(0).expect("capture").len()..];
-        let captures = ITEMS_RE
-            .captures(input, &mut captures_holder)
-            .expect("No items");
-        let input = &input[captures.get(0).expect("capture").len()..];
 
-        let mut items = Vec::new();
-
-        let mut input = input;
-
-        while !input.is_empty() {
-            let captures = ITEM_RE
+        let items = if !input.is_empty() {
+            let captures = ITEMS_RE
                 .captures(input, &mut captures_holder)
-                .expect("Not a item");
-            input = &input[captures.get(0).expect("capture").len()..];
+                .expect("No items");
+            let input = &input[captures.get(0).expect("capture").len()..];
 
-            let name = captures.get(1).expect("No item name");
-            let count = captures.get(2).expect("No item count");
-            let count = count.parse::<i64>().expect("Cannot parse count");
+            let mut items = Vec::new();
 
-            let name = serializer.create_string(name);
+            let mut input = input;
 
-            items.push(LogTypeWithCount::create(
-                serializer.buffer_builder(),
-                &LogTypeWithCountArgs {
-                    name: Some(name),
-                    count,
-                },
-            ));
-        }
+            while !input.is_empty() {
+                let captures = ITEM_RE
+                    .captures(input, &mut captures_holder)
+                    .expect("Not a item");
+                input = &input[captures.get(0).expect("capture").len()..];
+
+                let name = captures.get(1).expect("No item name");
+                let count = captures.get(2).expect("No item count");
+                let count = count.parse::<i64>().expect("Cannot parse count");
+
+                let name = serializer.create_string(name);
+
+                items.push(LogTypeWithCount::create(
+                    serializer.buffer_builder(),
+                    &LogTypeWithCountArgs {
+                        name: Some(name),
+                        count,
+                    },
+                ));
+            }
+
+            items
+        } else {
+            Vec::with_capacity(0)
+        };
 
         let log_types = serializer.create_vector(&items);
 

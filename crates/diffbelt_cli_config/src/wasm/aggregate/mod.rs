@@ -342,10 +342,7 @@ impl<'a> AggregateFunctions<'a> {
 
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {
-            return Err(WasmError::Unspecified(format!(
-                "AggregateFunctions::apply error code {:?}",
-                error_code
-            )));
+            return Err(WasmError::AggregateApplyErrorCode(error_code));
         };
 
         let serialized = {

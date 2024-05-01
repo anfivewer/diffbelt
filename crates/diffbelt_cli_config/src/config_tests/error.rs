@@ -21,6 +21,9 @@ pub enum AssertError {
         expected: Option<String>,
         actual: Option<String>,
     },
+    ExpectedErrorButSucceed {
+        actual: Option<String>,
+    },
     HasDiff {
         diffs: Vec<Difference>,
     },

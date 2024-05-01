@@ -5,6 +5,7 @@ use std::str::from_utf8;
 
 use diffbelt_protos::protos::transform::aggregate::AggregateApplyOutput;
 use diffbelt_protos::OwnedSerialized;
+use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_yaml::YamlNode;
 
 use crate::config_tests::compare::compare_strings;
@@ -21,7 +22,7 @@ use crate::transforms::aggregate::Aggregate;
 use crate::wasm::aggregate::AggregateFunctions;
 use crate::wasm::human_readable::aggregate::AggregateHumanReadableFunctions;
 use crate::wasm::human_readable::HumanReadableFunctions;
-use crate::wasm::WasmModuleInstance;
+use crate::wasm::{WasmError, WasmModuleInstance};
 
 mod yaml_input;
 
@@ -88,10 +89,15 @@ pub struct AggregateApplyTransformTest<'a> {
     aggregate: AggregateFunctions<'a>,
 }
 
+#[derive(Debug, Eq, PartialEq)]
+enum ExpectedError {
+    WasmErrorCode(ErrorCode),
+}
+
 type Input = Vec<u8>;
-type Output<'a> = OwnedSerialized<'static, AggregateApplyOutput<'static>>;
-type ActualOutput = Option<String>;
-type ExpectedOutput<'a> = Option<&'a str>;
+type Output<'a> = Result<OwnedSerialized<'static, AggregateApplyOutput<'static>>, ExpectedError>;
+type ActualOutput = Result<Option<String>, ExpectedError>;
+type ExpectedOutput<'a> = Result<Option<&'a str>, ExpectedError>;
 
 impl<'a> AggregateApplyTransformTest<'a> {
     async fn input_from_test_vars<'b>(&self, vars: &Rc<YamlNode>) -> Result<Input, TestError> {
@@ -108,12 +114,28 @@ impl<'a> AggregateApplyTransformTest<'a> {
         let holder = self.aggregate.instance.alloc_vec_holder().await?;
         () = holder.replace_with_slice(accumulator.as_slice()).await?;
 
-        let output = self.aggregate.call_apply(&holder).await?;
+        let output = self.aggregate.call_apply(&holder).await;
 
-        Ok(output)
+        match output {
+            Ok(x) => Ok(Ok(x)),
+            Err(err) => {
+                let WasmError::AggregateApplyErrorCode(code) = err else {
+                    return Err(err.into());
+                };
+
+                Ok(Err(ExpectedError::WasmErrorCode(code)))
+            }
+        }
     }
 
     async fn output_to_actual_output(&self, output: Output<'a>) -> Result<ActualOutput, TestError> {
+        let output = match output {
+            Ok(x) => x,
+            Err(err) => {
+                return Ok(Err(err));
+            }
+        };
+
         let target_value = output.data().target_value();
 
         let result = match target_value {
@@ -137,7 +159,7 @@ impl<'a> AggregateApplyTransformTest<'a> {
             }
         };
 
-        Ok(result)
+        Ok(Ok(result))
     }
 
     fn expected_output_from_test_vars(
@@ -147,7 +169,11 @@ impl<'a> AggregateApplyTransformTest<'a> {
         if let Some(tag) = vars.tag.as_ref() {
             let tag = tag.deref();
             if tag == "!none" {
-                return Ok(None);
+                return Ok(Ok(None));
+            }
+
+            if tag == "!should_safe_fail" {
+                return Ok(Err(ExpectedError::WasmErrorCode(ErrorCode::SafeFail)));
             }
         }
 
@@ -155,7 +181,7 @@ impl<'a> AggregateApplyTransformTest<'a> {
             TestError::Unspecified("reduce output should be a string".to_string())
         })?;
 
-        Ok(Some(output))
+        Ok(Ok(Some(output)))
     }
 
     fn compare_actual_and_expected_output(
@@ -163,6 +189,43 @@ impl<'a> AggregateApplyTransformTest<'a> {
         actual: &ActualOutput,
         expected: &ExpectedOutput<'a>,
     ) -> Result<Option<AssertError>, TestError> {
+        let (expected, actual) = match expected {
+            Ok(expected) => {
+                let actual = match actual {
+                    Ok(x) => x,
+                    Err(err) => {
+                        return Ok(Some(AssertError::ValueMissmatch {
+                            message: Cow::Borrowed("Got error"),
+                            expected: None,
+                            actual: Some(format!("{err:?}")),
+                        }));
+                    }
+                };
+
+                (expected, actual)
+            }
+            Err(expected_err) => {
+                let actual_err = match actual {
+                    Ok(actual) => {
+                        return Ok(Some(AssertError::ExpectedErrorButSucceed {
+                            actual: actual.clone(),
+                        }));
+                    }
+                    Err(err) => err,
+                };
+
+                if expected_err == actual_err {
+                    return Ok(None);
+                }
+
+                return Ok(Some(AssertError::ValueMissmatch {
+                    message: Cow::Borrowed("Error mismatch"),
+                    expected: Some(format!("{expected_err:?}")),
+                    actual: Some(format!("{actual_err:?}")),
+                }));
+            }
+        };
+
         if actual.is_none() == expected.is_none() {
             return Ok(None);
         }

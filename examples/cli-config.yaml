@@ -610,12 +610,12 @@ tests:
               master#:something::newKey::S: 2
               worker#:middlewares::handleFull::S: 2
           - |
-            count: 1
+            count: 0
             items:
               master#:another::newKey::S: 1
               worker#:middlewares::handleFull::S: -1
           - |
-            count: 3
+            count: 2
             items:
               master#:something::newKey2::S: 2
               worker#:middlewares::handleFull::S: -1
@@ -644,3 +644,29 @@ tests:
           master#:another::newKey::S: 2
           master#:something::newKey2::S: 2
           master#:something::newKey::S: 2
+
+    - name: empty
+      input: |
+        count: 0
+      output: !none
+
+    - name: mismatched count
+      input: |
+        count: 1
+        items:
+          master#:something::newKey::S: 2
+      output: !should_safe_fail
+
+    - name: negative count
+      input: |
+        count: -1
+        items:
+          master#:something::newKey::S: -1
+      output: !should_safe_fail
+
+    - name: mismatched negative count
+      input: |
+        count: 1
+        items:
+          master#:something::newKey::S: -1
+      output: !should_safe_fail

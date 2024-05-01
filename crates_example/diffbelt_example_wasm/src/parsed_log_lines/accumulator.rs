@@ -56,11 +56,11 @@ impl DayAccumulator<'_> {
             return;
         };
 
+        self.total_count += serialized.count();
+
         for item in log_types {
             let name = item.name().expect("item name is empty");
             let count = item.count();
-
-            self.total_count += count;
 
             let stored_count = match self.log_types.get_mut(name) {
                 None => {
