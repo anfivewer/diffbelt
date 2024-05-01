@@ -1,4 +1,6 @@
 use std::future::Future;
+use std::mem;
+use std::ops::Deref;
 
 use diffbelt_cli_config::wasm::memory::vector::WasmVecHolder;
 use diffbelt_cli_config::wasm::{MapFilterFunction, WasmModuleInstance};
@@ -10,14 +12,45 @@ use diffbelt_transforms::base::input::function_eval::{
 };
 use diffbelt_util::errors::NoStdErrorWrap;
 
-use crate::commands::errors::TransformEvalError;
+use crate::commands::errors::{CommandError, TransformEvalError};
 use crate::commands::transform::run::function_eval_handler::FunctionEvalHandler;
 
 pub struct MapFilterEvalHandler {
-    pub verbose: bool,
-    pub instance: *const WasmModuleInstance,
-    pub vec_holder: WasmVecHolder<'static>,
-    pub map_filter: MapFilterFunction<'static>,
+    verbose: bool,
+    inner: Inner,
+    instance: Box<WasmModuleInstance>,
+}
+
+struct Inner {
+    vec_holder: WasmVecHolder<'static>,
+    map_filter: MapFilterFunction<'static>,
+}
+
+impl MapFilterEvalHandler {
+    pub async fn new(
+        instance: WasmModuleInstance,
+        map_filter_function_name: &str,
+        verbose: bool,
+    ) -> Result<Self, CommandError> {
+        let instance = Box::new(instance);
+        let instance_static = unsafe {
+            mem::transmute::<&WasmModuleInstance, &'static WasmModuleInstance>(instance.deref())
+        };
+
+        let map_filter = instance_static
+            .map_filter_function(map_filter_function_name)
+            .await?;
+        let vec_holder = instance_static.alloc_vec_holder().await?;
+
+        Ok(Self {
+            verbose,
+            inner: Inner {
+                vec_holder,
+                map_filter,
+            },
+            instance,
+        })
+    }
 }
 
 impl FunctionEvalHandler for MapFilterEvalHandler {
@@ -48,8 +81,9 @@ impl FunctionEvalHandler for MapFilterEvalHandler {
 
         let result = (|| async move {
             let output = self
+                .inner
                 .map_filter
-                .call(input.as_bytes(), &self.vec_holder)
+                .call(input.as_bytes(), &self.inner.vec_holder)
                 .await?;
 
             () = output.observe_bytes(|bytes| {

@@ -3,10 +3,12 @@ use diffbelt_cli_config::transforms::wasm::WasmMethodDef;
 use diffbelt_cli_config::transforms::Transform as TransformConfig;
 use diffbelt_cli_config::wasm::WasmModuleInstance;
 use diffbelt_cli_config::CliConfig;
+use diffbelt_transforms::aggregate::AggregateTransform;
 use diffbelt_transforms::map_filter::MapFilterTransform;
 use diffbelt_transforms::TransformImpl;
 
 use crate::commands::errors::CommandError;
+use crate::commands::transform::run::aggregate_eval::AggregateEvalHandler;
 use crate::commands::transform::run::function_eval_handler::FunctionEvalHandlerImpl;
 use crate::commands::transform::run::map_filter_eval::MapFilterEvalHandler;
 
@@ -74,7 +76,7 @@ pub async fn create_transform(
     }
 
     if let Some(aggregate) = aggregate {
-        return create_aggregate_transform(aggregate).await;
+        return create_aggregate_transform(config, aggregate, transform_direction, verbose).await;
     }
 
     Err(CommandError::Message(
@@ -102,20 +104,10 @@ async fn create_map_filter_transform(
     };
 
     let wasm_instance = config.new_wasm_instance(wasm_def).await?;
-    let wasm_instance = Box::new(wasm_instance);
-    let wasm_instance = Box::leak(wasm_instance);
 
-    let map_filter = wasm_instance
-        .map_filter_function(map_filter_wasm.method_name.as_str())
-        .await?;
-    let vec_holder = wasm_instance.alloc_vec_holder().await?;
-
-    let handler = MapFilterEvalHandler {
-        verbose,
-        instance: wasm_instance as *const WasmModuleInstance,
-        vec_holder,
-        map_filter,
-    };
+    let handler =
+        MapFilterEvalHandler::new(wasm_instance, map_filter_wasm.method_name.as_str(), verbose)
+            .await?;
 
     Ok(TransformEvaluator {
         transform: TransformImpl::MapFilter(transform),
@@ -124,9 +116,33 @@ async fn create_map_filter_transform(
 }
 
 async fn create_aggregate_transform(
-    _aggregate: &Aggregate,
+    config: &CliConfig,
+    aggregate: &Aggregate,
+    transform_direction: TransformDirection<'_>,
+    verbose: bool,
 ) -> Result<TransformEvaluator, CommandError> {
-    todo!()
-}
+    let supports_accumulators_merge = aggregate.merge_accumulators.is_some();
 
-//
+    let transform = AggregateTransform::new(
+        Box::from(transform_direction.from_collection_name),
+        Box::from(transform_direction.to_collection_name),
+        Box::from(transform_direction.reader_name),
+        supports_accumulators_merge,
+    );
+
+    let wasm_module_name = aggregate.wasm.as_str();
+    let Some(wasm_def) = config.wasm_module_def_by_name(wasm_module_name) else {
+        return Err(CommandError::Message(format!(
+            "WASM module {wasm_module_name} not defined in config"
+        )));
+    };
+
+    let wasm_instance = config.new_wasm_instance(wasm_def).await?;
+
+    let handler = AggregateEvalHandler::new(wasm_instance, aggregate, verbose).await?;
+
+    Ok(TransformEvaluator {
+        transform: TransformImpl::Aggregate(transform),
+        eval_handler: FunctionEvalHandlerImpl::Aggregate(handler),
+    })
+}

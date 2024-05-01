@@ -1,4 +1,5 @@
 use enum_dispatch::enum_dispatch;
+use crate::aggregate::AggregateTransform;
 
 use crate::base::action::Action;
 use crate::base::common::accumulator::AccumulatorId;
@@ -23,4 +24,5 @@ pub trait Transform {
 #[enum_dispatch(Transform)]
 pub enum TransformImpl {
     MapFilter(MapFilterTransform),
+    Aggregate(AggregateTransform),
 }

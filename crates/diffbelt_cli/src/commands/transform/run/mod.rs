@@ -54,8 +54,8 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
         intermediate,
         target,
         reader_name,
-        map_filter: _map_filter_wasm,
-        aggregate,
+        map_filter: _,
+        aggregate: _,
         percentiles,
         unique_count,
     } = transform_config;
@@ -63,11 +63,6 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
     if let Some(_) = intermediate {
         return Err(CommandError::Message(
             "Transforms with intermediate collection are not supported yet".to_string(),
-        ));
-    }
-    if let Some(_) = aggregate {
-        return Err(CommandError::Message(
-            "Aggregate transforms are not supported yet".to_string(),
         ));
     }
     if let Some(_) = percentiles {
