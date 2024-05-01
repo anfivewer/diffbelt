@@ -1,5 +1,5 @@
-use enum_dispatch::enum_dispatch;
 use crate::aggregate::AggregateTransform;
+use enum_dispatch::enum_dispatch;
 
 use crate::base::action::Action;
 use crate::base::common::accumulator::AccumulatorId;
@@ -13,11 +13,15 @@ pub trait Transform {
     fn run(&mut self, inputs: &mut Vec<Input>) -> Result<TransformRunResult, TransformError>;
     fn return_actions_vec(&mut self, buffer: Vec<Action>);
 
-    fn return_target_info_action_buffer(&mut self, _buffer: Vec<u8>) {
-        //
+    fn take_map_input_buffer(&mut self) -> Vec<u8> {
+        Vec::new()
     }
-    fn return_merge_accumulator_ids_vec(&mut self, _buffer: Vec<AccumulatorId>) {
-        //
+    fn return_map_action_buffer(&mut self, _buffer: Vec<u8>) {}
+    fn return_target_info_action_buffer(&mut self, _buffer: Vec<u8>) {}
+    fn return_reduce_action_buffer(&mut self, _buffer: Vec<u8>) {}
+    fn return_merge_accumulator_ids_vec(&mut self, _buffer: Vec<AccumulatorId>) {}
+    fn take_apply_input_buffer(&mut self) -> Vec<u8> {
+        Vec::new()
     }
 }
 

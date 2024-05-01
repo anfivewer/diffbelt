@@ -53,9 +53,9 @@ impl<'t>
             Annotated<AggregateMapMultiInput, (SourceKey, SourceValue)>,
             Annotated<AggregateMapMultiOutput, (TargetKey, MappedValue)>,
         >,
-        buffer: *mut BytesVecRawParts,
+        buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        let buffer = unsafe { (*buffer).into_empty_vec() };
+        let buffer = unsafe { (*buffer_ptr).into_empty_vec() };
         let mut serializer = Serializer::from_vec(buffer);
 
         let input = unsafe { input_and_output.deserialize() };
@@ -106,10 +106,12 @@ impl<'t>
             },
         );
 
-        let result = serializer.finish(result);
+        let SerializedRawParts { buffer, head, len } =
+            serializer.finish(result).into_owned().into_raw_parts();
 
         unsafe {
-            input_and_output.value.replace(result.as_bytes().into());
+            *input_and_output.value = BytesSlice::from(&buffer[head..(head + len)]);
+            *buffer_ptr = BytesVecRawParts::from(buffer);
         }
 
         ErrorCode::Ok

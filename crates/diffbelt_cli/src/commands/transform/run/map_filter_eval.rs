@@ -10,6 +10,7 @@ use diffbelt_transforms::base::action::function_eval::{FunctionEvalAction, MapFi
 use diffbelt_transforms::base::input::function_eval::{
     FunctionEvalInput, FunctionEvalInputBody, MapFilterEvalInput,
 };
+use diffbelt_transforms::Transform;
 use diffbelt_util::errors::NoStdErrorWrap;
 
 use crate::commands::errors::{CommandError, TransformEvalError};
@@ -62,6 +63,7 @@ impl FunctionEvalHandler for MapFilterEvalHandler {
         &self,
         action: FunctionEvalAction,
         emit_input: &F,
+        _transform: &'a mut impl Transform,
     ) {
         let action = match action.into_map_filter() {
             Ok(action) => action,

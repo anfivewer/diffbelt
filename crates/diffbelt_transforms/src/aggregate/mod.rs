@@ -118,11 +118,27 @@ impl Transform for AggregateTransform {
         self.action_input_handlers.return_actions_vec(buffer);
     }
 
+    fn take_map_input_buffer(&mut self) -> Vec<u8> {
+        self.free_map_eval_input_buffers.take()
+    }
+
+    fn return_map_action_buffer(&mut self, buffer: Vec<u8>) {
+        self.free_map_eval_action_buffers.push(buffer);
+    }
+
     fn return_target_info_action_buffer(&mut self, buffer: Vec<u8>) {
         self.free_target_info_action_buffers.push(buffer);
     }
 
+    fn return_reduce_action_buffer(&mut self, buffer: Vec<u8>) {
+        self.free_reduce_eval_action_buffers.push(buffer);
+    }
+
     fn return_merge_accumulator_ids_vec(&mut self, buffer: Vec<AccumulatorId>) {
         self.free_merge_accumulator_ids_vecs.push(buffer);
+    }
+
+    fn take_apply_input_buffer(&mut self) -> Vec<u8> {
+        self.free_apply_eval_buffers.take()
     }
 }

@@ -30,8 +30,6 @@ pub struct MapFilterEvalAction {
 #[derive(Debug)]
 pub struct AggregateMapEvalAction {
     pub input: OwnedSerialized<'static, AggregateMapMultiInput<'static>>,
-    /// returned back `input` buffer from [`crate::base::input::function_eval::AggregateMapEvalInput`]
-    pub output_buffer: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -47,19 +45,16 @@ pub struct AggregateInitialAccumulatorEvalAction {
 #[derive(Debug)]
 pub struct AggregateReduceEvalAction {
     pub accumulator: AccumulatorId,
-    pub target_info: TargetInfoId,
     pub input: OwnedSerialized<'static, AggregateReduceInput<'static>>,
 }
 
 #[derive(Debug)]
 pub struct AggregateMergeEvalAction {
-    pub target_info: TargetInfoId,
     pub accumulator_ids: Vec<AccumulatorId>,
 }
 
 #[derive(Debug)]
 pub struct AggregateApplyEvalAction {
-    pub target_info: TargetInfoId,
     pub accumulator: AccumulatorId,
     pub output_buffer: Vec<u8>,
 }

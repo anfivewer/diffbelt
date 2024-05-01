@@ -554,6 +554,10 @@ tests:
             -master#:middlewares::handleFull::S
             +master#:something::newKey::S
 
+    - name: empty
+      input: []
+      output: []
+
   transforms.parsed_lines_1d.initial_accumulator:
     - name: empty
       input:

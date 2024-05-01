@@ -97,8 +97,6 @@ impl AggregateTransform {
                 Ok::<_, TransformError>(result)
             })?;
 
-        let output_buffer = self.free_map_eval_input_buffers.take();
-
         let input_bytes_len = usize_to_u64(input.as_bytes().len());
         state.current_limits.pending_eval_map_bytes += input_bytes_len;
 
@@ -107,7 +105,6 @@ impl AggregateTransform {
         actions.push((
             ActionType::FunctionEval(FunctionEvalAction::AggregateMap(AggregateMapEvalAction {
                 input,
-                output_buffer,
             })),
             HandlerContext::Map(MapContext {
                 bytes_to_free: input_bytes_len,

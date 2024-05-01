@@ -36,10 +36,6 @@ impl AggregateTransform {
             "target info already should be present"
         );
 
-        let target_info_id = target
-            .target_info_id
-            .expect("target info should be present");
-
         let last_chunk = target
             .chunks
             .back_mut()
@@ -68,7 +64,6 @@ impl AggregateTransform {
             target_key_rc,
             &mut actions,
             last_chunk,
-            target_info_id,
             accumulator_id,
             &mut state.current_limits,
             self.supports_accumulator_merge,

@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use thiserror::Error;
 
 use diffbelt_cli_config::config_tests::run::RunTestsError;
@@ -22,7 +23,7 @@ pub enum CommandError {
     #[error(transparent)]
     Wasm(#[from] WasmError),
     #[error(transparent)]
-    MapFilterEval(#[from] TransformEvalError),
+    TransformEval(#[from] TransformEvalError),
 }
 
 impl From<TransformError> for CommandError {
@@ -37,12 +38,34 @@ impl From<DiffbeltClientError> for CommandError {
     }
 }
 
+pub struct WasmAggregateMapCallError {
+    pub input_buffer: Vec<u8>,
+    pub input_head: usize,
+    pub input_len: usize,
+    pub error: WasmError,
+}
+
+impl Debug for WasmAggregateMapCallError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let data = &self.input_buffer[self.input_head..(self.input_head + self.input_len)];
+        let encoded = base64::encode(data);
+
+        () = f.write_fmt(format_args!(
+            "Aggregate::map error: {:?}, input data: {encoded}",
+            self.error
+        ))?;
+        Ok(())
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum TransformEvalError {
     #[error("{0}")]
     Unspecified(String),
     #[error(transparent)]
     Wasm(#[from] WasmError),
+    #[error("{0:?}")]
+    WasmAggregateMapCall(WasmAggregateMapCallError),
     #[error(transparent)]
     Flatbuffer(#[from] NoStdErrorWrap<FlatbufferError>),
     #[error(transparent)]

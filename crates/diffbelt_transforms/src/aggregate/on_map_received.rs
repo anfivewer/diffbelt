@@ -49,10 +49,7 @@ impl AggregateTransform {
 
         let AggregateMapEvalInput {
             input,
-            action_input_buffer,
         } = map;
-
-        self.free_map_eval_action_buffers.push(action_input_buffer);
 
         let map_output = input.data();
         let map_items = map_output.items().unwrap_or_default();
@@ -309,7 +306,6 @@ pub fn on_target_info_available(
         target_key_rc,
         actions,
         last_chunk,
-        target_info_id,
         accumulator_id,
         current_limits,
         supports_accumulator_merge,
@@ -323,7 +319,6 @@ pub fn reduce_target_chunk(
     target_key_rc: Rc<[u8]>,
     actions: &mut ActionInputHandlerActionsVec<AggregateTransform, HandlerContext>,
     last_chunk: &mut TargetKeyChunk,
-    target_info_id: TargetInfoId,
     accumulator_id: AccumulatorId,
     current_limits: &mut Limits,
     supports_accumulator_merge: bool,
@@ -385,7 +380,6 @@ pub fn reduce_target_chunk(
         ActionType::FunctionEval(FunctionEvalAction::AggregateReduce(
             AggregateReduceEvalAction {
                 accumulator: accumulator_id,
-                target_info: target_info_id,
                 input,
             },
         )),

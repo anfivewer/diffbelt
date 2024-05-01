@@ -75,8 +75,6 @@ impl AggregateTransform {
 
             let target = target.as_processing_mut().expect("filtered before");
 
-            let target_info_id = target.target_info_id.expect("filtered before");
-
             let TargetKeyReducedChunk {
                 accumulator_id,
                 accumulator_data_bytes,
@@ -95,7 +93,6 @@ impl AggregateTransform {
             actions.push((
                 ActionType::FunctionEval(FunctionEvalAction::AggregateApply(
                     AggregateApplyEvalAction {
-                        target_info: target_info_id,
                         accumulator: *accumulator_id,
                         output_buffer: free_apply_eval_buffers.take(),
                     },

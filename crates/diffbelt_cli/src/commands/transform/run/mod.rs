@@ -182,7 +182,7 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
                             });
                         }
                         ActionType::FunctionEval(eval) => {
-                            eval_handler.handle_action(eval, &emit_input).await
+                            eval_handler.handle_action(eval, &emit_input, &mut transform).await
                         }
                     }
                 }

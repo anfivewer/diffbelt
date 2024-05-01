@@ -640,6 +640,7 @@ dependencies = [
 name = "diffbelt_cli"
 version = "0.0.1"
 dependencies = [
+ "base64 0.20.0",
  "clap",
  "diffbelt_cli_config",
  "diffbelt_http_client",
@@ -648,6 +649,7 @@ dependencies = [
  "diffbelt_types",
  "diffbelt_util",
  "diffbelt_util_no_std",
+ "diffbelt_wasm_binding",
  "enum-as-inner",
  "enum_dispatch",
  "hyper",

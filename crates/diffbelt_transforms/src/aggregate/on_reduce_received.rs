@@ -24,11 +24,7 @@ impl AggregateTransform {
         let AggregateReduceEvalInput {
             accumulator_id,
             accumulator_data_bytes: new_accumulator_data_bytes,
-            action_input_buffer,
         } = input;
-
-        self.free_reduce_eval_action_buffers
-            .push(action_input_buffer);
 
         state.current_limits.target_data_bytes -= transferring_target_data_bytes;
         state.current_limits.target_data_bytes -= prev_accumulator_data_bytes;
@@ -40,10 +36,6 @@ impl AggregateTransform {
             .expect("target key should exist if reducing in progress")
             .as_processing_mut()
             .expect("target cannot be applied while there is pending reduce");
-
-        let target_info_id = target
-            .target_info_id
-            .expect("target should be with target info id");
 
         let mut reduced_chunk = None;
 
@@ -122,7 +114,6 @@ impl AggregateTransform {
                 target_key_rc,
                 &mut actions,
                 chunk,
-                target_info_id,
                 accumulator_id,
                 &mut state.current_limits,
                 self.supports_accumulator_merge,
@@ -148,7 +139,6 @@ impl AggregateTransform {
             &mut state.chunk_id_counter,
             &mut actions,
             target_key_rc,
-            target_info_id,
             target,
         );
         () = Self::maybe_read_cursor(

@@ -22,7 +22,6 @@ impl AggregateTransform {
         chunk_id_counter: &mut u64,
         actions: &mut ActionInputHandlerActionsVec<Self, HandlerContext>,
         target_key_rc: Rc<[u8]>,
-        target_info_id: TargetInfoId,
         target: &mut TargetKeyData,
     ) {
         let mut chunks_iter = target.chunks.iter_mut();
@@ -119,7 +118,6 @@ impl AggregateTransform {
         actions.push((
             ActionType::FunctionEval(FunctionEvalAction::AggregateMerge(
                 AggregateMergeEvalAction {
-                    target_info: target_info_id,
                     accumulator_ids,
                 },
             )),

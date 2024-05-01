@@ -30,10 +30,6 @@ impl AggregateTransform {
             .as_processing_mut()
             .expect("target cannot be applied while merging in progress");
 
-        let target_info_id = target
-            .target_info_id
-            .expect("target should be with target info id");
-
         let chunk = target
             .chunks
             .iter_mut()
@@ -61,7 +57,6 @@ impl AggregateTransform {
             &mut state.chunk_id_counter,
             &mut actions,
             target_key_rc,
-            target_info_id,
             target,
         );
 

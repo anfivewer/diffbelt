@@ -12,6 +12,7 @@ hyper = { version = "0.14.23", features = ["full"] }
 thiserror = "1.0.50"
 enum-as-inner = "0.6.0"
 enum_dispatch = "0.3.12"
+base64 = "0.20.0"
 
 [dependencies.diffbelt_types]
 path = "../diffbelt_types"
@@ -33,3 +34,6 @@ path = "../diffbelt_transforms"
 
 [dependencies.diffbelt_protos]
 path = "../diffbelt_protos"
+
+[dependencies.diffbelt_wasm_binding]
+path = "../diffbelt_wasm_binding"
