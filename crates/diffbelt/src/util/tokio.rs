@@ -4,7 +4,7 @@ use std::thread;
 use tokio::task::{JoinError, LocalSet};
 
 #[cfg(feature = "debug_prints")]
-use crate::util::debug_print::debug_print;
+use diffbelt_util::debug_print::debug_print;
 use crate::util::tokio_runtime::create_single_thread_tokio_runtime;
 
 pub fn spawn(f: impl Future<Output = ()> + Send + 'static) {

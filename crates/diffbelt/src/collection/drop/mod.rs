@@ -1,6 +1,6 @@
 use crate::collection::Collection;
 #[cfg(feature = "debug_prints")]
-use crate::util::debug_print::debug_print;
+use diffbelt_util::debug_print::debug_print;
 
 impl Drop for Collection {
     fn drop(&mut self) {

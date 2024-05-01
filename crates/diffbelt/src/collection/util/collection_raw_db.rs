@@ -6,7 +6,7 @@ use diffbelt_util::debug_print::debug_print;
 use crate::raw_db::RawDb;
 
 pub struct DebugRawDb {
-    name: String,
+    pub name: String,
     db: Arc<RawDb>,
 }
 

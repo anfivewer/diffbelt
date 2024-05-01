@@ -16,6 +16,7 @@ pub struct CleanupGenerationsLessThanOptions<'a> {
     pub lookups_limit: NonZeroUsize,
 }
 
+#[derive(Debug)]
 pub enum CleanupResult {
     NeedToContinue(Option<OwnedRecordKey>),
     Finished,

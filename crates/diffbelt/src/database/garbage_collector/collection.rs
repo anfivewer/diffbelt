@@ -1,9 +1,11 @@
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use tokio::sync::{oneshot, watch, RwLock};
 use tokio::task::{spawn_blocking, spawn_local, yield_now};
+use tokio::time::sleep;
 
 use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::collection::util::record_key::OwnedRecordKey;
@@ -71,24 +73,35 @@ impl GarbageCollectorCollection {
                     }
 
                     spawn_blocking(move || {
-                        raw_db
+                        let now = Instant::now();
+
+                        let result = raw_db
                             .cleanup_generations_less_than_sync(CleanupGenerationsLessThanOptions {
                                 generation_less_than: local_generation_less_than.as_ref(),
                                 continue_from_record_key,
                                 records_limit,
                                 lookups_limit,
                             })
-                            .expect("garbage_collector:raw_db:cleanup_generations_less_than_sync")
+                            .expect("garbage_collector:raw_db:cleanup_generations_less_than_sync");
+
+                        result
                     })
                     .await
                     .expect("garbage_collector:join")
                 };
 
+                // Slowdown cleanups to not use too much cpu, evently it will be clean
+                let sleep_future = sleep(Duration::from_millis(300));
+                tokio::select! {
+                    () = sleep_future => {},
+                    _ = &mut stop_receiver => {
+                        return;
+                    }
+                };
+
                 match result {
                     CleanupResult::NeedToContinue(continuation) => {
                         continue_from_record_key = continuation;
-
-                        yield_now().await;
                     }
                     CleanupResult::Finished => {
                         continue_from_record_key = None;

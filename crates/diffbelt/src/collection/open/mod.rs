@@ -40,8 +40,6 @@ use crate::raw_db::{
 };
 use crate::util::async_spawns::watch_is_true_or_end;
 use crate::util::async_sync_call::async_sync_call;
-#[cfg(feature = "debug_prints")]
-use crate::util::debug_print::debug_print;
 
 mod init_readers;
 
@@ -90,7 +88,7 @@ impl Collection {
         let path = Collection::get_path(options.data_path, &collection_name);
         let path = path.to_str().ok_or(CollectionOpenError::PathJoin)?;
 
-        let collection_name = Arc::from(collection_name);
+        let collection_name = Arc::<str>::from(collection_name.as_str());
 
         let raw_db = RawDb::open_raw_db(RawDbOptions {
             path,
