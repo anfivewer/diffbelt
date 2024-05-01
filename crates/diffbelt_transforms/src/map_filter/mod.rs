@@ -446,7 +446,7 @@ impl MapFilterTransform {
             });
         }
 
-        self.free_buffers_for_eval_outputs.push(input.into_vec());
+        self.free_buffers_for_eval_outputs.push(input.into_buffer_vec());
 
         self.post_handle()
     }

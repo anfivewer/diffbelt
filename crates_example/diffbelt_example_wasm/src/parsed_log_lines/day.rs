@@ -10,9 +10,9 @@ use diffbelt_example_protos::protos::log_line::{
     LogTypeWithCount, LogTypeWithCountArgs, ParsedLogLine1d, ParsedLogLine1dArgs,
 };
 use diffbelt_protos::protos::transform::aggregate::{
-    AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput,
-    AggregateMapMultiOutputArgs, AggregateMapOutput, AggregateMapOutputArgs, AggregateReduceInput,
-    AggregateTargetInfo,
+    AggregateApplyOutput, AggregateApplyOutputArgs, AggregateMapMultiInput,
+    AggregateMapMultiOutput, AggregateMapMultiOutputArgs, AggregateMapOutput,
+    AggregateMapOutputArgs, AggregateReduceInput, AggregateTargetInfo,
 };
 use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
 use diffbelt_util_no_std::bytes::{read_u32_be, write_u32_be};
@@ -244,14 +244,66 @@ impl<'t>
 
     #[export_name = "aggregateApply"]
     extern "C" fn apply(
-        _accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
-        _output: FlatbufferAnnotated<
+        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        output: FlatbufferAnnotated<
             *mut BytesSlice,
             Annotated<AggregateApplyOutput, TargetValue<'t>>,
         >,
-        _buffer: *mut BytesVecRawParts,
+        buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        todo!()
+        let accumulator_buffer = unsafe { (*accumulator.value).into_vec() };
+
+        let (head, len) = DayAccumulator::read_buffer_meta_data(&accumulator_buffer);
+        let accumulator = DayAccumulator::from_accumulator_bytes(&accumulator_buffer);
+
+        if !accumulator.is_valid() {
+            return ErrorCode::SafeFail;
+        }
+
+        let buffer = unsafe { (*buffer_ptr).into_empty_vec() };
+        let mut serializer = Serializer::from_vec(buffer);
+
+        if accumulator.is_empty() {
+            let result = AggregateApplyOutput::create(
+                serializer.buffer_builder(),
+                &AggregateApplyOutputArgs { target_value: None },
+            );
+            let serialized = serializer.finish(result).into_owned();
+
+            unsafe {
+                *output.value = BytesSlice::from(serialized.as_bytes());
+            }
+
+            let buffer = serialized.into_buffer_vec();
+
+            unsafe {
+                *buffer_ptr = BytesVecRawParts::from(buffer);
+            }
+
+            return ErrorCode::Ok;
+        }
+
+        let head = u32_to_usize(head);
+        let len = u32_to_usize(len);
+
+        let target_value = serializer.create_vector(&accumulator_buffer[head..(head + len)]);
+
+        let result = AggregateApplyOutput::create(
+            serializer.buffer_builder(),
+            &AggregateApplyOutputArgs {
+                target_value: Some(target_value),
+            },
+        );
+        let serialized = serializer.finish(result).into_owned();
+
+        let SerializedRawParts { buffer, head, len } = serialized.into_raw_parts();
+
+        unsafe {
+            *output.value = BytesSlice::from(&buffer[head..(head + len)]);
+            *buffer_ptr = BytesVecRawParts::from(buffer);
+        }
+
+        ErrorCode::Ok
     }
 }
 

@@ -74,7 +74,7 @@ impl FunctionEvalHandler for MapFilterEvalHandler {
             Ok(FunctionEvalInput {
                 body: FunctionEvalInputBody::MapFilter(MapFilterEvalInput {
                     input: output,
-                    action_input_buffer: input.into_vec(),
+                    action_input_buffer: input.into_buffer_vec(),
                 }),
             })
         })()

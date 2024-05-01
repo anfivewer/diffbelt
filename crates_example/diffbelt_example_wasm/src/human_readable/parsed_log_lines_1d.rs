@@ -112,54 +112,14 @@ impl HumanReadable for ParsedLogLines1dKv {
 
     #[export_name = "parsedLogLines1dBytesToValue"]
     extern "C" fn bytes_to_human_readable_value(
-        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
-        _buffer: Annotated<*mut BytesVecRawParts, &str>,
-    ) -> ErrorCode {
-        todo!("parsedLogLines1dBytesToValue")
-    }
-}
-
-impl AggregateHumanReadable for ParsedLogLines1dKv {
-    #[export_name = "parsedLogLinesBytesToTargetKey"]
-    extern "C" fn bytes_to_target_key(
-        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
-        _buffer: *mut BytesVecRawParts,
-    ) -> ErrorCode {
-        ErrorCode::Ok
-    }
-
-    #[export_name = "parsedLogLinesBytesToMappedValue"]
-    extern "C" fn bytes_to_mapped_value(
-        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
-        _buffer: *mut BytesVecRawParts,
-    ) -> ErrorCode {
-        ErrorCode::Ok
-    }
-
-    #[export_name = "parsedLogLinesMappedValueToBytes"]
-    extern "C" fn mapped_value_to_bytes(
-        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
-        _buffer: *mut BytesVecRawParts,
-    ) -> ErrorCode {
-        ErrorCode::Ok
-    }
-
-    #[export_name = "parsedLogLinesBytesToAccumulator"]
-    extern "C" fn bytes_to_accumulator(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
-        buffer_ptr: *mut BytesVecRawParts,
+        buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
         let slice = unsafe { (*input_and_output.value).as_slice() };
 
-        let slice_tail = &slice[(slice.len() - 8)..];
+        let serialized = deserialize::<ParsedLogLine1d>(slice).expect("cannot parse");
 
-        let head = read_u32_be(slice_tail);
-        let len = read_u32_be(&slice_tail[4..]);
-
-        let serialized = &slice[u32_to_usize(head)..u32_to_usize(head + len)];
-        let serialized = deserialize::<ParsedLogLine1d>(serialized).expect("cannot parse");
-
-        let buffer = unsafe { (*buffer_ptr).into_empty_vec() };
+        let buffer = unsafe { (*buffer_ptr.value).into_empty_vec() };
         let mut result = unsafe { String::from_utf8_unchecked(buffer) };
 
         let count = serialized.count();
@@ -184,8 +144,63 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
         let result = result.into_bytes();
         unsafe {
             *input_and_output.value = BytesSlice::from(result.as_slice());
-            *buffer_ptr = BytesVecRawParts::from(result);
+            *buffer_ptr.value = BytesVecRawParts::from(result);
         }
+
+        ErrorCode::Ok
+    }
+}
+
+impl AggregateHumanReadable for ParsedLogLines1dKv {
+    #[export_name = "parsedLogLinesBytesToTargetKey"]
+    extern "C" fn bytes_to_target_key(
+        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        _buffer: Annotated<*mut BytesVecRawParts, &str>,
+    ) -> ErrorCode {
+        ErrorCode::Ok
+    }
+
+    #[export_name = "parsedLogLinesBytesToMappedValue"]
+    extern "C" fn bytes_to_mapped_value(
+        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        _buffer: Annotated<*mut BytesVecRawParts, &str>,
+    ) -> ErrorCode {
+        ErrorCode::Ok
+    }
+
+    #[export_name = "parsedLogLinesMappedValueToBytes"]
+    extern "C" fn mapped_value_to_bytes(
+        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
+        _buffer: *mut BytesVecRawParts,
+    ) -> ErrorCode {
+        ErrorCode::Ok
+    }
+
+    #[export_name = "parsedLogLinesBytesToAccumulator"]
+    extern "C" fn bytes_to_accumulator(
+        input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
+    ) -> ErrorCode {
+        let slice = unsafe { (*input_and_output.value).as_slice() };
+
+        let slice_tail = &slice[(slice.len() - 8)..];
+
+        let head = read_u32_be(slice_tail);
+        let len = read_u32_be(&slice_tail[4..]);
+
+        let serialized = &slice[u32_to_usize(head)..u32_to_usize(head + len)];
+        let mut serialized = BytesSlice::from(serialized);
+        let serialized = InputOutputAnnotated::from(&mut serialized as *mut BytesSlice);
+
+        let code =
+            ParsedLogLines1dKv::bytes_to_human_readable_value(serialized.clone(), buffer_ptr);
+        if code != ErrorCode::Ok {
+            return code;
+        }
+
+        unsafe {
+            *input_and_output.value = *serialized.value;
+        };
 
         ErrorCode::Ok
     }

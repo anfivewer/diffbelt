@@ -6,7 +6,7 @@ use diffbelt_yaml::YamlNode;
 
 use crate::call_human_readable_conversion;
 use crate::config_tests::error::YamlTestVarsError;
-use crate::config_tests::value::parse_scalar;
+use crate::config_tests::transforms::aggregate_util::yaml_node_to_aggregate_accumulator;
 use crate::wasm::human_readable::aggregate::AggregateHumanReadableFunctions;
 
 pub async fn yaml_test_vars_to_aggregate_reduce_input(
@@ -39,23 +39,15 @@ pub async fn yaml_test_vars_to_aggregate_reduce_input(
 
         match key {
             "accumulator" => {
-                let value = parse_scalar(value)?;
-                let value = value.as_str().ok_or_else(|| {
-                    YamlTestVarsError::Unspecified("accumulator is not a string".to_string())
-                })?;
-
-                () = call_human_readable_conversion!(
-                    value.as_bytes(),
+                let value = yaml_node_to_aggregate_accumulator(
                     aggregate_human_readable,
-                    call_accumulator_to_bytes,
-                    input_vec_holder,
-                    output_vec_holder
+                    value,
+                    &input_vec_holder,
+                    &output_vec_holder,
                 )
-                .observe_bytes(instance, |bytes| {
-                    accumulator = Some(Vec::from(bytes));
+                .await?;
 
-                    Ok::<_, YamlTestVarsError>(())
-                })?;
+                accumulator = Some(value);
             }
             "items" => {
                 let items_seq = value.as_sequence().ok_or_else(|| {

@@ -8,6 +8,7 @@ use diffbelt_example_protos::protos::log_line::{
 use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
 use diffbelt_util_no_std::bytes::{read_u32_be, write_u32_be};
 use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
+use diffbelt_wasm_binding::debug_print;
 
 pub struct DayAccumulator<'a> {
     pub total_count: i64,
@@ -15,11 +16,17 @@ pub struct DayAccumulator<'a> {
 }
 
 impl DayAccumulator<'_> {
-    pub fn parsed_log_line_1d_from_bytes(bytes: &[u8]) -> ParsedLogLine1d<'_> {
+    pub fn read_buffer_meta_data(bytes: &[u8]) -> (u32, u32) {
         let accumulator_tail = &bytes[(bytes.len() - 8)..];
 
         let head = read_u32_be(accumulator_tail);
         let len = read_u32_be(&accumulator_tail[4..]);
+
+        (head, len)
+    }
+
+    pub fn parsed_log_line_1d_from_bytes(bytes: &[u8]) -> ParsedLogLine1d<'_> {
+        let (head, len) = Self::read_buffer_meta_data(bytes);
 
         let serialized = &bytes[u32_to_usize(head)..u32_to_usize(head + len)];
         let serialized =
@@ -85,7 +92,7 @@ impl DayAccumulator<'_> {
         }
     }
 
-    pub fn serialize_to_buffer(&self, buffer: Vec<u8>) -> Vec<u8> {
+    pub fn serialize_flatbuffer(&self, buffer: Vec<u8>) -> (Vec<u8>, usize, usize) {
         let mut serializer = Serializer::from_vec(buffer);
         let mut items = Vec::with_capacity(self.log_types.len());
 
@@ -123,6 +130,12 @@ impl DayAccumulator<'_> {
             len,
         } = serializer.finish(result).into_owned().into_raw_parts();
 
+        (buffer, head, len)
+    }
+
+    pub fn serialize_to_buffer(&self, buffer: Vec<u8>) -> Vec<u8> {
+        let (mut buffer, head, len) = self.serialize_flatbuffer(buffer);
+
         buffer.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
 
         let buffer_len = buffer.len();
@@ -135,5 +148,33 @@ impl DayAccumulator<'_> {
         );
 
         buffer
+    }
+
+    pub fn is_valid(&self) -> bool {
+        if self.total_count < 0 {
+            return false;
+        }
+
+        let mut real_total_count = 0;
+
+        for (_, count) in &self.log_types {
+            let count = *count;
+
+            if count <= 0 {
+                return false;
+            }
+
+            real_total_count += count;
+        }
+
+        if real_total_count != self.total_count {
+            return false;
+        }
+
+        true
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.total_count == 0
     }
 }

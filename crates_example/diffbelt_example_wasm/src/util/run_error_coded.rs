@@ -10,7 +10,7 @@ pub fn run_error_coded<E: Debug, F: FnOnce() -> Result<ErrorCode, E>>(f: F) -> E
     result.map_or_else(
         |err| {
             debug_print_string(format!("{err:?}"));
-            ErrorCode::Fail
+            ErrorCode::UnsafeFail
         },
         |code| code,
     )

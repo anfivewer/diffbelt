@@ -1,7 +1,7 @@
 use diffbelt_yaml::YamlNode;
 
-use crate::call_human_readable_conversion;
 use crate::config_tests::error::YamlTestVarsError;
+use crate::config_tests::transforms::aggregate_util::yaml_node_to_aggregate_accumulator;
 use crate::wasm::human_readable::aggregate::AggregateHumanReadableFunctions;
 
 pub async fn yaml_test_vars_to_aggregate_merge_accumulators_input(
@@ -19,24 +19,15 @@ pub async fn yaml_test_vars_to_aggregate_merge_accumulators_input(
     let mut accumulators = Vec::with_capacity(input.items.len());
 
     for item in input {
-        let item = item.as_str().ok_or_else(|| {
-            YamlTestVarsError::Unspecified("input item should be a string".to_string())
-        })?;
-
-        () = call_human_readable_conversion!(
-            item.as_bytes(),
+        let accumulator = yaml_node_to_aggregate_accumulator(
             aggregate_human_readable,
-            call_accumulator_to_bytes,
-            input_vec_holder,
-            output_vec_holder
+            item,
+            &input_vec_holder,
+            &output_vec_holder,
         )
-        .observe_bytes(instance, |bytes| {
-            let accumulator = Vec::from(bytes);
+        .await?;
 
-            accumulators.push(accumulator);
-
-            Ok::<_, YamlTestVarsError>(())
-        })?;
+        accumulators.push(accumulator);
     }
 
     Ok(accumulators)

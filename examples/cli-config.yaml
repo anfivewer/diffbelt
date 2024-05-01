@@ -627,3 +627,20 @@ tests:
           master#:another::newKey::S: 2
           master#:something::newKey2::S: 2
           master#:something::newKey::S: 2
+
+  transforms.parsed_lines_1d.apply:
+    - name: basic
+      input: |
+        count: 7
+        items:
+          master#:something::newKey::S: 2
+          master#:another::newKey::S: 2
+          master#:andAnother::newKey3::S: 1
+          master#:something::newKey2::S: 2
+      output: |
+        count: 7
+        items:
+          master#:andAnother::newKey3::S: 1
+          master#:another::newKey::S: 2
+          master#:something::newKey2::S: 2
+          master#:something::newKey::S: 2

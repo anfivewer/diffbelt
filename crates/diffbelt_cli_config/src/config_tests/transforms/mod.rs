@@ -12,6 +12,9 @@ use crate::config_tests::transforms::aggregate_initial_accumulator::{
 use crate::config_tests::transforms::aggregate_map::{
     AggregateMapTransformTest, AggregateMapTransformTestCreator,
 };
+use crate::config_tests::transforms::aggregate_merge_accumulators::{
+    AggregateMergeAccumulatorsTransformTest, AggregateMergeAccumulatorsTransformTestCreator,
+};
 use crate::config_tests::transforms::aggregate_reduce::{
     AggregateReduceTransformTest, AggregateReduceTransformTestCreator,
 };
@@ -20,8 +23,9 @@ use crate::config_tests::transforms::map_filter::{
 };
 use crate::wasm::WasmModuleInstance;
 use crate::Collection;
-use crate::config_tests::transforms::aggregate_merge_accumulators::{AggregateMergeAccumulatorsTransformTest, AggregateMergeAccumulatorsTransformTestCreator};
+use crate::config_tests::transforms::aggregate_apply::{AggregateApplyTransformTest, AggregateApplyTransformTestCreator};
 
+pub mod aggregate_apply;
 pub mod aggregate_initial_accumulator;
 pub mod aggregate_map;
 pub mod aggregate_merge_accumulators;
@@ -53,6 +57,7 @@ pub enum TransformTestCreatorImpl<'a> {
     AggregateInitialAccumulator(AggregateInitialAccumulatorTransformTestCreator<'a>),
     AggregateReduce(AggregateReduceTransformTestCreator<'a>),
     AggregateMergeAccumulators(AggregateMergeAccumulatorsTransformTestCreator<'a>),
+    AggregateApply(AggregateApplyTransformTestCreator<'a>),
 }
 
 #[enum_dispatch]
@@ -72,6 +77,7 @@ pub enum TransformTestImpl<'a> {
     AggregateInitialAccumulator(AggregateInitialAccumulatorTransformTest<'a>),
     AggregateReduce(AggregateReduceTransformTest<'a>),
     AggregateMergeAccumulators(AggregateMergeAccumulatorsTransformTest<'a>),
+    AggregateApply(AggregateApplyTransformTest<'a>),
 }
 
 #[macro_export]

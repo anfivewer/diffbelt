@@ -1,14 +1,16 @@
 use std::borrow::Cow;
 
 use diffbelt_util::option::lift_result_from_option;
+use diffbelt_yaml::YamlNode;
 
-use crate::config_tests::error::TestError;
+use crate::config_tests::error::{TestError, YamlTestVarsError};
 use crate::transforms::aggregate::{Aggregate, AggregateHumanReadable};
 use crate::wasm::aggregate::AggregateFunctions;
 use crate::wasm::human_readable::aggregate::AggregateHumanReadableFunctions;
 use crate::wasm::human_readable::HumanReadableFunctions;
+use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::WasmModuleInstance;
-use crate::Collection;
+use crate::{call_human_readable_conversion, Collection};
 
 async fn create_aggregate_human_readable<'a>(
     human_readable: &'a WasmModuleInstance,
@@ -190,4 +192,36 @@ pub(crate) async fn create_test_aggregate_functions<'a>(
         aggregate,
         aggregate_human_readable,
     ))
+}
+
+pub async fn yaml_node_to_aggregate_accumulator(
+    aggregate_human_readable: &AggregateHumanReadableFunctions<'_>,
+    node: &YamlNode,
+    input_vec_holder: &WasmVecHolder<'_>,
+    output_vec_holder: &WasmVecHolder<'_>,
+) -> Result<Vec<u8>, YamlTestVarsError> {
+    let instance = aggregate_human_readable.instance;
+
+    let mut accumulator = None;
+
+    let item = node.as_str().ok_or_else(|| {
+        YamlTestVarsError::Unspecified("input item should be a string".to_string())
+    })?;
+
+    () = call_human_readable_conversion!(
+        item.as_bytes(),
+        aggregate_human_readable,
+        call_accumulator_to_bytes,
+        input_vec_holder,
+        output_vec_holder
+    )
+    .observe_bytes(instance, |bytes| {
+        accumulator = Some(Vec::from(bytes));
+
+        Ok::<_, YamlTestVarsError>(())
+    })?;
+
+    let accumulator = accumulator.expect("should be present");
+
+    Ok(accumulator)
 }

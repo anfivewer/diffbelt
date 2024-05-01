@@ -641,7 +641,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                     body: FunctionEvalInputBody::AggregateMap(
                                         AggregateMapEvalInput {
                                             input: result,
-                                            action_input_buffer: input.into_vec(),
+                                            action_input_buffer: input.into_buffer_vec(),
                                         },
                                     ),
                                 }),
@@ -735,7 +735,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                         AggregateReduceEvalInput {
                                             accumulator_id: accumulator,
                                             accumulator_data_bytes: 64,
-                                            action_input_buffer: input_serialized.into_vec(),
+                                            action_input_buffer: input_serialized.into_buffer_vec(),
                                         },
                                     ),
                                 }),

@@ -4,7 +4,8 @@ use wasmtime::{AsContextMut, TypedFunc};
 
 use diffbelt_protos::error::map_flatbuffer_error_to_return_buffer;
 use diffbelt_protos::protos::transform::aggregate::{
-    AggregateMapMultiInput, AggregateMapMultiOutput, AggregateReduceInput, AggregateTargetInfo,
+    AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput, AggregateReduceInput,
+    AggregateTargetInfo,
 };
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_util::option::lift_result_from_option;
@@ -318,5 +319,54 @@ impl<'a> AggregateFunctions<'a> {
         }
 
         Ok(())
+    }
+
+    pub async fn call_apply(
+        &self,
+        accumulator_holder: &WasmVecHolder<'a>,
+    ) -> Result<OwnedSerialized<'static, AggregateApplyOutput<'static>>, WasmError> {
+        let mut store = self.instance.store.try_borrow_mut()?;
+        let store = store.deref_mut();
+
+        let error_code = self
+            .apply
+            .call_async(
+                store.as_context_mut(),
+                (
+                    accumulator_holder.ptr,
+                    self.bytes_slice.ptr,
+                    self.output_vector.ptr,
+                ),
+            )
+            .await?;
+
+        let error_code = ErrorCode::from_repr(error_code);
+        let ErrorCode::Ok = error_code else {
+            return Err(WasmError::Unspecified(format!(
+                "AggregateFunctions::apply error code {:?}",
+                error_code
+            )));
+        };
+
+        let serialized = {
+            let memory = self
+                .instance
+                .allocation
+                .memory
+                .data_mut(store.as_context_mut());
+            let slice = self.bytes_slice.ptr.read(memory)?;
+
+            let ptr = try_positive_i32_to_usize(slice.0.ptr.value)
+                .ok_or_else(|| WasmError::Unspecified("ptr too far".to_string()))?;
+            let len = try_positive_i32_to_usize(slice.0.len)
+                .ok_or_else(|| WasmError::Unspecified("slice too big".to_string()))?;
+
+            let bytes = &memory[ptr..(ptr + len)];
+            let bytes = Vec::from(bytes);
+
+            OwnedSerialized::from_vec(bytes)?
+        };
+
+        Ok(serialized)
     }
 }

@@ -182,7 +182,7 @@ impl<'fbb, F: FlatbuffersType<'fbb>> OwnedSerialized<'fbb, F> {
         unsafe { flatbuffers::root_unchecked::<F>(self.as_bytes()) }
     }
 
-    pub fn into_vec(self) -> Vec<u8> {
+    pub fn into_buffer_vec(self) -> Vec<u8> {
         self.buffer
     }
 

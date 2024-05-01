@@ -47,7 +47,7 @@ impl<T: Pod> VecRawParts<T, NativePtrImpl> {
 
 impl<'fbb, T: FlatbuffersType<'fbb>> From<OwnedSerialized<'fbb, T>> for BytesVecRawParts {
     fn from(serialized: OwnedSerialized<'fbb, T>) -> Self {
-        let buffer = serialized.into_vec();
+        let buffer = serialized.into_buffer_vec();
 
         Self::from(buffer)
     }
