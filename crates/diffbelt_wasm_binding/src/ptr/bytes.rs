@@ -7,7 +7,9 @@ use core::str::{from_utf8, Utf8Error};
 use bytemuck::{Pod, Zeroable};
 
 use diffbelt_protos::{FlatbuffersType, OwnedSerialized};
-use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32};
+use diffbelt_util_no_std::cast::{
+    checked_positive_i32_to_usize, checked_usize_to_i32, unsafe_ptr_to_i32,
+};
 
 use crate::ptr::slice::SliceRawParts;
 use crate::ptr::{ConstPtr, MutPtr, NativePtrImpl, PtrImpl};
@@ -129,6 +131,16 @@ impl<T: Pod> VecRawParts<T> {
         let capacity = checked_positive_i32_to_usize(capacity);
 
         Vec::from_raw_parts(ptr.as_mut_ptr(), len, capacity)
+    }
+
+    pub unsafe fn assert_not_changed(this: *mut Self, buffer: Vec<T>) {
+        let Self { ptr, len, capacity } = *this;
+
+        assert_eq!(ptr.value, unsafe_ptr_to_i32(buffer.as_ptr()));
+        assert_eq!(len, checked_usize_to_i32(buffer.len()));
+        assert_eq!(capacity, checked_usize_to_i32(buffer.capacity()));
+
+        core::mem::forget(buffer);
     }
 }
 

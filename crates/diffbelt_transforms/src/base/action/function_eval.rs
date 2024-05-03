@@ -56,5 +56,4 @@ pub struct AggregateMergeEvalAction {
 #[derive(Debug)]
 pub struct AggregateApplyEvalAction {
     pub accumulator: AccumulatorId,
-    pub output_buffer: Vec<u8>,
 }

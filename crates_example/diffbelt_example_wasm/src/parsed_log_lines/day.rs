@@ -246,14 +246,14 @@ impl<'t>
 
     #[export_name = "aggregateApply"]
     extern "C" fn apply(
-        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
         output: FlatbufferAnnotated<
             *mut BytesSlice,
             Annotated<AggregateApplyOutput, TargetValue<'t>>,
         >,
         buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        let accumulator_buffer = unsafe { (*accumulator.value).into_vec() };
+        let accumulator_buffer = unsafe { (*accumulator_ptr.value).into_vec() };
 
         let (head, len) = DayAccumulator::read_buffer_meta_data(&accumulator_buffer);
         let accumulator = DayAccumulator::from_accumulator_bytes(&accumulator_buffer);
@@ -303,6 +303,7 @@ impl<'t>
         unsafe {
             *output.value = BytesSlice::from(&buffer[head..(head + len)]);
             *buffer_ptr = BytesVecRawParts::from(buffer);
+            BytesVecRawParts::assert_not_changed(accumulator_ptr.value, accumulator_buffer);
         }
 
         ErrorCode::Ok

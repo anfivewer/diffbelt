@@ -4,7 +4,7 @@ use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 
-use generational_arena::Arena;
+use generational_arena::{Arena, Index};
 
 use diffbelt_cli_config::transforms::aggregate::Aggregate;
 use diffbelt_cli_config::wasm::aggregate::AggregateFunctions;
@@ -20,13 +20,12 @@ use diffbelt_transforms::base::action::function_eval::{
 use diffbelt_transforms::base::common::accumulator::AccumulatorId;
 use diffbelt_transforms::base::common::target_info::TargetInfoId;
 use diffbelt_transforms::base::input::function_eval::{
-    AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput, AggregateMergeEvalInput,
-    AggregateReduceEvalInput, AggregateTargetInfoEvalInput, FunctionEvalInput,
-    FunctionEvalInputBody,
+    AggregateApplyEvalInput, AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput,
+    AggregateMergeEvalInput, AggregateReduceEvalInput, AggregateTargetInfoEvalInput,
+    FunctionEvalInput, FunctionEvalInputBody,
 };
 use diffbelt_transforms::Transform;
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u64, u64_to_usize, usize_to_u64};
-use diffbelt_util_no_std::temporary_collection::immutable::vec::TemporaryRefVec;
 use diffbelt_util_no_std::temporary_collection::vec::{TempVecType, TemporaryVec};
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 
@@ -46,9 +45,14 @@ struct Inner {
 
 struct InnerMut {
     target_info_arena: Arena<OwnedSerialized<'static, AggregateTargetInfo<'static>>>,
-    accumulators_arena: Arena<WasmVecHolder<'static>>,
+    accumulators_arena: Arena<AccumulatorInfo>,
     free_accumulator_indexes: Vec<usize>,
     temp_merge_vec: TemporaryVec<WasmVecHolderTemp>,
+}
+
+struct AccumulatorInfo {
+    target_info_index: Index,
+    wasm_vec_holder: WasmVecHolder<'static>,
 }
 
 struct WasmVecHolderTemp;
@@ -183,7 +187,7 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                             ..
                         } = inner_mut.deref_mut();
 
-                        let (target_info, _) = target_info_arena
+                        let (target_info, target_info_index) = target_info_arena
                             .get_unknown_gen(target_info_index)
                             .ok_or_else(|| {
                                 TransformEvalError::Unspecified("No target info record".to_string())
@@ -191,20 +195,28 @@ impl FunctionEvalHandler for AggregateEvalHandler {
 
                         let free_accumulator_index = free_accumulator_indexes.pop();
 
-                        let (index, accumulator_holder) = match free_accumulator_index {
+                        let (index, accumulator_info) = match free_accumulator_index {
                             Some(index) => {
-                                let (accumulator, _) =
-                                    accumulators_arena.get_unknown_gen(index).ok_or_else(|| {
+                                let (accumulator, _) = accumulators_arena
+                                    .get_unknown_gen_mut(index)
+                                    .ok_or_else(|| {
                                         TransformEvalError::Unspecified(
                                             "No item at free accumulator index".to_string(),
                                         )
                                     })?;
-                                (index, accumulator)
+
+                                accumulator.target_info_index = target_info_index;
+
+                                (index, accumulator as &AccumulatorInfo)
                             }
                             None => {
-                                let accumulator = self.instance_static().alloc_vec_holder().await?;
+                                let wasm_vec_holder =
+                                    self.instance_static().alloc_vec_holder().await?;
 
-                                let index = accumulators_arena.insert(accumulator);
+                                let index = accumulators_arena.insert(AccumulatorInfo {
+                                    target_info_index,
+                                    wasm_vec_holder,
+                                });
 
                                 let accumulator =
                                     accumulators_arena.get(index).expect("just inserted");
@@ -220,17 +232,16 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                             .aggregate_functions
                             .call_initial_accumulator(
                                 FlatbufferAnnotated::from(target_info.as_bytes()),
-                                accumulator_holder,
+                                &accumulator_info.wasm_vec_holder,
                             )
                             .await?;
 
-                        let accumulator_data_bytes =
-                            try_positive_i32_to_u64(accumulator_holder.read_slice()?.0.len)
-                                .ok_or_else(|| {
-                                    TransformEvalError::Unspecified(
-                                        "Too big accumulator size".to_string(),
-                                    )
-                                })?;
+                        let accumulator_data_bytes = try_positive_i32_to_u64(
+                            accumulator_info.wasm_vec_holder.read_slice()?.0.len,
+                        )
+                        .ok_or_else(|| {
+                            TransformEvalError::Unspecified("Too big accumulator size".to_string())
+                        })?;
 
                         (AccumulatorId(usize_to_u64(index)), accumulator_data_bytes)
                     };
@@ -264,11 +275,14 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                         () = self
                             .inner
                             .aggregate_functions
-                            .call_reduce(FlatbufferAnnotated::from(input.as_bytes()), accumulator)
+                            .call_reduce(
+                                FlatbufferAnnotated::from(input.as_bytes()),
+                                &accumulator.wasm_vec_holder,
+                            )
                             .await?;
 
                         let accumulator_data_bytes = try_positive_i32_to_u64(
-                            accumulator.read_slice()?.0.len,
+                            accumulator.wasm_vec_holder.read_slice()?.0.len,
                         )
                         .ok_or_else(|| {
                             TransformEvalError::Unspecified("Too big accumulator size".to_string())
@@ -293,9 +307,12 @@ impl FunctionEvalHandler for AggregateEvalHandler {
 
                     let mut accumulator_ids_iter = accumulator_ids.iter();
 
-                    let first_accumulator_id = accumulator_ids_iter.next().ok_or_else(|| {
-                        TransformEvalError::Unspecified("No accumulators for merge".to_string())
-                    })?.clone();
+                    let first_accumulator_id = accumulator_ids_iter
+                        .next()
+                        .ok_or_else(|| {
+                            TransformEvalError::Unspecified("No accumulators for merge".to_string())
+                        })?
+                        .clone();
 
                     let accumulator_data_bytes = {
                         let mut inner_mut = self.inner_mut.borrow_mut();
@@ -328,7 +345,7 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                                     )
                                 })?;
 
-                            accumulators.push(accumulator_holder);
+                            accumulators.push(&accumulator_holder.wasm_vec_holder);
 
                             free_accumulator_indexes.push(u64_to_usize(id.0));
                         }
@@ -336,16 +353,18 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                         () = self
                             .inner
                             .aggregate_functions
-                            .call_merge_accumulators(accumulators.iter(), first_accumulator)
+                            .call_merge_accumulators(
+                                accumulators.iter(),
+                                &first_accumulator.wasm_vec_holder,
+                            )
                             .await?;
 
-                        let accumulator_data_bytes =
-                            try_positive_i32_to_u64(first_accumulator.read_slice()?.0.len)
-                                .ok_or_else(|| {
-                                    TransformEvalError::Unspecified(
-                                        "Too big accumulator size".to_string(),
-                                    )
-                                })?;
+                        let accumulator_data_bytes = try_positive_i32_to_u64(
+                            first_accumulator.wasm_vec_holder.read_slice()?.0.len,
+                        )
+                        .ok_or_else(|| {
+                            TransformEvalError::Unspecified("Too big accumulator size".to_string())
+                        })?;
 
                         accumulator_data_bytes
                     };
@@ -360,7 +379,52 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                     ))
                 }
                 FunctionEvalAction::AggregateApply(action) => {
-                    todo!("apply")
+                    let AggregateApplyEvalAction {
+                        accumulator: accumulator_id,
+                    } = action;
+
+                    let input = {
+                        let mut inner_mut = self.inner_mut.borrow_mut();
+                        let InnerMut {
+                            target_info_arena,
+                            accumulators_arena,
+                            free_accumulator_indexes,
+                            ..
+                        } = inner_mut.deref_mut();
+
+                        let (accumulator, _) = accumulators_arena
+                            .get_unknown_gen(u64_to_usize(accumulator_id.0))
+                            .ok_or_else(|| {
+                                TransformEvalError::Unspecified(
+                                    "No accumulator at index".to_string(),
+                                )
+                            })?;
+
+                        let buffer = transform.take_apply_input_buffer();
+                        let mut buffer_holder = Some(buffer);
+
+                        let apply_output = self
+                            .inner
+                            .aggregate_functions
+                            .call_apply(&accumulator.wasm_vec_holder, &mut buffer_holder)
+                            .await?;
+
+                        free_accumulator_indexes.push(u64_to_usize(accumulator_id.0));
+
+                        let target_info = target_info_arena
+                            .remove(accumulator.target_info_index)
+                            .ok_or_else(|| {
+                            TransformEvalError::Unspecified("No target info at index".to_string())
+                        })?;
+
+                        transform.return_target_info_action_buffer(target_info.into_buffer_vec());
+
+                        apply_output
+                    };
+
+                    Ok(FunctionEvalInputBody::AggregateApply(
+                        AggregateApplyEvalInput { input },
+                    ))
                 }
                 _ => Err(TransformEvalError::Unspecified(format!(
                     "Unsupported aggregate action: {action:?}"

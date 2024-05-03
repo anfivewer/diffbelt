@@ -153,7 +153,6 @@ impl AggregateTransform {
                 &mut state.current_limits,
                 &mut state.target_keys,
                 &mut self.apply_target_keys_temp_vec,
-                &mut self.free_apply_eval_buffers,
             );
         }
 

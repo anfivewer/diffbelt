@@ -39,11 +39,6 @@ pub fn u32_to_i64(value: u32) -> i64 {
 }
 
 #[inline(always)]
-pub fn ptr_to_usize<T>(value: *const T) -> usize {
-    value as usize
-}
-
-#[inline(always)]
 pub fn u8_to_u64(value: u8) -> u64 {
     value as u64
 }
@@ -169,4 +164,9 @@ pub fn div_u64_usize_to_f64(a: u64, b: usize) -> f64 {
 #[inline(always)]
 pub fn ptr_as_usize<T>(ptr: *const T) -> usize {
     ptr as usize
+}
+
+#[inline(always)]
+pub fn unsafe_ptr_to_i32<T>(ptr: *const T) -> i32 {
+    ptr as i32
 }

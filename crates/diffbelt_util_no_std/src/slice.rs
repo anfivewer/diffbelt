@@ -2,7 +2,7 @@ use core::mem::size_of;
 
 use thiserror_no_std::Error;
 
-use crate::cast::{checked_usize_to_isize, ptr_to_usize, unchecked_isize_to_usize};
+use crate::cast::{checked_usize_to_isize, ptr_as_usize, unchecked_isize_to_usize};
 
 #[derive(Error, Debug)]
 pub enum SliceOffsetError {
@@ -18,8 +18,8 @@ pub fn get_slice_offset_in_other_slice<T>(
     let origin_ptr = origin as *const [T] as *const T;
     let sub_slice_ptr = sub_slice as *const [T] as *const T;
 
-    let origin_ptr = checked_usize_to_isize(ptr_to_usize(origin_ptr));
-    let sub_slice_ptr = checked_usize_to_isize(ptr_to_usize(sub_slice_ptr));
+    let origin_ptr = checked_usize_to_isize(ptr_as_usize(origin_ptr));
+    let sub_slice_ptr = checked_usize_to_isize(ptr_as_usize(sub_slice_ptr));
 
     let diff = sub_slice_ptr - origin_ptr;
 

@@ -53,7 +53,7 @@ pub trait Aggregate<
     ) -> ErrorCode;
 
     extern "C" fn apply(
-        accumulator: Annotated<*mut BytesVecRawParts, Accumulator>,
+        accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
         output: FlatbufferAnnotated<*mut BytesSlice, Annotated<AggregateApplyOutput, TargetValue>>,
         buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode;

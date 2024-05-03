@@ -23,7 +23,6 @@ impl AggregateTransform {
         current_limits: &mut Limits,
         target_keys: &mut LruCache<Rc<[u8]>, Target>,
         temp_targets: &mut TemporaryVec<TargetKvTemp>,
-        free_apply_eval_buffers: &mut BuffersPool<Vec<u8>>,
     ) {
         if !Self::can_eval_apply(max_limits, current_limits) {
             return;
@@ -38,14 +37,17 @@ impl AggregateTransform {
             // Finish of diffs, apply all what we can
             for (key, target) in target_keys.iter_mut() {
                 let Some(processing) = target.as_processing() else {
+                    // Already applying
                     continue;
                 };
 
                 if !processing.target_info_id.is_some() {
+                    // Still pending target record
                     continue;
                 }
 
                 if processing.chunks.len() != 1 {
+                    // Not merged yet
                     continue;
                 }
 
@@ -94,7 +96,6 @@ impl AggregateTransform {
                 ActionType::FunctionEval(FunctionEvalAction::AggregateApply(
                     AggregateApplyEvalAction {
                         accumulator: *accumulator_id,
-                        output_buffer: free_apply_eval_buffers.take(),
                     },
                 )),
                 HandlerContext::Applying(ApplyingContext {

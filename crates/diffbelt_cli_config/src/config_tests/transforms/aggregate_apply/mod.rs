@@ -114,7 +114,7 @@ impl<'a> AggregateApplyTransformTest<'a> {
         let holder = self.aggregate.instance.alloc_vec_holder().await?;
         () = holder.replace_with_slice(accumulator.as_slice()).await?;
 
-        let output = self.aggregate.call_apply(&holder).await;
+        let output = self.aggregate.call_apply(&holder, &mut None).await;
 
         match output {
             Ok(x) => Ok(Ok(x)),

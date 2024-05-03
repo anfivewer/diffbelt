@@ -325,6 +325,7 @@ impl<'a> AggregateFunctions<'a> {
     pub async fn call_apply(
         &self,
         accumulator_holder: &WasmVecHolder<'a>,
+        output_holder: &mut Option<Vec<u8>>,
     ) -> Result<OwnedSerialized<'static, AggregateApplyOutput<'static>>, WasmError> {
         let mut store = self.instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
@@ -360,9 +361,15 @@ impl<'a> AggregateFunctions<'a> {
                 .ok_or_else(|| WasmError::Unspecified("slice too big".to_string()))?;
 
             let bytes = &memory[ptr..(ptr + len)];
-            let bytes = Vec::from(bytes);
 
-            OwnedSerialized::from_vec(bytes)?
+            let mut vec = output_holder
+                .take()
+                .unwrap_or_else(|| Vec::with_capacity(bytes.len()));
+            vec.clear();
+
+            vec.extend_from_slice(bytes);
+
+            OwnedSerialized::from_vec(vec)?
         };
 
         Ok(serialized)
