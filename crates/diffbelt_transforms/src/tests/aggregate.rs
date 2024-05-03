@@ -86,6 +86,18 @@ fn aggregate_medium_test() {
     });
 }
 
+#[test]
+fn aggregate_test_with_hang_on_map() {
+    run_aggregate_test(AggregateTestParams {
+        source_items_count: 4,
+        new_items_count: 1,
+        modify_items_count: 0,
+        delete_items_count: 0,
+        target_buckets_count: 1,
+        rand: ChaCha8Rng::seed_from_u64(0x9a9ddd206ce854ef + 208),
+    });
+}
+
 struct AggregateTestParams<Random: Rng> {
     source_items_count: usize,
     new_items_count: usize,
@@ -558,15 +570,13 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                 ActionType::FunctionEval(call) => {
                     match call {
                         FunctionEvalAction::AggregateMap(map) => {
-                            let AggregateMapEvalAction {
-                                input,
-                                output_buffer,
-                            } = map;
+                            let AggregateMapEvalAction { input } = map;
 
                             let map_multi_input = input.data();
                             let items = map_multi_input.items().unwrap_or_default();
 
-                            let mut serializer = Serializer::from_vec(output_buffer);
+                            let mut serializer =
+                                Serializer::from_vec(transform.take_map_input_buffer());
                             let mut records = Vec::with_capacity(items.len());
 
                             for item in items {
@@ -639,13 +649,12 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                 id: action_id,
                                 input: InputType::FunctionEval(FunctionEvalInput {
                                     body: FunctionEvalInputBody::AggregateMap(
-                                        AggregateMapEvalInput {
-                                            input: result,
-                                            action_input_buffer: input.into_buffer_vec(),
-                                        },
+                                        AggregateMapEvalInput { input: result },
                                     ),
                                 }),
                             });
+
+                            transform.return_map_action_buffer(input.into_buffer_vec());
 
                             continue;
                         }
@@ -703,11 +712,8 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                         FunctionEvalAction::AggregateReduce(action) => {
                             let AggregateReduceEvalAction {
                                 accumulator,
-                                target_info,
                                 input: input_serialized,
                             } = action;
-
-                            assert!(target_infos.contains_key(&target_info.0));
 
                             let accumulator_data = accumulators
                                 .get_mut(&accumulator.0)
@@ -735,35 +741,41 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                         AggregateReduceEvalInput {
                                             accumulator_id: accumulator,
                                             accumulator_data_bytes: 64,
-                                            action_input_buffer: input_serialized.into_buffer_vec(),
                                         },
                                     ),
                                 }),
                             });
 
+                            transform
+                                .return_reduce_action_buffer(input_serialized.into_buffer_vec());
+
                             continue;
                         }
                         FunctionEvalAction::AggregateMerge(action) => {
                             let AggregateMergeEvalAction {
-                                target_info,
                                 accumulator_ids: input,
                             } = action;
 
                             let mut result = AccumulatorData {
-                                target_info,
+                                target_info: TargetInfoId(0),
                                 diff: 0,
                             };
 
-                            input.iter().fold(&mut result, |acc, x| {
-                                let AccumulatorData {
-                                    target_info: acc_target_info,
-                                    diff,
-                                } = accumulators.remove(&x.0).expect("accumulator not found");
+                            let mut is_first = true;
 
-                                assert_eq!(
-                                    &acc_target_info, &acc.target_info,
-                                    "different target_info"
-                                );
+                            input.iter().fold(&mut result, |acc, x| {
+                                let AccumulatorData { diff, target_info } =
+                                    accumulators.remove(&x.0).expect("accumulator not found");
+
+                                if is_first {
+                                    is_first = false;
+                                    acc.target_info = target_info;
+                                } else {
+                                    assert_eq!(
+                                        acc.target_info, target_info,
+                                        "different target_info"
+                                    );
+                                }
 
                                 acc.diff += diff;
 
@@ -793,14 +805,10 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                         }
                         FunctionEvalAction::AggregateApply(action) => {
                             let AggregateApplyEvalAction {
-                                target_info: target_info_id,
                                 accumulator,
                                 output_buffer,
                             } = action;
 
-                            let target_info = target_infos
-                                .remove(&target_info_id.0)
-                                .expect("target info should be present");
                             let AccumulatorData {
                                 target_info: accumulator_target_info_id,
                                 diff,
@@ -808,7 +816,9 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                                 .remove(&accumulator.0)
                                 .expect("accumulator should be present");
 
-                            assert_eq!(accumulator_target_info_id, target_info_id);
+                            let target_info = target_infos
+                                .remove(&accumulator_target_info_id.0)
+                                .expect("target info should be present");
 
                             let target = target_info.data();
                             let old_target_value = target

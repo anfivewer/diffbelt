@@ -47,9 +47,7 @@ impl AggregateTransform {
         let MapContext { bytes_to_free } = ctx;
         state.current_limits.pending_eval_map_bytes -= bytes_to_free;
 
-        let AggregateMapEvalInput {
-            input,
-        } = map;
+        let AggregateMapEvalInput { input } = map;
 
         let map_output = input.data();
         let map_items = map_output.items().unwrap_or_default();
@@ -145,6 +143,17 @@ impl AggregateTransform {
                 &mut state.chunk_id_counter,
                 &mut self.free_reduce_eval_action_buffers,
                 &mut self.free_serializer_reduce_input_items_buffers,
+            );
+        }
+
+        if actions.is_empty() {
+            () = Self::try_apply(
+                &mut actions,
+                &self.max_limits,
+                &mut state.current_limits,
+                &mut state.target_keys,
+                &mut self.apply_target_keys_temp_vec,
+                &mut self.free_apply_eval_buffers,
             );
         }
 
