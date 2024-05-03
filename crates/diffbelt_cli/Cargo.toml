@@ -13,6 +13,7 @@ thiserror = "1.0.50"
 enum-as-inner = "0.6.0"
 enum_dispatch = "0.3.12"
 base64 = "0.20.0"
+generational-arena = "0.2.9"
 
 [dependencies.diffbelt_types]
 path = "../diffbelt_types"

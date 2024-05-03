@@ -6,6 +6,7 @@ pub enum ExpectedResponseType {
     Ok,
     Diff,
     PutMany,
+    GetRecord,
 }
 
 pub trait TransformBodyTrait {
@@ -30,8 +31,8 @@ impl TransformBodyTrait for DiffbeltRequestBody {
             DiffbeltRequestBody::PutMany(x) => {
                 (serde_json::to_string(&x), ExpectedResponseType::PutMany)
             }
-            DiffbeltRequestBody::GetRecord(_) => {
-                todo!()
+            DiffbeltRequestBody::GetRecord(x) => {
+                (serde_json::to_string(&x), ExpectedResponseType::GetRecord)
             }
         };
 

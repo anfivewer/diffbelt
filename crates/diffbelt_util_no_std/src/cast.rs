@@ -94,6 +94,16 @@ pub fn try_positive_i32_to_usize(value: i32) -> Option<usize> {
 
 #[inline(always)]
 #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+pub fn try_positive_i32_to_u64(value: i32) -> Option<u64> {
+    if value < 0 {
+        return None;
+    }
+
+    Some(value as u64)
+}
+
+#[inline(always)]
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
 pub fn try_usize_to_u32(value: usize) -> Option<u32> {
     if value >= u32::MAX as usize {
         return None;

@@ -162,6 +162,12 @@ impl<'a> WasmVecHolder<'a> {
     }
 }
 
+impl<'a> AsRef<WasmVecHolder<'a>> for WasmVecHolder<'a> {
+    fn as_ref(&self) -> &WasmVecHolder<'a> {
+        self
+    }
+}
+
 impl Drop for WasmVecHolder<'_> {
     fn drop(&mut self) {
         let mut pending_deallocs = self

@@ -127,7 +127,7 @@ impl<'a> AggregateMergeAccumulatorsTransformTest<'a> {
 
         () = self
             .aggregate
-            .call_merge_accumulators(&rest_holders, &holder)
+            .call_merge_accumulators(rest_holders.iter(), &holder)
             .await?;
 
         Ok(holder)

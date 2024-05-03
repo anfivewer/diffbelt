@@ -254,7 +254,7 @@ impl<'a> AggregateFunctions<'a> {
 
     pub async fn call_merge_accumulators(
         &self,
-        input: &[WasmVecHolder<'a>],
+        input: impl Iterator<Item = impl AsRef<WasmVecHolder<'a>>> + ExactSizeIterator,
         accumulator_holder: &WasmVecHolder<'a>,
     ) -> Result<(), WasmError> {
         let merge_accumulators = self.merge_accumulators.as_ref().ok_or_else(|| {
@@ -290,6 +290,7 @@ impl<'a> AggregateFunctions<'a> {
                 let first_accumulator_ptr = accumulators_ptr;
 
                 for accumulator in input {
+                    let accumulator = accumulator.as_ref();
                     let raw_parts = accumulator.ptr.read(memory)?;
                     () = accumulators_ptr.write(memory, raw_parts)?;
                     accumulators_ptr = accumulators_ptr.add_offset(1)?;

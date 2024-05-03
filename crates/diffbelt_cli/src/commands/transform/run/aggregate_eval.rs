@@ -1,20 +1,33 @@
-use diffbelt_cli_config::transforms::aggregate::Aggregate;
-use diffbelt_cli_config::wasm::aggregate::AggregateFunctions;
+use std::cell::RefCell;
 use std::future::Future;
 use std::mem;
-use std::ops::Deref;
-use std::str::from_utf8;
+use std::ops::{Deref, DerefMut};
+use std::pin::Pin;
 
-use diffbelt_cli_config::wasm::{WasmError, WasmModuleInstance};
-use diffbelt_protos::protos::transform::aggregate::AggregateMapMultiOutput;
+use generational_arena::Arena;
+
+use diffbelt_cli_config::transforms::aggregate::Aggregate;
+use diffbelt_cli_config::wasm::aggregate::AggregateFunctions;
+use diffbelt_cli_config::wasm::memory::vector::WasmVecHolder;
+use diffbelt_cli_config::wasm::WasmModuleInstance;
+use diffbelt_protos::protos::transform::aggregate::AggregateTargetInfo;
 use diffbelt_protos::{OwnedSerialized, SerializedRawParts};
 use diffbelt_transforms::base::action::function_eval::{
-    AggregateMapEvalAction, FunctionEvalAction,
+    AggregateApplyEvalAction, AggregateInitialAccumulatorEvalAction, AggregateMapEvalAction,
+    AggregateMergeEvalAction, AggregateReduceEvalAction, AggregateTargetInfoEvalAction,
+    FunctionEvalAction,
 };
+use diffbelt_transforms::base::common::accumulator::AccumulatorId;
+use diffbelt_transforms::base::common::target_info::TargetInfoId;
 use diffbelt_transforms::base::input::function_eval::{
-    AggregateMapEvalInput, FunctionEvalInput, FunctionEvalInputBody,
+    AggregateInitialAccumulatorEvalInput, AggregateMapEvalInput, AggregateMergeEvalInput,
+    AggregateReduceEvalInput, AggregateTargetInfoEvalInput, FunctionEvalInput,
+    FunctionEvalInputBody,
 };
 use diffbelt_transforms::Transform;
+use diffbelt_util_no_std::cast::{try_positive_i32_to_u64, u64_to_usize, usize_to_u64};
+use diffbelt_util_no_std::temporary_collection::immutable::vec::TemporaryRefVec;
+use diffbelt_util_no_std::temporary_collection::vec::{TempVecType, TemporaryVec};
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 
 use crate::commands::errors::{CommandError, TransformEvalError, WasmAggregateMapCallError};
@@ -23,11 +36,25 @@ use crate::commands::transform::run::function_eval_handler::FunctionEvalHandler;
 pub struct AggregateEvalHandler {
     verbose: bool,
     inner: Inner,
-    instance: Box<WasmModuleInstance>,
+    inner_mut: RefCell<InnerMut>,
+    instance: Pin<Box<WasmModuleInstance>>,
 }
 
 struct Inner {
     aggregate_functions: AggregateFunctions<'static>,
+}
+
+struct InnerMut {
+    target_info_arena: Arena<OwnedSerialized<'static, AggregateTargetInfo<'static>>>,
+    accumulators_arena: Arena<WasmVecHolder<'static>>,
+    free_accumulator_indexes: Vec<usize>,
+    temp_merge_vec: TemporaryVec<WasmVecHolderTemp>,
+}
+
+struct WasmVecHolderTemp;
+
+impl TempVecType for WasmVecHolderTemp {
+    type Item<'a> = &'a WasmVecHolder<'a>;
 }
 
 impl AggregateEvalHandler {
@@ -36,7 +63,7 @@ impl AggregateEvalHandler {
         aggregate: &Aggregate,
         verbose: bool,
     ) -> Result<Self, CommandError> {
-        let instance = Box::new(instance);
+        let instance = Box::pin(instance);
         let instance_static = unsafe {
             mem::transmute::<&WasmModuleInstance, &'static WasmModuleInstance>(instance.deref())
         };
@@ -56,6 +83,12 @@ impl AggregateEvalHandler {
             inner: Inner {
                 aggregate_functions,
             },
+            inner_mut: RefCell::new(InnerMut {
+                target_info_arena: Arena::with_capacity(32),
+                accumulators_arena: Arena::with_capacity(32),
+                free_accumulator_indexes: Vec::with_capacity(8),
+                temp_merge_vec: TemporaryVec::new(),
+            }),
             instance,
         })
     }
@@ -75,6 +108,8 @@ impl FunctionEvalHandler for AggregateEvalHandler {
         let body = (|| async move {
             match action {
                 FunctionEvalAction::AggregateMap(action) => {
+                    println!("map");
+
                     let AggregateMapEvalAction { input } = action;
 
                     let output_buffer = transform.take_map_input_buffer();
@@ -112,16 +147,217 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                     }))
                 }
                 FunctionEvalAction::AggregateTargetInfo(action) => {
-                    todo!("target info")
+                    println!("target info");
+
+                    let AggregateTargetInfoEvalAction { target_info } = action;
+
+                    let target_info_data_bytes = usize_to_u64(target_info.as_bytes().len());
+
+                    let target_info_id = {
+                        let mut inner_mut = self.inner_mut.borrow_mut();
+                        let target_info_arena = &mut inner_mut.target_info_arena;
+                        let index = target_info_arena.insert(target_info);
+                        let (index, _generation) = index.into_raw_parts();
+                        TargetInfoId(usize_to_u64(index))
+                    };
+
+                    Ok(FunctionEvalInputBody::AggregateTargetInfo(
+                        AggregateTargetInfoEvalInput {
+                            target_info_id,
+                            target_info_data_bytes,
+                        },
+                    ))
                 }
                 FunctionEvalAction::AggregateInitialAccumulator(action) => {
-                    todo!("initial accumulator")
+                    println!("initial accumulator");
+
+                    let AggregateInitialAccumulatorEvalAction { target_info } = action;
+
+                    let target_info_index = u64_to_usize(target_info.0);
+                    let (accumulator_id, accumulator_data_bytes) = {
+                        let mut inner_mut = self.inner_mut.borrow_mut();
+                        let InnerMut {
+                            target_info_arena,
+                            accumulators_arena,
+                            free_accumulator_indexes,
+                            ..
+                        } = inner_mut.deref_mut();
+
+                        let (target_info, _) = target_info_arena
+                            .get_unknown_gen(target_info_index)
+                            .ok_or_else(|| {
+                                TransformEvalError::Unspecified("No target info record".to_string())
+                            })?;
+
+                        let free_accumulator_index = free_accumulator_indexes.pop();
+
+                        let (index, accumulator_holder) = match free_accumulator_index {
+                            Some(index) => {
+                                let (accumulator, _) =
+                                    accumulators_arena.get_unknown_gen(index).ok_or_else(|| {
+                                        TransformEvalError::Unspecified(
+                                            "No item at free accumulator index".to_string(),
+                                        )
+                                    })?;
+                                (index, accumulator)
+                            }
+                            None => {
+                                let accumulator = self.instance_static().alloc_vec_holder().await?;
+
+                                let index = accumulators_arena.insert(accumulator);
+
+                                let accumulator =
+                                    accumulators_arena.get(index).expect("just inserted");
+
+                                let (index, _generation) = index.into_raw_parts();
+
+                                (index, accumulator)
+                            }
+                        };
+
+                        () = self
+                            .inner
+                            .aggregate_functions
+                            .call_initial_accumulator(
+                                FlatbufferAnnotated::from(target_info.as_bytes()),
+                                accumulator_holder,
+                            )
+                            .await?;
+
+                        let accumulator_data_bytes =
+                            try_positive_i32_to_u64(accumulator_holder.read_slice()?.0.len)
+                                .ok_or_else(|| {
+                                    TransformEvalError::Unspecified(
+                                        "Too big accumulator size".to_string(),
+                                    )
+                                })?;
+
+                        (AccumulatorId(usize_to_u64(index)), accumulator_data_bytes)
+                    };
+
+                    Ok(FunctionEvalInputBody::AggregateInitialAccumulator(
+                        AggregateInitialAccumulatorEvalInput {
+                            accumulator_id,
+                            accumulator_data_bytes,
+                        },
+                    ))
                 }
                 FunctionEvalAction::AggregateReduce(action) => {
-                    todo!("reduce")
+                    println!("reduce");
+
+                    let AggregateReduceEvalAction {
+                        accumulator: accumulator_id,
+                        input,
+                    } = action;
+
+                    let accumulator_data_bytes = {
+                        let inner_mut = self.inner_mut.borrow();
+                        let (accumulator, _) = inner_mut
+                            .accumulators_arena
+                            .get_unknown_gen(u64_to_usize(accumulator_id.0))
+                            .ok_or_else(|| {
+                                TransformEvalError::Unspecified(
+                                    "No accumulator at index".to_string(),
+                                )
+                            })?;
+
+                        () = self
+                            .inner
+                            .aggregate_functions
+                            .call_reduce(FlatbufferAnnotated::from(input.as_bytes()), accumulator)
+                            .await?;
+
+                        let accumulator_data_bytes = try_positive_i32_to_u64(
+                            accumulator.read_slice()?.0.len,
+                        )
+                        .ok_or_else(|| {
+                            TransformEvalError::Unspecified("Too big accumulator size".to_string())
+                        })?;
+
+                        accumulator_data_bytes
+                    };
+
+                    transform.return_reduce_action_buffer(input.into_buffer_vec());
+
+                    Ok(FunctionEvalInputBody::AggregateReduce(
+                        AggregateReduceEvalInput {
+                            accumulator_id,
+                            accumulator_data_bytes,
+                        },
+                    ))
                 }
                 FunctionEvalAction::AggregateMerge(action) => {
-                    todo!("merge")
+                    println!("merge");
+
+                    let AggregateMergeEvalAction { accumulator_ids } = action;
+
+                    let mut accumulator_ids_iter = accumulator_ids.iter();
+
+                    let first_accumulator_id = accumulator_ids_iter.next().ok_or_else(|| {
+                        TransformEvalError::Unspecified("No accumulators for merge".to_string())
+                    })?.clone();
+
+                    let accumulator_data_bytes = {
+                        let mut inner_mut = self.inner_mut.borrow_mut();
+                        let InnerMut {
+                            accumulators_arena,
+                            free_accumulator_indexes,
+                            temp_merge_vec,
+                            ..
+                        } = inner_mut.deref_mut();
+
+                        let (first_accumulator, _) = accumulators_arena
+                            .get_unknown_gen(u64_to_usize(first_accumulator_id.0))
+                            .ok_or_else(|| {
+                                TransformEvalError::Unspecified(
+                                    "No accumulator at index".to_string(),
+                                )
+                            })?;
+
+                        let mut accumulators_temp = temp_merge_vec.temp();
+                        let accumulators = accumulators_temp.as_mut();
+
+                        accumulators.reserve(accumulator_ids_iter.len());
+
+                        for id in accumulator_ids_iter {
+                            let (accumulator_holder, _) = accumulators_arena
+                                .get_unknown_gen(u64_to_usize(id.0))
+                                .ok_or_else(|| {
+                                    TransformEvalError::Unspecified(
+                                        "No accumulator at index".to_string(),
+                                    )
+                                })?;
+
+                            accumulators.push(accumulator_holder);
+
+                            free_accumulator_indexes.push(u64_to_usize(id.0));
+                        }
+
+                        () = self
+                            .inner
+                            .aggregate_functions
+                            .call_merge_accumulators(accumulators.iter(), first_accumulator)
+                            .await?;
+
+                        let accumulator_data_bytes =
+                            try_positive_i32_to_u64(first_accumulator.read_slice()?.0.len)
+                                .ok_or_else(|| {
+                                    TransformEvalError::Unspecified(
+                                        "Too big accumulator size".to_string(),
+                                    )
+                                })?;
+
+                        accumulator_data_bytes
+                    };
+
+                    transform.return_merge_accumulator_ids_vec(accumulator_ids);
+
+                    Ok(FunctionEvalInputBody::AggregateMerge(
+                        AggregateMergeEvalInput {
+                            accumulator_id: first_accumulator_id,
+                            accumulator_data_bytes,
+                        },
+                    ))
                 }
                 FunctionEvalAction::AggregateApply(action) => {
                     todo!("apply")
@@ -134,5 +370,17 @@ impl FunctionEvalHandler for AggregateEvalHandler {
         .await;
 
         () = emit_input(body.map(|body| FunctionEvalInput { body })).await;
+    }
+}
+
+impl AggregateEvalHandler {
+    fn instance_static(&self) -> &'static WasmModuleInstance {
+        let instance_static = unsafe {
+            mem::transmute::<&WasmModuleInstance, &'static WasmModuleInstance>(
+                self.instance.deref(),
+            )
+        };
+
+        instance_static
     }
 }

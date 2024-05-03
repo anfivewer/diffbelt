@@ -6,6 +6,7 @@ use hyper::{Body, Client, Request};
 use diffbelt_transforms::base::action::diffbelt_call::DiffbeltCallAction;
 use diffbelt_transforms::base::input::diffbelt_call::DiffbeltResponseBody;
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
+use diffbelt_types::collection::get_record::GetResponseJsonData;
 use diffbelt_types::collection::put_many::PutManyResponseJsonData;
 use diffbelt_util::http::read_full_body::into_full_body_as_read;
 
@@ -93,6 +94,12 @@ impl DiffbeltClient {
                     serde_json::from_reader(body).map_err(|_| DiffbeltClientError::JsonParsing)?;
 
                 Ok(DiffbeltResponseBody::PutMany(response))
+            }
+            ExpectedResponseType::GetRecord => {
+                let response: GetResponseJsonData =
+                    serde_json::from_reader(body).map_err(|_| DiffbeltClientError::JsonParsing)?;
+
+                Ok(DiffbeltResponseBody::GetRecord(response))
             }
         }
     }
