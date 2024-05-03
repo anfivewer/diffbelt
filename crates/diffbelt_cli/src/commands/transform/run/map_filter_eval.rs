@@ -1,6 +1,6 @@
-use std::future::Future;
 use std::mem;
 use std::ops::Deref;
+use std::sync::{Arc, Mutex};
 
 use diffbelt_cli_config::wasm::memory::vector::WasmVecHolder;
 use diffbelt_cli_config::wasm::{MapFilterFunction, WasmModuleInstance};
@@ -15,6 +15,7 @@ use diffbelt_util::errors::NoStdErrorWrap;
 
 use crate::commands::errors::{CommandError, TransformEvalError};
 use crate::commands::transform::run::function_eval_handler::FunctionEvalHandler;
+use crate::commands::transform::run::InputEmitter;
 
 pub struct MapFilterEvalHandler {
     verbose: bool,
@@ -55,23 +56,20 @@ impl MapFilterEvalHandler {
 }
 
 impl FunctionEvalHandler for MapFilterEvalHandler {
-    async fn handle_action<
-        'a,
-        Fut: Future<Output = ()>,
-        F: Fn(Result<FunctionEvalInput<FunctionEvalInputBody>, TransformEvalError>) -> Fut,
-    >(
+    async fn handle_action(
         &self,
         action: FunctionEvalAction,
-        emit_input: &F,
-        _transform: &'a mut impl Transform,
+        input_emitter: InputEmitter,
+        _transform: Arc<Mutex<impl Transform>>,
     ) {
         let action = match action.into_map_filter() {
             Ok(action) => action,
             Err(_) => {
-                emit_input(Err(TransformEvalError::Unspecified(
-                    "action is not MapFilterEvalAction".to_string(),
-                )))
-                .await;
+                input_emitter
+                    .emit_input(Err(TransformEvalError::Unspecified(
+                        "action is not MapFilterEvalAction".to_string(),
+                    )))
+                    .await;
                 return;
             }
         };
@@ -116,6 +114,6 @@ impl FunctionEvalHandler for MapFilterEvalHandler {
         })()
         .await;
 
-        () = emit_input(result).await;
+        () = input_emitter.emit_input(result).await;
     }
 }

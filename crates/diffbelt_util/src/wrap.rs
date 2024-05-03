@@ -18,6 +18,12 @@ impl<T> Wrap<T> for Rc<RefCell<T>> {
     }
 }
 
+impl<T> Wrap<T> for Arc<T> {
+    fn wrap(data: T) -> Self {
+        Arc::new(data)
+    }
+}
+
 impl<T> Wrap<T> for Arc<Mutex<T>> {
     fn wrap(data: T) -> Self {
         Arc::new(Mutex::new(data))

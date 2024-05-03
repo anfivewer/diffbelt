@@ -3,6 +3,7 @@ use std::future::Future;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 
 use generational_arena::{Arena, Index};
 
@@ -31,6 +32,7 @@ use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 
 use crate::commands::errors::{CommandError, TransformEvalError, WasmAggregateMapCallError};
 use crate::commands::transform::run::function_eval_handler::FunctionEvalHandler;
+use crate::commands::transform::run::InputEmitter;
 
 pub struct AggregateEvalHandler {
     verbose: bool,
@@ -99,24 +101,21 @@ impl AggregateEvalHandler {
 }
 
 impl FunctionEvalHandler for AggregateEvalHandler {
-    async fn handle_action<
-        'a,
-        Fut: Future<Output = ()>,
-        F: Fn(Result<FunctionEvalInput<FunctionEvalInputBody>, TransformEvalError>) -> Fut,
-    >(
+    async fn handle_action(
         &self,
         action: FunctionEvalAction,
-        emit_input: &F,
-        transform: &'a mut impl Transform,
+        input_emitter: InputEmitter,
+        transform: Arc<Mutex<impl Transform>>,
     ) {
         let body = (|| async move {
             match action {
                 FunctionEvalAction::AggregateMap(action) => {
-                    println!("map");
-
                     let AggregateMapEvalAction { input } = action;
 
-                    let output_buffer = transform.take_map_input_buffer();
+                    let output_buffer = {
+                        let mut transform = transform.lock().expect("lock");
+                        transform.take_map_input_buffer()
+                    };
                     let mut output_holder = Some(output_buffer);
 
                     let result = self
@@ -144,15 +143,16 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                         }
                     };
 
-                    transform.return_map_action_buffer(input.into_buffer_vec());
+                    {
+                        let mut transform = transform.lock().expect("lock");
+                        transform.return_map_action_buffer(input.into_buffer_vec());
+                    }
 
                     Ok(FunctionEvalInputBody::AggregateMap(AggregateMapEvalInput {
                         input: result,
                     }))
                 }
                 FunctionEvalAction::AggregateTargetInfo(action) => {
-                    println!("target info");
-
                     let AggregateTargetInfoEvalAction { target_info } = action;
 
                     let target_info_data_bytes = usize_to_u64(target_info.as_bytes().len());
@@ -173,8 +173,6 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                     ))
                 }
                 FunctionEvalAction::AggregateInitialAccumulator(action) => {
-                    println!("initial accumulator");
-
                     let AggregateInitialAccumulatorEvalAction { target_info } = action;
 
                     let target_info_index = u64_to_usize(target_info.0);
@@ -254,8 +252,6 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                     ))
                 }
                 FunctionEvalAction::AggregateReduce(action) => {
-                    println!("reduce");
-
                     let AggregateReduceEvalAction {
                         accumulator: accumulator_id,
                         input,
@@ -291,7 +287,10 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                         accumulator_data_bytes
                     };
 
-                    transform.return_reduce_action_buffer(input.into_buffer_vec());
+                    {
+                        let mut transform = transform.lock().expect("lock");
+                        transform.return_reduce_action_buffer(input.into_buffer_vec());
+                    }
 
                     Ok(FunctionEvalInputBody::AggregateReduce(
                         AggregateReduceEvalInput {
@@ -301,8 +300,6 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                     ))
                 }
                 FunctionEvalAction::AggregateMerge(action) => {
-                    println!("merge");
-
                     let AggregateMergeEvalAction { accumulator_ids } = action;
 
                     let mut accumulator_ids_iter = accumulator_ids.iter();
@@ -369,7 +366,10 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                         accumulator_data_bytes
                     };
 
-                    transform.return_merge_accumulator_ids_vec(accumulator_ids);
+                    {
+                        let mut transform = transform.lock().expect("lock");
+                        transform.return_merge_accumulator_ids_vec(accumulator_ids);
+                    }
 
                     Ok(FunctionEvalInputBody::AggregateMerge(
                         AggregateMergeEvalInput {
@@ -400,7 +400,10 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                                 )
                             })?;
 
-                        let buffer = transform.take_apply_input_buffer();
+                        let buffer = {
+                            let mut transform = transform.lock().expect("lock");
+                            transform.take_apply_input_buffer()
+                        };
                         let mut buffer_holder = Some(buffer);
 
                         let apply_output = self
@@ -417,7 +420,11 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                             TransformEvalError::Unspecified("No target info at index".to_string())
                         })?;
 
-                        transform.return_target_info_action_buffer(target_info.into_buffer_vec());
+                        {
+                            let mut transform = transform.lock().expect("lock");
+                            transform
+                                .return_target_info_action_buffer(target_info.into_buffer_vec());
+                        }
 
                         apply_output
                     };
@@ -433,7 +440,9 @@ impl FunctionEvalHandler for AggregateEvalHandler {
         })()
         .await;
 
-        () = emit_input(body.map(|body| FunctionEvalInput { body })).await;
+        () = input_emitter
+            .emit_input(body.map(|body| FunctionEvalInput { body }))
+            .await;
     }
 }
 

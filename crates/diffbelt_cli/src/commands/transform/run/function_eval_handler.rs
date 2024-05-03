@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::sync::{Arc, Mutex};
 
 use enum_dispatch::enum_dispatch;
 
@@ -9,18 +10,15 @@ use diffbelt_transforms::Transform;
 use crate::commands::errors::TransformEvalError;
 use crate::commands::transform::run::aggregate_eval::AggregateEvalHandler;
 use crate::commands::transform::run::map_filter_eval::MapFilterEvalHandler;
+use crate::commands::transform::run::InputEmitter;
 
 #[enum_dispatch]
 pub trait FunctionEvalHandler {
-    async fn handle_action<
-        'a,
-        Fut: Future<Output = ()>,
-        F: Fn(Result<FunctionEvalInput<FunctionEvalInputBody>, TransformEvalError>) -> Fut,
-    >(
+    async fn handle_action(
         &self,
         action: FunctionEvalAction,
-        emit_input: &F,
-        transform: &'a mut impl Transform,
+        input_emitter: InputEmitter,
+        transform: Arc<Mutex<impl Transform>>,
     );
 }
 
