@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use tokio::sync::{oneshot, watch, RwLock};
+use diffbelt_util::idling_status::IdlingStatus;
 
 use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::common::collection::CollectionName;
@@ -23,6 +24,7 @@ pub struct GarbageCollectorNewCollectionTask {
     pub is_deleted: Arc<RwLock<bool>>,
     pub minimum_generation_id: watch::Receiver<OwnedGenerationId>,
     pub sender: oneshot::Sender<Result<NewCollectionTaskResponse, GarbageCollectorCommonError>>,
+    pub idling: IdlingStatus,
 }
 
 pub struct GarbageCollectorDropCollectionTask {

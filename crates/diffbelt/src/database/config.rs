@@ -1,4 +1,5 @@
 use std::num::NonZeroUsize;
+use std::time::Duration;
 
 pub struct DatabaseConfig {
     pub query_pack_limit: usize,
@@ -31,6 +32,7 @@ pub struct DatabaseConfig {
 
     pub gc_records_limit: NonZeroUsize,
     pub gc_lookups_limit: NonZeroUsize,
+    pub gc_sleep_duration: Duration,
 }
 
 impl Default for DatabaseConfig {
@@ -44,6 +46,7 @@ impl Default for DatabaseConfig {
             max_cursors_per_collection: NonZeroUsize::new(100).unwrap(),
             gc_records_limit: NonZeroUsize::new(1000).unwrap(),
             gc_lookups_limit: NonZeroUsize::new(8000).unwrap(),
+            gc_sleep_duration: Duration::from_millis(300),
         }
     }
 }

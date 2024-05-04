@@ -1,4 +1,6 @@
+use diffbelt_util::idling_status::IdlingStatus;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::config::{Config, ReadConfigFromEnvError};
 use crate::context::Context;
@@ -22,6 +24,9 @@ mod tests;
 mod util;
 
 async fn run() {
+    let idling = IdlingStatus::new();
+    let task = idling.start_work();
+
     let config = Config::read_from_env();
     let config = match config {
         Ok(config) => config,
@@ -42,6 +47,7 @@ async fn run() {
     let database = Database::open(DatabaseOpenOptions {
         data_path: &config.data_path,
         config: Arc::new(Default::default()),
+        idling: idling.clone(),
     })
     .await
     .expect("Cannot open database");
@@ -50,13 +56,26 @@ async fn run() {
         config,
         routing: routing::Routing::new(),
         database: Arc::new(database),
+        idling: idling.clone(),
     };
 
     routing::register_routes::register_routes(&mut context);
 
     let context = Arc::new(context);
 
-    start_http_server(context).await;
+    tokio::spawn(async move {
+        start_http_server(context, task).await;
+    });
+
+    loop {
+        () = idling.on_idle_for(Duration::from_millis(500)).await;
+
+        println!("IDLE");
+
+        () = idling.on_busy().await;
+
+        println!("BUSY");
+    }
 }
 
 fn main() {

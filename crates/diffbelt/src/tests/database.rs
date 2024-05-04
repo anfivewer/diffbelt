@@ -3,6 +3,7 @@ use std::str::from_utf8;
 use std::sync::Arc;
 use std::time::Duration;
 
+use diffbelt_util::idling_status::IdlingStatus;
 use tokio::time::timeout;
 
 use crate::collection::methods::commit_generation::CommitGenerationOptions;
@@ -34,6 +35,7 @@ async fn database_test_inner() {
     let database = Database::open(DatabaseOpenOptions {
         data_path: temp_dir.get_path_buf(),
         config: Arc::new(Default::default()),
+        idling: IdlingStatus::new(),
     })
     .await
     .expect("Cannot open database");

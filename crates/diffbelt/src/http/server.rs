@@ -6,6 +6,8 @@ use hyper::http::HeaderValue;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server, StatusCode};
 
+use diffbelt_util::idling_status::BusyTask;
+
 use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::request::HyperRequestWrapped;
@@ -110,14 +112,18 @@ fn init_response(response: &mut Response<Body>, base: &BaseResponse) -> Result<(
     Ok(())
 }
 
-pub async fn start_http_server(context: Arc<Context>) {
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3030));
+pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
+    const PORT: u16 = 3030;
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], PORT));
 
     let make_svc = make_service_fn(|_conn| {
         let context = context.clone();
 
         let fun = move |req| {
             let context = context.clone();
+
+            let task = context.idling.start_work();
 
             async move {
                 let result = handle_request(context, req).await;
@@ -193,6 +199,8 @@ pub async fn start_http_server(context: Arc<Context>) {
                             );
                         }
 
+                        drop(task);
+
                         Ok(response)
                     }
                 }
@@ -203,6 +211,10 @@ pub async fn start_http_server(context: Arc<Context>) {
     });
 
     let server = Server::bind(&addr).serve(make_svc);
+
+    println!("Started at port {PORT}");
+
+    drop(task);
 
     if let Err(e) = server.await {
         eprintln!("server error: {}", e);

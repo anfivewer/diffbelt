@@ -10,7 +10,6 @@ use crate::aggregate::AggregateTransform;
 use crate::base::action::function_eval::{AggregateMergeEvalAction, FunctionEvalAction};
 use crate::base::action::ActionType;
 use crate::base::common::accumulator::AccumulatorId;
-use crate::base::common::target_info::TargetInfoId;
 use crate::base::input::function_eval::FunctionEvalInput;
 use crate::input_handler;
 use crate::transform::ActionInputHandlerActionsVec;
@@ -117,9 +116,7 @@ impl AggregateTransform {
 
         actions.push((
             ActionType::FunctionEval(FunctionEvalAction::AggregateMerge(
-                AggregateMergeEvalAction {
-                    accumulator_ids,
-                },
+                AggregateMergeEvalAction { accumulator_ids },
             )),
             HandlerContext::Merging(MergingContext {
                 target_key_rc,

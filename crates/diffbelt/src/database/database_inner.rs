@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use tokio::sync::{oneshot, watch, RwLock};
+use diffbelt_util::idling_status::IdlingStatus;
 
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::{Collection, GetReaderGenerationIdError};
@@ -17,6 +18,7 @@ use crate::util::async_task_thread::AsyncTaskThread;
 
 pub struct DatabaseInner {
     pub config: Arc<DatabaseConfig>,
+    pub idling: IdlingStatus,
     collections_for_deletion: Arc<RwLock<HashSet<String>>>,
     database_raw_db: Arc<RawDb>,
     collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
@@ -36,6 +38,7 @@ pub enum GetReaderGenerationIdFnError {
 impl DatabaseInner {
     pub fn new(
         config: Arc<DatabaseConfig>,
+        idling: IdlingStatus,
         collections_for_deletion: Arc<RwLock<HashSet<String>>>,
         database_raw_db: Arc<RawDb>,
         collections: Arc<RwLock<HashMap<String, Arc<Collection>>>>,
@@ -47,6 +50,7 @@ impl DatabaseInner {
     ) -> Self {
         Self {
             config,
+            idling,
             collections_for_deletion,
             database_raw_db,
             collections,

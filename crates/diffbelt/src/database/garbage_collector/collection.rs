@@ -1,11 +1,12 @@
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use tokio::sync::{oneshot, watch, RwLock};
-use tokio::task::{spawn_blocking, spawn_local, yield_now};
+use tokio::task::{spawn_blocking, spawn_local};
 use tokio::time::sleep;
+
+use diffbelt_util::idling_status::IdlingStatus;
 
 use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::collection::util::record_key::OwnedRecordKey;
@@ -17,14 +18,21 @@ pub struct GarbageCollectorCollection {
     pub id: usize,
     raw_db: CollectionRawDb,
     is_deleted: Arc<RwLock<bool>>,
+    idling: IdlingStatus,
 }
 
 impl GarbageCollectorCollection {
-    pub fn new(id: usize, raw_db: CollectionRawDb, is_deleted: Arc<RwLock<bool>>) -> Self {
+    pub fn new(
+        id: usize,
+        raw_db: CollectionRawDb,
+        is_deleted: Arc<RwLock<bool>>,
+        idling: IdlingStatus,
+    ) -> Self {
         Self {
             id,
             raw_db,
             is_deleted,
+            idling,
         }
     }
 
@@ -36,6 +44,7 @@ impl GarbageCollectorCollection {
     ) {
         let records_limit = config.gc_records_limit;
         let lookups_limit = config.gc_lookups_limit;
+        let gc_sleep_duration = config.gc_sleep_duration;
 
         let raw_db = self.raw_db.clone();
 
@@ -56,7 +65,13 @@ impl GarbageCollectorCollection {
                     }
                 };
 
+            let mut busy_task = None;
+
             loop {
+                if busy_task.is_none() {
+                    busy_task = Some(self.idling.start_work());
+                }
+
                 check_generation(
                     &mut minimum_generation_id,
                     &mut local_generation_less_than,
@@ -73,8 +88,6 @@ impl GarbageCollectorCollection {
                     }
 
                     spawn_blocking(move || {
-                        let now = Instant::now();
-
                         let result = raw_db
                             .cleanup_generations_less_than_sync(CleanupGenerationsLessThanOptions {
                                 generation_less_than: local_generation_less_than.as_ref(),
@@ -91,7 +104,7 @@ impl GarbageCollectorCollection {
                 };
 
                 // Slowdown cleanups to not use too much cpu, evently it will be clean
-                let sleep_future = sleep(Duration::from_millis(300));
+                let sleep_future = sleep(gc_sleep_duration);
                 tokio::select! {
                     () = sleep_future => {},
                     _ = &mut stop_receiver => {
@@ -105,6 +118,7 @@ impl GarbageCollectorCollection {
                     }
                     CleanupResult::Finished => {
                         continue_from_record_key = None;
+                        busy_task = None;
 
                         tokio::select! {
                             result = minimum_generation_id.changed() => {

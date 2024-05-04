@@ -63,6 +63,7 @@ impl GarbageCollectorState {
             is_deleted,
             minimum_generation_id,
             sender,
+            idling,
         } = task;
 
         let already_exists = { self.collections.borrow().contains_key(&collection_name) };
@@ -78,7 +79,12 @@ impl GarbageCollectorState {
 
         let id = self.counter.replace(self.counter.get() + 1);
 
-        let collection = Rc::new(GarbageCollectorCollection::new(id, raw_db, is_deleted));
+        let collection = Rc::new(GarbageCollectorCollection::new(
+            id,
+            raw_db,
+            is_deleted,
+            idling.clone(),
+        ));
 
         {
             self.collections

@@ -3,7 +3,6 @@ use std::rc::Rc;
 
 use lru::LruCache;
 
-use diffbelt_util_no_std::buffers_pool::BuffersPool;
 use diffbelt_util_no_std::temporary_collection::vec::TemporaryVec;
 
 use crate::aggregate::context::{ApplyingContext, HandlerContext};

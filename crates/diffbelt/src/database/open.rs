@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use diffbelt_util::idling_status::IdlingStatus;
 use protobuf::Message;
 use tokio::sync::{watch, Mutex, RwLock};
 
@@ -26,6 +27,7 @@ use crate::util::atomic_cleanup::AtomicCleanup;
 pub struct DatabaseOpenOptions<'a> {
     pub data_path: &'a PathBuf,
     pub config: Arc<DatabaseConfig>,
+    pub idling: IdlingStatus,
 }
 
 #[derive(Debug)]
@@ -39,7 +41,11 @@ pub enum DatabaseOpenError {
 
 impl Database {
     pub async fn open(options: DatabaseOpenOptions<'_>) -> Result<Self, DatabaseOpenError> {
-        let data_path = options.data_path;
+        let DatabaseOpenOptions {
+            data_path,
+            config,
+            idling,
+        } = options;
 
         let meta_raw_db_path = data_path.join("_meta");
         let meta_raw_db_path = meta_raw_db_path.to_str().unwrap();
@@ -64,14 +70,15 @@ impl Database {
         let collections_for_deletion = Arc::new(RwLock::new(HashSet::new()));
 
         let readers = start_readers_task_thread().await;
-        let cursors = start_cursors_task_thread(options.config.clone()).await;
+        let cursors = start_cursors_task_thread(config.clone()).await;
         let generations = start_generations_task_thread().await;
         let garbage_collector = start_garbage_collector_task_thread().await;
 
         let (stop_sender, stop_receiver) = watch::channel(false);
 
         let database_inner = Arc::new(DatabaseInner::new(
-            options.config.clone(),
+            config.clone(),
+            idling.clone(),
             collections_for_deletion.clone(),
             database_raw_db.clone(),
             collections_arc.clone(),
@@ -127,7 +134,7 @@ impl Database {
             }
 
             let collection = Collection::open(CollectionOpenOptions {
-                config: options.config.clone(),
+                config: config.clone(),
                 name: id.clone(),
                 data_path,
                 is_manual: record.is_manual,
@@ -165,7 +172,8 @@ impl Database {
         }
 
         Ok(Database {
-            config: options.config,
+            config,
+            idling,
             data_path: data_path.clone(),
             database_raw_db,
             collections_alter_lock: Mutex::new(()),

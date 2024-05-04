@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tokio::sync::{watch, Mutex, RwLock};
+use diffbelt_util::idling_status::IdlingStatus;
 
 use crate::collection::Collection;
 use crate::database::config::DatabaseConfig;
@@ -24,6 +25,7 @@ mod readers;
 
 pub struct Database {
     config: Arc<DatabaseConfig>,
+    pub idling: IdlingStatus,
     data_path: PathBuf,
     database_raw_db: Arc<RawDb>,
     collections_alter_lock: Mutex<()>,

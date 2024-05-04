@@ -1,3 +1,4 @@
+use diffbelt_util::idling_status::IdlingStatus;
 use std::sync::Arc;
 
 use crate::database::config::DatabaseConfig;
@@ -23,6 +24,7 @@ impl TempDatabase {
         let database = Database::open(DatabaseOpenOptions {
             data_path: temp_dir.get_path_buf(),
             config: Arc::new(config),
+            idling: IdlingStatus::new(),
         })
         .await
         .expect("Cannot open database");

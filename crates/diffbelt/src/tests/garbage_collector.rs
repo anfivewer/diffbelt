@@ -1,8 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::time::sleep;
-
 use crate::collection::methods::commit_generation::CommitGenerationOptions;
 use crate::collection::methods::create_reader::CreateReaderOptions;
 use crate::collection::methods::get::{CollectionGetOk, CollectionGetOptions};
@@ -13,6 +11,7 @@ use crate::common::{
     KeyValue, KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey, OwnedCollectionValue,
     OwnedGenerationId,
 };
+use crate::database::config::DatabaseConfig;
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
 use crate::util::tokio_runtime::create_main_tokio_runtime;
@@ -24,7 +23,11 @@ fn garbage_collector_test() {
 }
 
 async fn garbage_collector_test_inner() {
-    let temp_database = TempDatabase::new().await;
+    let temp_database = TempDatabase::new_with_config(DatabaseConfig {
+        gc_sleep_duration: Duration::from_millis(0),
+        ..Default::default()
+    })
+    .await;
 
     let database = temp_database.get_database();
 
@@ -152,8 +155,11 @@ async fn garbage_collector_test_inner() {
         .await
         .unwrap();
 
-    // TODO: implement global idle status
-    sleep(Duration::from_millis(1000)).await;
+    // Wait for cleanup to finish
+    () = database
+        .idling
+        .on_idle_for(Duration::from_millis(100))
+        .await;
 
     let CollectionGetOk { item, .. } = collection
         .get(CollectionGetOptions {

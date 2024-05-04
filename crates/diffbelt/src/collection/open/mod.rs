@@ -83,9 +83,17 @@ impl Collection {
     pub async fn open(
         options: CollectionOpenOptions<'_>,
     ) -> Result<Arc<Self>, CollectionOpenError> {
-        let collection_name = options.name;
+        let CollectionOpenOptions {
+            config,
+            name: collection_name,
+            data_path,
+            is_manual: should_be_manual,
+            database_inner,
+        } = options;
 
-        let path = Collection::get_path(options.data_path, &collection_name);
+        let idling = database_inner.idling.clone();
+
+        let path = Collection::get_path(data_path, &collection_name);
         let path = path.to_str().ok_or(CollectionOpenError::PathJoin)?;
 
         let collection_name = Arc::<str>::from(collection_name.as_str());
@@ -148,15 +156,15 @@ impl Collection {
                     .put_cf(
                         COLLECTION_CF_META,
                         b"is_manual",
-                        &vec![if options.is_manual { 1 } else { 0 }].into_boxed_slice(),
+                        &vec![if should_be_manual { 1 } else { 0 }].into_boxed_slice(),
                     )
                     .await?;
 
-                options.is_manual
+                should_be_manual
             }
         };
 
-        if is_manual != options.is_manual {
+        if is_manual != should_be_manual {
             return Err(CollectionOpenError::ManualModeMismatch);
         }
 
@@ -226,8 +234,6 @@ impl Collection {
             None => OwnedPhantomId::zero_64bits(),
         };
 
-        let database_inner = options.database_inner;
-
         let cursors_id = async_sync_call(|sender| {
             database_inner.add_cursors_task(DatabaseCollectionCursorsTask::NewCollection(
                 NewCollectionCursorsTask { sender },
@@ -293,6 +299,7 @@ impl Collection {
                     is_deleted: is_deleted.clone(),
                     minimum_generation_id: minimum_generation_id.clone(),
                     sender,
+                    idling,
                 },
             ))
         })
@@ -342,7 +349,7 @@ impl Collection {
         };
 
         let collection = Collection {
-            config: options.config,
+            config,
             name: collection_name,
             raw_db,
             is_manual,

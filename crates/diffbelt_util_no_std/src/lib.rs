@@ -12,3 +12,4 @@ pub mod option;
 pub mod ptr;
 pub mod slice;
 pub mod temporary_collection;
+pub mod unique_value;
