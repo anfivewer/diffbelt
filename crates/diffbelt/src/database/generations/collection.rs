@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::{oneshot, watch, RwLock};
 use tokio::task::spawn_blocking;
 
-use crate::collection::constants::COLLECTION_CF_META;
+use crate::collection::constants::{COLLECTION_CF_META, COLLECTION_META_NEXT_GENERATION_ID_KEY};
 use crate::collection::methods::abort_generation::{
     abort_generation_sync, AbortGenerationSyncOptions,
 };
@@ -204,7 +204,7 @@ impl InnerGenerationsCollection {
                 raw_db
                     .put_cf_sync(
                         COLLECTION_CF_META,
-                        b"next_generation_id",
+                        COLLECTION_META_NEXT_GENERATION_ID_KEY,
                         new_next_generation_id_for_db.get_byte_array(),
                     )
                     .map_err(StartManualGenerationIdError::RawDb)

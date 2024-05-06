@@ -7,7 +7,8 @@ use tokio::sync::{oneshot, RwLock};
 
 use crate::collection::constants::{
     COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE, COLLECTION_CF_META,
-    COLLECTION_CF_PHANTOMS,
+    COLLECTION_CF_PHANTOMS, COLLECTION_META_GENERATION_ID_KEY, COLLECTION_META_IS_MANUAL_KEY,
+    COLLECTION_META_NEXT_GENERATION_ID_KEY, COLLECTION_META_PREV_PHANTOM_ID_KEY,
 };
 use crate::collection::open::init_readers::init_readers;
 use crate::collection::util::collection_raw_db::wrap_collection_raw_db;
@@ -142,7 +143,9 @@ impl Collection {
             ],
         })?;
 
-        let is_manual_stored = raw_db.get_cf(COLLECTION_CF_META, b"is_manual").await?;
+        let is_manual_stored = raw_db
+            .get_cf(COLLECTION_CF_META, COLLECTION_META_IS_MANUAL_KEY)
+            .await?;
         let is_manual = match is_manual_stored {
             Some(is_manual_vec) => {
                 if is_manual_vec.len() != 1 {
@@ -155,7 +158,7 @@ impl Collection {
                 raw_db
                     .put_cf(
                         COLLECTION_CF_META,
-                        b"is_manual",
+                        COLLECTION_META_IS_MANUAL_KEY,
                         &vec![if should_be_manual { 1 } else { 0 }].into_boxed_slice(),
                     )
                     .await?;
@@ -168,7 +171,9 @@ impl Collection {
             return Err(CollectionOpenError::ManualModeMismatch);
         }
 
-        let generation_id_stored = raw_db.get_cf(COLLECTION_CF_META, b"generation_id").await?;
+        let generation_id_stored = raw_db
+            .get_cf(COLLECTION_CF_META, COLLECTION_META_GENERATION_ID_KEY)
+            .await?;
         let generation_id = match generation_id_stored {
             Some(generation_id) => OwnedGenerationId::from_boxed_slice(generation_id)
                 .or(Err(CollectionOpenError::InvalidGenerationId))?,
@@ -177,7 +182,7 @@ impl Collection {
                     raw_db
                         .put_cf(
                             COLLECTION_CF_META,
-                            b"generation_id",
+                            COLLECTION_META_GENERATION_ID_KEY,
                             &vec![].into_boxed_slice(),
                         )
                         .await?;
@@ -187,7 +192,7 @@ impl Collection {
                     raw_db
                         .put_cf(
                             COLLECTION_CF_META,
-                            b"generation_id",
+                            COLLECTION_META_GENERATION_ID_KEY,
                             &vec![0; 8].into_boxed_slice(),
                         )
                         .await?;
@@ -198,7 +203,7 @@ impl Collection {
         };
 
         let next_generation_id_stored = raw_db
-            .get_cf(COLLECTION_CF_META, b"next_generation_id")
+            .get_cf(COLLECTION_CF_META, COLLECTION_META_NEXT_GENERATION_ID_KEY)
             .await?;
         let next_generation_id = match next_generation_id_stored {
             Some(next_generation_id) => Some(
@@ -215,7 +220,7 @@ impl Collection {
                     raw_db
                         .put_cf(
                             COLLECTION_CF_META,
-                            b"next_generation_id",
+                            COLLECTION_META_NEXT_GENERATION_ID_KEY,
                             next_generation_id.as_ref().get_byte_array(),
                         )
                         .await?;
@@ -226,7 +231,7 @@ impl Collection {
         };
 
         let prev_phantom_id_stored = raw_db
-            .get_cf(COLLECTION_CF_META, b"prev_phantom_id")
+            .get_cf(COLLECTION_CF_META, COLLECTION_META_PREV_PHANTOM_ID_KEY)
             .await?;
         let prev_phantom_id = match prev_phantom_id_stored {
             Some(prev_phantom_id) => OwnedPhantomId::from_boxed_slice(prev_phantom_id)

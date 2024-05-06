@@ -1,6 +1,8 @@
 use std::str::from_utf8;
 
-use crate::collection::constants::COLLECTION_CF_META;
+use crate::collection::constants::{
+    COLLECTION_CF_META, COLLECTION_META_READER_KEY_PREFIX, COLLECTION_META_READER_KEY_PREFIX_END,
+};
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::util::reader_value::ReaderValue;
 use crate::collection::Collection;
@@ -21,7 +23,11 @@ impl Collection {
         }
 
         let result = spawn_blocking_async(async move {
-            raw_db.get_range_sync_cf(COLLECTION_CF_META, b"reader:", b"reader;")
+            raw_db.get_range_sync_cf(
+                COLLECTION_CF_META,
+                COLLECTION_META_READER_KEY_PREFIX,
+                COLLECTION_META_READER_KEY_PREFIX_END,
+            )
         })
         .await
         .or(Err(CollectionMethodError::TaskJoin))??;

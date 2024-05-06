@@ -1,7 +1,9 @@
 use std::str::from_utf8;
 use std::sync::Arc;
 
-use crate::collection::constants::COLLECTION_CF_META;
+use crate::collection::constants::{
+    COLLECTION_CF_META, COLLECTION_META_READER_KEY_PREFIX, COLLECTION_META_READER_KEY_PREFIX_END,
+};
 use crate::collection::open::CollectionOpenError;
 use crate::collection::util::collection_raw_db::CollectionRawDb;
 use crate::collection::util::reader_value::ReaderValue;
@@ -20,7 +22,11 @@ pub async fn init_readers(
 ) -> Result<(), CollectionOpenError> {
     spawn_blocking_async(async move {
         let readers = raw_db
-            .get_range_sync_cf(COLLECTION_CF_META, b"reader:", b"reader;")
+            .get_range_sync_cf(
+                COLLECTION_CF_META,
+                COLLECTION_META_READER_KEY_PREFIX,
+                COLLECTION_META_READER_KEY_PREFIX_END,
+            )
             .map_err(CollectionOpenError::RawDb)?;
 
         let mut updates = Vec::with_capacity(readers.len());
