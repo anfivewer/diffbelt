@@ -28,7 +28,21 @@ impl RawDb {
         let db = self.db.get_db();
 
         let cf = db.cf_handle(cf_name).ok_or(RawDbError::CfHandle)?;
-        db.put_cf(&cf, key, value)?;
+        () = db.put_cf(&cf, key, value)?;
+
+        Ok(())
+    }
+
+    pub fn merge_cf_sync(
+        &self,
+        cf_name: &str,
+        key: &'_ [u8],
+        value: &'_ [u8],
+    ) -> Result<(), RawDbError> {
+        let db = self.db.get_db();
+
+        let cf = db.cf_handle(cf_name).ok_or(RawDbError::CfHandle)?;
+        () = db.merge_cf(&cf, key, value)?;
 
         Ok(())
     }

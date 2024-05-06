@@ -1,32 +1,30 @@
+use crate::collection::constants::COLLECTION_META_PREV_PHANTOM_ID_KEY;
 use rocksdb::MergeOperands;
 
-pub fn meta_full_merge(_key: &[u8], value: Option<&[u8]>, ops: &MergeOperands) -> Option<Vec<u8>> {
-    let first_op = ops.iter().next();
+/**
+    For the future me: partial merge has `value: None` and can return `None`, which indicates that
+    partial merge is not supported.
 
-    let new_value = match first_op {
-        None => {
-            // Bad merge, no operand, no change
-            return value.map(|bytes| bytes.to_vec());
-        }
-        Some(value) => value,
-    };
+    Full merge `value` is real previous value and **should** return `Some`, else operation will
+    fail.
+*/
 
-    match value {
-        None => {
-            // No value stored, save first operand
-            return Some(new_value.to_vec());
-        }
-        // Some value already present, do not change it
-        Some(value) => Some(value.to_vec()),
-    }
+pub fn meta_full_merge(key: &[u8], value: Option<&[u8]>, ops: &MergeOperands) -> Option<Vec<u8>> {
+    meta_partial_merge(key, value, ops)
 }
 
 pub fn meta_partial_merge(
-    _key: &[u8],
+    key: &[u8],
     value: Option<&[u8]>,
     ops: &MergeOperands,
 ) -> Option<Vec<u8>> {
-    let first_op = ops.iter().next();
+    if key == COLLECTION_META_PREV_PHANTOM_ID_KEY {
+        // always write bigger phantom id
+        const EMPTY_SLICE: &[u8] = &[];
+        let max = value.iter().map(|x| *x).chain(ops.iter()).max();
+        return max.map(Vec::to_vec);
+    }
 
-    first_op.map(|bytes| bytes.to_vec()).or_else(|| value.map(|x| x.to_vec()))
+    // When adding reader, use already written value if present or first one
+    value.or_else(|| ops.iter().next()).map(Vec::to_vec)
 }

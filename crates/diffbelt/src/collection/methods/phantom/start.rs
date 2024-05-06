@@ -29,7 +29,7 @@ impl Collection {
         let next_phantom_id_cloned = next_phantom_id.clone();
 
         spawn_blocking_async(async move {
-            raw_db.put_cf_sync(
+            raw_db.merge_cf_sync(
                 COLLECTION_CF_META,
                 COLLECTION_META_PREV_PHANTOM_ID_KEY,
                 next_phantom_id_cloned.get_byte_array(),
@@ -58,7 +58,7 @@ impl Collection {
         let next_phantom_id_cloned = next_phantom_id.clone();
 
         spawn_blocking_async(async move {
-            raw_db.put_cf_sync(
+            raw_db.merge_cf_sync(
                 COLLECTION_CF_META,
                 COLLECTION_META_PREV_PHANTOM_ID_KEY,
                 next_phantom_id_cloned.get_byte_array(),
