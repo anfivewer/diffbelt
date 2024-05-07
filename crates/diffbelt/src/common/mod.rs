@@ -326,6 +326,13 @@ impl OwnedPhantomId {
     }
 }
 impl<'a> PhantomId<'a> {
+    pub fn new(bytes: &'a [u8]) -> Option<Self> {
+        if bytes.is_empty() {
+            return None;
+        }
+
+        Some(Self(bytes))
+    }
     pub fn new_unchecked(bytes: &'a [u8]) -> Self {
         Self(bytes)
     }

@@ -39,7 +39,7 @@ impl RawDb {
 
             for item in items {
                 let record_key_ref = item.record_key.as_ref();
-                let is_phantom = record_key_ref.get_phantom_id().get_byte_array().len() > 0;
+                let is_phantom = record_key_ref.get_phantom_id().is_some();
 
                 let value_bytes = unwrap_option_ref_or(&item.value, b"");
                 batch.put(record_key_ref.get_byte_array(), value_bytes);

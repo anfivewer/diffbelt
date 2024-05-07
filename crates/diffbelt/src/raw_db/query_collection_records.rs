@@ -1,3 +1,4 @@
+use crate::collection::constants::{COLLECTION_CF_META, COLLECTION_META_GC_PHANTOM_ID_KEY};
 use crate::collection::util::record_key::{OwnedRecordKey, RecordKey};
 use crate::common::{GenerationId, KeyValue, OwnedCollectionValue, PhantomId};
 use crate::raw_db::query::{
@@ -44,6 +45,23 @@ impl RawDb {
 
         let db = self.db.get_db();
 
+        let meta_cf = db
+            .cf_handle(COLLECTION_CF_META)
+            .ok_or(RawDbError::CfHandle)?;
+
+        let is_phantom_exists = phantom_id.is_none()
+            || phantom_id
+                .map(|x| db.get_pinned_cf(&meta_cf, &Self::prefixed_phantom_id_key(x)))
+                .transpose()?
+                .flatten()
+                .is_some();
+
+        if !is_phantom_exists {
+            return Err(RawDbError::NoSuchPhantom);
+        }
+
+        let gc_phantom_id = db.get_pinned_cf(&meta_cf, COLLECTION_META_GC_PHANTOM_ID_KEY)?;
+
         let mut count = 0usize;
         let mut result = Vec::with_capacity(limit);
 
@@ -55,6 +73,7 @@ impl RawDb {
                 start_key: from_record_key.as_ref().map(|x| x.get_collection_key()),
                 generation_id,
                 phantom_id,
+                gc_phantom_id,
                 continuation_state: last_record_key
                     .as_ref()
                     .map(|last_record| ContinuationState {

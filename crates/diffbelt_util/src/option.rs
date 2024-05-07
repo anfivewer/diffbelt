@@ -1,3 +1,4 @@
+#[deprecated(note = "use .transpose()")]
 pub fn lift_result_from_option<R, E>(opt: Option<Result<R, E>>) -> Result<Option<R>, E> {
     match opt {
         Some(result) => match result {
@@ -8,6 +9,7 @@ pub fn lift_result_from_option<R, E>(opt: Option<Result<R, E>>) -> Result<Option
     }
 }
 
+#[deprecated(note = "use .flatten()")]
 pub fn cut_layer<T>(opt: Option<Option<T>>) -> Option<T> {
     opt.and_then(|inner| inner)
 }

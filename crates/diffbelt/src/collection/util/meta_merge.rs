@@ -22,9 +22,9 @@ pub fn meta_partial_merge(
         // always write bigger phantom id
         const EMPTY_SLICE: &[u8] = &[];
         let max = value.iter().map(|x| *x).chain(ops.iter()).max();
-        return max.map(Vec::to_vec);
+        return max.map(|x| x.to_vec());
     }
 
     // When adding reader, use already written value if present or first one
-    value.or_else(|| ops.iter().next()).map(Vec::to_vec)
+    value.or_else(|| ops.iter().next()).map(|x| x.to_vec())
 }

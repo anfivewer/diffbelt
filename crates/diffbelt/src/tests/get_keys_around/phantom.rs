@@ -5,8 +5,8 @@ use crate::collection::methods::get_keys_around::{
 use crate::collection::methods::put::CollectionPutManyOptions;
 use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::common::{
-    KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey, OwnedCollectionValue,
-    OwnedGenerationId,
+    IsByteArray, KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey,
+    OwnedCollectionValue, OwnedGenerationId,
 };
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
@@ -115,6 +115,44 @@ async fn get_keys_around_phantom_inner() {
         .await
         .unwrap();
 
+    // Phantom get_keys_around should see both phantom and non-phantom records
+    let result = collection
+        .get_keys_around(CollectionGetKeysAroundOptions {
+            key: OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
+            generation_id: Some(first_generation_id.clone()),
+            phantom_id: Some(phantom_id),
+            require_key_existance: true,
+            limit: 2,
+        })
+        .await
+        .unwrap();
+
+    let CollectionGetKeysAroundOk {
+        generation_id,
+        left,
+        right,
+        has_more_on_the_left,
+        has_more_on_the_right,
+    } = result;
+
+    assert_eq!(&generation_id, &first_generation_id);
+    assert_eq!(
+        left,
+        vec![
+            OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
+            OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),
+        ]
+    );
+    assert_eq!(
+        right,
+        vec![
+            OwnedCollectionKey::from_boxed_slice((b"4" as &[u8]).into()).unwrap(),
+            OwnedCollectionKey::from_boxed_slice((b"5" as &[u8]).into()).unwrap(),
+        ]
+    );
+    assert!(!has_more_on_the_left);
+    assert!(has_more_on_the_right);
+
     collection
         .commit_generation(CommitGenerationOptions {
             generation_id: first_generation_id.clone(),
@@ -157,42 +195,4 @@ async fn get_keys_around_phantom_inner() {
     );
     assert!(!has_more_on_the_left);
     assert!(!has_more_on_the_right);
-
-    // Phantom get_keys_around should see both phantom and non-phantom records
-    let result = collection
-        .get_keys_around(CollectionGetKeysAroundOptions {
-            key: OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
-            generation_id: None,
-            phantom_id: Some(phantom_id),
-            require_key_existance: true,
-            limit: 2,
-        })
-        .await
-        .unwrap();
-
-    let CollectionGetKeysAroundOk {
-        generation_id,
-        left,
-        right,
-        has_more_on_the_left,
-        has_more_on_the_right,
-    } = result;
-
-    assert_eq!(&generation_id, &first_generation_id);
-    assert_eq!(
-        left,
-        vec![
-            OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
-            OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),
-        ]
-    );
-    assert_eq!(
-        right,
-        vec![
-            OwnedCollectionKey::from_boxed_slice((b"4" as &[u8]).into()).unwrap(),
-            OwnedCollectionKey::from_boxed_slice((b"5" as &[u8]).into()).unwrap(),
-        ]
-    );
-    assert!(!has_more_on_the_left);
-    assert!(has_more_on_the_right);
 }

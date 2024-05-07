@@ -32,7 +32,7 @@ impl RawDb {
                 .ok_or(RawDbError::CfHandle)?;
 
             let record_key_ref = record_key.as_ref();
-            let is_phantom = record_key_ref.get_phantom_id().get_byte_array().len() > 0;
+            let is_phantom = record_key_ref.get_phantom_id().is_some();
 
             let mut batch = WriteBatchWithTransaction::<false>::default();
 

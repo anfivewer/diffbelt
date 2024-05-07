@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::sync::Arc;
 
-use rocksdb::{ColumnFamilyDescriptor, MergeOperands, Options, DB, DEFAULT_COLUMN_FAMILY_NAME};
+use rocksdb::{ColumnFamilyDescriptor, MergeOperands, Options, DB, DEFAULT_COLUMN_FAMILY_NAME, BoundColumnFamily};
 
 pub mod commit_generation;
 pub mod contains_existing_collection_record;
@@ -19,6 +19,7 @@ pub mod put_many_collection_records;
 pub mod query;
 pub mod query_collection_records;
 pub mod remove_all_records_of_generation;
+pub mod start_phantom;
 pub mod update_reader;
 
 pub struct DbWrap {
@@ -68,6 +69,7 @@ pub enum RawDbError {
     InvalidGenerationId,
     UpdateReader,
     NoSuchReader,
+    NoSuchPhantom,
     CursorDidNotFoundRecord,
     DiffNoChangedKeyRecord,
 }

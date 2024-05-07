@@ -76,7 +76,17 @@ impl OwnedParsedRecordKey {
         CollectionKey::new_unchecked(by_range(&self.bytes, &self.collection_key))
     }
 
-    pub fn to_owned_record_key(self) -> OwnedRecordKey {
+    pub fn get_phantom_id(&self) -> Option<PhantomId<'_>> {
+        self.phantom_id
+            .as_ref()
+            .map(|x| PhantomId::new_unchecked(&self.bytes[x.clone()]))
+    }
+
+    pub fn to_owned_record_key(&self) -> OwnedRecordKey {
+        OwnedRecordKey::new_unchecked(self.bytes.clone())
+    }
+
+    pub fn into_owned_record_key(self) -> OwnedRecordKey {
         OwnedRecordKey::from_owned_parsed_record_key(self)
     }
 }
@@ -172,14 +182,14 @@ impl<'a> RecordKey<'a> {
         GenerationId::new_unchecked(&self.value[offset..(offset + size)])
     }
 
-    pub fn get_phantom_id(&self) -> PhantomId {
+    pub fn get_phantom_id(&self) -> Option<PhantomId> {
         let key_size = u32_to_usize(read_u24(self.value, 1));
         let mut offset = 4 + key_size;
         let generation_id_size = u8_to_usize(self.value[offset]);
         offset += 1 + generation_id_size;
         let size = u8_to_usize(self.value[offset]);
         offset += 1;
-        PhantomId::new_unchecked(&self.value[offset..(offset + size)])
+        PhantomId::new(&self.value[offset..(offset + size)])
     }
 
     pub fn parse(&self) -> ParsedRecordKey<'_> {
@@ -285,6 +295,10 @@ impl OwnedRecordKey {
         Ok(OwnedRecordKey { value })
     }
 
+    fn new_unchecked(value: Box<[u8]>) -> Self {
+        Self { value }
+    }
+
     pub fn from_owned_parsed_record_key(parsed: OwnedParsedRecordKey) -> Self {
         Self {
             value: parsed.bytes,
@@ -343,10 +357,9 @@ mod tests {
         let actual_generation_id = actual_generation_id.get_byte_array();
 
         let actual_phantom_id = record_key.get_phantom_id();
-        let actual_phantom_id = actual_phantom_id.get_byte_array();
 
         assert_eq!(actual_key, key.get_byte_array());
         assert_eq!(actual_generation_id, generation_id.get_byte_array());
-        assert_eq!(actual_phantom_id, phantom_id.get_byte_array());
+        assert_eq!(actual_phantom_id, Some(phantom_id.as_ref()));
     }
 }

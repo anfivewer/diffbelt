@@ -1,7 +1,8 @@
-use rocksdb::DB;
+use crate::collection::constants::{COLLECTION_CF_META, COLLECTION_META_GC_PHANTOM_ID_KEY};
+use rocksdb::{DBPinnableSlice, WriteBatch, DB};
 
 use crate::collection::util::record_key::RecordKey;
-use crate::common::{CollectionKey, GenerationId, OwnedCollectionKey, PhantomId};
+use crate::common::{CollectionKey, GenerationId, IsByteArray, OwnedCollectionKey, PhantomId};
 use crate::raw_db::query::{
     QueryDirection, QueryDirectionBackward, QueryDirectionForward, QueryKeysOnly, QueryOptions,
     QueryState,
@@ -35,6 +36,24 @@ impl RawDb {
 
         let db = self.db.get_db();
 
+        let meta_cf = db
+            .cf_handle(COLLECTION_CF_META)
+            .ok_or(RawDbError::CfHandle)?;
+
+        let is_phantom_exists = phantom_id.is_none()
+            || phantom_id
+                .map(|x| db.get_pinned_cf(&meta_cf, &Self::prefixed_phantom_id_key(x)))
+                .transpose()?
+                .flatten()
+                .is_some();
+
+        if !is_phantom_exists {
+            return Err(RawDbError::NoSuchPhantom);
+        }
+
+        let gc_phantom_id_a = db.get_pinned_cf(&meta_cf, COLLECTION_META_GC_PHANTOM_ID_KEY)?;
+        let gc_phantom_id_b = db.get_pinned_cf(&meta_cf, COLLECTION_META_GC_PHANTOM_ID_KEY)?;
+
         let mut result = RawDbGetKeysAroundResult {
             left: Vec::with_capacity(limit),
             right: Vec::with_capacity(limit),
@@ -43,7 +62,6 @@ impl RawDb {
         };
 
         let start_key = record_key.get_collection_key();
-        let phantom_id = phantom_id.to_opt_if_empty();
 
         process_direction(
             QueryDirectionForward,
@@ -51,6 +69,7 @@ impl RawDb {
             start_key,
             generation_id,
             phantom_id,
+            gc_phantom_id_a,
             limit,
             records_to_view_limit,
             &mut result.has_more_on_the_right,
@@ -63,6 +82,7 @@ impl RawDb {
             start_key,
             generation_id,
             phantom_id,
+            gc_phantom_id_b,
             limit,
             records_to_view_limit,
             &mut result.has_more_on_the_left,
@@ -79,6 +99,7 @@ fn process_direction<D: QueryDirection>(
     start_key: CollectionKey<'_>,
     generation_id: GenerationId<'_>,
     phantom_id: Option<PhantomId<'_>>,
+    gc_phantom_id: Option<DBPinnableSlice<'_>>,
     limit: usize,
     records_to_view_limit: usize,
     has_more: &mut bool,
@@ -92,6 +113,7 @@ fn process_direction<D: QueryDirection>(
             start_key: Some(start_key),
             generation_id,
             phantom_id,
+            gc_phantom_id,
             continuation_state: None,
             records_to_view_limit,
         },
@@ -124,6 +146,20 @@ fn process_direction<D: QueryDirection>(
         result.push(item.get_collection_key().to_owned());
 
         count += 1;
+    }
+
+    if !query.records_to_delete.is_empty() {
+        let meta_cf = db
+            .cf_handle(COLLECTION_CF_META)
+            .ok_or(RawDbError::CfHandle)?;
+
+        let mut batch = WriteBatch::default();
+
+        for record_key in query.records_to_delete.drain(..) {
+            batch.delete_cf(&meta_cf, record_key.get_byte_array());
+        }
+
+        db.write(batch)?;
     }
 
     Ok(())

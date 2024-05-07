@@ -804,10 +804,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
                             continue;
                         }
                         FunctionEvalAction::AggregateApply(action) => {
-                            let AggregateApplyEvalAction {
-                                accumulator,
-                                output_buffer,
-                            } = action;
+                            let AggregateApplyEvalAction { accumulator } = action;
 
                             let AccumulatorData {
                                 target_info: accumulator_target_info_id,
@@ -837,8 +834,9 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
 
                             let new_target_value = new_target_value.to_string();
 
-                            let mut serializer =
-                                Serializer::<AggregateApplyOutput>::from_vec(output_buffer);
+                            let mut serializer = Serializer::<AggregateApplyOutput>::from_vec(
+                                transform.take_apply_input_buffer(),
+                            );
 
                             let target_value =
                                 serializer.create_vector(new_target_value.as_bytes());
