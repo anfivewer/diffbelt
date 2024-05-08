@@ -1,9 +1,11 @@
 use rocksdb::WriteBatchWithTransaction;
 
-use crate::collection::constants::{COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE};
+use crate::collection::constants::{
+    COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE, COLLECTION_CF_META,
+};
 use crate::collection::util::generation_key::OwnedGenerationKey;
 use crate::collection::util::record_key::OwnedRecordKey;
-use crate::common::{IsByteArray, OwnedCollectionValue};
+use crate::common::{IsByteArray, OwnedCollectionValue, OwnedPhantomId};
 use crate::raw_db::put_collection_record::unwrap_option_ref_or;
 use crate::raw_db::{RawDb, RawDbError};
 use crate::util::bytes::ONE_U32_BE;
@@ -15,6 +17,8 @@ pub struct PutManyCollectionRecordsItem {
 
 pub struct PutManyCollectionRecordsOptions {
     pub items: Vec<PutManyCollectionRecordsItem>,
+    /// All `items` record_key MUST be with this phantom id
+    pub phantom_id: Option<OwnedPhantomId>,
 }
 
 impl RawDb {
@@ -22,11 +26,22 @@ impl RawDb {
         &self,
         options: PutManyCollectionRecordsOptions,
     ) -> Result<(), RawDbError> {
+        let PutManyCollectionRecordsOptions { items, phantom_id } = options;
+
         let db = self.db.clone();
-        let items = options.items;
 
         tokio::task::spawn_blocking(move || {
             let db = db.get_db();
+
+            let meta_cf = db
+                .cf_handle(COLLECTION_CF_META)
+                .ok_or(RawDbError::CfHandle)?;
+
+            let is_phantom_exists =
+                Self::is_phantom_exists(db, &meta_cf, phantom_id.as_ref().map(|x| x.as_ref()))?;
+            if !is_phantom_exists {
+                return Err(RawDbError::NoSuchPhantom);
+            }
 
             let generations_cf = db
                 .cf_handle(COLLECTION_CF_GENERATIONS)

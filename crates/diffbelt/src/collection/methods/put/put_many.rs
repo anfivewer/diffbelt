@@ -33,10 +33,10 @@ impl Collection {
         let CollectionPutManyOptions {
             items,
             generation_id,
-            phantom_id,
+            phantom_id: owned_phantom_id,
         } = options;
 
-        let phantom_id = phantom_id.as_ref().map(|id| id.as_ref());
+        let phantom_id = owned_phantom_id.as_ref().map(|id| id.as_ref());
 
         let LockNextGenerationIdTaskResponse {
             next_generation_id,
@@ -153,7 +153,10 @@ impl Collection {
 
         let result = self
             .raw_db
-            .put_many_collection_records(PutManyCollectionRecordsOptions { items })
+            .put_many_collection_records(PutManyCollectionRecordsOptions {
+                items,
+                phantom_id: owned_phantom_id.clone(),
+            })
             .await;
 
         if !is_empty {

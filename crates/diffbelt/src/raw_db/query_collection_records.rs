@@ -49,12 +49,7 @@ impl RawDb {
             .cf_handle(COLLECTION_CF_META)
             .ok_or(RawDbError::CfHandle)?;
 
-        let is_phantom_exists = phantom_id.is_none()
-            || phantom_id
-                .map(|x| db.get_pinned_cf(&meta_cf, &Self::prefixed_phantom_id_key(x)))
-                .transpose()?
-                .flatten()
-                .is_some();
+        let is_phantom_exists = Self::is_phantom_exists(db, &meta_cf, phantom_id)?;
 
         if !is_phantom_exists {
             return Err(RawDbError::NoSuchPhantom);

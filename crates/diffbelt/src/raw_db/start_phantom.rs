@@ -4,7 +4,7 @@ use crate::collection::constants::{
 };
 use crate::common::{IsByteArray, PhantomId};
 use crate::raw_db::{RawDb, RawDbError};
-use rocksdb::WriteBatch;
+use rocksdb::{AsColumnFamilyRef, WriteBatch, DB};
 
 pub struct StartPhantomOptions<'a> {
     pub phantom_id: PhantomId<'a>,
@@ -48,5 +48,19 @@ impl RawDb {
         phantom_key.extend_from_slice(phantom_id);
 
         phantom_key
+    }
+
+    pub(super) fn is_phantom_exists(
+        db: &DB,
+        meta_cf: &impl AsColumnFamilyRef,
+        phantom_id: Option<PhantomId<'_>>,
+    ) -> Result<bool, RawDbError> {
+        let Some(phantom_id) = phantom_id else {
+            return Ok(true);
+        };
+
+        let pinned = db.get_pinned_cf(meta_cf, &Self::prefixed_phantom_id_key(phantom_id))?;
+
+        Ok(pinned.is_some())
     }
 }

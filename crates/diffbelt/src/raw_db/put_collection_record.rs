@@ -3,7 +3,7 @@ use crate::collection::util::record_key::RecordKey;
 use crate::common::{CollectionValue, IsByteArray, OwnedCollectionValue};
 use crate::raw_db::{RawDb, RawDbError};
 
-use crate::collection::constants::{COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE};
+use crate::collection::constants::{COLLECTION_CF_GENERATIONS, COLLECTION_CF_GENERATIONS_SIZE, COLLECTION_CF_META};
 use crate::util::bytes::ONE_U32_BE;
 use rocksdb::WriteBatchWithTransaction;
 
@@ -24,6 +24,18 @@ impl RawDb {
         tokio::task::spawn_blocking(move || {
             let db = db.get_db();
 
+            let meta_cf = db
+                .cf_handle(COLLECTION_CF_META)
+                .ok_or(RawDbError::CfHandle)?;
+
+            let record_key_ref = record_key.as_ref();
+            let phantom_id = record_key_ref.get_phantom_id();
+
+            let is_phantom_exists = Self::is_phantom_exists(db, &meta_cf, phantom_id)?;
+            if !is_phantom_exists {
+                return Err(RawDbError::NoSuchPhantom);
+            }
+
             let generations_cf = db
                 .cf_handle(COLLECTION_CF_GENERATIONS)
                 .ok_or(RawDbError::CfHandle)?;
@@ -31,8 +43,7 @@ impl RawDb {
                 .cf_handle(COLLECTION_CF_GENERATIONS_SIZE)
                 .ok_or(RawDbError::CfHandle)?;
 
-            let record_key_ref = record_key.as_ref();
-            let is_phantom = record_key_ref.get_phantom_id().is_some();
+            let is_phantom = phantom_id.is_some();
 
             let mut batch = WriteBatchWithTransaction::<false>::default();
 
