@@ -1,15 +1,18 @@
 use crate::collection::methods::commit_generation::CommitGenerationOptions;
+use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::methods::get_keys_around::{
     CollectionGetKeysAroundOk, CollectionGetKeysAroundOptions,
 };
 use crate::collection::methods::put::CollectionPutManyOptions;
+use crate::collection::methods::query::{QueryOk, QueryOptions};
 use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::common::{
-    KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey, OwnedCollectionValue,
+    KeyValue, KeyValueUpdate, KeyValueUpdateNewOptions, OwnedCollectionKey, OwnedCollectionValue,
     OwnedGenerationId,
 };
 use crate::database::create_collection::CreateCollectionOptions;
 use crate::tests::temp_database::TempDatabase;
+use crate::tests::util::query::assert_query;
 use crate::util::tokio_runtime::create_main_tokio_runtime;
 
 #[test]
@@ -51,6 +54,11 @@ async fn generation_bound_phantoms_inner() {
                     value: Some(OwnedCollectionValue::new(b"")),
                     if_not_present: false,
                 }),
+                KeyValueUpdate::new(KeyValueUpdateNewOptions {
+                    key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
+                    value: Some(OwnedCollectionValue::new(b"")),
+                    if_not_present: false,
+                }),
             ],
             generation_id: Some(first_generation_id.clone()),
             phantom_id: None,
@@ -69,18 +77,13 @@ async fn generation_bound_phantoms_inner() {
                     if_not_present: false,
                 }),
                 KeyValueUpdate::new(KeyValueUpdateNewOptions {
-                    key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
+                    key: OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
                     value: None,
                     if_not_present: false,
                 }),
                 KeyValueUpdate::new(KeyValueUpdateNewOptions {
-                    key: OwnedCollectionKey::from_boxed_slice((b"4" as &[u8]).into()).unwrap(),
-                    value: Some(OwnedCollectionValue::new(b"")),
-                    if_not_present: false,
-                }),
-                KeyValueUpdate::new(KeyValueUpdateNewOptions {
-                    key: OwnedCollectionKey::from_boxed_slice((b"5" as &[u8]).into()).unwrap(),
-                    value: Some(OwnedCollectionValue::new(b"")),
+                    key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
+                    value: Some(OwnedCollectionValue::new(b"overwrite")),
                     if_not_present: false,
                 }),
             ],
@@ -95,15 +98,88 @@ async fn generation_bound_phantoms_inner() {
     collection
         .put_many(CollectionPutManyOptions {
             items: vec![KeyValueUpdate::new(KeyValueUpdateNewOptions {
-                key: OwnedCollectionKey::from_boxed_slice((b"6" as &[u8]).into()).unwrap(),
+                key: OwnedCollectionKey::from_boxed_slice((b"4" as &[u8]).into()).unwrap(),
                 value: Some(OwnedCollectionValue::new(b"")),
                 if_not_present: false,
             })],
             generation_id: Some(first_generation_id.clone()),
-            phantom_id: Some(phantom_id_second),
+            phantom_id: Some(phantom_id_second.clone()),
         })
         .await
         .unwrap();
+
+    // Query without phantom should not see phantoms
+    assert_query(
+        collection.as_ref(),
+        Some(first_generation_id.clone()),
+        None,
+        first_generation_id.as_ref(),
+        &[
+            KeyValue {
+                key: OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),
+                value: OwnedCollectionValue::new(b""),
+            },
+            KeyValue {
+                key: OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
+                value: OwnedCollectionValue::new(b""),
+            },
+            KeyValue {
+                key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
+                value: OwnedCollectionValue::new(b""),
+            },
+        ],
+    )
+    .await;
+
+    // Phantoms see usual records and equal phantom records
+    assert_query(
+        collection.as_ref(),
+        Some(first_generation_id.clone()),
+        Some(phantom_id.clone()),
+        first_generation_id.as_ref(),
+        &[
+            KeyValue {
+                key: OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),
+                value: OwnedCollectionValue::new(b""),
+            },
+            KeyValue {
+                key: OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
+                value: OwnedCollectionValue::new(b""),
+            },
+            KeyValue {
+                key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
+                value: OwnedCollectionValue::new(b"overwrite"),
+            },
+        ],
+    )
+    .await;
+
+    // Phantoms see usual records and equal phantom records
+    assert_query(
+        collection.as_ref(),
+        Some(first_generation_id.clone()),
+        Some(phantom_id_second.clone()),
+        first_generation_id.as_ref(),
+        &[
+            KeyValue {
+                key: OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),
+                value: OwnedCollectionValue::new(b""),
+            },
+            KeyValue {
+                key: OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
+                value: OwnedCollectionValue::new(b""),
+            },
+            KeyValue {
+                key: OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
+                value: OwnedCollectionValue::new(b""),
+            },
+            KeyValue {
+                key: OwnedCollectionKey::from_boxed_slice((b"4" as &[u8]).into()).unwrap(),
+                value: OwnedCollectionValue::new(b""),
+            },
+        ],
+    )
+    .await;
 
     collection
         .commit_generation(CommitGenerationOptions {
@@ -113,76 +189,17 @@ async fn generation_bound_phantoms_inner() {
         .await
         .unwrap();
 
+    // After commit all phantoms should be no more available
     let result = collection
-        .get_keys_around(CollectionGetKeysAroundOptions {
-            key: OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
-            generation_id: None,
-            phantom_id: None,
-            require_key_existance: true,
-            limit: 100,
+        .query(QueryOptions {
+            generation_id: Some(first_generation_id.clone()),
+            phantom_id: Some(phantom_id.clone()),
         })
-        .await
-        .unwrap();
+        .await;
 
-    let CollectionGetKeysAroundOk {
-        generation_id,
-        left,
-        right,
-        has_more_on_the_left,
-        has_more_on_the_right,
-    } = result;
-
-    // Non-phantom get_keys_around should not see phantom records, but only own phantoms
-    assert_eq!(&generation_id, &first_generation_id);
-    assert_eq!(
-        left,
-        vec![OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),]
-    );
-    assert_eq!(
-        right,
-        vec![
-            OwnedCollectionKey::from_boxed_slice((b"3" as &[u8]).into()).unwrap(),
-            OwnedCollectionKey::from_boxed_slice((b"6" as &[u8]).into()).unwrap(),
-        ]
-    );
-    assert!(!has_more_on_the_left);
-    assert!(!has_more_on_the_right);
-
-    // Phantom get_keys_around should see both phantom and non-phantom records
-    let result = collection
-        .get_keys_around(CollectionGetKeysAroundOptions {
-            key: OwnedCollectionKey::from_boxed_slice((b"2" as &[u8]).into()).unwrap(),
-            generation_id: None,
-            phantom_id: Some(phantom_id),
-            require_key_existance: true,
-            limit: 2,
-        })
-        .await
-        .unwrap();
-
-    let CollectionGetKeysAroundOk {
-        generation_id,
-        left,
-        right,
-        has_more_on_the_left,
-        has_more_on_the_right,
-    } = result;
-
-    assert_eq!(&generation_id, &first_generation_id);
-    assert_eq!(
-        left,
-        vec![
-            OwnedCollectionKey::from_boxed_slice((b"1" as &[u8]).into()).unwrap(),
-            OwnedCollectionKey::from_boxed_slice((b"0" as &[u8]).into()).unwrap(),
-        ]
-    );
-    assert_eq!(
-        right,
-        vec![
-            OwnedCollectionKey::from_boxed_slice((b"4" as &[u8]).into()).unwrap(),
-            OwnedCollectionKey::from_boxed_slice((b"5" as &[u8]).into()).unwrap(),
-        ]
-    );
-    assert!(!has_more_on_the_left);
-    assert!(has_more_on_the_right);
+    match result {
+        Ok(_) => panic!("Success"),
+        Err(CollectionMethodError::NoSuchPhantom) => {}
+        Err(err) => panic!("Error: {err:?}"),
+    }
 }

@@ -18,6 +18,7 @@ pub enum CollectionMethodError {
     InvalidUtf8,
     InvalidReaderValue,
     NoSuchCursor,
+    NoSuchPhantom,
     NotImplementedYet,
     NoSuchReader,
     NoSuchCollection,
@@ -33,7 +34,10 @@ pub enum CollectionMethodError {
 
 impl From<RawDbError> for CollectionMethodError {
     fn from(err: RawDbError) -> Self {
-        CollectionMethodError::RawDb(err)
+        match err {
+            RawDbError::NoSuchPhantom => Self::NoSuchPhantom,
+            _ => CollectionMethodError::RawDb(err),
+        }
     }
 }
 
