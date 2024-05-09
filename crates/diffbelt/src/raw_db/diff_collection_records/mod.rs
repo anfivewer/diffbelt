@@ -1,5 +1,6 @@
+use crate::collection::constants::{COLLECTION_CF_META, COLLECTION_META_GC_PHANTOM_ID_KEY};
 use crate::collection::util::record_key::OwnedRecordKey;
-use crate::common::{GenerationId, KeyValueDiff, OwnedCollectionKey, OwnedGenerationId};
+use crate::common::{GenerationId, KeyValueDiff, OwnedCollectionKey, OwnedGenerationId, PhantomId};
 use crate::raw_db::diff_collection_records::state::in_memory::InMemoryChangedKeysIter;
 use crate::raw_db::diff_collection_records::state::single_generation::SingleGenerationChangedKeysIter;
 use crate::raw_db::diff_collection_records::state::{DiffState, DiffStateMode, DiffStateNewResult};
@@ -46,6 +47,15 @@ impl RawDb {
 
         let db = self.db.get_db();
 
+        let meta_cf = db
+            .cf_handle(COLLECTION_CF_META)
+            .ok_or(RawDbError::CfHandle)?;
+
+        let gc_phantom_id = db.get_pinned_cf(&meta_cf, COLLECTION_META_GC_PHANTOM_ID_KEY)?;
+        let gc_phantom_id = gc_phantom_id
+            .as_ref()
+            .map(|x| PhantomId::new_unchecked(x.as_ref()));
+
         let state = match prev_diff_state {
             Some(prev_state) => DiffState::continue_prev(
                 db,
@@ -76,12 +86,20 @@ impl RawDb {
             DiffStateNewResult::State(x) => x,
         };
 
+        let mut keys_to_remove = Vec::new();
+        // TODO!
+
         match mode {
             DiffStateMode::InMemory(in_memory) => {
                 let capacity_hint = Some(in_memory.changed_keys.len());
                 let iterator = InMemoryChangedKeysIter::new(in_memory.changed_keys);
 
-                state.diff_collection_records_sync(iterator, capacity_hint)
+                state.diff_collection_records_sync(
+                    iterator,
+                    capacity_hint,
+                    &mut keys_to_remove,
+                    gc_phantom_id,
+                )
             }
             DiffStateMode::SingleGeneration => {
                 let iterator = SingleGenerationChangedKeysIter::new(
@@ -90,7 +108,12 @@ impl RawDb {
                     state.get_from_collection_key(),
                 )?;
 
-                state.diff_collection_records_sync(iterator, None)
+                state.diff_collection_records_sync(
+                    iterator,
+                    None,
+                    &mut keys_to_remove,
+                    gc_phantom_id,
+                )
             }
         }
     }

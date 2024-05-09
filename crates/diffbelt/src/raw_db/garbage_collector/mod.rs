@@ -1,3 +1,5 @@
+pub mod gc_iterator;
+
 use std::cmp::Ordering;
 use std::num::NonZeroUsize;
 

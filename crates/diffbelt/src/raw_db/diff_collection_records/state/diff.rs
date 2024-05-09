@@ -1,4 +1,4 @@
-use rocksdb::{DBIterator, Direction, IteratorMode};
+use rocksdb::{DBIterator, Direction, IteratorMode, ReadOptions};
 
 use crate::collection::util::record_key::{OwnedParsedRecordKey, OwnedRecordKey, ParsedRecordKey};
 use crate::common::{
@@ -7,6 +7,7 @@ use crate::common::{
 };
 use crate::raw_db::diff_collection_records::state::{DiffState, PrevDiffState};
 use crate::raw_db::diff_collection_records::{DiffCollectionRecordsOk, DiffCursorState};
+use crate::raw_db::garbage_collector::gc_iterator::{GcIterator, NewGcIterator};
 use crate::raw_db::RawDbError;
 use crate::util::option::lift_result_from_option;
 use crate::util::owned_peek::OwnedPeek;
@@ -33,6 +34,8 @@ impl DiffState<'_> {
         &mut self,
         changed_items_iterator: impl Iterator<Item = Result<OwnedCollectionKey, RawDbError>>,
         items_capacity_hint: Option<usize>,
+        keys_to_delete: &mut Vec<OwnedRecordKey>,
+        gc_phantom_id: Option<PhantomId<'_>>,
     ) -> DiffCollectionRecordsResult {
         let DiffState {
             db,
@@ -55,36 +58,43 @@ impl DiffState<'_> {
                 last_value,
                 next_record_key,
             }) => {
-                let iterator_mode =
-                    IteratorMode::From(next_record_key.get_byte_array(), Direction::Forward);
+                let mut iterator_opts = ReadOptions::default();
+                iterator_opts.set_iterate_lower_bound(next_record_key.get_byte_array());
 
-                let mut db_iterator = db.iterator(iterator_mode);
+                let db_iterator = db.raw_iterator_opt(iterator_opts);
+                let mut db_iterator = NewGcIterator {
+                    gc_phantom_id,
+                    db_iterator,
+                    keys_to_delete,
+                }
+                .new();
 
                 let (record_key, value) =
                     db_iterator_parse_next_require_presense(&mut db_iterator)?;
 
-                if record_key.get_collection_key() != next_record_key.get_collection_key() {
+                if record_key.collection_key != next_record_key.get_collection_key() {
                     return Err(RawDbError::DiffNoChangedKeyRecord);
                 }
 
-                (
-                    db_iterator,
-                    KeyProcessing {
+                let key_processing = KeyProcessing {
+                    record_key: OwnedParsedRecordKey::from_owned_record_key(OwnedRecordKey::from(
                         record_key,
-                        value,
-                        first_value: first_value.map(|bytes| bytes.into()),
-                        last_value: last_value.map(|bytes| bytes.into()),
-                    },
-                )
+                    )),
+                    value: Box::from(value),
+                    first_value: first_value.map(|bytes| bytes.into()),
+                    last_value: last_value.map(|bytes| bytes.into()),
+                };
+
+                (db_iterator, key_processing)
             }
             None => {
                 enum PeekResult<'a> {
-                    Continue((DBIterator<'a>, KeyProcessing)),
+                    Continue((GcIterator<'a>, KeyProcessing)),
                     Finish(DiffCollectionRecordsResult),
                     FinishEmpty,
                 }
 
-                let result: PeekResult<'_> = changed_keys_iterator.peek(|changed_key| {
+                let result: PeekResult = changed_keys_iterator.peek(|changed_key| {
                     let result = (|| {
                         let changed_key = match changed_key {
                             Some(result) => match result {
@@ -98,28 +108,38 @@ impl DiffState<'_> {
                             }
                         };
 
-                        let mut db_iterator = iterator_mode_for_collection_key(
-                            changed_key.as_ref(),
-                            |iterator_mode| db.iterator(iterator_mode),
-                        )?;
-
-                        let (record_key, value) =
-                            db_iterator_parse_next_require_presense(&mut db_iterator)?;
-
-                        if record_key.get_collection_key() != changed_key.as_ref() {
-                            return Err(RawDbError::DiffNoChangedKeyRecord);
+                        let iterator_opts = iterator_opts_for_collection_key(changed_key.as_ref())?;
+                        let mut db_iterator = NewGcIterator {
+                            gc_phantom_id,
+                            db_iterator: db.raw_iterator_opt(iterator_opts),
+                            keys_to_delete,
                         }
+                        .new();
+
+                        let key_processing = {
+                            let (record_key, value) = db_iterator
+                                .next()?
+                                .ok_or(RawDbError::DiffNoChangedKeyRecord)?;
+
+                            if record_key.collection_key != changed_key.as_ref() {
+                                return Err(RawDbError::DiffNoChangedKeyRecord);
+                            }
+
+                            let record_key = OwnedParsedRecordKey::from_owned_record_key(
+                                OwnedRecordKey::from(record_key),
+                            );
+                            let value = Box::from(value);
+
+                            KeyProcessing {
+                                record_key,
+                                value,
+                                first_value: None,
+                                last_value: None,
+                            }
+                        };
 
                         Ok((
-                            (PeekResult::Continue((
-                                db_iterator,
-                                KeyProcessing {
-                                    record_key,
-                                    value,
-                                    first_value: None,
-                                    last_value: None,
-                                },
-                            ))),
+                            PeekResult::Continue((db_iterator, key_processing)),
                             Some(Ok(changed_key)),
                         ))
                     })();
@@ -167,20 +187,27 @@ impl DiffState<'_> {
                 mut last_value,
             } = if record_key.collection_key != changed_key.as_ref() {
                 // jump to required key
-                iterator_mode_for_collection_key(changed_key.as_ref(), |iterator_mode| {
-                    db_iterator.set_mode(iterator_mode);
-                })?;
+                let iterator_opts = iterator_opts_for_collection_key(changed_key.as_ref())?;
+                let keys_to_delete = db_iterator.into_keys_to_delete();
+                db_iterator = NewGcIterator {
+                    gc_phantom_id,
+                    db_iterator: db.raw_iterator_opt(iterator_opts),
+                    keys_to_delete,
+                }
+                .new();
 
                 let (record_key, value) =
                     db_iterator_parse_next_require_presense(&mut db_iterator)?;
 
-                if record_key.get_collection_key() != changed_key.as_ref() {
+                if record_key.collection_key != changed_key.as_ref() {
                     return Err(RawDbError::DiffNoChangedKeyRecord);
                 }
 
                 KeyProcessing {
-                    record_key,
-                    value,
+                    record_key: OwnedParsedRecordKey::from_owned_record_key(OwnedRecordKey::from(
+                        record_key,
+                    )),
+                    value: Box::from(value),
                     first_value: None,
                     last_value: None,
                 }
@@ -242,14 +269,14 @@ impl DiffState<'_> {
 
                 let mut next_item: Option<RecordKeyWithValue> = None;
 
+                db_iterator.save_state()?;
+
                 // Process current key
-                for result in db_iterator.by_ref() {
-                    let (key, value): (Box<[u8]>, Box<[u8]>) = result?;
+                while let Some((key, value)) = db_iterator.next()? {
+                    let record_key =
+                        OwnedParsedRecordKey::from_owned_record_key(OwnedRecordKey::from(key));
 
-                    let record_key = OwnedParsedRecordKey::from_boxed_slice(key)
-                        .or(Err(RawDbError::InvalidRecordKey))?;
-
-                    match handle_db_record(record_key, value) {
+                    match handle_db_record(record_key, Box::from(value)) {
                         HandleDbRecordResult::CollectionKeyChanged(item) => {
                             next_item = Some(item);
                             break;
@@ -271,6 +298,8 @@ impl DiffState<'_> {
                         HandleDbRecordResult::Continue => {}
                     }
                 }
+
+                db_iterator.restore_state()?;
 
                 match next_item {
                     // There `record_key` collection_key != changed_key
@@ -363,40 +392,20 @@ fn handle_item(
 }
 
 #[inline]
-fn iterator_mode_for_collection_key<T>(
-    key: CollectionKey<'_>,
-    fun: impl FnOnce(IteratorMode<'_>) -> T,
-) -> Result<T, RawDbError> {
+fn iterator_opts_for_collection_key(key: CollectionKey<'_>) -> Result<ReadOptions, RawDbError> {
     let record_key = OwnedRecordKey::new(key, GenerationId::empty(), PhantomId::empty())
         .or(Err(RawDbError::InvalidRecordKey))?;
 
-    Ok(fun(IteratorMode::From(
-        record_key.get_byte_array(),
-        Direction::Forward,
-    )))
+    let mut iterator_opts = ReadOptions::default();
+    iterator_opts.set_iterate_lower_bound(record_key.get_byte_array());
+
+    Ok(iterator_opts)
 }
 
-type DbIteratorItem = Result<(Box<[u8]>, Box<[u8]>), rocksdb::Error>;
-
-fn db_iterator_maybe_parse_next(
-    mut db_iterator: impl Iterator<Item = DbIteratorItem>,
-) -> Result<Option<(OwnedParsedRecordKey, Box<[u8]>)>, RawDbError> {
-    let result = db_iterator.next();
-    let (key, value) = match result {
-        Some(result) => result?,
-        None => {
-            return Ok(None);
-        }
-    };
-
-    let record_key =
-        OwnedParsedRecordKey::from_boxed_slice(key).or(Err(RawDbError::InvalidRecordKey))?;
-
-    Ok(Some((record_key, value)))
-}
-
-fn db_iterator_parse_next_require_presense(
-    db_iterator: impl Iterator<Item = DbIteratorItem>,
-) -> Result<(OwnedParsedRecordKey, Box<[u8]>), RawDbError> {
-    db_iterator_maybe_parse_next(db_iterator)?.ok_or(RawDbError::DiffNoChangedKeyRecord)
+fn db_iterator_parse_next_require_presense<'b, 'a>(
+    db_iterator: &'b mut GcIterator<'a>,
+) -> Result<(ParsedRecordKey<'b>, &'b [u8]), RawDbError> {
+    db_iterator
+        .next()?
+        .ok_or(RawDbError::DiffNoChangedKeyRecord)
 }

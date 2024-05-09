@@ -192,7 +192,7 @@ impl<'a> RecordKey<'a> {
         PhantomId::new(&self.value[offset..(offset + size)])
     }
 
-    pub fn parse(&self) -> ParsedRecordKey<'_> {
+    pub fn parse(&self) -> ParsedRecordKey<'a> {
         let (collection_key, generation_id, phantom_id) = self.parse_to_ranges();
 
         ParsedRecordKey {

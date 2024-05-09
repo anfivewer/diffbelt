@@ -31,7 +31,7 @@ pub struct GenerationId<'a>(&'a [u8]);
 
 #[derive(Clone)]
 pub struct OwnedPhantomId(Box<[u8]>);
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialOrd)]
 pub struct PhantomId<'a>(&'a [u8]);
 
 #[derive(PartialEq, Eq, Debug)]
