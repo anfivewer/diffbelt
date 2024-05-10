@@ -1,6 +1,7 @@
+use rocksdb::WriteBatch;
 use crate::collection::constants::{COLLECTION_CF_META, COLLECTION_META_GC_PHANTOM_ID_KEY};
 use crate::collection::util::record_key::OwnedRecordKey;
-use crate::common::{GenerationId, KeyValueDiff, OwnedCollectionKey, OwnedGenerationId, PhantomId};
+use crate::common::{GenerationId, IsByteArray, KeyValueDiff, OwnedCollectionKey, OwnedGenerationId, PhantomId};
 use crate::raw_db::diff_collection_records::state::in_memory::InMemoryChangedKeysIter;
 use crate::raw_db::diff_collection_records::state::single_generation::SingleGenerationChangedKeysIter;
 use crate::raw_db::diff_collection_records::state::{DiffState, DiffStateMode, DiffStateNewResult};
@@ -87,9 +88,8 @@ impl RawDb {
         };
 
         let mut keys_to_remove = Vec::new();
-        // TODO!
 
-        match mode {
+        let result = match mode {
             DiffStateMode::InMemory(in_memory) => {
                 let capacity_hint = Some(in_memory.changed_keys.len());
                 let iterator = InMemoryChangedKeysIter::new(in_memory.changed_keys);
@@ -115,6 +115,18 @@ impl RawDb {
                     gc_phantom_id,
                 )
             }
+        };
+
+        if !keys_to_remove.is_empty() {
+            let mut batch = WriteBatch::default();
+
+            for record_key in keys_to_remove.drain(..) {
+                batch.delete(record_key.get_byte_array());
+            }
+
+            db.write(batch)?;
         }
+
+        result
     }
 }

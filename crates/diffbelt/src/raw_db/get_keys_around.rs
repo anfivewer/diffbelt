@@ -144,14 +144,10 @@ fn process_direction<D: QueryDirection>(
     }
 
     if !query.records_to_delete.is_empty() {
-        let meta_cf = db
-            .cf_handle(COLLECTION_CF_META)
-            .ok_or(RawDbError::CfHandle)?;
-
         let mut batch = WriteBatch::default();
 
         for record_key in query.records_to_delete.drain(..) {
-            batch.delete_cf(&meta_cf, record_key.get_byte_array());
+            batch.delete(record_key.get_byte_array());
         }
 
         db.write(batch)?;

@@ -73,7 +73,7 @@ impl DiffState<'_> {
                     db_iterator_parse_next_require_presense(&mut db_iterator)?;
 
                 if record_key.collection_key != next_record_key.get_collection_key() {
-                    return Err(RawDbError::DiffNoChangedKeyRecord);
+                    return Err(RawDbError::DiffNoChangedKeyRecord("init collection_key != next_record_key.collection_key"));
                 }
 
                 let key_processing = KeyProcessing {
@@ -119,10 +119,10 @@ impl DiffState<'_> {
                         let key_processing = {
                             let (record_key, value) = db_iterator
                                 .next()?
-                                .ok_or(RawDbError::DiffNoChangedKeyRecord)?;
+                                .ok_or(RawDbError::DiffNoChangedKeyRecord("no next key_processing"))?;
 
                             if record_key.collection_key != changed_key.as_ref() {
-                                return Err(RawDbError::DiffNoChangedKeyRecord);
+                                return Err(RawDbError::DiffNoChangedKeyRecord("key processing collection_key != changed_key"));
                             }
 
                             let record_key = OwnedParsedRecordKey::from_owned_record_key(
@@ -200,7 +200,7 @@ impl DiffState<'_> {
                     db_iterator_parse_next_require_presense(&mut db_iterator)?;
 
                 if record_key.collection_key != changed_key.as_ref() {
-                    return Err(RawDbError::DiffNoChangedKeyRecord);
+                    return Err(RawDbError::DiffNoChangedKeyRecord("collection_key != changed_key"));
                 }
 
                 KeyProcessing {
@@ -248,7 +248,7 @@ impl DiffState<'_> {
             db_next_item = {
                 match handle_db_record(record_key, value) {
                     HandleDbRecordResult::CollectionKeyChanged(_) => {
-                        return Err(RawDbError::DiffNoChangedKeyRecord);
+                        return Err(RawDbError::DiffNoChangedKeyRecord("collection key changed"));
                     }
                     HandleDbRecordResult::Finish(record_key) => {
                         return Ok(DiffCollectionRecordsOk {
@@ -312,7 +312,7 @@ impl DiffState<'_> {
                     None => {
                         // End of iterator
                         if !changed_keys_iterator.is_empty() {
-                            return Err(RawDbError::DiffNoChangedKeyRecord);
+                            return Err(RawDbError::DiffNoChangedKeyRecord("state/diff end of iterator"));
                         }
 
                         handle_item(
@@ -407,5 +407,5 @@ fn db_iterator_parse_next_require_presense<'b, 'a>(
 ) -> Result<(ParsedRecordKey<'b>, &'b [u8]), RawDbError> {
     db_iterator
         .next()?
-        .ok_or(RawDbError::DiffNoChangedKeyRecord)
+        .ok_or(RawDbError::DiffNoChangedKeyRecord("db_iterator_parse_next_require_presense"))
 }

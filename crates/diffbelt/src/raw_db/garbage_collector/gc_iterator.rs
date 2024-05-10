@@ -6,6 +6,7 @@ use crate::raw_db::RawDbError;
 
 pub struct GcIterator<'a> {
     is_first: bool,
+    is_invalid: bool,
     gc_phantom_id: Option<PhantomId<'a>>,
     db_iterator: DBRawIterator<'a>,
     keys_to_delete: &'a mut Vec<OwnedRecordKey>,
@@ -13,6 +14,7 @@ pub struct GcIterator<'a> {
     is_saved: bool,
     saved_key: Vec<u8>,
     was_first: bool,
+    was_invalid: bool,
 }
 
 pub struct NewGcIterator<'a> {
@@ -25,12 +27,14 @@ impl<'a> NewGcIterator<'a> {
     pub fn new(self) -> GcIterator<'a> {
         GcIterator {
             is_first: true,
+            is_invalid: false,
             gc_phantom_id: self.gc_phantom_id,
             db_iterator: self.db_iterator,
             keys_to_delete: self.keys_to_delete,
             is_saved: false,
             saved_key: Vec::new(),
             was_first: true,
+            was_invalid: false,
         }
     }
 }
@@ -41,8 +45,13 @@ struct Iter<'a> {
 
 impl<'a> GcIterator<'a> {
     pub fn next(&mut self) -> Result<Option<(ParsedRecordKey, &[u8])>, RawDbError> {
+        if self.is_invalid {
+            return Ok(None);
+        }
+
         if self.is_first {
             self.is_first = false;
+            self.db_iterator.seek_to_first();
         } else {
             self.db_iterator.next();
             () = self.db_iterator.status()?;
@@ -95,6 +104,11 @@ impl<'a> GcIterator<'a> {
             return Ok(());
         }
 
+        if !self.db_iterator.valid() {
+            self.was_invalid = true;
+            return Ok(());
+        }
+
         let Some(key) = self.db_iterator.key() else {
             self.was_first = true;
             return Ok(());
@@ -114,10 +128,13 @@ impl<'a> GcIterator<'a> {
 
         self.is_saved = false;
         self.is_first = self.was_first;
+        self.is_invalid = self.was_invalid;
 
-        if self.is_first {
-            self.db_iterator.seek_to_first();
-        } else {
+        if self.is_invalid {
+            return Ok(());
+        }
+
+        if !self.is_first {
             self.db_iterator.seek(&self.saved_key);
         }
 

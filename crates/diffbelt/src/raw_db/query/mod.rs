@@ -1,7 +1,6 @@
 use std::mem;
-use std::ops::Deref;
 
-use rocksdb::{DBIteratorWithThreadMode, DBPinnableSlice, Direction, IteratorMode, WriteBatch, DB};
+use rocksdb::{DBIteratorWithThreadMode, DBPinnableSlice, Direction, IteratorMode, DB};
 
 use crate::collection::util::record_key::{
     OwnedParsedRecordKey, OwnedRecordKey, ParsedRecordKey, RecordKey,

@@ -1,6 +1,7 @@
+use rocksdb::WriteBatch;
 use crate::collection::constants::{COLLECTION_CF_META, COLLECTION_META_GC_PHANTOM_ID_KEY};
 use crate::collection::util::record_key::{OwnedRecordKey, RecordKey};
-use crate::common::{GenerationId, KeyValue, OwnedCollectionValue, PhantomId};
+use crate::common::{GenerationId, IsByteArray, KeyValue, OwnedCollectionValue, PhantomId};
 use crate::raw_db::query::{
     ContinuationState, QueryDirectionForward, QueryKeyValue, QueryOptions, QueryState,
 };
@@ -92,6 +93,16 @@ impl RawDb {
             if count >= limit {
                 break;
             }
+        }
+
+        if !query.records_to_delete.is_empty() {
+            let mut batch = WriteBatch::default();
+
+            for record_key in query.records_to_delete.drain(..) {
+                batch.delete(record_key.get_byte_array());
+            }
+
+            db.write(batch)?;
         }
 
         let continuation = query.into_continuation();

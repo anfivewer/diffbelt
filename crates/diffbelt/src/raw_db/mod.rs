@@ -71,7 +71,7 @@ pub enum RawDbError {
     NoSuchReader,
     NoSuchPhantom,
     CursorDidNotFoundRecord,
-    DiffNoChangedKeyRecord,
+    DiffNoChangedKeyRecord(&'static str),
 }
 
 impl From<rocksdb::Error> for RawDbError {
