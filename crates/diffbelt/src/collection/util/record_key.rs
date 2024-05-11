@@ -1,3 +1,4 @@
+use std::iter;
 use std::ops::Range;
 
 use diffbelt_util_no_std::cast::{u32_to_usize, u8_to_usize};
@@ -8,14 +9,130 @@ use crate::common::constants::{
 use crate::common::{CollectionKey, GenerationId, IsByteArray, PhantomId};
 use crate::util::bytes::{read_u24, write_u24_be};
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct RecordKey<'a> {
-    pub value: &'a [u8],
+    value: &'a [u8],
 }
-pub struct ParsedRecordKey<'a> {
+
+impl RecordKey<'_> {
+    pub fn new_unchecked(value: &[u8]) -> Self {
+        Self { value }
+    }
+}
+
+#[deprecated(note = "Use ParsedRecordKey")]
+pub struct ParsedRecordKeyOld<'a> {
     pub collection_key: CollectionKey<'a>,
     pub generation_id: GenerationId<'a>,
     pub phantom_id: Option<PhantomId<'a>>,
+}
+
+pub struct ParsedRecordKey<'a> {
+    bytes_inner: &'a [u8],
+    ranges_inner: ParsedRecordKeyRanges,
+}
+
+impl PartialEq for ParsedRecordKey<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.bytes_inner == other.bytes_inner
+    }
+}
+
+impl<'a> ParsedRecordKey<'a> {
+    pub fn new_unchecked(bytes: &'a [u8], ranges: ParsedRecordKeyRanges) -> Self {
+        Self { bytes_inner: bytes, ranges_inner: ranges }
+    }
+
+    pub fn new_on_vec<'a>(
+        vec: &'a mut Vec<u8>,
+        key: CollectionKey<'_>,
+        generation_id: GenerationId<'_>,
+        phantom_id: Option<PhantomId<'_>>,
+    ) -> Result<Self, ()> {
+        let key_bytes = key.get_byte_array();
+        let generation_id_bytes = generation_id.get_byte_array();
+        let phantom_id_bytes = phantom_id.map_or(&[] as &[u8], |x| x.get_byte_array());
+
+        if key_bytes.len() > MAX_COLLECTION_KEY_LENGTH
+            || generation_id_bytes.len() > MAX_GENERATION_ID_LENGTH
+            || phantom_id_bytes.len() > MAX_PHANTOM_ID_LENGTH
+        {
+            return Err(());
+        }
+
+        let len =
+            1 + 3 + key_bytes.len() + 1 + generation_id_bytes.len() + 1 + phantom_id_bytes.len();
+
+        vec.clear();
+        vec.reserve(len);
+        vec.extend(iter::repeat(0u8).take(len));
+
+        write_record_key(
+            &mut vec.as_slice()[0..len],
+            key_bytes,
+            generation_id_bytes,
+            phantom_id_bytes,
+        );
+
+        let mut offset = 4;
+        let mut offset_to = offset + key_bytes.len();
+        let collection_key = offset..offset_to;
+        offset = offset_to + 1;
+        offset_to = offset + generation_id_bytes.len();
+        let generation_id = offset..offset_to;
+        offset = offset_to + 1;
+        offset_to = offset + phantom_id_bytes.len();
+        let phantom_id = if offset < offset_to {
+            Some(offset..offset_to)
+        } else {
+            None
+        };
+
+        let ranges = ParsedRecordKeyRanges {
+            collection_key,
+            generation_id,
+            phantom_id,
+        };
+
+        Ok(Self {
+            bytes_inner: &*vec,
+            ranges_inner: ranges,
+        })
+    }
+
+    pub fn as_record_key(&self) -> RecordKey<'a> {
+        RecordKey { value: self.bytes_inner }
+    }
+
+    pub fn collection_key(&self) -> CollectionKey<'a> {
+        CollectionKey(&self.bytes_inner[self.ranges_inner.collection_key.clone()])
+    }
+
+    pub fn generation_id(&self) -> GenerationId<'a> {
+        GenerationId(&self.bytes_inner[self.ranges_inner.generation_id.clone()])
+    }
+
+    pub fn phantom_id(&self) -> Option<PhantomId<'a>> {
+        self.ranges_inner
+            .phantom_id
+            .as_ref()
+            .map(|range| PhantomId(&self.bytes_inner[range.clone()]))
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes_inner
+    }
+
+    pub fn ranges(&self) -> &ParsedRecordKeyRanges {
+        &self.ranges_inner
+    }
+}
+
+#[derive(Clone)]
+pub struct ParsedRecordKeyRanges {
+    pub collection_key: Range<usize>,
+    pub generation_id: Range<usize>,
+    pub phantom_id: Option<Range<usize>>,
 }
 
 pub struct OwnedParsedRecordKey {
@@ -58,8 +175,8 @@ impl OwnedParsedRecordKey {
         }
     }
 
-    pub fn get_parsed(&self) -> ParsedRecordKey<'_> {
-        ParsedRecordKey {
+    pub fn get_parsed(&self) -> ParsedRecordKeyOld<'_> {
+        ParsedRecordKeyOld {
             collection_key: CollectionKey::new_unchecked(by_range(
                 &self.bytes,
                 &self.collection_key,
@@ -192,10 +309,10 @@ impl<'a> RecordKey<'a> {
         PhantomId::new(&self.value[offset..(offset + size)])
     }
 
-    pub fn parse(&self) -> ParsedRecordKey<'a> {
+    pub fn parse(&self) -> ParsedRecordKeyOld<'a> {
         let (collection_key, generation_id, phantom_id) = self.parse_to_ranges();
 
-        ParsedRecordKey {
+        ParsedRecordKeyOld {
             collection_key: CollectionKey::new_unchecked(by_range(self.value, &collection_key)),
             generation_id: GenerationId::new_unchecked(by_range(self.value, &generation_id)),
             phantom_id: phantom_id
@@ -235,6 +352,41 @@ impl<'a> RecordKey<'a> {
     }
 }
 
+fn write_record_key(
+    value: &mut [u8],
+    key_bytes: &[u8],
+    generation_id_bytes: &[u8],
+    phantom_id_bytes: &[u8],
+) {
+    // reserved for the future, if we will want to change keys format
+    value[0] = 0;
+
+    write_u24_be(value, 1, key_bytes.len() as u32);
+
+    let mut offset = 4usize;
+
+    {
+        (&mut value[offset..(offset + key_bytes.len())]).copy_from_slice(key_bytes);
+        offset += key_bytes.len();
+    }
+
+    value[offset] = generation_id_bytes.len() as u8;
+    offset += 1;
+
+    {
+        (&mut value[offset..(offset + generation_id_bytes.len())])
+            .copy_from_slice(generation_id_bytes);
+        offset += generation_id_bytes.len();
+    }
+
+    value[offset] = phantom_id_bytes.len() as u8;
+    offset += 1;
+
+    {
+        (&mut value[offset..(offset + phantom_id_bytes.len())]).copy_from_slice(phantom_id_bytes);
+    }
+}
+
 impl OwnedRecordKey {
     pub fn new<'a>(
         key: CollectionKey<'a>,
@@ -263,34 +415,7 @@ impl OwnedRecordKey {
         ]
         .into_boxed_slice();
 
-        // reserved for the future, if we will want to change keys format
-        value[0] = 0;
-
-        write_u24_be(&mut value, 1, key_bytes.len() as u32);
-
-        let mut offset = 4usize;
-
-        {
-            (&mut value[offset..(offset + key_bytes.len())]).copy_from_slice(key_bytes);
-            offset += key_bytes.len();
-        }
-
-        value[offset] = generation_id_bytes.len() as u8;
-        offset += 1;
-
-        {
-            (&mut value[offset..(offset + generation_id_bytes.len())])
-                .copy_from_slice(generation_id_bytes);
-            offset += generation_id_bytes.len();
-        }
-
-        value[offset] = phantom_id_bytes.len() as u8;
-        offset += 1;
-
-        {
-            (&mut value[offset..(offset + phantom_id_bytes.len())])
-                .copy_from_slice(phantom_id_bytes);
-        }
+        write_record_key(&mut value, key_bytes, generation_id_bytes, phantom_id_bytes);
 
         Ok(OwnedRecordKey { value })
     }
@@ -315,8 +440,8 @@ impl OwnedRecordKey {
     }
 }
 
-impl From<ParsedRecordKey<'_>> for OwnedRecordKey {
-    fn from(value: ParsedRecordKey) -> Self {
+impl From<ParsedRecordKeyOld<'_>> for OwnedRecordKey {
+    fn from(value: ParsedRecordKeyOld) -> Self {
         OwnedRecordKey::new(
             value.collection_key,
             value.generation_id,

@@ -21,6 +21,7 @@ pub mod query_collection_records;
 pub mod remove_all_records_of_generation;
 pub mod start_phantom;
 pub mod update_reader;
+pub mod diff_logic;
 
 pub struct DbWrap {
     inner: Option<DB>,

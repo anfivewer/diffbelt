@@ -1,6 +1,6 @@
 use rocksdb::{DBIterator, Direction, IteratorMode, ReadOptions};
 
-use crate::collection::util::record_key::{OwnedParsedRecordKey, OwnedRecordKey, ParsedRecordKey};
+use crate::collection::util::record_key::{OwnedParsedRecordKey, OwnedRecordKey, ParsedRecordKeyOld};
 use crate::common::{
     CollectionKey, GenerationId, IsByteArray, KeyValueDiff, OwnedCollectionKey,
     OwnedCollectionValue, PhantomId,
@@ -216,7 +216,7 @@ impl DiffState<'_> {
             };
 
             let mut handle_db_record = |record_key: OwnedParsedRecordKey, value: Box<[u8]>| {
-                let ParsedRecordKey {
+                let ParsedRecordKeyOld {
                     collection_key,
                     generation_id,
                     phantom_id,
@@ -404,7 +404,7 @@ fn iterator_opts_for_collection_key(key: CollectionKey<'_>) -> Result<ReadOption
 
 fn db_iterator_parse_next_require_presense<'b, 'a>(
     db_iterator: &'b mut GcIterator<'a>,
-) -> Result<(ParsedRecordKey<'b>, &'b [u8]), RawDbError> {
+) -> Result<(ParsedRecordKeyOld<'b>, &'b [u8]), RawDbError> {
     db_iterator
         .next()?
         .ok_or(RawDbError::DiffNoChangedKeyRecord("db_iterator_parse_next_require_presense"))

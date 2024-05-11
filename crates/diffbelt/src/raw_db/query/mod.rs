@@ -3,7 +3,7 @@ use std::mem;
 use rocksdb::{DBIteratorWithThreadMode, DBPinnableSlice, Direction, IteratorMode, DB};
 
 use crate::collection::util::record_key::{
-    OwnedParsedRecordKey, OwnedRecordKey, ParsedRecordKey, RecordKey,
+    OwnedParsedRecordKey, OwnedRecordKey, ParsedRecordKeyOld, RecordKey,
 };
 use crate::common::{
     CollectionKey, CollectionValue, GenerationId, IsByteArray, OwnedGenerationId, OwnedPhantomId,
@@ -483,7 +483,7 @@ fn handle_last_and_next<K: QueryKind, D: QueryDirection>(
     generation_id: GenerationId<'_>,
     phantom_id: Option<PhantomId<'_>>,
     last_record: &IterationKvRecord<K::Value>,
-    next_parsed_record: ParsedRecordKey<'_>,
+    next_parsed_record: ParsedRecordKeyOld<'_>,
 ) -> LastAndNextHandleResult {
     let last_parsed_record = last_record.key.get_parsed();
 
@@ -517,7 +517,7 @@ fn is_need_to_push_last_record<K: QueryKind>(
     phantom_id: Option<PhantomId<'_>>,
     record: &IterationKvRecord<K::Value>,
 ) -> bool {
-    let ParsedRecordKey {
+    let ParsedRecordKeyOld {
         collection_key: _,
         generation_id: record_generation_id,
         phantom_id: record_phantom_id,

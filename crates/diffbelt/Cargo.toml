@@ -26,6 +26,8 @@ querystring = "1.1.0"
 urlencoding = "2.1.2"
 hashbrown = "0.14.3"
 lru = "0.10.0"
+enum-as-inner = "0.6.0"
+thiserror = "1.0.50"
 
 [dependencies.diffbelt_types]
 path = "../diffbelt_types"

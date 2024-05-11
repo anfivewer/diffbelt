@@ -1,4 +1,4 @@
-use crate::collection::util::record_key::{OwnedRecordKey, ParsedRecordKey, RecordKey};
+use crate::collection::util::record_key::{OwnedRecordKey, ParsedRecordKeyOld, RecordKey};
 use rocksdb::{DBRawIterator, ReadOptions};
 
 use crate::common::PhantomId;
@@ -44,7 +44,7 @@ struct Iter<'a> {
 }
 
 impl<'a> GcIterator<'a> {
-    pub fn next(&mut self) -> Result<Option<(ParsedRecordKey, &[u8])>, RawDbError> {
+    pub fn next(&mut self) -> Result<Option<(ParsedRecordKeyOld, &[u8])>, RawDbError> {
         if self.is_invalid {
             return Ok(None);
         }
