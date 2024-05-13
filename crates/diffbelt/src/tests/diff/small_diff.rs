@@ -1,3 +1,5 @@
+use std::io::Write;
+use diffbelt_util::debug_print::debug_print;
 use crate::collection::methods::commit_generation::CommitGenerationOptions;
 use crate::collection::methods::diff::{DiffOk, DiffOptions, ReadDiffCursorOptions};
 use crate::collection::methods::put::CollectionPutManyOptions;
@@ -142,6 +144,8 @@ async fn small_diff_inner() {
         })
         .await
         .expect("commit");
+
+    debug_print("======================== second diff");
 
     let (from_generation_id, to_generation_id, items) = read_diff(
         &collection,

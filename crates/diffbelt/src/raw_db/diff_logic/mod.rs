@@ -1,10 +1,10 @@
-use std::fmt::format;
 use crate::collection::util::record_key::{ParsedRecordKey, ParsedRecordKeyRanges, RecordKey};
 use crate::common::{CollectionKey, GenerationId, IsByteArray};
 use crate::raw_db::diff_logic::error::DiffLogicError;
 use crate::raw_db::diff_logic::input::DiffLogicInput;
-use std::mem;
 use diffbelt_util::debug_print::debug_print;
+use std::fmt::format;
+use std::mem;
 
 pub mod error;
 pub mod input;
@@ -171,7 +171,9 @@ impl<'a> DiffLogic<'a> {
 
         let Some(key) = key else {
             self.handler = make_handler!(_this, _input, { Err(DiffLogicError::AlreadyErrored) });
-            return Err(DiffLogicError::ChangedKeyNotFound("on_got_next_after_cursor_set"));
+            return Err(DiffLogicError::ChangedKeyNotFound(
+                "on_got_next_after_cursor_set",
+            ));
         };
 
         let changed_key = collection_key_from_holder(&self.changed_key_holder);
@@ -208,6 +210,8 @@ impl<'a> DiffLogic<'a> {
     ) -> Result<DiffLogicAction<'_>, DiffLogicError> {
         let current_key = parsed_key_from_holder(&self.current_record_key_holder);
         let current_collection_key = current_key.collection_key();
+
+        debug_print(format!("handle_keys_pair: {current_key:?} {next_key:?}").as_str());
 
         // If this is last key, or collection key differs, or next generation is greater than we
         // need, then this is the end for this key
@@ -294,7 +298,7 @@ impl<'a> DiffLogic<'a> {
                 if next_key.collection_key() == next_changed_key {
                     // If next changed key is following current key, no need to set cursor to it,
                     // just continue traversing
-                    // TODO: move next cursor key to current, expect that there can be no next key
+                    write_key_to_holder(&mut self.current_record_key_holder, &*next_key);
 
                     self.handler = make_handler!(this, input, {
                         let (cursor_key, changed_key) =
@@ -303,7 +307,10 @@ impl<'a> DiffLogic<'a> {
                                     "Expected NextCursorAndChangedKey".to_string(),
                                 )
                             })?;
-                        this.on_got_next_key_and_changed_key(cursor_key, changed_key)
+                        this.on_got_next_key_and_changed_key_with_existing_current(
+                            cursor_key,
+                            changed_key,
+                        )
                     });
                     break 'block DiffLogicSubAction::GetNextCursorKeyAndNextChangedKey;
                 }
@@ -339,16 +346,38 @@ impl<'a> DiffLogic<'a> {
         }))
     }
 
+    fn on_got_next_key_and_changed_key_with_existing_current(
+        &mut self,
+        key: Option<ParsedRecordKey<'_>>,
+        next_changed_key: Option<CollectionKey<'_>>,
+    ) -> Result<DiffLogicAction<'_>, DiffLogicError> {
+        debug_print(format!("on_got_next_key_and_changed_key_with_existing_current: {key:?}, {next_changed_key:?}").as_str());
+
+        self.first_key_holder.0 = None;
+        self.last_key_holder.0 = None;
+
+        write_collection_key_to_holder_optional(
+            &mut self.next_changed_key_holder,
+            next_changed_key,
+        );
+
+        self.handle_keys_pair(key)
+    }
+
     fn on_got_next_key_and_changed_key(
         &mut self,
         key: Option<ParsedRecordKey<'_>>,
         next_changed_key: Option<CollectionKey<'_>>,
     ) -> Result<DiffLogicAction<'_>, DiffLogicError> {
-        debug_print(format!("on_got_next_key_and_changed_key: {key:?}, {next_changed_key:?}").as_str());
+        debug_print(
+            format!("on_got_next_key_and_changed_key: {key:?}, {next_changed_key:?}").as_str(),
+        );
 
         let Some(key) = key else {
             self.handler = make_handler!(_this, _input, { Err(DiffLogicError::AlreadyErrored) });
-            return Err(DiffLogicError::ChangedKeyNotFound("on_got_next_key_and_changed_key"));
+            return Err(DiffLogicError::ChangedKeyNotFound(
+                "on_got_next_key_and_changed_key",
+            ));
         };
 
         self.first_key_holder.0 = None;
@@ -415,6 +444,27 @@ fn write_key_to_holder_optional(
     holder.clear();
     holder.extend_from_slice(key.bytes());
     *parts = Some(key.ranges().clone());
+}
+
+fn move_key_from_optional_to_holder<'a>(
+    from_holder: &'a mut ParsedRecordKeyHolderOptional,
+    to_holder: &'a mut ParsedRecordKeyHolder,
+) -> Option<ParsedRecordKey<'a>> {
+    let (from_parts, from_holder) = from_holder;
+
+    let Some(from_parts) = from_parts.take() else {
+        return None;
+    };
+
+    let (to_parts, to_holder) = to_holder;
+
+    *to_parts = from_parts;
+    mem::swap(from_holder, to_holder);
+
+    Some(ParsedRecordKey::new_unchecked(
+        &*to_holder,
+        to_parts.clone(),
+    ))
 }
 
 fn collection_key_from_holder(holder: &CollectionKeyHolder) -> CollectionKey<'_> {

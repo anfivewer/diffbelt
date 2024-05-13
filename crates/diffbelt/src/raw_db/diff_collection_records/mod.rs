@@ -1,3 +1,7 @@
+use rocksdb::WriteBatch;
+
+use diffbelt_util::debug_print::debug_print;
+
 use crate::collection::constants::{COLLECTION_CF_META, COLLECTION_META_GC_PHANTOM_ID_KEY};
 use crate::collection::util::record_key::OwnedRecordKey;
 use crate::common::{
@@ -9,11 +13,10 @@ use crate::raw_db::diff_collection_records::state::single_generation::SingleGene
 use crate::raw_db::diff_collection_records::state::{DiffState, DiffStateMode, DiffStateNewResult};
 use crate::raw_db::diff_logic::input::DiffLogicInput;
 use crate::raw_db::diff_logic::{
-    DiffLogic, DiffLogicAction, DiffLogicSubAction, EmitItemAction, NewDiffLogic,
+    DiffLogicAction, DiffLogicSubAction, EmitItemAction, NewDiffLogic,
 };
 use crate::raw_db::garbage_collector::gc_iterator::NewGcIterator;
 use crate::raw_db::{RawDb, RawDbError};
-use rocksdb::WriteBatch;
 
 mod state;
 
@@ -99,6 +102,8 @@ impl RawDb {
 
         let to_generation_id = state.to_generation_id.clone();
 
+        debug_print(format!("start diff {from_generation_id:?} {to_generation_id:?}").as_str());
+
         let mut logic = NewDiffLogic {
             from_generation_id,
             to_generation_id: to_generation_id.as_ref(),
@@ -161,17 +166,26 @@ impl RawDb {
                     to_key,
                     next_action,
                 }) => {
-                    if from_key != to_key {
-                        () = gc_iterator.save_state()?;
+                    () = gc_iterator.save_state()?;
 
-                        let from_value = from_key
-                            .map(|x| gc_iterator.get_value_for_key(x))
-                            .transpose()?
-                            .and_then(|x| x.to_owned_if_not_empty());
-                        let to_value = to_key
-                            .map(|x| gc_iterator.get_value_for_key(x))
-                            .transpose()?
-                            .and_then(|x| x.to_owned_if_not_empty());
+                    let from_value = from_key
+                        .map(|x| gc_iterator.get_value_for_key(x))
+                        .transpose()?
+                        .and_then(|x| x.to_owned_if_not_empty());
+                    let to_value = to_key
+                        .map(|x| gc_iterator.get_value_for_key(x))
+                        .transpose()?;
+
+                    let is_changed = from_value
+                        .as_ref()
+                        .map(|x| x.as_ref())
+                        .and_then(|x| x.to_none_if_empty())
+                        != to_value.and_then(|x| x.to_none_if_empty());
+
+                    debug_print(format!("emit item {is_changed} {from_key:?} {to_key:?}").as_str());
+
+                    if is_changed {
+                        let to_value = to_value.and_then(|x| x.to_owned_if_not_empty());
 
                         items.push(KeyValueDiff {
                             key: key.to_owned(),
@@ -179,9 +193,9 @@ impl RawDb {
                             intermediate_values: Vec::new(),
                             to_value,
                         });
-
-                        () = gc_iterator.restore_state()?;
                     }
+
+                    () = gc_iterator.restore_state()?;
 
                     next_action
                 }

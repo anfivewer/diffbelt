@@ -20,9 +20,38 @@ pub struct OwnedCollectionKey(Box<[u8]>);
 #[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Debug)]
 pub struct CollectionKey<'a>(&'a [u8]);
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct OwnedCollectionValue(Box<[u8]>);
+#[derive(Copy, Clone)]
 pub struct CollectionValue<'a>(&'a [u8]);
+
+impl PartialEq for OwnedCollectionValue {
+    fn eq(&self, other: &Self) -> bool {
+        if self.is_empty() != other.is_empty() {
+            return false;
+        }
+
+        if self.is_empty() {
+            return true;
+        }
+
+        &self.0[1..] == &other.0[1..]
+    }
+}
+
+impl PartialEq for CollectionValue<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.is_empty() != other.is_empty() {
+            return false;
+        }
+
+        if self.is_empty() {
+            return true;
+        }
+
+        &self.0[1..] == &other.0[1..]
+    }
+}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct OwnedGenerationId(Arc<[u8]>);
@@ -34,13 +63,13 @@ pub struct OwnedPhantomId(Box<[u8]>);
 #[derive(Copy, Clone, Debug, Eq, Ord, PartialOrd)]
 pub struct PhantomId<'a>(&'a [u8]);
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Debug)]
 pub struct KeyValue {
     pub key: OwnedCollectionKey,
     pub value: OwnedCollectionValue,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Debug)]
 pub struct KeyValueDiff {
     pub key: OwnedCollectionKey,
     pub from_value: Option<OwnedCollectionValue>,
@@ -266,6 +295,10 @@ impl OwnedCollectionValue {
         &self.0[1..]
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn as_ref(&self) -> CollectionValue<'_> {
         CollectionValue(&self.0)
     }
@@ -286,6 +319,13 @@ impl<'a> CollectionValue<'a> {
         }
 
         Some(OwnedCollectionValue(self.0.into()))
+    }
+    pub fn to_none_if_empty(&self) -> Option<Self> {
+        if self.is_empty() {
+            None
+        } else {
+            Some(*self)
+        }
     }
 }
 
