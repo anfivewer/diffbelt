@@ -1,5 +1,7 @@
-use crate::collection::util::record_key::{ParsedRecordKey, ParsedRecordKeyRanges, RecordKey};
-use crate::common::{CollectionKey, GenerationId, IsByteArray};
+use crate::collection::util::record_key::{
+    OwnedRecordKey, ParsedRecordKey, ParsedRecordKeyRanges, RecordKey,
+};
+use crate::common::{CollectionKey, GenerationId, IsByteArray, OwnedCollectionKey};
 use crate::raw_db::diff_logic::error::DiffLogicError;
 use crate::raw_db::diff_logic::input::DiffLogicInput;
 use diffbelt_util::debug_print::debug_print;
@@ -16,10 +18,12 @@ pub struct EmitItemAction<'a> {
     pub next_action: DiffLogicSubAction<'a>,
 }
 
+const WITH_DEBUG_PRINTS: bool = false;
+
 pub enum DiffLogicSubAction<'a> {
     SetCursorAndGetNextCursorKeyAndNextChangedKey(RecordKey<'a>),
     GetNextCursorKeyAndNextChangedKey,
-    Finish,
+    Finish(Option<ResumeDiffLogic>),
 }
 
 pub enum DiffLogicAction<'a> {
@@ -41,8 +45,8 @@ type HandlerResult<'a> = Result<DiffLogicAction<'a>, DiffLogicError>;
 pub struct DiffLogic<'a> {
     from_generation_id: GenerationId<'a>,
     to_generation_id: GenerationId<'a>,
+    is_required_to_stop: bool,
     items_limit: usize,
-    records_to_view_limit: usize,
     handler:
         for<'b> fn(&'b mut Self, DiffLogicInput<'_>) -> Result<DiffLogicAction<'b>, DiffLogicError>,
     changed_key_holder: CollectionKeyHolder,
@@ -54,11 +58,27 @@ pub struct DiffLogic<'a> {
     temp_key_holder: ParsedRecordKeyHolder,
 }
 
+#[derive(Debug)]
+pub struct ResumeDiffLogic {
+    pub action: DiffLogicResumeAction,
+    pub changed_key: OwnedCollectionKey,
+    pub next_changed_key: Option<OwnedCollectionKey>,
+    pub current_record_key: OwnedRecordKey,
+    pub first_key: Option<OwnedRecordKey>,
+    pub last_key: Option<OwnedRecordKey>,
+}
+
+#[derive(Debug)]
+pub enum DiffLogicResumeAction {
+    SetCursorAndGetNextCursorKeyAndNextChangedKey(OwnedRecordKey),
+    GetNextCursorKeyAndNextChangedKey,
+    GetNextCursorKey,
+}
+
 pub struct NewDiffLogic<'a> {
     pub from_generation_id: Option<GenerationId<'a>>,
     pub to_generation_id: GenerationId<'a>,
     pub items_limit: usize,
-    pub records_to_view_limit: usize,
 }
 
 macro_rules! make_handler {
@@ -79,8 +99,8 @@ impl<'a> NewDiffLogic<'a> {
         DiffLogic {
             from_generation_id: self.from_generation_id.unwrap_or(GenerationId::empty()),
             to_generation_id: self.to_generation_id,
+            is_required_to_stop: false,
             items_limit: self.items_limit,
-            records_to_view_limit: self.records_to_view_limit,
             handler: make_handler!(this, input, {
                 if !input.is_init() {
                     return Err(DiffLogicError::Unspecified(
@@ -98,11 +118,137 @@ impl<'a> NewDiffLogic<'a> {
             temp_key_holder: (ParsedRecordKeyRanges::default(), Vec::new()),
         }
     }
+
+    pub fn resume(self, resume: &ResumeDiffLogic) -> DiffLogic<'a> {
+        let ResumeDiffLogic {
+            action,
+            changed_key,
+            next_changed_key,
+            current_record_key,
+            first_key,
+            last_key,
+        } = resume;
+
+        let current_record_key = current_record_key.as_ref().parse();
+        let first_key = first_key.as_ref().map(|x| x.as_ref().parse());
+        let last_key = last_key.as_ref().map(|x| x.as_ref().parse());
+
+        let mut changed_key_holder = Vec::new();
+        let mut next_changed_key_holder = (false, Vec::new());
+        let mut current_record_key_holder = (ParsedRecordKeyRanges::default(), Vec::new());
+        let mut first_key_holder = (None, Vec::new());
+        let mut last_key_holder = (None, Vec::new());
+        let mut temp_key_holder = (ParsedRecordKeyRanges::default(), Vec::new());
+
+        write_collection_key_to_holder(&mut changed_key_holder, changed_key.as_ref());
+        write_collection_key_to_holder_optional(
+            &mut next_changed_key_holder,
+            next_changed_key.as_ref().map(|x| x.as_ref()),
+        );
+        write_key_to_holder(&mut current_record_key_holder, &current_record_key);
+        write_key_to_holder_optional(&mut first_key_holder, first_key.as_ref());
+        write_key_to_holder_optional(&mut last_key_holder, last_key.as_ref());
+
+        let handler = match action {
+            DiffLogicResumeAction::SetCursorAndGetNextCursorKeyAndNextChangedKey(key) => {
+                let key = key.as_ref().parse();
+                write_key_to_holder(&mut temp_key_holder, &key);
+
+                make_handler!(this, input, {
+                    if !input.is_init() {
+                        return Err(DiffLogicError::Unspecified(
+                            "Expected Init as first action".to_string(),
+                        ));
+                    }
+
+                    let key = parsed_key_from_holder(&this.temp_key_holder);
+
+                    this.handler = make_handler!(this, input, {
+                        let (cursor_key, changed_key) =
+                            input.into_next_cursor_and_changed_key().map_err(|_| {
+                                DiffLogicError::Unspecified(
+                                    "Expected NextCursorAndChangedKey".to_string(),
+                                )
+                            })?;
+                        this.on_got_next_key_and_changed_key(cursor_key, changed_key)
+                    });
+
+                    Ok(DiffLogicAction::Sub(
+                        DiffLogicSubAction::SetCursorAndGetNextCursorKeyAndNextChangedKey(
+                            key.as_record_key(),
+                        ),
+                    ))
+                })
+            }
+            DiffLogicResumeAction::GetNextCursorKeyAndNextChangedKey => {
+                make_handler!(this, input, {
+                    if !input.is_init() {
+                        return Err(DiffLogicError::Unspecified(
+                            "Expected Init as first action".to_string(),
+                        ));
+                    }
+
+                    this.handler = make_handler!(this, input, {
+                        let (cursor_key, changed_key) =
+                            input.into_next_cursor_and_changed_key().map_err(|_| {
+                                DiffLogicError::Unspecified(
+                                    "Expected NextCursorAndChangedKey".to_string(),
+                                )
+                            })?;
+                        this.on_got_next_key_and_changed_key_with_existing_current(
+                            cursor_key,
+                            changed_key,
+                        )
+                    });
+
+                    Ok(DiffLogicAction::Sub(
+                        DiffLogicSubAction::GetNextCursorKeyAndNextChangedKey,
+                    ))
+                })
+            }
+            DiffLogicResumeAction::GetNextCursorKey => {
+                make_handler!(this, input, {
+                    if !input.is_init() {
+                        return Err(DiffLogicError::Unspecified(
+                            "Expected Init as first action".to_string(),
+                        ));
+                    }
+
+                    this.handler = make_handler!(this, input, {
+                        let input = input.into_next_cursor_key().map_err(|_| {
+                            DiffLogicError::Unspecified("Expected NextCursorKey".to_string())
+                        })?;
+                        this.on_got_next_cursor(input)
+                    });
+
+                    Ok(DiffLogicAction::GetNextCursorKey)
+                })
+            }
+        };
+
+        DiffLogic {
+            from_generation_id: self.from_generation_id.unwrap_or(GenerationId::empty()),
+            to_generation_id: self.to_generation_id,
+            is_required_to_stop: false,
+            items_limit: self.items_limit,
+            handler,
+            changed_key_holder,
+            next_changed_key_holder,
+            current_record_key_holder,
+            first_key_holder,
+            last_key_holder,
+            temp_key_holder,
+        }
+    }
 }
 
 impl<'a> DiffLogic<'a> {
     pub fn run<'b>(&'b mut self, input: DiffLogicInput<'_>) -> HandlerResult<'b> {
         (self.handler)(self, input)
+    }
+
+    pub fn require_to_stop(&mut self) {
+        self.is_required_to_stop = true;
     }
 
     fn init(&mut self) -> Result<DiffLogicAction<'a>, DiffLogicError> {
@@ -119,11 +265,13 @@ impl<'a> DiffLogic<'a> {
         &mut self,
         changed_key: Option<CollectionKey<'_>>,
     ) -> HandlerResult<'_> {
-        debug_print(format!("on_got_first_changed_key: {changed_key:?}").as_str());
+        if WITH_DEBUG_PRINTS {
+            debug_print(format!("on_got_first_changed_key: {changed_key:?}").as_str());
+        }
 
         let Some(changed_key) = changed_key else {
             self.handler = make_handler!(_this, _input, { Err(DiffLogicError::AlreadyFinished) });
-            return Ok(DiffLogicAction::Sub(DiffLogicSubAction::Finish));
+            return Ok(DiffLogicAction::Sub(DiffLogicSubAction::Finish(None)));
         };
 
         write_collection_key_to_holder(&mut self.changed_key_holder, changed_key);
@@ -141,7 +289,9 @@ impl<'a> DiffLogic<'a> {
         &mut self,
         next_changed_key: Option<CollectionKey<'_>>,
     ) -> HandlerResult<'_> {
-        debug_print(format!("on_got_next_changed_key: {next_changed_key:?}").as_str());
+        if WITH_DEBUG_PRINTS {
+            debug_print(format!("on_got_next_changed_key: {next_changed_key:?}").as_str());
+        }
 
         write_collection_key_to_holder_optional(
             &mut self.next_changed_key_holder,
@@ -167,7 +317,9 @@ impl<'a> DiffLogic<'a> {
         &mut self,
         key: Option<ParsedRecordKey<'_>>,
     ) -> Result<DiffLogicAction<'_>, DiffLogicError> {
-        debug_print(format!("on_got_next_after_cursor_set: {key:?}").as_str());
+        if WITH_DEBUG_PRINTS {
+            debug_print(format!("on_got_next_after_cursor_set: {key:?}").as_str());
+        }
 
         let Some(key) = key else {
             self.handler = make_handler!(_this, _input, { Err(DiffLogicError::AlreadyErrored) });
@@ -200,7 +352,9 @@ impl<'a> DiffLogic<'a> {
         &mut self,
         key: Option<ParsedRecordKey<'_>>,
     ) -> Result<DiffLogicAction<'_>, DiffLogicError> {
-        debug_print(format!("on_got_next_cursor: {key:?}").as_str());
+        if WITH_DEBUG_PRINTS {
+            debug_print(format!("on_got_next_cursor: {key:?}").as_str());
+        }
         self.handle_keys_pair(key)
     }
 
@@ -211,7 +365,9 @@ impl<'a> DiffLogic<'a> {
         let current_key = parsed_key_from_holder(&self.current_record_key_holder);
         let current_collection_key = current_key.collection_key();
 
-        debug_print(format!("handle_keys_pair: {current_key:?} {next_key:?}").as_str());
+        if WITH_DEBUG_PRINTS {
+            debug_print(format!("handle_keys_pair: {current_key:?} {next_key:?}").as_str());
+        }
 
         // If this is last key, or collection key differs, or next generation is greater than we
         // need, then this is the end for this key
@@ -259,6 +415,19 @@ impl<'a> DiffLogic<'a> {
                 next_key.as_ref().expect("already checked"),
             );
 
+            if self.is_required_to_stop {
+                return Ok(DiffLogicAction::Sub(DiffLogicSubAction::Finish(Some(
+                    Self::make_resume(
+                        DiffLogicResumeAction::GetNextCursorKey,
+                        &self.changed_key_holder,
+                        &self.next_changed_key_holder,
+                        &self.current_record_key_holder,
+                        &self.first_key_holder,
+                        &self.last_key_holder,
+                    ),
+                ))));
+            }
+
             self.handler = make_handler!(this, input, {
                 let input = input.into_next_cursor_key().map_err(|_| {
                     DiffLogicError::Unspecified("Expected NextCursorKey".to_string())
@@ -291,7 +460,7 @@ impl<'a> DiffLogic<'a> {
                 // No more changed keys to see
                 self.handler =
                     make_handler!(_this, _input, { Err(DiffLogicError::AlreadyFinished) });
-                break 'block DiffLogicSubAction::Finish;
+                break 'block DiffLogicSubAction::Finish(None);
             };
 
             if let Some(next_key) = next_key.as_ref() {
@@ -332,6 +501,41 @@ impl<'a> DiffLogic<'a> {
             )
         };
 
+        self.items_limit -= 1;
+
+        if WITH_DEBUG_PRINTS {
+            debug_print(format!("limit {}", self.items_limit).as_str());
+        }
+
+        let next_action = 'block: {
+            if self.items_limit == 0 || self.is_required_to_stop {
+                let action = match next_action {
+                    DiffLogicSubAction::SetCursorAndGetNextCursorKeyAndNextChangedKey(key) => {
+                        DiffLogicResumeAction::SetCursorAndGetNextCursorKeyAndNextChangedKey(
+                            key.to_owned(),
+                        )
+                    }
+                    DiffLogicSubAction::GetNextCursorKeyAndNextChangedKey => {
+                        DiffLogicResumeAction::GetNextCursorKeyAndNextChangedKey
+                    }
+                    action @ DiffLogicSubAction::Finish(_) => {
+                        break 'block action;
+                    }
+                };
+
+                DiffLogicSubAction::Finish(Some(Self::make_resume(
+                    action,
+                    &self.changed_key_holder,
+                    &self.next_changed_key_holder,
+                    &self.current_record_key_holder,
+                    &self.first_key_holder,
+                    &self.last_key_holder,
+                )))
+            } else {
+                next_action
+            }
+        };
+
         let key = first_key.as_ref().or(last_key.as_ref()).ok_or_else(|| {
             DiffLogicError::Unspecified(
                 "Both first and last keys are None, but we are checked it".to_string(),
@@ -351,7 +555,9 @@ impl<'a> DiffLogic<'a> {
         key: Option<ParsedRecordKey<'_>>,
         next_changed_key: Option<CollectionKey<'_>>,
     ) -> Result<DiffLogicAction<'_>, DiffLogicError> {
-        debug_print(format!("on_got_next_key_and_changed_key_with_existing_current: {key:?}, {next_changed_key:?}").as_str());
+        if WITH_DEBUG_PRINTS {
+            debug_print(format!("on_got_next_key_and_changed_key_with_existing_current: {key:?}, {next_changed_key:?}").as_str());
+        }
 
         self.first_key_holder.0 = None;
         self.last_key_holder.0 = None;
@@ -369,9 +575,11 @@ impl<'a> DiffLogic<'a> {
         key: Option<ParsedRecordKey<'_>>,
         next_changed_key: Option<CollectionKey<'_>>,
     ) -> Result<DiffLogicAction<'_>, DiffLogicError> {
-        debug_print(
-            format!("on_got_next_key_and_changed_key: {key:?}, {next_changed_key:?}").as_str(),
-        );
+        if WITH_DEBUG_PRINTS {
+            debug_print(
+                format!("on_got_next_key_and_changed_key: {key:?}, {next_changed_key:?}").as_str(),
+            );
+        }
 
         let Some(key) = key else {
             self.handler = make_handler!(_this, _input, { Err(DiffLogicError::AlreadyErrored) });
@@ -397,6 +605,29 @@ impl<'a> DiffLogic<'a> {
             this.on_got_next_cursor(input)
         });
         Ok(DiffLogicAction::GetNextCursorKey)
+    }
+
+    fn make_resume(
+        action: DiffLogicResumeAction,
+        changed_key_holder: &CollectionKeyHolder,
+        next_changed_key_holder: &CollectionKeyHolderOptional,
+        current_record_key_holder: &ParsedRecordKeyHolder,
+        first_key_holder: &ParsedRecordKeyHolderOptional,
+        last_key_holder: &ParsedRecordKeyHolderOptional,
+    ) -> ResumeDiffLogic {
+        ResumeDiffLogic {
+            action,
+            changed_key: collection_key_from_holder(changed_key_holder).to_owned(),
+            next_changed_key: collection_key_from_holder_optional(next_changed_key_holder)
+                .map(|x| x.to_owned()),
+            current_record_key: parsed_key_from_holder(current_record_key_holder)
+                .as_record_key()
+                .to_owned(),
+            first_key: parsed_key_from_holder_optional(first_key_holder)
+                .map(|x| x.as_record_key().to_owned()),
+            last_key: parsed_key_from_holder_optional(last_key_holder)
+                .map(|x| x.as_record_key().to_owned()),
+        }
     }
 }
 

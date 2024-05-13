@@ -135,12 +135,6 @@ async fn diff_test_inner() {
         OwnedGenerationId::from_boxed_slice(last_generation_id_bytes.into()).unwrap();
 
     let mut expected_pack_size_distribution = [20usize; 31];
-    expected_pack_size_distribution[0] = 2;
-    for i in 1..6 {
-        expected_pack_size_distribution[i] = 3;
-    }
-    expected_pack_size_distribution[6] = 4;
-    expected_pack_size_distribution[30] = 19;
 
     // should stuck on first generation, since it has 500 changes that is bigger than `diff_changes_limit`
     assert_diff(
@@ -159,6 +153,8 @@ async fn diff_test_inner() {
 
     let mut expected_pack_size_distribution = [3usize; 7];
     expected_pack_size_distribution[0] = 2;
+    expected_pack_size_distribution[1] = 4;
+    expected_pack_size_distribution[6] = 2;
 
     assert_diff(
         &collection,
@@ -232,6 +228,7 @@ async fn assert_diff(
     let mut diff_mode = diff_mode;
     let mut expected_diff = expected_diff;
     let mut expected_pack_size_distribution = expected_pack_size_distribution;
+    let mut iteration_index = 0usize;
 
     loop {
         let result = match diff_mode {
@@ -265,7 +262,10 @@ async fn assert_diff(
         let expected_items_count = expected_diff.len();
         let items_count = items.len();
 
-        assert!(items_count <= expected_items_count);
+        assert!(
+            items_count <= expected_items_count,
+            "items_count({items_count}) should be <= expected_items_count({expected_items_count}) at iteration {iteration_index}"
+        );
         assert!(
             items_count <= PACK_LIMIT,
             "items_count = {}, PACK_LIMIT = {}",
@@ -279,7 +279,7 @@ async fn assert_diff(
         }
 
         if let Some(expected) = expected_pack_size_distribution {
-            // assert_eq!(items_count, expected[0]);
+            assert_eq!(items_count, expected[0], "at iteration {iteration_index}");
         }
 
         let mut items_iterator = items.into_iter();
@@ -309,6 +309,7 @@ async fn assert_diff(
         expected_diff = &expected_diff[index..];
         expected_pack_size_distribution =
             expected_pack_size_distribution.map(|expected| &expected[1..]);
+        iteration_index += 1;
 
         let cursor_id = match cursor_id {
             Some(id) => id,

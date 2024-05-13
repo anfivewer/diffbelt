@@ -184,6 +184,10 @@ impl<'a> GcIterator<'a> {
         Ok(())
     }
 
+    pub fn make_invalid(&mut self) {
+        self.is_invalid = true;
+    }
+
     pub fn save_state(&mut self) -> Result<(), RawDbError> {
         if self.is_saved {
             panic!("Cannot save state twice");

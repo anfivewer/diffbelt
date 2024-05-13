@@ -1,6 +1,6 @@
-use rocksdb::WriteBatch;
+use std::cmp;
 
-use diffbelt_util::debug_print::debug_print;
+use rocksdb::WriteBatch;
 
 use crate::collection::constants::{COLLECTION_CF_META, COLLECTION_META_GC_PHANTOM_ID_KEY};
 use crate::collection::util::record_key::OwnedRecordKey;
@@ -13,7 +13,7 @@ use crate::raw_db::diff_collection_records::state::single_generation::SingleGene
 use crate::raw_db::diff_collection_records::state::{DiffState, DiffStateMode, DiffStateNewResult};
 use crate::raw_db::diff_logic::input::DiffLogicInput;
 use crate::raw_db::diff_logic::{
-    DiffLogicAction, DiffLogicSubAction, EmitItemAction, NewDiffLogic,
+    DiffLogicAction, DiffLogicSubAction, EmitItemAction, NewDiffLogic, ResumeDiffLogic,
 };
 use crate::raw_db::garbage_collector::gc_iterator::NewGcIterator;
 use crate::raw_db::{RawDb, RawDbError};
@@ -36,11 +36,11 @@ pub struct DiffCollectionRecordsOk {
     pub next_diff_state: Option<DiffCursorState>,
 }
 
+#[derive(Debug)]
 pub struct DiffCursorState {
-    changed_key: OwnedCollectionKey,
-    first_value: Option<Box<[u8]>>,
-    last_value: Option<Box<[u8]>>,
-    next_record_key: OwnedRecordKey,
+    changed_key: Option<OwnedCollectionKey>,
+    diff_logic_resume: ResumeDiffLogic,
+    seek_cursor_to: Option<OwnedRecordKey>,
 }
 
 impl RawDb {
@@ -53,7 +53,7 @@ impl RawDb {
             to_generation_id_loose,
             prev_diff_state,
             limit,
-            records_to_view_limit,
+            mut records_to_view_limit,
             total_count_in_generations_limit,
         } = options;
 
@@ -102,15 +102,15 @@ impl RawDb {
 
         let to_generation_id = state.to_generation_id.clone();
 
-        debug_print(format!("start diff {from_generation_id:?} {to_generation_id:?}").as_str());
-
-        let mut logic = NewDiffLogic {
+        let logic = NewDiffLogic {
             from_generation_id,
             to_generation_id: to_generation_id.as_ref(),
             items_limit: limit,
-            records_to_view_limit,
-        }
-        .new();
+        };
+        let mut logic = match prev_diff_state {
+            None => logic.new(),
+            Some(continuation) => logic.resume(&continuation.diff_logic_resume),
+        };
 
         let (capacity_hint, mut changed_keys_iterator) = match mode {
             DiffStateMode::InMemory(in_memory) => {
@@ -130,7 +130,7 @@ impl RawDb {
             }
         };
 
-        let mut items = Vec::with_capacity(capacity_hint);
+        let mut items = Vec::with_capacity(cmp::min(limit, capacity_hint));
 
         let mut gc_iterator = NewGcIterator {
             gc_phantom_id,
@@ -139,24 +139,53 @@ impl RawDb {
         }
         .new();
 
+        if let Some(continuation) = prev_diff_state {
+            let key = continuation.seek_cursor_to.as_ref().map(|x| x.as_ref());
+            if let Some(key) = key {
+                () = gc_iterator.seek(key.get_byte_array())?;
+            } else {
+                gc_iterator.make_invalid();
+            }
+        }
+
         let mut action = logic.run(DiffLogicInput::Init)?;
+        let mut continuation = None;
+        let mut seek_cursor_to = None;
 
         loop {
             let sub = match action {
                 DiffLogicAction::GetNextChangedKey => {
                     let key = changed_keys_iterator.next().transpose()?;
                     let key = key.as_ref().map(|x| x.as_ref());
+
+                    records_to_view_limit = records_to_view_limit.checked_sub(1).unwrap_or(0);
+                    if records_to_view_limit == 0 {
+                        logic.require_to_stop();
+                    }
+
                     action = logic.run(DiffLogicInput::NextChangedKey(key))?;
                     continue;
                 }
                 DiffLogicAction::SetCursorAndGetNext(key) => {
                     gc_iterator.seek(key.get_byte_array())?;
                     let key = gc_iterator.next_key()?;
+
+                    records_to_view_limit = records_to_view_limit.checked_sub(1).unwrap_or(0);
+                    if records_to_view_limit == 0 {
+                        logic.require_to_stop();
+                    }
+
                     action = logic.run(DiffLogicInput::NextCursorKey(key))?;
                     continue;
                 }
                 DiffLogicAction::GetNextCursorKey => {
                     let key = gc_iterator.next_key()?;
+
+                    records_to_view_limit = records_to_view_limit.checked_sub(1).unwrap_or(0);
+                    if records_to_view_limit == 0 {
+                        logic.require_to_stop();
+                    }
+
                     action = logic.run(DiffLogicInput::NextCursorKey(key))?;
                     continue;
                 }
@@ -182,8 +211,6 @@ impl RawDb {
                         .and_then(|x| x.to_none_if_empty())
                         != to_value.and_then(|x| x.to_none_if_empty());
 
-                    debug_print(format!("emit item {is_changed} {from_key:?} {to_key:?}").as_str());
-
                     if is_changed {
                         let to_value = to_value.and_then(|x| x.to_owned_if_not_empty());
 
@@ -208,6 +235,12 @@ impl RawDb {
                     let cursor_key = gc_iterator.next_key()?;
                     let changed_key = changed_keys_iterator.next().transpose()?;
                     let changed_key = changed_key.as_ref().map(|x| x.as_ref());
+
+                    records_to_view_limit = records_to_view_limit.checked_sub(1).unwrap_or(0);
+                    if records_to_view_limit == 0 {
+                        logic.require_to_stop();
+                    }
+
                     action = logic.run(DiffLogicInput::NextCursorAndChangedKey((
                         cursor_key,
                         changed_key,
@@ -218,19 +251,43 @@ impl RawDb {
                     let cursor_key = gc_iterator.next_key()?;
                     let changed_key = changed_keys_iterator.next().transpose()?;
                     let changed_key = changed_key.as_ref().map(|x| x.as_ref());
+
+                    records_to_view_limit = records_to_view_limit.checked_sub(1).unwrap_or(0);
+                    if records_to_view_limit == 0 {
+                        logic.require_to_stop();
+                    }
+
                     action = logic.run(DiffLogicInput::NextCursorAndChangedKey((
                         cursor_key,
                         changed_key,
                     )))?;
                     continue;
                 }
-                DiffLogicSubAction::Finish => {
+                DiffLogicSubAction::Finish(cont) => {
+                    continuation = cont;
+
+                    let cursor_key = gc_iterator.next_key()?;
+                    seek_cursor_to = cursor_key.map(|x| x.as_record_key().to_owned());
+
                     break;
                 }
             }
         }
 
         drop(gc_iterator);
+
+        let next_diff_state = match continuation {
+            None => None,
+            Some(diff_logic_resume) => {
+                let changed_key = changed_keys_iterator.next().transpose()?;
+
+                Some(DiffCursorState {
+                    changed_key,
+                    diff_logic_resume,
+                    seek_cursor_to,
+                })
+            }
+        };
 
         if !keys_to_remove.is_empty() {
             let mut batch = WriteBatch::default();
@@ -245,7 +302,7 @@ impl RawDb {
         Ok(DiffCollectionRecordsOk {
             to_generation_id,
             items,
-            next_diff_state: None,
+            next_diff_state,
         })
     }
 }

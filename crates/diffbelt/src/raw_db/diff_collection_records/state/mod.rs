@@ -15,10 +15,10 @@ use crate::raw_db::diff_collection_records::DiffCursorState;
 use crate::raw_db::RawDbError;
 use crate::util::bytes::read_u32_be;
 
+pub mod changed_keys_iterator;
 mod diff;
 pub mod in_memory;
 pub mod single_generation;
-pub mod changed_keys_iterator;
 
 pub struct DiffStateInMemoryMode {
     pub changed_keys: BTreeSet<OwnedCollectionKey>,
@@ -183,35 +183,26 @@ impl<'a> DiffState<'a> {
             .cf_handle(COLLECTION_CF_GENERATIONS)
             .ok_or(RawDbError::CfHandle)?;
 
-        let DiffCursorState {
-            changed_key,
-            first_value,
-            last_value,
-            next_record_key,
-        } = prev_state;
+        let DiffCursorState { changed_key, .. } = prev_state;
 
-        let keys = collect_changed_keys(
-            db,
-            generations_cf,
-            from_generation_id,
-            to_generation_id,
-            Some(changed_key.as_ref()),
-        )?;
+        let keys = if changed_key.is_some() {
+            collect_changed_keys(
+                db,
+                generations_cf,
+                from_generation_id,
+                to_generation_id,
+                changed_key.as_ref().map(|x| x.as_ref()),
+            )?
+        } else {
+            BTreeSet::new()
+        };
 
         Ok(DiffStateNewResult::State((
             DiffState {
                 db,
                 from_generation_id,
                 to_generation_id: to_generation_id.to_owned(),
-                prev_state: Some(PrevDiffState {
-                    first_value: first_value
-                        .as_ref()
-                        .map(|bytes| AsRef::<[u8]>::as_ref(bytes)),
-                    last_value: last_value
-                        .as_ref()
-                        .map(|bytes| AsRef::<[u8]>::as_ref(bytes)),
-                    next_record_key: next_record_key.as_ref(),
-                }),
+                prev_state: None,
                 records_to_view_left: records_to_view_limit,
                 pack_limit,
             },
