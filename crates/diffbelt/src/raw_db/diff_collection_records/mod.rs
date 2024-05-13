@@ -1,11 +1,19 @@
-use rocksdb::WriteBatch;
 use crate::collection::constants::{COLLECTION_CF_META, COLLECTION_META_GC_PHANTOM_ID_KEY};
 use crate::collection::util::record_key::OwnedRecordKey;
-use crate::common::{GenerationId, IsByteArray, KeyValueDiff, OwnedCollectionKey, OwnedGenerationId, PhantomId};
+use crate::common::{
+    GenerationId, IsByteArray, KeyValueDiff, OwnedCollectionKey, OwnedGenerationId, PhantomId,
+};
+use crate::raw_db::diff_collection_records::state::changed_keys_iterator::ChangedKeysIteratorImpl;
 use crate::raw_db::diff_collection_records::state::in_memory::InMemoryChangedKeysIter;
 use crate::raw_db::diff_collection_records::state::single_generation::SingleGenerationChangedKeysIter;
 use crate::raw_db::diff_collection_records::state::{DiffState, DiffStateMode, DiffStateNewResult};
+use crate::raw_db::diff_logic::input::DiffLogicInput;
+use crate::raw_db::diff_logic::{
+    DiffLogic, DiffLogicAction, DiffLogicSubAction, EmitItemAction, NewDiffLogic,
+};
+use crate::raw_db::garbage_collector::gc_iterator::NewGcIterator;
 use crate::raw_db::{RawDb, RawDbError};
+use rocksdb::WriteBatch;
 
 mod state;
 
@@ -89,17 +97,22 @@ impl RawDb {
 
         let mut keys_to_remove = Vec::new();
 
-        let result = match mode {
+        let to_generation_id = state.to_generation_id.clone();
+
+        let mut logic = NewDiffLogic {
+            from_generation_id,
+            to_generation_id: to_generation_id.as_ref(),
+            items_limit: limit,
+            records_to_view_limit,
+        }
+        .new();
+
+        let (capacity_hint, mut changed_keys_iterator) = match mode {
             DiffStateMode::InMemory(in_memory) => {
-                let capacity_hint = Some(in_memory.changed_keys.len());
+                let capacity_hint = in_memory.changed_keys.len();
                 let iterator = InMemoryChangedKeysIter::new(in_memory.changed_keys);
 
-                state.diff_collection_records_sync(
-                    iterator,
-                    capacity_hint,
-                    &mut keys_to_remove,
-                    gc_phantom_id,
-                )
+                (capacity_hint, ChangedKeysIteratorImpl::InMemory(iterator))
             }
             DiffStateMode::SingleGeneration => {
                 let iterator = SingleGenerationChangedKeysIter::new(
@@ -108,14 +121,102 @@ impl RawDb {
                     state.get_from_collection_key(),
                 )?;
 
-                state.diff_collection_records_sync(
-                    iterator,
-                    None,
-                    &mut keys_to_remove,
-                    gc_phantom_id,
-                )
+                (limit, ChangedKeysIteratorImpl::SingleGeneration(iterator))
             }
         };
+
+        let mut items = Vec::with_capacity(capacity_hint);
+
+        let mut gc_iterator = NewGcIterator {
+            gc_phantom_id,
+            db_iterator: db.raw_iterator(),
+            keys_to_delete: &mut keys_to_remove,
+        }
+        .new();
+
+        let mut action = logic.run(DiffLogicInput::Init)?;
+
+        loop {
+            let sub = match action {
+                DiffLogicAction::GetNextChangedKey => {
+                    let key = changed_keys_iterator.next().transpose()?;
+                    let key = key.as_ref().map(|x| x.as_ref());
+                    action = logic.run(DiffLogicInput::NextChangedKey(key))?;
+                    continue;
+                }
+                DiffLogicAction::SetCursorAndGetNext(key) => {
+                    gc_iterator.seek(key.get_byte_array())?;
+                    let key = gc_iterator.next_key()?;
+                    action = logic.run(DiffLogicInput::NextCursorKey(key))?;
+                    continue;
+                }
+                DiffLogicAction::GetNextCursorKey => {
+                    let key = gc_iterator.next_key()?;
+                    action = logic.run(DiffLogicInput::NextCursorKey(key))?;
+                    continue;
+                }
+                DiffLogicAction::EmitItem(EmitItemAction {
+                    key,
+                    from_key,
+                    to_key,
+                    next_action,
+                }) => {
+                    if from_key != to_key {
+                        () = gc_iterator.save_state()?;
+
+                        let from_value = from_key
+                            .map(|x| gc_iterator.get_value_for_key(x))
+                            .transpose()?
+                            .and_then(|x| x.to_owned_if_not_empty());
+                        let to_value = to_key
+                            .map(|x| gc_iterator.get_value_for_key(x))
+                            .transpose()?
+                            .and_then(|x| x.to_owned_if_not_empty());
+
+                        items.push(KeyValueDiff {
+                            key: key.to_owned(),
+                            from_value,
+                            intermediate_values: Vec::new(),
+                            to_value,
+                        });
+
+                        () = gc_iterator.restore_state()?;
+                    }
+
+                    next_action
+                }
+                DiffLogicAction::Sub(sub) => sub,
+            };
+
+            match sub {
+                DiffLogicSubAction::SetCursorAndGetNextCursorKeyAndNextChangedKey(key) => {
+                    gc_iterator.seek(key.get_byte_array())?;
+                    let cursor_key = gc_iterator.next_key()?;
+                    let changed_key = changed_keys_iterator.next().transpose()?;
+                    let changed_key = changed_key.as_ref().map(|x| x.as_ref());
+                    action = logic.run(DiffLogicInput::NextCursorAndChangedKey((
+                        cursor_key,
+                        changed_key,
+                    )))?;
+                    continue;
+                }
+                DiffLogicSubAction::GetNextCursorKeyAndNextChangedKey => {
+                    let cursor_key = gc_iterator.next_key()?;
+                    let changed_key = changed_keys_iterator.next().transpose()?;
+                    let changed_key = changed_key.as_ref().map(|x| x.as_ref());
+                    action = logic.run(DiffLogicInput::NextCursorAndChangedKey((
+                        cursor_key,
+                        changed_key,
+                    )))?;
+                    continue;
+                }
+                DiffLogicSubAction::Finish => {
+                    break;
+                }
+            }
+        }
+
+        drop(gc_iterator);
 
         if !keys_to_remove.is_empty() {
             let mut batch = WriteBatch::default();
@@ -127,6 +228,10 @@ impl RawDb {
             db.write(batch)?;
         }
 
-        result
+        Ok(DiffCollectionRecordsOk {
+            to_generation_id,
+            items,
+            next_diff_state: None,
+        })
     }
 }

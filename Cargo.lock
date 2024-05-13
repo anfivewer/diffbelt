@@ -618,6 +618,7 @@ dependencies = [
  "diffbelt_util",
  "diffbelt_util_no_std",
  "enum-as-inner",
+ "enum_dispatch",
  "futures",
  "hashbrown 0.14.3",
  "hyper",

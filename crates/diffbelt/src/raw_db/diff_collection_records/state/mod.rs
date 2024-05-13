@@ -18,6 +18,7 @@ use crate::util::bytes::read_u32_be;
 mod diff;
 pub mod in_memory;
 pub mod single_generation;
+pub mod changed_keys_iterator;
 
 pub struct DiffStateInMemoryMode {
     pub changed_keys: BTreeSet<OwnedCollectionKey>,
@@ -38,7 +39,7 @@ pub struct PrevDiffState<'a> {
 pub struct DiffState<'a> {
     db: &'a rocksdb::DB,
     from_generation_id: Option<GenerationId<'a>>,
-    to_generation_id: OwnedGenerationId,
+    pub to_generation_id: OwnedGenerationId,
     prev_state: Option<PrevDiffState<'a>>,
     records_to_view_left: usize,
     pack_limit: usize,

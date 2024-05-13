@@ -158,7 +158,7 @@ fn cleanup_collection_key(
         let (key, _) = item?;
 
         let record_key = RecordKey::validate(&key).map_err(|_| RawDbError::InvalidRecordKey)?;
-        let record_key_parsed = record_key.parse();
+        let record_key_parsed = record_key.parse_old();
 
         if record_key_parsed.collection_key != collection_key {
             break 'records_loop;

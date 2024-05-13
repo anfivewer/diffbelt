@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use std::iter;
 use std::ops::Range;
 
@@ -14,8 +15,8 @@ pub struct RecordKey<'a> {
     value: &'a [u8],
 }
 
-impl RecordKey<'_> {
-    pub fn new_unchecked(value: &[u8]) -> Self {
+impl<'a> RecordKey<'a> {
+    pub fn new_unchecked(value: &'a [u8]) -> Self {
         Self { value }
     }
 }
@@ -40,10 +41,13 @@ impl PartialEq for ParsedRecordKey<'_> {
 
 impl<'a> ParsedRecordKey<'a> {
     pub fn new_unchecked(bytes: &'a [u8], ranges: ParsedRecordKeyRanges) -> Self {
-        Self { bytes_inner: bytes, ranges_inner: ranges }
+        Self {
+            bytes_inner: bytes,
+            ranges_inner: ranges,
+        }
     }
 
-    pub fn new_on_vec<'a>(
+    pub fn new_on_vec(
         vec: &'a mut Vec<u8>,
         key: CollectionKey<'_>,
         generation_id: GenerationId<'_>,
@@ -51,7 +55,8 @@ impl<'a> ParsedRecordKey<'a> {
     ) -> Result<Self, ()> {
         let key_bytes = key.get_byte_array();
         let generation_id_bytes = generation_id.get_byte_array();
-        let phantom_id_bytes = phantom_id.map_or(&[] as &[u8], |x| x.get_byte_array());
+        let phantom_id_bytes = phantom_id.unwrap_or(PhantomId::empty());
+        let phantom_id_bytes = phantom_id_bytes.get_byte_array();
 
         if key_bytes.len() > MAX_COLLECTION_KEY_LENGTH
             || generation_id_bytes.len() > MAX_GENERATION_ID_LENGTH
@@ -68,7 +73,7 @@ impl<'a> ParsedRecordKey<'a> {
         vec.extend(iter::repeat(0u8).take(len));
 
         write_record_key(
-            &mut vec.as_slice()[0..len],
+            &mut vec.as_mut_slice()[0..len],
             key_bytes,
             generation_id_bytes,
             phantom_id_bytes,
@@ -101,22 +106,24 @@ impl<'a> ParsedRecordKey<'a> {
     }
 
     pub fn as_record_key(&self) -> RecordKey<'a> {
-        RecordKey { value: self.bytes_inner }
+        RecordKey {
+            value: self.bytes_inner,
+        }
     }
 
     pub fn collection_key(&self) -> CollectionKey<'a> {
-        CollectionKey(&self.bytes_inner[self.ranges_inner.collection_key.clone()])
+        CollectionKey::new_unchecked(&self.bytes_inner[self.ranges_inner.collection_key.clone()])
     }
 
     pub fn generation_id(&self) -> GenerationId<'a> {
-        GenerationId(&self.bytes_inner[self.ranges_inner.generation_id.clone()])
+        GenerationId::new_unchecked(&self.bytes_inner[self.ranges_inner.generation_id.clone()])
     }
 
     pub fn phantom_id(&self) -> Option<PhantomId<'a>> {
         self.ranges_inner
             .phantom_id
             .as_ref()
-            .map(|range| PhantomId(&self.bytes_inner[range.clone()]))
+            .map(|range| PhantomId::new_unchecked(&self.bytes_inner[range.clone()]))
     }
 
     pub fn bytes(&self) -> &[u8] {
@@ -128,11 +135,33 @@ impl<'a> ParsedRecordKey<'a> {
     }
 }
 
+impl Debug for ParsedRecordKey<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        () = f.write_fmt(format_args!(
+            "ParsedRecordKey(CollectionKey = {:?}, GenerationId = {:?}, PhantomId = {:?})",
+            self.collection_key(),
+            self.generation_id(),
+            self.phantom_id()
+        ))?;
+        Ok(())
+    }
+}
+
 #[derive(Clone)]
 pub struct ParsedRecordKeyRanges {
     pub collection_key: Range<usize>,
     pub generation_id: Range<usize>,
     pub phantom_id: Option<Range<usize>>,
+}
+
+impl Default for ParsedRecordKeyRanges {
+    fn default() -> Self {
+        Self {
+            collection_key: 0..0,
+            generation_id: 0..0,
+            phantom_id: None,
+        }
+    }
 }
 
 pub struct OwnedParsedRecordKey {
@@ -309,7 +338,7 @@ impl<'a> RecordKey<'a> {
         PhantomId::new(&self.value[offset..(offset + size)])
     }
 
-    pub fn parse(&self) -> ParsedRecordKeyOld<'a> {
+    pub fn parse_old(&self) -> ParsedRecordKeyOld<'a> {
         let (collection_key, generation_id, phantom_id) = self.parse_to_ranges();
 
         ParsedRecordKeyOld {
@@ -318,6 +347,19 @@ impl<'a> RecordKey<'a> {
             phantom_id: phantom_id
                 .as_ref()
                 .map(|range| PhantomId::new_unchecked(by_range(&self.value, range))),
+        }
+    }
+
+    pub fn parse(&self) -> ParsedRecordKey<'a> {
+        let (collection_key, generation_id, phantom_id) = self.parse_to_ranges();
+
+        ParsedRecordKey {
+            bytes_inner: &self.value,
+            ranges_inner: ParsedRecordKeyRanges {
+                collection_key,
+                generation_id,
+                phantom_id,
+            },
         }
     }
 

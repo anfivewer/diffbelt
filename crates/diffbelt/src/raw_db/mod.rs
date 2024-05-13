@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 use std::sync::Arc;
 
 use rocksdb::{ColumnFamilyDescriptor, MergeOperands, Options, DB, DEFAULT_COLUMN_FAMILY_NAME, BoundColumnFamily};
+use thiserror::Error;
+use crate::raw_db::diff_logic::error::DiffLogicError;
 
 pub mod commit_generation;
 pub mod contains_existing_collection_record;
@@ -60,31 +62,36 @@ impl RawDb {
 }
 
 #[derive(Debug)]
+#[derive(Error)]
 pub enum RawDbError {
-    RocksDb(rocksdb::Error),
-    Join(tokio::task::JoinError),
+    #[error(transparent)]
+    RocksDb(#[from] rocksdb::Error),
+    #[error(transparent)]
+    Join(#[from] tokio::task::JoinError),
+    #[error("CfHandle")]
     CfHandle,
+    #[error("InvalidRecordKey")]
     InvalidRecordKey,
+    #[error("InvalidGenerationKey")]
     InvalidGenerationKey,
+    #[error("InvalidReaderValue")]
     InvalidReaderValue,
+    #[error("InvalidGenerationId")]
     InvalidGenerationId,
+    #[error("UpdateReader")]
     UpdateReader,
+    #[error("NoSuchReader")]
     NoSuchReader,
+    #[error("NoSuchPhantom")]
     NoSuchPhantom,
+    #[error("CursorDidNotFoundRecord")]
     CursorDidNotFoundRecord,
+    #[error("DiffNoChangedKeyRecord({0})")]
     DiffNoChangedKeyRecord(&'static str),
-}
-
-impl From<rocksdb::Error> for RawDbError {
-    fn from(err: rocksdb::Error) -> Self {
-        RawDbError::RocksDb(err)
-    }
-}
-
-impl From<tokio::task::JoinError> for RawDbError {
-    fn from(err: tokio::task::JoinError) -> Self {
-        RawDbError::Join(err)
-    }
+    #[error(transparent)]
+    DiffLogic(#[from] DiffLogicError),
+    #[error("Unspecified({0})")]
+    Unspecified(String),
 }
 
 impl RawDb {

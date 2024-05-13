@@ -280,6 +280,13 @@ impl<'a> CollectionValue<'a> {
     pub fn to_owned(&self) -> OwnedCollectionValue {
         OwnedCollectionValue(self.0.into())
     }
+    pub fn to_owned_if_not_empty(&self) -> Option<OwnedCollectionValue> {
+        if self.is_empty() {
+            return None;
+        }
+
+        Some(OwnedCollectionValue(self.0.into()))
+    }
 }
 
 impl IsByteArray for OwnedCollectionValue {
