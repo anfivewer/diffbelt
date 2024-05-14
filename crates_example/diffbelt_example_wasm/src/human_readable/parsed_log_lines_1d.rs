@@ -2,9 +2,11 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
 
+use crate::global::BUFFER_FOR_REALIGN;
 use diffbelt_example_protos::protos::log_line::{
     LogTypeWithCount, LogTypeWithCountArgs, ParsedLogLine1d, ParsedLogLine1dArgs,
 };
+use diffbelt_protos::align_util::AlignedBytes;
 use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
 use diffbelt_util_no_std::bytes::{read_u32_be, write_u32_be};
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, u32_to_usize};
@@ -123,6 +125,9 @@ impl HumanReadable for ParsedLogLines1dKv {
         buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
         let slice = unsafe { (*input_and_output.value).as_slice() };
+        let slice =
+            AlignedBytes::ensure_alignment_or_copy(slice, unsafe { &mut BUFFER_FOR_REALIGN })
+                .expect("align error");
 
         let serialized = deserialize::<ParsedLogLine1d>(slice).expect("cannot parse");
 

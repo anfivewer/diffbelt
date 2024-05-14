@@ -5,7 +5,9 @@ use core::str::Utf8Error;
 
 use thiserror_no_std::Error;
 
+use crate::global::BUFFER_FOR_REALIGN;
 use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineArgs, Prop, PropArgs};
+use diffbelt_protos::align_util::AlignedBytes;
 use diffbelt_protos::{deserialize, InvalidFlatbuffer, SerializedRawParts, Serializer};
 use diffbelt_wasm_binding::annotations::{Annotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
@@ -230,6 +232,10 @@ impl HumanReadable for ParsedLogLinesKv {
             let mut s = String::from_utf8(vec).expect("empty vec should be valid string");
 
             let bytes = unsafe { (&*input_and_output.value).as_slice() };
+            let bytes =
+                AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
+                    .expect("align error");
+
             let log_line = deserialize::<ParsedLogLine>(bytes)?;
 
             let log_level = log_line.log_level();

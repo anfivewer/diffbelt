@@ -1,3 +1,4 @@
+use crate::align_util::OwnedAlignedBytes;
 use crate::protos::transform::map_filter::{RecordUpdate, RecordUpdateArgs};
 use crate::{OwnedSerialized, SerializedRawParts, Serializer};
 
@@ -18,16 +19,12 @@ fn restore_owned() {
     let serialized = serializer.finish(record);
     let serialized = serialized.into_owned();
 
-    let SerializedRawParts {
-        mut buffer,
-        head,
-        len,
-    } = serialized.into_raw_parts();
+    let SerializedRawParts { buffer, head, len } = serialized.into_raw_parts();
 
-    buffer.copy_within(head..(head + len), 0);
-    buffer.truncate(len);
+    let buffer = OwnedAlignedBytes::new(buffer, head, len).expect("align error");
 
-    let serialized = OwnedSerialized::<RecordUpdate>::from_aligned_bytes(buffer).expect("should parse");
+    let serialized =
+        OwnedSerialized::<RecordUpdate>::from_aligned_bytes(buffer).expect("should parse");
     let serialized = serialized.data();
 
     assert!(serialized.value().is_none());
