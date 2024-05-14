@@ -3,6 +3,7 @@ use std::str::Utf8Error;
 
 use text_diff::Difference;
 use thiserror::Error;
+use diffbelt_protos::align_util::AlignedBytesError;
 
 use diffbelt_protos::InvalidFlatbuffer;
 use diffbelt_util::errors::NoStdErrorWrap;
@@ -59,6 +60,8 @@ pub enum TestError {
     YamlTestVars(#[from] YamlTestVarsError),
     #[error(transparent)]
     YamlSerialization(#[from] YamlSerializationError),
+    #[error("{:?}", .0.reason)]
+    AlignedBytes(AlignedBytesError),
 }
 
 impl_from_either!(TestError);

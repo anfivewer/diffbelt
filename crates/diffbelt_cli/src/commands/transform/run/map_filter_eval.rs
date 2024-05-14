@@ -3,7 +3,8 @@ use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
 use diffbelt_cli_config::wasm::memory::vector::WasmVecHolder;
-use diffbelt_cli_config::wasm::{MapFilterFunction, WasmModuleInstance};
+use diffbelt_cli_config::wasm::{MapFilterFunction, WasmError, WasmModuleInstance};
+use diffbelt_protos::align_util::OwnedAlignedBytes;
 use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
 use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_transforms::base::action::function_eval::{FunctionEvalAction, MapFilterEvalAction};
@@ -86,9 +87,13 @@ impl FunctionEvalHandler for MapFilterEvalHandler {
                 .call(input.as_bytes(), &self.inner.vec_holder)
                 .await?;
 
-            () = output.observe_bytes(|bytes| {
+            let aligned_bytes = output.observe_bytes(|bytes| {
+                let aligned_bytes = OwnedAlignedBytes::copy_slice(outputs_buffer, bytes)
+                    .map_err(WasmError::AlignedBytes)?;
+
                 // just validate
-                let output = deserialize::<MapFilterMultiOutput>(bytes).map_err(NoStdErrorWrap)?;
+                let output = deserialize::<MapFilterMultiOutput>(aligned_bytes.as_ref())
+                    .map_err(NoStdErrorWrap)?;
                 let Some(_records) = output.target_update_records() else {
                     return Err(TransformEvalError::Unspecified(
                         "map_filter function did not returned event empty target_update_records"
@@ -96,14 +101,12 @@ impl FunctionEvalHandler for MapFilterEvalHandler {
                     ));
                 };
 
-                outputs_buffer.clear();
-                outputs_buffer.extend_from_slice(bytes);
-
-                Ok::<_, TransformEvalError>(())
+                Ok::<_, TransformEvalError>(aligned_bytes)
             })?;
 
-            let output = OwnedSerialized::<MapFilterMultiOutput<'static>>::from_vec(outputs_buffer)
-                .map_err(NoStdErrorWrap)?;
+            let output =
+                OwnedSerialized::<MapFilterMultiOutput<'static>>::from_aligned_bytes(aligned_bytes)
+                    .map_err(NoStdErrorWrap)?;
 
             Ok(FunctionEvalInput {
                 body: FunctionEvalInputBody::MapFilter(MapFilterEvalInput {

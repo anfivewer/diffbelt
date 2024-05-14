@@ -1,5 +1,20 @@
 mod generated;
 
+pub mod api {
+    pub mod common {
+        pub use super::super::generated::api::common_generated::*;
+    }
+    pub mod phantom {
+        pub use super::super::generated::api::phantom_generated::*;
+    }
+    pub mod get_keys_around {
+        pub use super::super::generated::api::get_keys_around_generated::*;
+    }
+    pub mod put_many {
+        pub use super::super::generated::api::put_many_generated::*;
+    }
+}
+
 pub mod transform {
     pub mod map_filter {
         use core::fmt::{Display, Formatter, Write};

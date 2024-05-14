@@ -1,6 +1,4 @@
-use diffbelt_protos::{
-    deserialize_unchecked, FlatbuffersType, OwnedSerialized, Serializer, WIPOffset,
-};
+use diffbelt_protos::{FlatbuffersType, OwnedSerialized, Serializer, WIPOffset};
 
 use crate::annotations::{Annotated, AnnotatedTrait, FlatbufferAnnotated, InputOutputAnnotated};
 use crate::ptr::bytes::{BytesSlice, BytesVecRawParts};
@@ -63,58 +61,6 @@ impl<'fbb, F: FlatbuffersType<'fbb>> IntoSerializerAnnotated<'fbb, F>
             original: self,
             serializer,
         }
-    }
-}
-
-pub trait InputAnnotated<'fbb, Input: FlatbuffersType<'fbb>> {
-    unsafe fn deserialize(&self) -> Input::Inner;
-}
-
-impl<'fbb, Input: FlatbuffersType<'fbb>> InputAnnotated<'fbb, Input>
-    for FlatbufferAnnotated<*mut BytesSlice, Input>
-{
-    unsafe fn deserialize(&self) -> Input::Inner {
-        let slice = unsafe { (&*self.value).as_slice() };
-
-        let result = deserialize_unchecked::<Input>(slice);
-
-        result
-    }
-}
-
-impl<'fbb, Input: FlatbuffersType<'fbb>, Output> InputAnnotated<'fbb, Input>
-    for FlatbufferAnnotated<*mut BytesSlice, (Input, Output)>
-{
-    unsafe fn deserialize(&self) -> Input::Inner {
-        let slice = unsafe { (&*self.value).as_slice() };
-
-        let result = deserialize_unchecked::<Input>(slice);
-
-        result
-    }
-}
-
-impl<'fbb, Input: FlatbuffersType<'fbb>, Output> InputAnnotated<'fbb, Input>
-    for InputOutputAnnotated<*mut BytesSlice, Input, Output>
-{
-    unsafe fn deserialize(&self) -> Input::Inner {
-        let slice = unsafe { (&*self.value).as_slice() };
-
-        let result = deserialize_unchecked::<Input>(slice);
-
-        result
-    }
-}
-
-impl<'fbb, Input: FlatbuffersType<'fbb>, InputAnnotation, Output> InputAnnotated<'fbb, Input>
-    for InputOutputAnnotated<*mut BytesSlice, Annotated<Input, InputAnnotation>, Output>
-{
-    unsafe fn deserialize(&self) -> Input::Inner {
-        let slice = unsafe { (&*self.value).as_slice() };
-
-        let result = deserialize_unchecked::<Input>(slice);
-
-        result
     }
 }
 

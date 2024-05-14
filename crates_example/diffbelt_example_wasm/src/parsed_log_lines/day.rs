@@ -1,30 +1,25 @@
-use alloc::borrow::Cow;
-use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
 use core::str::from_utf8;
 
-use crate::parsed_log_lines::accumulator::DayAccumulator;
-use diffbelt_example_protos::protos::log_line::{
-    LogTypeWithCount, LogTypeWithCountArgs, ParsedLogLine1d, ParsedLogLine1dArgs,
-};
+use diffbelt_example_protos::protos::log_line::{ParsedLogLine1d, ParsedLogLine1dArgs};
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateApplyOutputArgs, AggregateMapMultiInput,
     AggregateMapMultiOutput, AggregateMapMultiOutputArgs, AggregateMapOutput,
     AggregateMapOutputArgs, AggregateReduceInput, AggregateTargetInfo,
 };
 use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
-use diffbelt_util_no_std::bytes::{read_u32_be, write_u32_be};
+use diffbelt_util_no_std::bytes::write_u32_be;
 use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize, u8_to_char};
-use diffbelt_wasm_binding::annotations::serializer::InputAnnotated;
 use diffbelt_wasm_binding::annotations::{Annotated, FlatbufferAnnotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 use diffbelt_wasm_binding::transform::aggregate::Aggregate;
-use diffbelt_wasm_binding::{debug_print_string, Regex};
+use diffbelt_wasm_binding::Regex;
 
+use crate::parsed_log_lines::accumulator::DayAccumulator;
 use crate::types::{ParsedLogLinesKey, ParsedLogLinesValue};
 
 struct ParsedLogLinesDay;

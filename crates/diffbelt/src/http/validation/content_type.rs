@@ -4,8 +4,14 @@ use regex::RegexBuilder;
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
 
+pub enum ContentType {
+    JsonUtf8,
+    Flatbuffers,
+}
+
 pub trait ContentTypeValidation: Request {
     fn allow_only_utf8_json_by_default(&self) -> Result<(), HttpError>;
+    fn allow_flatbuffers_or_utf8_json_by_default(&self) -> Result<ContentType, HttpError>;
 }
 
 impl<T: Request> ContentTypeValidation for T {
@@ -21,7 +27,27 @@ impl<T: Request> ContentTypeValidation for T {
         }
 
         Err(HttpError::ContentTypeUnsupported(
-            "supported Content-Types: application/json, supported charsets: utf-8",
+            "supported Content-Types: application/json; supported charsets: utf-8",
+        ))
+    }
+
+    fn allow_flatbuffers_or_utf8_json_by_default(&self) -> Result<ContentType, HttpError> {
+        let content_type = self.get_header("Content-Type");
+
+        let Some(content_type) = content_type else {
+            return Ok(ContentType::JsonUtf8);
+        };
+
+        if is_utf8_json_content_type(content_type) {
+            return Ok(ContentType::JsonUtf8);
+        }
+
+        if is_flatbuffers_content_type(content_type) {
+            return Ok(ContentType::Flatbuffers);
+        }
+
+        Err(HttpError::ContentTypeUnsupported(
+            "supported Content-Types: application/json, application/x-flatbuffers; supported charsets: utf-8",
         ))
     }
 }
@@ -30,6 +56,18 @@ fn is_utf8_json_content_type(value: &str) -> bool {
     lazy_static::lazy_static! {
         static ref RE: Regex =
             RegexBuilder::new("^application/json(;\\s*charset=utf-8)?$")
+                .case_insensitive(true)
+                .build()
+                .unwrap();
+    }
+
+    RE.is_match(value)
+}
+
+fn is_flatbuffers_content_type(value: &str) -> bool {
+    lazy_static::lazy_static! {
+        static ref RE: Regex =
+            RegexBuilder::new("^application/x-flatbuffers$")
                 .case_insensitive(true)
                 .build()
                 .unwrap();

@@ -1,0 +1,22 @@
+table GetKeysAroundRequest {
+  key: [ubyte];
+  require_key_existance: bool;
+  limit: uint;
+  /// optional
+  generation_id: [ubyte];
+  /// optional
+  phantom_id: [ubyte];
+}
+
+table GetKeysAroundKey {
+  key: [ubyte];
+}
+
+table GetKeysAroundResponse {
+  generation_id: [ubyte];
+  left: [GetKeysAroundKey];
+  right: [GetKeysAroundKey];
+  has_more_on_the_left: bool;
+  has_more_on_the_right: bool;
+  found_key: bool;
+}

@@ -3,8 +3,10 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
+use core::fmt::{Debug, Formatter};
 use core::marker::PhantomData;
 
+use crate::align_util::{AlignedBytes, OwnedAlignedBytes};
 use flatbuffers::{
     FlatBufferBuilder, Follow, ForwardsUOffset, Push, Verifiable, Verifier, VerifierOptions,
 };
@@ -12,24 +14,23 @@ pub use flatbuffers::{InvalidFlatbuffer, Vector, WIPOffset};
 
 use crate::error::{FlatbufferError, InvalidFlatbufferWithBuffer};
 
+pub mod align_util;
 pub mod error;
 pub mod protos;
 #[cfg(test)]
 mod tests;
 pub mod util;
 
+pub const FLATBUFFERS_ALIGNMENT: usize = 8;
+
 pub trait FlatbuffersType<'fbb>: Follow<'fbb> + Verifiable + 'fbb {}
 
 impl<'fbb, T: Follow<'fbb> + Verifiable + 'fbb> FlatbuffersType<'fbb> for T {}
 
 pub fn deserialize<'fbb, T: FlatbuffersType<'fbb>>(
-    bytes: &'fbb [u8],
+    bytes: AlignedBytes<'fbb, FLATBUFFERS_ALIGNMENT>,
 ) -> Result<T::Inner, InvalidFlatbuffer> {
-    flatbuffers::root::<T>(bytes)
-}
-
-pub unsafe fn deserialize_unchecked<'fbb, T: FlatbuffersType<'fbb>>(bytes: &'fbb [u8]) -> T::Inner {
-    flatbuffers::root_unchecked::<T>(bytes)
+    flatbuffers::root::<T>(bytes.as_slice())
 }
 
 #[derive(Debug)]
@@ -84,9 +85,13 @@ impl<'fbb, F: FlatbuffersType<'fbb>> Serializer<'fbb, F> {
 
     pub fn finish(mut self, root: WIPOffset<F>) -> Serialized<'fbb, F> {
         () = self.buffer_builder_.finish_minimal(root);
+        let len = self.buffer_builder_.finished_data().len();
+        let (buffer, head) = self.buffer_builder_.collapse();
+
+        let bytes = OwnedAlignedBytes::new(buffer, head, len).expect("serialization error");
 
         Serialized {
-            buffer_builder_: self.buffer_builder_,
+            bytes,
             phantom: PhantomData::default(),
         }
     }
@@ -102,13 +107,13 @@ impl<'fbb, F: FlatbuffersType<'fbb>> Serializer<'fbb, F> {
 }
 
 pub struct Serialized<'fbb, F: FlatbuffersType<'fbb>> {
-    buffer_builder_: FlatBufferBuilder<'fbb>,
-    phantom: PhantomData<F>,
+    bytes: OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT>,
+    phantom: PhantomData<&'fbb F>,
 }
 
 impl<'fbb, F: FlatbuffersType<'fbb>> Serialized<'fbb, F> {
     pub fn as_bytes(&self) -> &[u8] {
-        self.buffer_builder_.finished_data()
+        self.bytes.as_slice()
     }
 
     pub fn data(&'fbb self) -> F::Inner {
@@ -116,66 +121,58 @@ impl<'fbb, F: FlatbuffersType<'fbb>> Serialized<'fbb, F> {
     }
 
     pub fn into_owned(self) -> OwnedSerialized<'fbb, F> {
-        let len = self.buffer_builder_.finished_data().len();
-        let (data, head) = self.buffer_builder_.collapse();
-
         OwnedSerialized {
-            buffer: data,
-            head,
-            len,
+            bytes: self.bytes,
             phantom: PhantomData::default(),
         }
     }
-
-    pub fn into_empty_vec(self) -> Vec<u8> {
-        let (buffer, _) = self.buffer_builder_.collapse();
-        buffer
-    }
 }
 
-#[derive(Debug)]
 pub struct OwnedSerialized<'fbb, T: FlatbuffersType<'fbb>> {
-    buffer: Vec<u8>,
-    head: usize,
-    len: usize,
+    bytes: OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT>,
     phantom: PhantomData<&'fbb T>,
+}
+
+impl<'fbb, T: FlatbuffersType<'fbb>> Debug for OwnedSerialized<'fbb, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.write_str("OwnedSerialized(?)")
+    }
 }
 
 impl<'fbb, T: FlatbuffersType<'fbb>> PartialEq for OwnedSerialized<'fbb, T> {
     fn eq(&self, other: &Self) -> bool {
-        &self.buffer[self.head..(self.head + self.len)]
-            == &other.buffer[other.head..(other.head + other.len)]
+        self.bytes.as_slice() == other.bytes.as_slice()
     }
 }
 
 impl<'fbb, T: FlatbuffersType<'fbb>> Eq for OwnedSerialized<'fbb, T> {}
 
 impl<'fbb, F: FlatbuffersType<'fbb>> OwnedSerialized<'fbb, F> {
-    pub fn from_vec(buffer: Vec<u8>) -> Result<Self, FlatbufferError> {
+    pub fn from_aligned_bytes(
+        bytes: OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT>,
+    ) -> Result<Self, FlatbufferError> {
         let opts = VerifierOptions::default();
-        let mut v = Verifier::new(&opts, &buffer);
+        let mut v = Verifier::new(&opts, bytes.as_slice());
         () = match <ForwardsUOffset<F>>::run_verifier(&mut v, 0) {
             Ok(()) => (),
             Err(error) => {
                 return Err(FlatbufferError::InvalidFlatbufferWithBuffer(
                     InvalidFlatbufferWithBuffer {
-                        buffer: Some(buffer),
+                        buffer: Some(bytes.into_vec()),
                         error,
                     },
                 ));
             }
         };
-        let len = buffer.len();
+
         Ok(Self {
-            buffer,
-            head: 0,
-            len,
+            bytes,
             phantom: PhantomData::default(),
         })
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        &self.buffer[self.head..(self.head + self.len)]
+        self.bytes.as_slice()
     }
 
     pub fn data(&'fbb self) -> F::Inner {
@@ -183,15 +180,13 @@ impl<'fbb, F: FlatbuffersType<'fbb>> OwnedSerialized<'fbb, F> {
     }
 
     pub fn into_buffer_vec(self) -> Vec<u8> {
-        self.buffer
+        self.bytes.into_vec()
     }
 
     pub fn into_raw_parts(self) -> SerializedRawParts {
-        SerializedRawParts {
-            buffer: self.buffer,
-            head: self.head,
-            len: self.len,
-        }
+        let (buffer, head, len) = self.bytes.into_raw_parts();
+
+        SerializedRawParts { buffer, head, len }
     }
 }
 

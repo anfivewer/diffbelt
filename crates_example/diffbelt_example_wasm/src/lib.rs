@@ -10,9 +10,7 @@ use diffbelt_protos::protos::transform::map_filter::{
     MapFilterMultiInput, MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate,
     RecordUpdateArgs,
 };
-use diffbelt_wasm_binding::annotations::serializer::{
-    InputAnnotated, IntoSerializerAnnotated, OutputAnnotated,
-};
+use diffbelt_wasm_binding::annotations::serializer::{IntoSerializerAnnotated, OutputAnnotated};
 use diffbelt_wasm_binding::annotations::{FlatbufferAnnotated, InputOutputAnnotated};
 #[cfg(all(target_arch = "wasm32", not(test)))]
 use diffbelt_wasm_binding::define_panic_handler;

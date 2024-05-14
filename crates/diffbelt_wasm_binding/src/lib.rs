@@ -16,4 +16,5 @@ pub mod human_readable;
 pub mod panic;
 pub mod ptr;
 mod regex;
+pub mod requests;
 pub mod transform;

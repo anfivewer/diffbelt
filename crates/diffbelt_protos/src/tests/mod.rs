@@ -27,7 +27,7 @@ fn restore_owned() {
     buffer.copy_within(head..(head + len), 0);
     buffer.truncate(len);
 
-    let serialized = OwnedSerialized::<RecordUpdate>::from_vec(buffer).expect("should parse");
+    let serialized = OwnedSerialized::<RecordUpdate>::from_aligned_bytes(buffer).expect("should parse");
     let serialized = serialized.data();
 
     assert!(serialized.value().is_none());

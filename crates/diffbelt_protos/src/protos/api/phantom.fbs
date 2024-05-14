@@ -1,0 +1,7 @@
+table StartPhantomRequest {
+  generation_id: [ubyte];
+}
+
+table StartPhantomResponse {
+  phantom_id: [ubyte];
+}

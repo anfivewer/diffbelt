@@ -11,6 +11,7 @@ use thiserror::Error;
 use wasmtime::{
     AsContext, AsContextMut, Config, Engine, Instance, Linker, Memory, Module, Store, TypedFunc,
 };
+use diffbelt_protos::align_util::AlignedBytesError;
 
 use diffbelt_protos::error::FlatbufferError;
 use diffbelt_util::Wrap;
@@ -73,6 +74,8 @@ pub enum WasmError {
     WasmTime(#[from] wasmtime::Error),
     #[error("Aggregate::apply error code {0:?}")]
     AggregateApplyErrorCode(ErrorCode),
+    #[error("{:?}", .0.reason)]
+    AlignedBytes(AlignedBytesError),
     #[error("{0:?}")]
     Unspecified(String),
 }

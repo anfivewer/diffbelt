@@ -2,6 +2,7 @@ use std::ops::DerefMut;
 
 use wasmtime::{AsContextMut, TypedFunc};
 
+use diffbelt_protos::align_util::OwnedAlignedBytes;
 use diffbelt_protos::error::map_flatbuffer_error_to_return_buffer;
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput, AggregateReduceInput,
@@ -9,9 +10,7 @@ use diffbelt_protos::protos::transform::aggregate::{
 };
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_util::option::lift_result_from_option;
-use diffbelt_util_no_std::cast::{
-    checked_positive_i32_to_usize, try_positive_i32_to_usize, try_usize_to_i32,
-};
+use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 
@@ -154,13 +153,13 @@ impl<'a> AggregateFunctions<'a> {
                 .take()
                 .unwrap_or_else(|| Vec::with_capacity(output.len()));
 
-            buffer.clear();
-            buffer.extend_from_slice(output);
+            let bytes =
+                OwnedAlignedBytes::copy_slice(buffer, output).map_err(WasmError::AlignedBytes)?;
 
-            Ok::<_, WasmError>(buffer)
+            Ok::<_, WasmError>(bytes)
         })?;
 
-        let result = OwnedSerialized::<AggregateMapMultiOutput>::from_vec(buffer)
+        let result = OwnedSerialized::<AggregateMapMultiOutput>::from_aligned_bytes(buffer)
             .map_err(map_flatbuffer_error_to_return_buffer(buffer_holder))?;
 
         Ok(result)
@@ -362,14 +361,14 @@ impl<'a> AggregateFunctions<'a> {
 
             let bytes = &memory[ptr..(ptr + len)];
 
-            let mut vec = output_holder
+            let vec = output_holder
                 .take()
                 .unwrap_or_else(|| Vec::with_capacity(bytes.len()));
-            vec.clear();
 
-            vec.extend_from_slice(bytes);
+            let bytes =
+                OwnedAlignedBytes::copy_slice(vec, bytes).map_err(WasmError::AlignedBytes)?;
 
-            OwnedSerialized::from_vec(vec)?
+            OwnedSerialized::from_aligned_bytes(bytes)?
         };
 
         Ok(serialized)

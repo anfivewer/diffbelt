@@ -3,6 +3,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::str::from_utf8;
 
+use diffbelt_protos::align_util::AlignedBytes;
 use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFilterMultiOutput};
 use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_util::errors::NoStdErrorWrap;
@@ -157,6 +158,10 @@ impl<'a> MapFilterTransformTest<'a> {
             .await?;
 
         let update_record_slices = bytes_result.observe_bytes(|bytes| {
+            let mut temp_for_realign = Vec::new();
+            let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, &mut temp_for_realign)
+                .map_err(TestError::AlignedBytes)?;
+
             let multi_output =
                 deserialize::<MapFilterMultiOutput>(bytes).map_err(TestError::InvalidFlatbuffer)?;
 
@@ -176,10 +181,10 @@ impl<'a> MapFilterTransformTest<'a> {
                 let value = value.map(|x| x.bytes());
 
                 let key_offset =
-                    get_slice_offset_in_other_slice(bytes, key).map_err(NoStdErrorWrap::from)?;
+                    get_slice_offset_in_other_slice(bytes.as_slice(), key).map_err(NoStdErrorWrap::from)?;
 
                 let value_offset = value.map(|value| {
-                    get_slice_offset_in_other_slice(bytes, value).map_err(NoStdErrorWrap::from)
+                    get_slice_offset_in_other_slice(bytes.as_slice(), value).map_err(NoStdErrorWrap::from)
                 });
                 let value_offset = lift_result_from_option(value_offset)?;
 

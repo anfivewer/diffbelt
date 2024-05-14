@@ -1,0 +1,13 @@
+table KeyValueUpdate {
+  key: [ubyte];
+  /// optional, None is deletion
+  value: [ubyte];
+  if_not_present: bool = false;
+}
+
+table ErrorResponse {
+  code: int;
+  reason: string;
+  /// optional
+  details: string;
+}

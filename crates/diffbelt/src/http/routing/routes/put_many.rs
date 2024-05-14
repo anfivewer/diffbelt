@@ -3,6 +3,7 @@ use regex::Regex;
 use diffbelt_macro::fn_box_pin_async;
 use diffbelt_types::collection::put_many::{PutManyRequestJsonData, PutManyResponseJsonData};
 use diffbelt_types::common::phantom_id::EncodedPhantomIdJsonData;
+use diffbelt_util::http::read_full_body::FullBody;
 
 use crate::collection::methods::put::CollectionPutManyOptions;
 use crate::context::Context;
@@ -30,30 +31,13 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     let collection_name = options.groups.0;
 
     request.allow_only_methods(&["POST"])?;
-    request.allow_only_utf8_json_by_default()?;
+    let content_type = request.allow_flatbuffers_or_utf8_json_by_default()?;
 
     let body = read_limited_body(request, PUT_MANY_REQUEST_MAX_BYTES).await?;
-    let data: PutManyRequestJsonData = read_json(body)?;
+
+    let options = parse_options_from_json(body)?;
 
     let collection = get_collection(&context, &collection_name).await?;
-
-    let decoder = StringDecoder::new(StrSerializationType::Utf8);
-
-    let mut items = Vec::with_capacity(data.items.len());
-
-    for item in data.items {
-        let update = item.deserialize(&decoder)?;
-        items.push(update);
-    }
-
-    let generation_id = encoded_generation_id_data_decode_opt(data.generation_id)?;
-    let phantom_id = EncodedPhantomIdJsonData::decode_opt(data.phantom_id, &decoder)?;
-
-    let options = CollectionPutManyOptions {
-        items,
-        generation_id,
-        phantom_id,
-    };
 
     let result = collection.put_many(options).await;
 
@@ -83,6 +67,34 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
         },
         bytes: response,
     }))
+}
+
+fn parse_options_from_flatbuffers(body: FullBody) -> Result<CollectionPutManyOptions, HttpError> {
+    todo!()
+}
+
+fn parse_options_from_json(body: FullBody) -> Result<CollectionPutManyOptions, HttpError> {
+    let data: PutManyRequestJsonData = read_json(body)?;
+
+    let decoder = StringDecoder::new(StrSerializationType::Utf8);
+
+    let mut items = Vec::with_capacity(data.items.len());
+
+    for item in data.items {
+        let update = item.deserialize(&decoder)?;
+        items.push(update);
+    }
+
+    let generation_id = encoded_generation_id_data_decode_opt(data.generation_id)?;
+    let phantom_id = EncodedPhantomIdJsonData::decode_opt(data.phantom_id, &decoder)?;
+
+    let options = CollectionPutManyOptions {
+        items,
+        generation_id,
+        phantom_id,
+    };
+
+    Ok(options)
 }
 
 pub fn register_put_many_route(context: &mut Context) {
