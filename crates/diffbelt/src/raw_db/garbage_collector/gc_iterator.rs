@@ -89,6 +89,7 @@ impl<'a> GcIterator<'a> {
                 let db_iterator = unsafe { &mut *db_iterator_ptr };
                 db_iterator.next();
                 () = db_iterator.status()?;
+                // FIXME: there should be limit
                 continue;
             }
 
