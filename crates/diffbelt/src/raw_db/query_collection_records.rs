@@ -1,0 +1,118 @@
+use rocksdb::WriteBatch;
+use crate::collection::constants::{COLLECTION_CF_META, COLLECTION_META_GC_PHANTOM_ID_KEY};
+use crate::collection::util::record_key::{OwnedRecordKey, RecordKey};
+use crate::common::{GenerationId, IsByteArray, KeyValue, OwnedCollectionValue, PhantomId};
+use crate::raw_db::query::{
+    ContinuationState, QueryDirectionForward, QueryKeyValue, QueryOptions, QueryState,
+};
+use crate::raw_db::{RawDb, RawDbError};
+
+pub struct QueryCollectionRecordsOptions<'a> {
+    pub generation_id: GenerationId<'a>,
+    pub phantom_id: Option<PhantomId<'a>>,
+    // Specified if query has lower bound
+    // if `last_record_key` is specified, this MUST be too
+    // TODO: receive `LastAndNextRecordKey` or this field by enum to lower chance of misuse
+    pub from_record_key: Option<RecordKey<'a>>,
+    // Passed if this is continuation of previous query
+    pub last_record_key: Option<RecordKey<'a>>,
+    pub limit: usize,
+    pub records_to_view_limit: usize,
+}
+
+pub struct LastAndNextRecordKey {
+    pub last: OwnedRecordKey,
+    pub next: OwnedRecordKey,
+}
+
+pub struct QueryCollectionRecordsResult {
+    pub items: Vec<KeyValue>,
+    pub last_and_next_record_key: Option<LastAndNextRecordKey>,
+}
+
+impl RawDb {
+    pub fn query_collection_records_sync(
+        &self,
+        options: QueryCollectionRecordsOptions<'_>,
+    ) -> Result<QueryCollectionRecordsResult, RawDbError> {
+        let QueryCollectionRecordsOptions {
+            generation_id,
+            phantom_id,
+            from_record_key,
+            last_record_key,
+            limit,
+            records_to_view_limit,
+        } = options;
+
+        let db = self.db.get_db();
+
+        let meta_cf = db
+            .cf_handle(COLLECTION_CF_META)
+            .ok_or(RawDbError::CfHandle)?;
+
+        let is_phantom_exists = Self::is_phantom_exists(db, &meta_cf, phantom_id)?;
+
+        if !is_phantom_exists {
+            return Err(RawDbError::NoSuchPhantom);
+        }
+
+        let gc_phantom_id = db.get_pinned_cf(&meta_cf, COLLECTION_META_GC_PHANTOM_ID_KEY)?;
+
+        let mut count = 0usize;
+        let mut result = Vec::with_capacity(limit);
+
+        let mut query = QueryState::new(
+            db,
+            QueryOptions {
+                kind: QueryKeyValue,
+                direction: QueryDirectionForward,
+                start_key: from_record_key.as_ref().map(|x| x.get_collection_key()),
+                generation_id,
+                phantom_id,
+                gc_phantom_id,
+                continuation_state: last_record_key
+                    .as_ref()
+                    .map(|last_record| ContinuationState {
+                        last_candidate_key: last_record.to_owned(),
+                        next_iterator_key: from_record_key.as_ref().unwrap().to_owned(),
+                    }),
+                records_to_view_limit,
+            },
+        )?;
+
+        for item in query.by_ref() {
+            let item = item?;
+
+            result.push(KeyValue {
+                key: item.key.get_collection_key().to_owned(),
+                value: OwnedCollectionValue::from_boxed_slice(item.value),
+            });
+
+            count += 1;
+
+            if count >= limit {
+                break;
+            }
+        }
+
+        if !query.records_to_delete.is_empty() {
+            let mut batch = WriteBatch::default();
+
+            for record_key in query.records_to_delete.drain(..) {
+                batch.delete(record_key.get_byte_array());
+            }
+
+            db.write(batch)?;
+        }
+
+        let continuation = query.into_continuation();
+
+        Ok(QueryCollectionRecordsResult {
+            items: result,
+            last_and_next_record_key: continuation.map(|continuation| LastAndNextRecordKey {
+                last: continuation.last_candidate_key,
+                next: continuation.next_iterator_key,
+            }),
+        })
+    }
+}

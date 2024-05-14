@@ -1,0 +1,36 @@
+table AggregateMapSource {
+  source_key: [ubyte];
+  source_old_value: [ubyte]; // optional
+  source_new_value: [ubyte]; // optional
+}
+
+table AggregateMapMultiInput {
+  items: [AggregateMapSource];
+}
+
+table AggregateMapOutput {
+  target_key: [ubyte];
+  mapped_value: [ubyte]; // optional
+}
+
+table AggregateMapMultiOutput {
+  // must follow same order as AggregateMapMultiInput.items
+  items: [AggregateMapOutput];
+}
+
+table AggregateTargetInfo {
+  target_key: [ubyte];
+  target_old_value: [ubyte]; // optional
+}
+
+table AggregateReduceItem {
+  mapped_value: [ubyte]; // optional
+}
+
+table AggregateReduceInput {
+  items: [AggregateReduceItem];
+}
+
+table AggregateApplyOutput {
+  target_value: [ubyte]; // optional
+}

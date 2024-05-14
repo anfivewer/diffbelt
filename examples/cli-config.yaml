@@ -1,0 +1,676 @@
+collections:
+  - name: log-lines
+    manual: no
+    human_readable:
+      wasm: example
+      key_to_bytes: logLinesKeyToBytes
+      bytes_to_key: logLinesBytesToKey
+      value_to_bytes: logLinesValueToBytes
+      bytes_to_value: logLinesBytesToValue
+
+  - name: parsed-log-lines
+    human_readable:
+      wasm: example
+      key_to_bytes: parsedLogLinesKeyToBytes
+      bytes_to_key: parsedLogLinesBytesToKey
+      value_to_bytes: parsedLogLinesValueToBytes
+      bytes_to_value: parsedLogLinesBytesToValue
+
+  - name: parsed-log-lines:1d
+    human_readable:
+      wasm: example
+      key_to_bytes: parsedLogLines1dKeyToBytes
+      bytes_to_key: parsedLogLines1dBytesToKey
+      value_to_bytes: parsedLogLines1dValueToBytes
+      bytes_to_value: parsedLogLines1dBytesToValue
+
+  - name: kicks
+  - name: kicks:1h
+  - name: kicks:1d
+
+  - name: updateMs:1d:p
+
+  - name: uniqueChats:1d
+
+  - name: uniqueUsers:1d
+
+#functions:
+#  parsed_log_lines_day_date_as_key: &parsed_log_lines_day_date_as_key
+#    - vars:
+#        date:
+#          date_from_unix_ms: source.timestampMilliseconds
+#        key: ${date.year}-${(padLeft date.month '0' 2)}-${(padLeft date.day '0', 2)}
+#    - return: key
+#  parsed_log_lines_aggregate_increment_log_keys: &parsed_log_lines_aggregate_increment_log_keys
+#    - vars:
+#        count: accumulator.log_keys.get_or_default(key, 0)
+#    - update_map:
+#        var: accumulator.log_keys
+#        key: key
+#        value: count + value
+#  take_str_before_space: &take_str_before_space
+#    - regexp:
+#        var: str
+#        regexp: ^([^\s]+)\s
+#        groups:
+#          - str
+#    - return: str
+#  update_ms_percentiles_increment_ms_by_type: &update_ms_percentiles_increment_ms_by_type
+#    - vars:
+#        count: accumulator.ms_by_type.get_or_default(key, 0)
+#    - update_map:
+#        var: accumulator.ms_by_type
+#        key: key
+#        value: count + value
+
+transforms:
+  - name: parse_lines
+    source: log-lines
+    target: parsed-log-lines
+    reader_name: log-lines
+    map_filter: example.mapFilter
+
+  - name: parsed_lines_1d
+    source: parsed-log-lines
+    target: parsed-log-lines:1d
+    reader_name: parsed-log-lines
+    aggregate:
+      wasm: example
+      map: aggregateMap
+      initial_accumulator: aggregateInitialAccumulator
+      reduce: aggregateReduce
+      merge_accumulators: aggregateMergeAccumulators
+      apply: aggregateApply
+      human_readable:
+        wasm: example
+        bytes_to_target_key: parsedLogLinesBytesToTargetKey
+        bytes_to_mapped_value: parsedLogLinesBytesToMappedValue
+        mapped_value_to_bytes: parsedLogLinesBytesToMappedValue
+        bytes_to_accumulator: parsedLogLinesBytesToAccumulator
+        accumulator_to_bytes: parsedLogLinesAccumulatorToBytes
+
+#  - source: parsed-log-lines
+#    target: parsed-log-lines:1d
+#    reader_name: parsed-log-lines
+#    aggregate:
+#      key:
+#        - call:
+#            fn: parsed_log_lines_day_date_as_key
+#            vars:
+#              source: source
+#            result: key
+#        - return: key
+#      map_filter:
+#        - vars:
+#            unified_logger_key:
+#              regexp_replace:
+#                var: source.loggerKey
+#                from: ^(master|worker)\d+
+#                to: $1#
+#            merged_log_key: ${unified_logger_key}::${source.logKey}::${logLevelLetter}
+#        - return: merged_log_key
+#      empty_accumulator:
+#        - return: !record
+#            count:
+#              type: int64
+#              value: 0
+#            log_keys: map<string, int64>
+#      initial_accumulator:
+#        - return:
+#            count: target.count
+#            log_keys: target.logKeys
+#      reduce:
+#        - if:
+#            condition: source_old is not none
+#            then:
+#              - vars:
+#                  key: source_old.merged_log_key
+#                  value: -1
+#              - update_record:
+#                  var: accumulator.count
+#                  value: accumulator.count + value
+#              - call:
+#                  fn: parsed_log_lines_aggregate_increment_log_keys
+#                  vars:
+#                    accumulator: accumulator
+#                    count: count
+#                    value: value
+#                    key: key
+#        - if:
+#            condition: source_new is not none
+#            then:
+#              - vars:
+#                  key: source_new.merged_log_key
+#                  value: 1
+#              - update_record:
+#                  var: accumulator.count
+#                  value: accumulator.count + value
+#              - call:
+#                  fn: parsed_log_lines_aggregate_increment_log_keys
+#                  vars:
+#                    accumulator: accumulator
+#                    count: count
+#                    value: value
+#                    key: key
+#      merge_accumulators:
+#        - update_record:
+#            var: accumulator.count
+#            value: accumulator.count + next.count
+#        - foreach:
+#            iterable: next.logKeys
+#            as_var: item
+#            body:
+#              - vars:
+#                  key: item.key
+#                  value: item.value
+#              - call:
+#                  fn: parsed_log_lines_aggregate_increment_log_keys
+#                  vars:
+#                    accumulator: accumulator
+#                    count: count
+#                    value: value
+#                    key: key
+#      apply:
+#        - return: accumulator
+#
+#  - source: parsed-log-lines
+#    intermediate:
+#      collection:
+#        name: updateMs:1d:intermediate
+#      reader_name: parsed-log-lines
+#    target: updateMs:1d:p
+#    reader_name: updateMs:1d:intermediate
+#    percentiles:
+#      percentiles: [0, 50, 75, 90, 95, 100]
+#      target_key:
+#        source:
+#          - call:
+#              fn: parsed_log_lines_day_date_as_key
+#              vars:
+#                source: source
+#              result: key
+#          - return: key
+#        intermediate:
+#          - call:
+#              fn: take_str_before_space
+#              vars:
+#                str: intermediate_key
+#              result: key
+#          - return: key
+#      intermediate:
+#        - vars:
+#            is_stats: source.logLevel == 'S'
+#            is_handle_full: source.logKey == 'handleFull'
+#            is_from_middleware:
+#              regexp_test:
+#                var: source.loggerKey
+#                regexp: ^worker\d*:middlewares$
+#        - if:
+#            condition: is_stats && is_handle_full && is_from_middleware
+#            then: noop
+#            else: return
+#        - vars:
+#            update_type: source.props.updateType.or_default('???')
+#            ms:
+#              parse_float: source.props.ms
+#        - vars:
+#            ms_fixed:
+#              positive_float_to_fixed_length_string:
+#                integer_digits: 9
+#                fractional_digits: 1
+#                overflow_as_max: yes
+#        - call:
+#            fn: parsed_log_lines_day_date_as_key
+#            vars:
+#              source: source
+#            result: key
+#        - return:
+#            key: ${key} ${ms_fixed} ${source_key}
+#            value:
+#              updateType: update_type
+#              ms: ms
+#      empty_accumulator:
+#        - return: !record
+#            sum_ms:
+#              type: int64
+#              value: 0
+#            ms_by_type: map<string, int64>
+#      initial_accumulator:
+#        - return:
+#            sum_ms: target.sumMs
+#            ms_by_type: target.msByType
+#      reduce:
+#        - if:
+#            condition: intermediate_old is not none
+#            then:
+#              - update_record:
+#                  var: accumulator.sum_ms
+#                  value: accumulator.sum_ms - intermediate_old.sum_ms
+#              - vars:
+#                  key: intermediate_old.updateType
+#                  value: -1
+#              - call:
+#                  fn: update_ms_percentiles_increment_ms_by_type
+#                  vars:
+#                    accumulator: accumulator
+#                    key: key
+#                    count: count
+#                    value: value
+#        - if:
+#            condition: intermediate_new is not none
+#            then:
+#              - update_record:
+#                  var: accumulator.sum_ms
+#                  value: accumulator.sum_ms + intermediate_old.sum_ms
+#              - vars:
+#                  key: intermediate_old.updateType
+#                  value: 1
+#              - call:
+#                  fn: update_ms_percentiles_increment_ms_by_type
+#                  vars:
+#                    accumulator: accumulator
+#                    key: key
+#                    count: count
+#                    value: value
+#      percentiles_data:
+#        - return: target.percentilesData
+#      apply:
+#        - return:
+#            sumMs: accumulator.sum_ms
+#            msByType: accumulator.ms_by_type
+#            percentilesData: percentiles_data
+#
+#  - source: parsed-log-lines
+#    intermediate:
+#      collection:
+#        name: uniqueChats:1d:intermediate
+#        format: empty
+#      reader_name: parsed-log-lines
+#    target: uniqueChats:1d
+#    reader_name: uniqueChats:1d:intermediate
+#    unique_count:
+#      target_key:
+#        source:
+#          - call:
+#              fn: parsed_log_lines_day_date_as_key
+#              vars:
+#                source: source
+#              result: key
+#          - return: key
+#        intermediate:
+#          - call:
+#              fn: take_str_before_space
+#              vars:
+#                str: intermediate_key
+#              result: key
+#          - return: key
+#      intermediate:
+#        - vars:
+#            is_stats: source.logLevel == 'S'
+#            is_chat: source.logKey == 'chat'
+#            is_unique_chats:
+#              regexp_test:
+#                var: source.loggerKey
+#                regexp: ^[^:]+:uniqueChats$
+#            id: source.props.id
+#        - if:
+#            condition: is_stats && is_chat && is_unique_chats && id
+#            then: noop
+#            else: return
+#        - call:
+#            fn: parsed_log_lines_day_date_as_key
+#            vars:
+#              source: source
+#            result: key
+#        - return:
+#            key: ${key} ${id}
+#      empty_target:
+#        - return:
+#            count: 0
+#      apply:
+#        - return:
+#            count: target.count + count_diff
+
+wasm:
+  - name: example
+    wasm_path: ../crates_example/diffbelt_example_wasm/target/wasm32-unknown-unknown/release/diffbelt_example_wasm.wasm
+
+tests:
+  transforms.parse_lines.map_filter:
+    - name: with props and no extras
+      input:
+        source_key: S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27
+        source_old_value: !none
+        source_new_value: ''
+      output:
+        - key: 2023-02-20T21:42:48.822Z.000 worker258688
+          value: |-
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1676929368822
+            tsMicro: 0
+            loggerKey: worker258688:middlewares
+            logKey: handleFull
+            props:
+              updateType: edited_message
+              ms: 27
+
+    - name: with props and one extra
+      input:
+        source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 1'
+        source_new_value: ''
+      output:
+        - key: 2023-02-20T21:42:48.822Z.000 worker258688
+          value: |-
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1676929368822
+            tsMicro: 0
+            loggerKey: worker258688:middlewares
+            logKey: handleFull
+            props:
+              updateType: edited_message
+              ms: 27
+            extra:
+              some extra 1
+
+    - name: with props and two extras
+      input:
+        source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 2|another extra 2'
+        source_old_value: (none)
+        source_new_value: ''
+      output:
+        - key: 2023-02-20T21:42:48.822Z.000 worker258688
+          value: |-
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1676929368822
+            tsMicro: 0
+            loggerKey: worker258688:middlewares
+            logKey: handleFull
+            props:
+              updateType: edited_message
+              ms: 27
+            extra:
+              some extra 2
+              another extra 2
+
+    - name: with no props and no extras
+      input:
+        source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull'
+        source_old_value: (none)
+        source_new_value: ''
+      output:
+        - key: 2023-02-20T21:42:48.822Z.000 worker258688
+          value: |-
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1676929368822
+            tsMicro: 0
+            loggerKey: worker258688:middlewares
+            logKey: handleFull
+
+    - name: with no props and two extras
+      input:
+        source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull |some extra|another extra'
+        source_old_value: (none)
+        source_new_value: ''
+      output:
+        - key: 2023-02-20T21:42:48.822Z.000 worker258688
+          value: |-
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1676929368822
+            tsMicro: 0
+            loggerKey: worker258688:middlewares
+            logKey: handleFull
+            extra:
+              some extra
+              another extra
+
+    - name: not matches start
+      input:
+        source_key: 'S ------- worker258688:middlewares handleFull |some extra|another extra'
+        source_old_value: (none)
+        source_new_value: ''
+      output:
+        - key: S ------- worker258688:middlewares handleFull |some extra|another extra
+          value: !none
+
+    - name: with stack extra
+      input:
+        source_key: 'E 2022-10-31T10:18:35.254Z.000 main:report report reason:undefined |FetchError: request to https://api.telegram.org/-----/getChatMember failed, reason: connect ETIMEDOUT 149.154.167.220:443\n    at ClientRequest.<anonymous> (/home/shieldy/shieldy/node_modules/node-fetch/lib/index.js:1461:11)\n    at ClientRequest.emit (events.js:375:28)\n    at TLSSocket.socketErrorListener (_http_client.js:475:9)\n    at TLSSocket.emit (events.js:375:28)\n    at emitErrorNT (internal/streams/destroy.js:106:8)\n    at emitErrorCloseNT (internal/streams/destroy.js:74:3)\n    at processTicksAndRejections (internal/process/task_queues.js:82:21)'
+        source_old_value: (none)
+        source_new_value: ''
+      output:
+        - key: 2022-10-31T10:18:35.254Z.000 main
+          value: |-
+            logLevel: E (69)
+            tsStr: 2022-10-31T10:18:35.254Z.000
+            tsMs: 1667211515254
+            tsMicro: 0
+            loggerKey: main:report
+            logKey: report
+            props:
+              reason: undefined
+            extra:
+              FetchError: request to https://api.telegram.org/-----/getChatMember failed, reason: connect ETIMEDOUT 149.154.167.220:443
+                at ClientRequest.<anonymous> (/home/shieldy/shieldy/node_modules/node-fetch/lib/index.js:1461:11)
+                at ClientRequest.emit (events.js:375:28)
+                at TLSSocket.socketErrorListener (_http_client.js:475:9)
+                at TLSSocket.emit (events.js:375:28)
+                at emitErrorNT (internal/streams/destroy.js:106:8)
+                at emitErrorCloseNT (internal/streams/destroy.js:74:3)
+                at processTicksAndRejections (internal/process/task_queues.js:82:21)
+
+  transforms.parsed_lines_1d.map:
+    - name: basic
+      input:
+        - source_key: 2023-02-20T21:42:48.822Z.000 worker258688
+          source_old_value: !none
+          source_new_value: |
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1676929368822
+            tsMicro: 0
+            loggerKey: worker258688:middlewares
+            logKey: handleFull
+            props:
+              updateType: edited_message
+              ms: 27
+            extra:
+              some extra 2
+              another extra 2
+
+        - source_key: 2023-02-21T21:42:48.822Z.000 main
+          source_old_value: !none
+          source_new_value: |
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1677015768822
+            tsMicro: 0
+            loggerKey: main:middlewares
+            logKey: noTranslation
+
+        - source_key: 2023-02-22T21:42:48.822Z.000 master4242
+          source_old_value: !none
+          source_new_value: |
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1677102168822
+            tsMicro: 0
+            loggerKey: master4242:middlewares
+            logKey: handleFull
+            props:
+              updateType: edited_message
+              ms: 27
+
+        - source_key: 2023-02-22T21:42:48.822Z.000 master4242
+          source_old_value: |
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1677102168822
+            tsMicro: 0
+            loggerKey: without_colon
+            logKey: handleFull
+            props:
+              updateType: edited_message
+              ms: 27
+          source_new_value: !none
+
+        - source_key: 2023-02-22T21:42:48.822Z.000 master4242
+          source_old_value: |
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1677102168822
+            tsMicro: 0
+            loggerKey: master4242:middlewares
+            logKey: handleFull
+            props:
+              updateType: edited_message
+              ms: 27
+          source_new_value: |
+            logLevel: S (83)
+            tsStr: 2023-02-20T21:42:48.822Z.000
+            tsMs: 1677102168822
+            tsMicro: 0
+            loggerKey: master4242:something
+            logKey: newKey
+            props:
+              updateType: edited_message
+              ms: 27
+
+      output:
+        - target_key: 2023-02-20
+          mapped_value: +worker#:middlewares::handleFull::S
+        - target_key: 2023-02-21
+          mapped_value: +main:middlewares::noTranslation::S
+        - target_key: 2023-02-22
+          mapped_value: +master#:middlewares::handleFull::S
+        - target_key: 2023-02-22
+          mapped_value: -without_colon::handleFull::S
+        - target_key: 2023-02-22
+          mapped_value: |-
+            -master#:middlewares::handleFull::S
+            +master#:something::newKey::S
+
+    - name: empty
+      input: []
+      output: []
+
+  transforms.parsed_lines_1d.initial_accumulator:
+    - name: empty
+      input:
+        target_key: 2023-02-21
+        target_old_value: !none
+      output: |
+        count: 0
+    - name: few
+      input:
+        target_key: 2024-04-25
+        target_old_value: |
+          count: 4
+          items:
+            main:middlewares::noTranslation::S: 1
+            worker#:middlewares::handleFull::S: 3
+      output: |
+        count: 4
+        items:
+          main:middlewares::noTranslation::S: 1
+          worker#:middlewares::handleFull::S: 3
+
+  transforms.parsed_lines_1d.reduce:
+    - name: basic
+      input:
+        accumulator: |
+          count: 4
+          items:
+            main:middlewares::noTranslation::S: 1
+            worker#:middlewares::handleFull::S: 3
+        items:
+          - |-
+            -worker#:middlewares::handleFull::S
+            +master#:something::newKey::S
+          - |-
+            -main:middlewares::noTranslation::S
+          - |-
+            +master#:something::newKey::S
+          - |-
+            +master#:another::newKey::S
+      output: |
+        count: 5
+        items:
+          master#:another::newKey::S: 1
+          master#:something::newKey::S: 2
+          worker#:middlewares::handleFull::S: 2
+
+  transforms.parsed_lines_1d.merge_accumulators:
+    - name: basic
+      input:
+          - |
+            count: 5
+            items:
+              master#:another::newKey::S: 1
+              master#:something::newKey::S: 2
+              worker#:middlewares::handleFull::S: 2
+          - |
+            count: 0
+            items:
+              master#:another::newKey::S: 1
+              worker#:middlewares::handleFull::S: -1
+          - |
+            count: 2
+            items:
+              master#:something::newKey2::S: 2
+              worker#:middlewares::handleFull::S: -1
+              master#:andAnother::newKey3::S: 1
+      output: |
+        count: 7
+        items:
+          master#:andAnother::newKey3::S: 1
+          master#:another::newKey::S: 2
+          master#:something::newKey2::S: 2
+          master#:something::newKey::S: 2
+
+  transforms.parsed_lines_1d.apply:
+    - name: basic
+      input: |
+        count: 7
+        items:
+          master#:something::newKey::S: 2
+          master#:another::newKey::S: 2
+          master#:andAnother::newKey3::S: 1
+          master#:something::newKey2::S: 2
+      output: |
+        count: 7
+        items:
+          master#:andAnother::newKey3::S: 1
+          master#:another::newKey::S: 2
+          master#:something::newKey2::S: 2
+          master#:something::newKey::S: 2
+
+    - name: empty
+      input: |
+        count: 0
+      output: !none
+
+    - name: mismatched count
+      input: |
+        count: 1
+        items:
+          master#:something::newKey::S: 2
+      output: !should_safe_fail
+
+    - name: negative count
+      input: |
+        count: -1
+        items:
+          master#:something::newKey::S: -1
+      output: !should_safe_fail
+
+    - name: mismatched negative count
+      input: |
+        count: 1
+        items:
+          master#:something::newKey::S: -1
+      output: !should_safe_fail

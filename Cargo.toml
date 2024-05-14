@@ -1,35 +1,26 @@
-[package]
-name = "diffbelt"
-version = "0.0.1"
-edition = "2021"
+[workspace]
+resolver = "2"
+members = [
+	"crates/diffbelt",
+	"crates/diffbelt_cli",
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+	"crates/diffbelt_cli_config",
+	"crates/diffbelt_types",
+	"crates/diffbelt_protos",
+	"crates/diffbelt_wasm_binding",
+	"crates/diffbelt_util",
+	"crates/diffbelt_util_no_std",
+	"crates/diffbelt_http_client",
+	"crates/diffbelt_macro",
+	"crates/diffbelt_transforms",
 
-[features]
-default = []
-debug_prints = []
+	"crates/diffbelt_example_protos",
+	# Cannot be included yet, we need force target
+	# "crates/diffbelt_example_wasm",
 
-[dependencies]
-tokio = { version = "1.22.0", features = ["full"] }
-hyper = { version = "0.14.23", features = ["full"] }
-futures = "0.3.25"
-rocksdb = { version = "0.19.0", features = ["multi-threaded-cf"] }
-protobuf = "3.2.0"
-rand = "0.8.5"
-serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.91"
-serde_with = "2.1.0"
-regex = "1.7.0"
-lazy_static = "1.4.0"
-base64 = "0.20.0"
-querystring = "1.1.0"
-urlencoding = "2.1.2"
-hashbrown = "0.13.2"
-lru = "0.10.0"
-
-[dependencies.diffbelt_macro]
-path = "crates/diffbelt_macro"
-
-[build-dependencies]
-protobuf-codegen = "3.2.0"
-protoc-rust = "2.28.0"
+	"crates/diffbelt_yaml",
+]
+exclude = [
+	"crates_example/diffbelt_example_wasm",
+	"crates_example/diffbelt_example_wasm_rebuild",
+]
