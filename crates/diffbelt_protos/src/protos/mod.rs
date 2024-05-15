@@ -4,6 +4,9 @@ pub mod api {
     pub mod common {
         pub use super::super::generated::api::common_generated::*;
     }
+    pub mod methods {
+        pub use super::super::generated::api::methods_generated::*;
+    }
     pub mod phantom {
         pub use super::super::generated::api::phantom_generated::*;
     }

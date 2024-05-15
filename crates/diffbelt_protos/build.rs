@@ -31,6 +31,10 @@ fn main() {
                     None,
                 )),
                 SubPath::File((
+                    "methods.fbs",
+                    None,
+                )),
+                SubPath::File((
                     "phantom.fbs",
                     None,
                 )),

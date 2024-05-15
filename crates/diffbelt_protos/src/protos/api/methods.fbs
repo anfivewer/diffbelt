@@ -1,0 +1,37 @@
+include "common.fbs";
+include "phantom.fbs";
+include "put_many.fbs";
+include "get_keys_around.fbs";
+
+enum RequestResponseType : ushort {
+    Error,
+    StartPhantom,
+    PutMany,
+    GetKeysAround,
+}
+
+table Request {
+    type: RequestResponseType;
+
+    /// optional
+    start_phantom: StartPhantomRequest;
+    /// optional
+    put_many: PutManyRequest;
+    /// optional
+    get_keys_around: GetKeysAroundRequest;
+}
+
+/// One of fields is required
+table Response {
+    type: RequestResponseType;
+
+    /// optional
+    error: ErrorResponse;
+
+    /// optional
+    start_phantom: StartPhantomResponse;
+    /// optional
+    put_many: PutManyResponse;
+    /// optional
+    get_keys_around: GetKeysAroundResponse;
+}
