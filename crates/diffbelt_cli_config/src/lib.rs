@@ -14,6 +14,7 @@ use crate::wasm::{NewWasmInstanceOptions, Wasm, WasmError, WasmModuleInstance};
 pub mod config_tests;
 pub mod errors;
 pub mod formats;
+pub mod requests;
 pub mod transforms;
 pub mod util;
 pub mod wasm;

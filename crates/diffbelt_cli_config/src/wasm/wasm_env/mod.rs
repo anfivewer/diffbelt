@@ -11,6 +11,7 @@ use crate::wasm::{WasmError, WasmStoreData};
 pub mod debug;
 pub mod memory;
 pub mod regex;
+pub mod requests;
 mod util;
 
 pub struct WasmEnv {
@@ -33,6 +34,7 @@ impl WasmEnv {
     ) -> Result<(), WasmError> {
         () = self.register_debug_wasm_imports(linker)?;
         () = self.register_regex_wasm_imports(store, linker)?;
+        () = self.register_requests_wasm_imports(store, linker)?;
         Ok(())
     }
 

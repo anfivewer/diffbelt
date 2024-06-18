@@ -12,7 +12,7 @@ impl WasmEnv {
         &self,
         linker: &mut Linker<WasmStoreData>,
     ) -> Result<(), WasmError> {
-        fn print(caller: Caller<WasmStoreData>, s: WasmPtr<u8>, s_size: i32) -> () {
+        fn print(caller: Caller<WasmStoreData>, s: WasmPtr<u8>, s_size: u32) -> () {
             let mut state = caller.data().inner.lock().expect("lock");
             let state = state.deref_mut();
 

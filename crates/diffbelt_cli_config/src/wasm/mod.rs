@@ -14,6 +14,7 @@ use wasmtime::{
 use diffbelt_protos::align_util::AlignedBytesError;
 
 use diffbelt_protos::error::FlatbufferError;
+use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::Wrap;
 use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
 use diffbelt_util_no_std::impl_from_either;
@@ -24,11 +25,13 @@ use memory::Allocation;
 pub use types::WasmPtrImpl;
 
 use crate::errors::WithMark;
+use crate::requests::DiffbeltRequests;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{WasmBytesSlice, WasmPtrToBytesSlice, WasmPtrToVecRawParts};
 use crate::wasm::wasm_env::regex::RegexEnv;
+use crate::wasm::wasm_env::requests::ActiveDiffbeltRequests;
 use crate::wasm::wasm_env::WasmEnv;
 
 pub mod aggregate;
@@ -60,6 +63,8 @@ pub enum WasmError {
     NoMemory,
     #[error("NoAllocation")]
     NoAllocation,
+    #[error("DiffbeltRequestSend")]
+    DiffbeltRequestSend,
     #[error("{0:?}")]
     Regex(regex::Error),
     #[error("{0:?}")]
@@ -74,8 +79,8 @@ pub enum WasmError {
     WasmTime(#[from] wasmtime::Error),
     #[error("Aggregate::apply error code {0:?}")]
     AggregateApplyErrorCode(ErrorCode),
-    #[error("{:?}", .0.reason)]
-    AlignedBytes(AlignedBytesError),
+    #[error(transparent)]
+    AlignedBytes(#[from] NoStdErrorWrap<AlignedBytesError>),
     #[error("{0:?}")]
     Unspecified(String),
 }
@@ -102,6 +107,8 @@ pub struct WasmStoreDataInner {
     pub memory: Option<Memory>,
     pub allocation: Option<Allocation>,
     pub regex: Option<RegexEnv>,
+    pub requests: Option<Arc<DiffbeltRequests>>,
+    pub active_requests: Option<ActiveDiffbeltRequests>,
 }
 
 impl WasmStoreData {
@@ -112,6 +119,8 @@ impl WasmStoreData {
                 memory: None,
                 allocation: None,
                 regex: None,
+                requests: None,
+                active_requests: None,
             }),
         }
     }

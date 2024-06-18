@@ -29,3 +29,9 @@ impl<T> Wrap<T> for Arc<Mutex<T>> {
         Arc::new(Mutex::new(data))
     }
 }
+
+impl<T> Wrap<T> for Mutex<T> {
+    fn wrap(data: T) -> Self {
+        Mutex::new(data)
+    }
+}

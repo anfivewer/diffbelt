@@ -9,6 +9,7 @@ use diffbelt_protos::protos::transform::aggregate::{
     AggregateTargetInfo,
 };
 use diffbelt_protos::OwnedSerialized;
+use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::lift_result_from_option;
 use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
@@ -154,7 +155,7 @@ impl<'a> AggregateFunctions<'a> {
                 .unwrap_or_else(|| Vec::with_capacity(output.len()));
 
             let bytes =
-                OwnedAlignedBytes::copy_slice(buffer, output).map_err(WasmError::AlignedBytes)?;
+                OwnedAlignedBytes::copy_slice(buffer, output).map_err(NoStdErrorWrap)?;
 
             Ok::<_, WasmError>(bytes)
         })?;
@@ -366,7 +367,7 @@ impl<'a> AggregateFunctions<'a> {
                 .unwrap_or_else(|| Vec::with_capacity(bytes.len()));
 
             let bytes =
-                OwnedAlignedBytes::copy_slice(vec, bytes).map_err(WasmError::AlignedBytes)?;
+                OwnedAlignedBytes::copy_slice(vec, bytes).map_err(NoStdErrorWrap)?;
 
             OwnedSerialized::from_aligned_bytes(bytes)?
         };

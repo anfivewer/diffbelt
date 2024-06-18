@@ -55,7 +55,7 @@ impl WasmEnv {
             });
         }
 
-        fn regex_new(caller: Caller<'_, WasmStoreData>, s: WasmPtrToByte, s_size: i32) -> i32 {
+        fn regex_new(caller: Caller<'_, WasmStoreData>, s: WasmPtrToByte, s_size: u32) -> i32 {
             let mut state = caller.data().inner.lock().expect("lock");
             let state = state.deref_mut();
 
@@ -99,7 +99,7 @@ impl WasmEnv {
             mut caller: Caller<'_, WasmStoreData>,
             index: i32,
             s_ptr: WasmPtr<u8>,
-            s_size: i32,
+            s_size: u32,
             captures_ptr: WasmPtr<WasmRegexCapture>,
             max_captures_count: i32,
         ) -> i32 {
@@ -212,9 +212,9 @@ impl WasmEnv {
             caller: Caller<'a, WasmStoreData>,
             ptr: i32,
             source_ptr: WasmPtr<u8>,
-            source_len: i32,
+            source_len: u32,
             target_ptr: WasmPtr<u8>,
-            target_len: i32,
+            target_len: u32,
             replace_result_ptr: WasmPtr<WasmReplaceResult>,
         ) -> Box<dyn Future<Output = ()> + Send + 'a> {
             Box::new(regex_replace_impl::<Mode>(
@@ -232,9 +232,9 @@ impl WasmEnv {
             mut caller: Caller<'a, WasmStoreData>,
             ptr: i32,
             source_ptr: WasmPtr<u8>,
-            source_len: i32,
+            source_len: u32,
             target_ptr: WasmPtr<u8>,
-            target_len: i32,
+            target_len: u32,
             replace_result_ptr: WasmPtr<WasmReplaceResult>,
         ) -> () {
             let state = caller.data().inner.clone();
