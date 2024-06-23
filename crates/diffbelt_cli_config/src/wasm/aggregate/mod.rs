@@ -11,7 +11,9 @@ use diffbelt_protos::protos::transform::aggregate::{
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::lift_result_from_option;
-use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
+use diffbelt_util_no_std::cast::{
+    try_positive_i32_to_usize, try_usize_to_i32, try_usize_to_u32, u32_to_usize,
+};
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 
@@ -27,13 +29,13 @@ pub struct AggregateFunctions<'a> {
     output_vector: WasmVecHolder<'a>,
     accumulators_vector: WasmPtr<WasmVecRawParts<WasmBytesVecRawParts>>,
     map: TypedFunc<(WasmPtr<WasmBytesSlice>, WasmPtr<WasmBytesVecRawParts>), i32>,
-    initial_accumulator: TypedFunc<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
-    reduce: TypedFunc<(WasmPtr<u8>, i32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    initial_accumulator: TypedFunc<(WasmPtr<u8>, u32, WasmPtr<WasmBytesVecRawParts>), i32>,
+    reduce: TypedFunc<(WasmPtr<u8>, u32, WasmPtr<WasmBytesVecRawParts>), i32>,
     merge_accumulators: Option<
         TypedFunc<
             (
                 WasmPtr<WasmBytesVecRawParts>,
-                i32,
+                u32,
                 WasmPtr<WasmBytesVecRawParts>,
             ),
             i32,
@@ -154,8 +156,7 @@ impl<'a> AggregateFunctions<'a> {
                 .take()
                 .unwrap_or_else(|| Vec::with_capacity(output.len()));
 
-            let bytes =
-                OwnedAlignedBytes::copy_slice(buffer, output).map_err(NoStdErrorWrap)?;
+            let bytes = OwnedAlignedBytes::copy_slice(buffer, output).map_err(NoStdErrorWrap)?;
 
             Ok::<_, WasmError>(bytes)
         })?;
@@ -261,7 +262,7 @@ impl<'a> AggregateFunctions<'a> {
             WasmError::Unspecified("No merge_accumulator implementation".to_string())
         })?;
 
-        let input_len = try_usize_to_i32(input.len())
+        let input_len = try_usize_to_u32(input.len())
             .ok_or_else(|| WasmError::Unspecified("too many accumulators".to_string()))?;
 
         {
@@ -355,10 +356,8 @@ impl<'a> AggregateFunctions<'a> {
                 .data_mut(store.as_context_mut());
             let slice = self.bytes_slice.ptr.read(memory)?;
 
-            let ptr = try_positive_i32_to_usize(slice.0.ptr.value)
-                .ok_or_else(|| WasmError::Unspecified("ptr too far".to_string()))?;
-            let len = try_positive_i32_to_usize(slice.0.len)
-                .ok_or_else(|| WasmError::Unspecified("slice too big".to_string()))?;
+            let ptr = u32_to_usize(slice.0.ptr.value);
+            let len = u32_to_usize(slice.0.len);
 
             let bytes = &memory[ptr..(ptr + len)];
 
@@ -366,8 +365,7 @@ impl<'a> AggregateFunctions<'a> {
                 .take()
                 .unwrap_or_else(|| Vec::with_capacity(bytes.len()));
 
-            let bytes =
-                OwnedAlignedBytes::copy_slice(vec, bytes).map_err(NoStdErrorWrap)?;
+            let bytes = OwnedAlignedBytes::copy_slice(vec, bytes).map_err(NoStdErrorWrap)?;
 
             OwnedSerialized::from_aligned_bytes(bytes)?
         };

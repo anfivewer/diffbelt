@@ -11,19 +11,23 @@ impl RequestId {
         Self(0)
     }
 
+    pub fn limit_reached() -> Self {
+        Self(1)
+    }
+
     pub fn is_valid(&self) -> bool {
-        self.0 != 0
+        self.0 > 1
     }
 }
 
 #[link(wasm_import_module = "Diffbelt")]
 extern "C" {
     fn request(slice_ptr: ConstPtr<u8>, slice_len: u32) -> RequestId;
-    fn is_request_finished(request_id: RequestId) -> i32;
+    fn is_request_finished(request_id: RequestId) -> ErrorCode;
     fn on_request_finished(
         request_id: RequestId,
         vec_ptr: MutPtr<BytesVecRawParts>,
         offset_ptr: MutPtr<u32>,
         len_ptr: MutPtr<u32>,
-    ) -> i32;
+    ) -> ErrorCode;
 }

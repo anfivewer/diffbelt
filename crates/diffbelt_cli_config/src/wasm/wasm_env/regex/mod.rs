@@ -7,9 +7,7 @@ use std::ops::DerefMut;
 use regex::Regex;
 use wasmtime::{AsContext, AsContextMut, Caller, Linker, Store};
 
-use diffbelt_util_no_std::cast::{
-    try_positive_i32_to_usize, try_usize_to_i32, unchecked_usize_to_i32,
-};
+use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32, try_usize_to_u32, unchecked_usize_to_i32};
 use diffbelt_util_no_std::temporary_collection::vec::{TempVecType, TemporaryVec};
 use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 use diffbelt_wasm_binding::{RegexCapture, ReplaceResult};
@@ -242,7 +240,7 @@ impl WasmEnv {
             let mut ctx = caller.as_context_mut();
 
             let result = (|| async move {
-                let (memory, alloc, result_bytes_len_i32, result) = {
+                let (memory, alloc, result_bytes_len_u32, result) = {
                     let mut state_lock = state.lock().expect("lock");
                     let state = state_lock.deref_mut();
                     let memory = state.memory.expect("no memory");
@@ -284,7 +282,7 @@ impl WasmEnv {
                         result.into_owned()
                     };
 
-                    let result_bytes_len_i32 = try_usize_to_i32(result.len()).ok_or_else(|| {
+                    let result_bytes_len_u32 = try_usize_to_u32(result.len()).ok_or_else(|| {
                         WasmError::Unspecified(format!(
                             "regex_replace result too big: {}",
                             result.len()
@@ -293,11 +291,11 @@ impl WasmEnv {
 
                     let alloc = allocation.alloc;
 
-                    (memory, alloc, result_bytes_len_i32, result)
+                    (memory, alloc, result_bytes_len_u32, result)
                 };
 
                 let vec_ptr = alloc
-                    .call_async(ctx.as_context_mut(), result_bytes_len_i32)
+                    .call_async(ctx.as_context_mut(), result_bytes_len_u32)
                     .await?;
 
                 {
@@ -312,8 +310,8 @@ impl WasmEnv {
                         is_same: 0,
                         s: BytesVecRawParts {
                             ptr: vec_ptr.into(),
-                            len: result_bytes_len_i32,
-                            capacity: result_bytes_len_i32,
+                            len: result_bytes_len_u32,
+                            capacity: result_bytes_len_u32,
                         },
                     },
                 ))

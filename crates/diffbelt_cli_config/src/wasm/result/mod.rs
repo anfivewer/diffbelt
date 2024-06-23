@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use either::Either;
 
-use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
+use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32, u32_to_usize};
 use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 
 use crate::wasm::memory::vector::WasmVecHolder;
@@ -34,8 +34,7 @@ impl<'a> WasmBytesSliceResult<'a> {
 
         let BytesVecRawParts::<WasmPtrImpl> { ptr, len, .. } = raw_parts.0;
 
-        let len = try_positive_i32_to_usize(len)
-            .ok_or_else(|| WasmError::Unspecified(format!("view_to_vec_holder: len {len}")))?;
+        let len = u32_to_usize(len);
 
         Ok(Self {
             instance,

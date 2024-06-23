@@ -26,7 +26,7 @@ use diffbelt_transforms::base::input::function_eval::{
     FunctionEvalInput, FunctionEvalInputBody,
 };
 use diffbelt_transforms::Transform;
-use diffbelt_util_no_std::cast::{try_positive_i32_to_u64, u64_to_usize, usize_to_u64};
+use diffbelt_util_no_std::cast::{try_positive_i32_to_u64, u32_to_u64, u64_to_usize, usize_to_u64};
 use diffbelt_util_no_std::temporary_collection::vec::{TempVecType, TemporaryVec};
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 
@@ -234,12 +234,8 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                             )
                             .await?;
 
-                        let accumulator_data_bytes = try_positive_i32_to_u64(
-                            accumulator_info.wasm_vec_holder.read_slice()?.0.len,
-                        )
-                        .ok_or_else(|| {
-                            TransformEvalError::Unspecified("Too big accumulator size".to_string())
-                        })?;
+                        let accumulator_data_bytes =
+                            u32_to_u64(accumulator_info.wasm_vec_holder.read_slice()?.0.len);
 
                         (AccumulatorId(usize_to_u64(index)), accumulator_data_bytes)
                     };
@@ -277,12 +273,8 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                             )
                             .await?;
 
-                        let accumulator_data_bytes = try_positive_i32_to_u64(
-                            accumulator.wasm_vec_holder.read_slice()?.0.len,
-                        )
-                        .ok_or_else(|| {
-                            TransformEvalError::Unspecified("Too big accumulator size".to_string())
-                        })?;
+                        let accumulator_data_bytes =
+                            u32_to_u64(accumulator.wasm_vec_holder.read_slice()?.0.len);
 
                         accumulator_data_bytes
                     };
@@ -356,12 +348,8 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                             )
                             .await?;
 
-                        let accumulator_data_bytes = try_positive_i32_to_u64(
-                            first_accumulator.wasm_vec_holder.read_slice()?.0.len,
-                        )
-                        .ok_or_else(|| {
-                            TransformEvalError::Unspecified("Too big accumulator size".to_string())
-                        })?;
+                        let accumulator_data_bytes =
+                            u32_to_u64(first_accumulator.wasm_vec_holder.read_slice()?.0.len);
 
                         accumulator_data_bytes
                     };

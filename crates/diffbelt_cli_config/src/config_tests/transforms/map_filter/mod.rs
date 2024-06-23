@@ -8,7 +8,7 @@ use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFil
 use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::lift_result_from_option;
-use diffbelt_util_no_std::cast::checked_usize_to_i32;
+use diffbelt_util_no_std::cast::{checked_usize_to_i32, checked_usize_to_u32};
 use diffbelt_util_no_std::option::AsyncOptionUtil;
 use diffbelt_util_no_std::slice::get_slice_offset_in_other_slice;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
@@ -180,11 +180,12 @@ impl<'a> MapFilterTransformTest<'a> {
                 let value = update_record.value();
                 let value = value.map(|x| x.bytes());
 
-                let key_offset =
-                    get_slice_offset_in_other_slice(bytes.as_slice(), key).map_err(NoStdErrorWrap::from)?;
+                let key_offset = get_slice_offset_in_other_slice(bytes.as_slice(), key)
+                    .map_err(NoStdErrorWrap::from)?;
 
                 let value_offset = value.map(|value| {
-                    get_slice_offset_in_other_slice(bytes.as_slice(), value).map_err(NoStdErrorWrap::from)
+                    get_slice_offset_in_other_slice(bytes.as_slice(), value)
+                        .map_err(NoStdErrorWrap::from)
                 });
                 let value_offset = lift_result_from_option(value_offset)?;
 
@@ -196,7 +197,7 @@ impl<'a> MapFilterTransformTest<'a> {
 
                 let value_slice = value_ptr.map(|value_ptr| BytesSlice::<WasmPtrImpl> {
                     ptr: value_ptr.into(),
-                    len: checked_usize_to_i32(
+                    len: checked_usize_to_u32(
                         value
                             .expect("value should be present if value_ptr present")
                             .len(),
@@ -206,7 +207,7 @@ impl<'a> MapFilterTransformTest<'a> {
                 update_record_slices.push((
                     BytesSlice::<WasmPtrImpl> {
                         ptr: key_ptr.into(),
-                        len: checked_usize_to_i32(key.len()),
+                        len: checked_usize_to_u32(key.len()),
                     },
                     value_slice,
                 ));

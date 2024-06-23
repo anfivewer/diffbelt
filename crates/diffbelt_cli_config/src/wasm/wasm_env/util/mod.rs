@@ -34,8 +34,7 @@ pub fn ptr_to_utf8(
     len: u32,
 ) -> Result<WasmUtf8Holder, WasmError> {
     let ptr = ptr.value;
-    let ptr = try_positive_i32_to_usize(ptr)
-        .ok_or_else(|| WasmError::Unspecified(format!("ptr_to_utf8 got ptr {ptr}")))?;
+    let ptr = u32_to_usize(ptr);
     let len = u32_to_usize(len);
 
     Ok(WasmUtf8Holder {

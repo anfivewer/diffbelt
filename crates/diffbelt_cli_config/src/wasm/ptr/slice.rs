@@ -3,7 +3,7 @@ use std::mem;
 
 use bytemuck::Pod;
 
-use diffbelt_util_no_std::cast::try_positive_i32_to_usize;
+use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, u32_to_usize};
 
 use crate::wasm::types::{WasmBytesSlice, WasmPtr};
 use crate::wasm::WasmError;
@@ -15,8 +15,7 @@ pub struct WasmSlice<T: Pod> {
 
 impl<T: Pod> WasmPtr<T> {
     pub fn slice(&self) -> Result<WasmSlice<T>, WasmError> {
-        let ptr = try_positive_i32_to_usize(self.value)
-            .ok_or_else(|| WasmError::Unspecified(format!("WasmPtr::slice, ptr {}", self.value)))?;
+        let ptr = u32_to_usize(self.value);
 
         Ok(WasmSlice {
             ptr,
@@ -86,9 +85,7 @@ impl WasmBytesSlice {
     pub fn access<'a>(&self, memory: &'a [u8]) -> Result<&'a [u8], WasmError> {
         let ptr = self.0.ptr;
         let len = self.0.len;
-        let len = try_positive_i32_to_usize(len).ok_or_else(|| {
-            WasmError::Unspecified(format!("WasmBytesSlice::access, len {}", len))
-        })?;
+        let len = u32_to_usize(len);
         let slice = ptr.slice()?;
         let slice = slice.slice(memory, len)?;
         Ok(slice)

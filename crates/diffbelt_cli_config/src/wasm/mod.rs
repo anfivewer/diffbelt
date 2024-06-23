@@ -16,7 +16,7 @@ use diffbelt_protos::align_util::AlignedBytesError;
 use diffbelt_protos::error::FlatbufferError;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::Wrap;
-use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
+use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32, try_usize_to_u32, u32_to_usize};
 use diffbelt_util_no_std::impl_from_either;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
@@ -270,7 +270,7 @@ impl MapFilterFunction<'_> {
         let mut store = self.instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
 
-        let inputs_len_i32 = try_usize_to_i32(inputs.len()).ok_or_else(|| {
+        let inputs_len_u32 = try_usize_to_u32(inputs.len()).ok_or_else(|| {
             WasmError::Unspecified(format!("Input length too big: {}", inputs.len()))
         })?;
 
@@ -279,7 +279,7 @@ impl MapFilterFunction<'_> {
             .instance
             .allocation
             .alloc
-            .call_async(store.as_context_mut(), inputs_len_i32)
+            .call_async(store.as_context_mut(), inputs_len_u32)
             .await?;
 
         {
@@ -295,7 +295,7 @@ impl MapFilterFunction<'_> {
                 memory,
                 WasmBytesSlice(BytesSlice {
                     ptr,
-                    len: inputs_len_i32,
+                    len: inputs_len_u32,
                 }),
             )?;
         }
@@ -320,9 +320,7 @@ impl MapFilterFunction<'_> {
         };
 
         let result_len = slice_def.0.len;
-        let result_len = try_positive_i32_to_usize(result_len).ok_or_else(|| {
-            WasmError::Unspecified(format!("map_filter call result len: {}", result_len))
-        })?;
+        let result_len = u32_to_usize(result_len);
 
         Ok(WasmBytesSliceResult {
             instance: self.instance,

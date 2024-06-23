@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use either::Either;
 use wasmtime::AsContextMut;
 
-use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
+use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32, try_usize_to_u32, u32_to_usize};
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 
@@ -80,18 +80,8 @@ impl<'a> WasmVecHolder<'a> {
         instance.enter_memory_observe_context(|memory| {
             let raw_parts = self.ptr.access(memory)?;
 
-            let ptr = try_positive_i32_to_usize(raw_parts.0.ptr.value).ok_or_else(|| {
-                WasmError::Unspecified(format!(
-                    "WasmVecHolder::observe_slice ptr {}",
-                    raw_parts.0.ptr.value
-                ))
-            })?;
-            let len = try_positive_i32_to_usize(raw_parts.0.len).ok_or_else(|| {
-                WasmError::Unspecified(format!(
-                    "WasmVecHolder::observe_slice len {}",
-                    raw_parts.0.len
-                ))
-            })?;
+            let ptr = u32_to_usize(raw_parts.0.ptr.value);
+            let len = u32_to_usize(raw_parts.0.len);
 
             fun(&memory[ptr..(ptr + len)])
         })
@@ -107,8 +97,7 @@ impl<'a> WasmVecHolder<'a> {
         let raw_parts = raw_parts.0;
         let raw_parts_len = raw_parts.len;
 
-        let len = try_positive_i32_to_usize(raw_parts_len)
-            .ok_or_else(|| WasmError::Unspecified(format!("access_vec: len {}", raw_parts_len)))?;
+        let len = u32_to_usize(raw_parts_len);
 
         let result = WasmBytesSliceResult {
             instance: self.instance,
@@ -126,7 +115,7 @@ impl<'a> WasmVecHolder<'a> {
         let mut store = self.instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
 
-        let len = try_usize_to_i32(slice.len()).ok_or_else(|| {
+        let len = try_usize_to_u32(slice.len()).ok_or_else(|| {
             WasmError::Unspecified(format!("replace_vec_with_slice: slice len {}", slice.len()))
         })?;
 

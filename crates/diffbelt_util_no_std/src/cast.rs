@@ -12,6 +12,13 @@ pub fn unchecked_usize_to_u32(value: usize) -> u32 {
 
 #[inline(always)]
 #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+pub fn checked_usize_to_u32(value: usize) -> u32 {
+    assert!(value <= (u32::MAX as usize), "checked_usize_to_u32");
+    value as u32
+}
+
+#[inline(always)]
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
 pub fn unchecked_usize_to_i32(value: usize) -> i32 {
     value as i32
 }
@@ -169,4 +176,14 @@ pub fn ptr_as_usize<T>(ptr: *const T) -> usize {
 #[inline(always)]
 pub fn unsafe_ptr_to_i32<T>(ptr: *const T) -> i32 {
     ptr as i32
+}
+
+#[inline(always)]
+pub fn i32_to_u32(value: i32) -> u32 {
+    value as u32
+}
+
+#[inline(always)]
+pub fn u32_to_i32(value: u32) -> i32 {
+    value as i32
 }

@@ -89,7 +89,7 @@ impl FunctionEvalHandler for MapFilterEvalHandler {
 
             let aligned_bytes = output.observe_bytes(|bytes| {
                 let aligned_bytes = OwnedAlignedBytes::copy_slice(outputs_buffer, bytes)
-                    .map_err(WasmError::AlignedBytes)?;
+                    .map_err(NoStdErrorWrap)?;
 
                 // just validate
                 let output = deserialize::<MapFilterMultiOutput>(aligned_bytes.as_ref())

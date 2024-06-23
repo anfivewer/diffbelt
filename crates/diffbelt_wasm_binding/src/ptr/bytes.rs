@@ -7,9 +7,7 @@ use core::str::{from_utf8, Utf8Error};
 use bytemuck::{Pod, Zeroable};
 
 use diffbelt_protos::{FlatbuffersType, OwnedSerialized};
-use diffbelt_util_no_std::cast::{
-    checked_positive_i32_to_usize, checked_usize_to_i32, unsafe_ptr_to_i32,
-};
+use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32, checked_usize_to_u32, u32_to_usize, unchecked_usize_to_u32, unsafe_ptr_to_i32};
 
 use crate::ptr::slice::SliceRawParts;
 use crate::ptr::{ConstPtr, MutPtr, NativePtrImpl, PtrImpl};
@@ -31,8 +29,8 @@ pub struct BytesVecWidePtr {
 #[repr(C)]
 pub struct VecRawParts<T: Pod, P: PtrImpl = NativePtrImpl> {
     pub ptr: P::MutPtr<T>,
-    pub len: i32,
-    pub capacity: i32,
+    pub len: u32,
+    pub capacity: u32,
 }
 
 unsafe impl<T: Pod, P: PtrImpl> Zeroable for VecRawParts<T, P> {}
@@ -64,9 +62,9 @@ impl BytesVecWidePtr {
 impl<T: Pod> From<Vec<T>> for VecRawParts<T> {
     fn from(vec: Vec<T>) -> Self {
         let len = vec.len();
-        let len = checked_usize_to_i32(len);
+        let len = checked_usize_to_u32(len);
         let capacity = vec.capacity();
-        let capacity = checked_usize_to_i32(capacity);
+        let capacity = checked_usize_to_u32(capacity);
         let ptr = vec.leak() as *mut [T] as *mut T;
 
         Self {
@@ -106,8 +104,8 @@ impl<T: Pod> VecRawParts<T> {
     pub fn null() -> Self {
         Self {
             ptr: MutPtr::from(ptr::null_mut()),
-            len: -1,
-            capacity: -1,
+            len: 0,
+            capacity: 0,
         }
     }
 
@@ -118,7 +116,7 @@ impl<T: Pod> VecRawParts<T> {
             capacity: _,
         } = self;
 
-        let slice = slice_from_raw_parts(ptr.as_ptr(), checked_positive_i32_to_usize(*len));
+        let slice = slice_from_raw_parts(ptr.as_ptr(), u32_to_usize(*len));
         let slice = &*slice;
 
         slice
@@ -127,8 +125,8 @@ impl<T: Pod> VecRawParts<T> {
     pub unsafe fn into_vec(self) -> Vec<T> {
         let Self { ptr, len, capacity } = self;
 
-        let len = checked_positive_i32_to_usize(len);
-        let capacity = checked_positive_i32_to_usize(capacity);
+        let len = u32_to_usize(len);
+        let capacity = u32_to_usize(capacity);
 
         Vec::from_raw_parts(ptr.as_mut_ptr(), len, capacity)
     }
@@ -137,8 +135,8 @@ impl<T: Pod> VecRawParts<T> {
         let Self { ptr, len, capacity } = *this;
 
         assert_eq!(ptr.value, unsafe_ptr_to_i32(buffer.as_ptr()));
-        assert_eq!(len, checked_usize_to_i32(buffer.len()));
-        assert_eq!(capacity, checked_usize_to_i32(buffer.capacity()));
+        assert_eq!(len, checked_usize_to_u32(buffer.len()));
+        assert_eq!(capacity, checked_usize_to_u32(buffer.capacity()));
 
         core::mem::forget(buffer);
     }

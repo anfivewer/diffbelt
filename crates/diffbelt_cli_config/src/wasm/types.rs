@@ -23,8 +23,8 @@ impl BytesVecFullTrait for BytesVecRawParts<WasmPtrImpl> {
     fn null() -> Self {
         Self {
             ptr: WasmPtr::null().into(),
-            len: -1,
-            capacity: -1,
+            len: 0,
+            capacity: 0,
         }
     }
 }
@@ -55,7 +55,7 @@ impl AsRef<BytesSlice<WasmPtrImpl>> for WasmBytesSlice {
 #[repr(transparent)]
 #[derive(Copy)]
 pub struct WasmPtr<T: Pod> {
-    pub value: i32,
+    pub value: u32,
     pub phantom: PhantomData<T>,
 }
 
