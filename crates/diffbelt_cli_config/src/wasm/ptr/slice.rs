@@ -14,13 +14,13 @@ pub struct WasmSlice<T: Pod> {
 }
 
 impl<T: Pod> WasmPtr<T> {
-    pub fn slice(&self) -> Result<WasmSlice<T>, WasmError> {
+    pub fn slice(&self) -> WasmSlice<T> {
         let ptr = u32_to_usize(self.value);
 
-        Ok(WasmSlice {
+        WasmSlice {
             ptr,
             phantom: Default::default(),
-        })
+        }
     }
 }
 
@@ -86,7 +86,7 @@ impl WasmBytesSlice {
         let ptr = self.0.ptr;
         let len = self.0.len;
         let len = u32_to_usize(len);
-        let slice = ptr.slice()?;
+        let slice = ptr.slice();
         let slice = slice.slice(memory, len)?;
         Ok(slice)
     }

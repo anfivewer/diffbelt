@@ -20,7 +20,7 @@ impl<T: Pod> WasmPtr<T> {
 
 impl<T: Pod> WasmPtr<T> {
     pub fn access<'a>(&self, bytes: &'a [u8]) -> Result<&'a T, WasmError> {
-        let slice = self.slice()?;
+        let slice = self.slice();
         slice.at(bytes, 0)
     }
 
@@ -30,7 +30,7 @@ impl<T: Pod> WasmPtr<T> {
     }
 
     pub fn as_mut<'a>(&self, bytes: &'a mut [u8]) -> Result<&'a mut T, WasmError> {
-        let slice = self.slice()?;
+        let slice = self.slice();
         slice.at_mut(bytes, 0)
     }
 

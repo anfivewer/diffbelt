@@ -66,7 +66,7 @@ impl<'a> WasmBytesSliceResult<'a> {
         fun: F,
     ) -> Result<T, Either<E, WasmError>> {
         self.instance.enter_memory_observe_context(|memory| {
-            let slice = self.ptr.slice()?.slice(memory, self.len)?;
+            let slice = self.ptr.slice().slice(memory, self.len)?;
 
             fun(slice)
         })

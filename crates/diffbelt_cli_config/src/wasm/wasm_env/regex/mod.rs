@@ -137,7 +137,7 @@ impl WasmEnv {
                 let captures_count = captures.len();
                 let captures_count = min(captures_count, max_captures_count);
 
-                let captures_slice = captures_ptr.slice()?;
+                let captures_slice = captures_ptr.slice();
                 let mut captures_to_write_holder = temp_captures_vec.temp();
                 let captures_to_write = captures_to_write_holder.as_mut();
 
@@ -299,7 +299,7 @@ impl WasmEnv {
                     .await?;
 
                 {
-                    let vec_slice = vec_ptr.slice()?;
+                    let vec_slice = vec_ptr.slice();
                     () = vec_slice
                         .write_slice(memory.data_mut(ctx.as_context_mut()), result.as_bytes())?;
                 }

@@ -288,7 +288,7 @@ impl MapFilterFunction<'_> {
                 .allocation
                 .memory
                 .data_mut(store.as_context_mut());
-            let ptr_slice = ptr.slice()?;
+            let ptr_slice = ptr.slice();
             () = ptr_slice.write_slice(memory, inputs)?;
 
             () = self.slice.ptr.write(

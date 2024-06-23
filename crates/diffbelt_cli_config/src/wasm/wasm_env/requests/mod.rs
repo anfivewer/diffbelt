@@ -79,7 +79,7 @@ impl WasmEnv {
                         .clone();
 
                     let memory = memory.data(ctx);
-                    let data = slice_ptr.slice()?.slice(memory, u32_to_usize(slice_len))?;
+                    let data = slice_ptr.slice().slice(memory, u32_to_usize(slice_len))?;
 
                     let buffer = requests.take_request_buffer();
                     let data =
@@ -187,6 +187,9 @@ impl WasmEnv {
                 };
 
                 let data_len = value.as_bytes().len();
+                let data_len_u32 = try_usize_to_u32(data_len).ok_or_else(|| {
+                    WasmError::Unspecified("on_request_finished_fn: data too big".to_string())
+                })?;
 
                 let memory = state.memory.as_mut().expect("no Memory");
 
@@ -199,18 +202,23 @@ impl WasmEnv {
                     let allocation = state.allocation.as_ref().expect("no Allocation");
                     () = allocation
                         .ensure_vec_capacity
-                        .call_async(
-                            ctx.as_context_mut(),
-                            (
-                                vec_ptr,
-                                try_usize_to_u32(data_len)
-                                    .ok_or_else(|| WasmError::Unspecified("on_request_finished_fn: data too big".to_string()))?,
-                            ),
-                        )
+                        .call_async(ctx.as_context_mut(), (vec_ptr, data_len_u32))
                         .await?;
                 }
 
-                todo!()
+                let memory = memory.data_mut(ctx.as_context_mut());
+                let mut vec_raw_parts = vec_ptr.read(memory)?;
+
+                vec_raw_parts.0.len = data_len_u32;
+                () = vec_raw_parts
+                    .0
+                    .ptr
+                    .slice()
+                    .write_slice(memory, value.as_bytes())?;
+
+                () = vec_ptr.write(memory, vec_raw_parts)?;
+
+                Ok(ErrorCode::Ok)
             })()
             .await;
 
