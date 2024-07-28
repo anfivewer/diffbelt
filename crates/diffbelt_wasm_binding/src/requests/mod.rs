@@ -27,7 +27,5 @@ extern "C" {
     fn on_request_finished(
         request_id: RequestId,
         vec_ptr: MutPtr<BytesVecRawParts>,
-        offset_ptr: MutPtr<u32>,
-        len_ptr: MutPtr<u32>,
     ) -> ErrorCode;
 }

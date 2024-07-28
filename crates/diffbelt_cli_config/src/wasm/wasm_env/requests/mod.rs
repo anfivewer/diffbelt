@@ -159,20 +159,24 @@ impl WasmEnv {
             mut caller: Caller<'_, WasmStoreData>,
             request_id: u32,
             vec_ptr: WasmPtrToVecRawParts,
-            offset_ptr: WasmPtr<u32>,
-            len_ptr: WasmPtr<u32>,
         ) -> i32 {
             let state_mutex = caller.data().inner.clone();
             let mut ctx = caller.as_context_mut();
 
             let result = (|| async move {
-                let mut state = state_mutex.lock().expect("lock");
-                let state = state.deref_mut();
+                let (item, allocation) = {
+                    let mut state = state_mutex.lock().expect("lock");
+                    let state = state.deref_mut();
 
-                let active_requests = state.active_requests.as_mut().expect("no ActiveRequests");
+                    let active_requests = state.active_requests.as_mut().expect("no ActiveRequests");
 
-                let Some(item) = active_requests.requests.remove(&RequestId(request_id)) else {
-                    return Ok(ErrorCode::UnsafeFail);
+                    let Some(item) = active_requests.requests.remove(&RequestId(request_id)) else {
+                        return Ok(ErrorCode::UnsafeFail);
+                    };
+
+                    let allocation = state.allocation.clone().expect("no Allocation");
+
+                    (item, allocation)
                 };
 
                 let value = match item {
@@ -191,7 +195,7 @@ impl WasmEnv {
                     WasmError::Unspecified("on_request_finished_fn: data too big".to_string())
                 })?;
 
-                let memory = state.memory.as_mut().expect("no Memory");
+                let memory = &allocation.memory;
 
                 let vec_raw_parts = {
                     let memory = memory.data(ctx.as_context());
@@ -199,7 +203,6 @@ impl WasmEnv {
                 };
 
                 if u32_to_usize(vec_raw_parts.0.capacity) < data_len {
-                    let allocation = state.allocation.as_ref().expect("no Allocation");
                     () = allocation
                         .ensure_vec_capacity
                         .call_async(ctx.as_context_mut(), (vec_ptr, data_len_u32))
@@ -240,6 +243,16 @@ impl WasmEnv {
             },
         )?;
         linker.func_wrap("Diffbelt", "is_request_finished", is_request_finished_fn)?;
+        linker.func_wrap2_async(
+            "Diffbelt",
+            "on_request_finished",
+            |caller: Caller<'_, WasmStoreData>,
+             request_id: u32,
+             vec_ptr: WasmPtrToVecRawParts|
+             -> Box<dyn Future<Output = i32> + Send> {
+                Box::new(on_request_finished_fn(caller, request_id, vec_ptr))
+            },
+        )?;
 
         Ok(())
     }
