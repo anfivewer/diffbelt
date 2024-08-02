@@ -665,6 +665,7 @@ dependencies = [
 name = "diffbelt_cli_config"
 version = "0.0.1"
 dependencies = [
+ "base64 0.20.0",
  "bytemuck",
  "chrono",
  "diffbelt_example_protos",

@@ -1,4 +1,5 @@
 pub mod buffers;
+mod mocks;
 
 use diffbelt_protos::protos::api::methods::{Request, Response};
 use diffbelt_protos::OwnedSerialized;
