@@ -9,9 +9,8 @@ enum SubPath {
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=src/protos/log_line.fbs");
 
-    let paths = [SubPath::File("log_line.fbs")];
+    let paths = [SubPath::File("log_line.fbs"), SubPath::File("update_ms.fbs")];
 
     fn process_path(prefix: PathBuf, path: SubPath) {
         match path {
@@ -22,6 +21,11 @@ fn main() {
                 let mut fbs_path = PathBuf::from("src/protos");
                 fbs_path.push(&prefix);
                 fbs_path.push(file);
+
+                {
+                    let fbs_path = fbs_path.to_str().expect("cannot path.to_str()");
+                    println!("cargo:rerun-if-changed={fbs_path}");
+                }
 
                 let status = Command::new("flatc")
                     .args(&[

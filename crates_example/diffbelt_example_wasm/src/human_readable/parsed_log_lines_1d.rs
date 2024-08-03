@@ -230,8 +230,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
 
         let output = unsafe { &*input_and_output.value };
         let output_ptr = output.ptr.as_ptr();
-        let output_len_u32 = try_positive_i32_to_u32(output.len).expect("negative length");
-        let output_len_usize = u32_to_usize(output_len_u32);
+        let output_len_usize = u32_to_usize(output.len);
         let mut buffer = unsafe { (&*buffer_ptr).into_vec() };
 
         if let Some(index) = relative_pointer_location(buffer.as_slice(), output_ptr) {
@@ -249,7 +248,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
         let buffer_tail = &mut buffer[(buffer_len - 8)..];
 
         write_u32_be(buffer_tail, 0);
-        write_u32_be(&mut buffer_tail[4..], output_len_u32);
+        write_u32_be(&mut buffer_tail[4..], output.len);
 
         unsafe {
             *input_and_output.value = BytesSlice::from(buffer.as_slice());

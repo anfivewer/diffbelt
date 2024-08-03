@@ -1,0 +1,4 @@
+table UpdateMsIntermediate {
+    update_type: string;
+    ms: float32;
+}

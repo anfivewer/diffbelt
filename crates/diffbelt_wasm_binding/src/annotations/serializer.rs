@@ -36,7 +36,7 @@ impl<'fbb, F: FlatbuffersType<'fbb>, A: AnnotatedTrait<Value = *mut BytesVecRawP
     SerializedWithAnnotated<'fbb, F, A>
 {
     pub unsafe fn save(self) {
-        **self.original.value() = self.serialized.into()
+        **self.original.value() = self.serialized.into();
     }
 }
 

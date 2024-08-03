@@ -28,6 +28,7 @@ collections:
   - name: kicks:1h
   - name: kicks:1d
 
+  - name: updateMs:1d:intermediate
   - name: updateMs:1d:p
 
   - name: uniqueChats:1d
@@ -89,90 +90,12 @@ transforms:
         bytes_to_accumulator: parsedLogLinesBytesToAccumulator
         accumulator_to_bytes: parsedLogLinesAccumulatorToBytes
 
-#  - source: parsed-log-lines
-#    target: parsed-log-lines:1d
-#    reader_name: parsed-log-lines
-#    aggregate:
-#      key:
-#        - call:
-#            fn: parsed_log_lines_day_date_as_key
-#            vars:
-#              source: source
-#            result: key
-#        - return: key
-#      map_filter:
-#        - vars:
-#            unified_logger_key:
-#              regexp_replace:
-#                var: source.loggerKey
-#                from: ^(master|worker)\d+
-#                to: $1#
-#            merged_log_key: ${unified_logger_key}::${source.logKey}::${logLevelLetter}
-#        - return: merged_log_key
-#      empty_accumulator:
-#        - return: !record
-#            count:
-#              type: int64
-#              value: 0
-#            log_keys: map<string, int64>
-#      initial_accumulator:
-#        - return:
-#            count: target.count
-#            log_keys: target.logKeys
-#      reduce:
-#        - if:
-#            condition: source_old is not none
-#            then:
-#              - vars:
-#                  key: source_old.merged_log_key
-#                  value: -1
-#              - update_record:
-#                  var: accumulator.count
-#                  value: accumulator.count + value
-#              - call:
-#                  fn: parsed_log_lines_aggregate_increment_log_keys
-#                  vars:
-#                    accumulator: accumulator
-#                    count: count
-#                    value: value
-#                    key: key
-#        - if:
-#            condition: source_new is not none
-#            then:
-#              - vars:
-#                  key: source_new.merged_log_key
-#                  value: 1
-#              - update_record:
-#                  var: accumulator.count
-#                  value: accumulator.count + value
-#              - call:
-#                  fn: parsed_log_lines_aggregate_increment_log_keys
-#                  vars:
-#                    accumulator: accumulator
-#                    count: count
-#                    value: value
-#                    key: key
-#      merge_accumulators:
-#        - update_record:
-#            var: accumulator.count
-#            value: accumulator.count + next.count
-#        - foreach:
-#            iterable: next.logKeys
-#            as_var: item
-#            body:
-#              - vars:
-#                  key: item.key
-#                  value: item.value
-#              - call:
-#                  fn: parsed_log_lines_aggregate_increment_log_keys
-#                  vars:
-#                    accumulator: accumulator
-#                    count: count
-#                    value: value
-#                    key: key
-#      apply:
-#        - return: accumulator
-#
+  - name: updateMs_1d_intermediate
+    source: parsed-log-lines
+    target: updateMs:1d:intermediate
+    reader_name: updateMs:1d:intermediate
+    map_filter: example.updateMs1dIntermediateMapFilter
+
 #  - source: parsed-log-lines
 #    intermediate:
 #      collection:

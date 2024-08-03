@@ -30,6 +30,15 @@ pub fn u64_to_usize(value: u64) -> usize {
 }
 
 #[inline(always)]
+pub fn try_u64_to_i64(value: u64) -> Option<i64> {
+    if value >= i64::MAX as u64 {
+        return None;
+    }
+
+    Some(value as i64)
+}
+
+#[inline(always)]
 #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
 pub fn u32_to_usize(value: u32) -> usize {
     value as usize

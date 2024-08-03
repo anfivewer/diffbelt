@@ -126,6 +126,10 @@ impl<'fbb, F: FlatbuffersType<'fbb>> Serialized<'fbb, F> {
             phantom: PhantomData::default(),
         }
     }
+
+    pub fn into_buffer(self) -> Vec<u8> {
+        self.bytes.into_vec()
+    }
 }
 
 pub struct OwnedSerialized<'fbb, T: FlatbuffersType<'fbb>> {
