@@ -29,6 +29,13 @@ collections:
   - name: kicks:1d
 
   - name: updateMs:1d:intermediate
+    human_readable:
+      wasm: example
+      key_to_bytes: updateMsIntermediateKeyToBytes
+      bytes_to_key: updateMsIntermediateBytesToKey
+      value_to_bytes: updateMsIntermediateValueToBytes
+      bytes_to_value: updateMsIntermediateBytesToValue
+
   - name: updateMs:1d:p
 
   - name: uniqueChats:1d

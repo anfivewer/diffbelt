@@ -89,6 +89,7 @@ impl ReplaceMode for ReplaceAllImpl {
     ) -> () = replace_all;
 }
 
+#[deprecated]
 pub struct Regex {
     ptr: i32,
 }
