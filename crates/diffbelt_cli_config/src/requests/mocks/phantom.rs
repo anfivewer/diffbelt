@@ -7,10 +7,14 @@ use serde::Deserialize;
 use std::str::from_utf8;
 use thiserror::Error;
 
+fn default_as_false() -> bool {
+    false
+}
+
 #[derive(Deserialize)]
 struct StartPhantomRequestMock {
     generation_id: String,
-    #[serde(default = false)]
+    #[serde(default = "default_as_false")]
     generation_id_base64: bool,
 }
 

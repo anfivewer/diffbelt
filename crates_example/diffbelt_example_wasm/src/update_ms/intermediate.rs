@@ -7,6 +7,7 @@ use core::str::from_utf8;
 use chrono::{Datelike, NaiveDateTime};
 use regex::Regex;
 
+use alloc::format;
 use diffbelt_example_protos::protos::log_line::ParsedLogLine;
 use diffbelt_example_protos::protos::update_ms::{UpdateMsIntermediate, UpdateMsIntermediateArgs};
 use diffbelt_protos::align_util::AlignedBytes;
@@ -18,6 +19,7 @@ use diffbelt_protos::{deserialize, Serialized, Serializer};
 use diffbelt_util_no_std::cast::try_u64_to_i64;
 use diffbelt_wasm_binding::annotations::serializer::{IntoSerializerAnnotated, OutputAnnotated};
 use diffbelt_wasm_binding::annotations::{FlatbufferAnnotated, InputOutputAnnotated};
+use diffbelt_wasm_binding::debug_print_string;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::transform::map_filter::MapFilter;
@@ -55,8 +57,8 @@ impl<'t> MapFilter for UpdateMsDayIntermediate {
         let mut temp_buffer = Some(Vec::new());
 
         for item in items {
-            let source_key = from_utf8(item.source_key().expect("no source key").bytes())
-                .expect("source key is not a string");
+            let source_key = item.source_key().expect("no source key").bytes();
+            let source_key = from_utf8(source_key).expect("source key is not a string");
             let source_old_value = item.source_old_value().map(|x| x.bytes());
             let intermediate_old_key = source_old_value.and_then(|x| {
                 let (has_key, _) = value_to_key(x, source_key, &mut old_key, None);
@@ -144,7 +146,7 @@ fn value_to_key(
     let parsed_log_line = deserialize::<ParsedLogLine>(bytes).expect("deserialization");
 
     lazy_static::lazy_static! {
-        static ref MIDDLEWARE_RE: Regex = Regex::new(r"^worker\d*:middlewares$").expect("Cannot build MIDDLEWARE_RE");
+        static ref MIDDLEWARE_RE: Regex = Regex::new(r"^worker[0-9]*:middlewares$").expect("Cannot build MIDDLEWARE_RE");
     }
 
     let logger_key = parsed_log_line.logger_key().expect("no logger_key");

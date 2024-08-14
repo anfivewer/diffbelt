@@ -604,3 +604,22 @@ tests:
         items:
           master#:something::newKey::S: -1
       output: !should_safe_fail
+
+  transforms.updateMs_1d_intermediate.map_filter:
+    - name: basic
+      input:
+        source_key: 2023-02-20T21:42:48.822Z.000 worker4242
+        source_old_value: !none
+        source_new_value: |
+          logLevel: S (83)
+          tsStr: 2023-02-20T21:42:48.822Z.000
+          tsMs: 1676929368822
+          tsMicro: 0
+          loggerKey: worker4242:middlewares
+          logKey: handleFull
+          extra:
+            some extra
+            another extra
+      output:
+        - key: 42
+          value: !none

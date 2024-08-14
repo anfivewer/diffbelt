@@ -1,14 +1,19 @@
+use crate::global::BUFFER_FOR_REALIGN;
 use alloc::string::FromUtf8Error;
+use alloc::string::String;
+use core::fmt::Write;
 use core::str::Utf8Error;
 use diffbelt_example_protos::protos::update_ms::{UpdateMsIntermediate, UpdateMsIntermediateArgs};
-use diffbelt_protos::Serializer;
+use diffbelt_protos::align_util::AlignedBytes;
+use diffbelt_protos::protos::transform::map_filter::MapFilterMultiInput;
+use diffbelt_protos::{deserialize, Serializer};
+use diffbelt_wasm_binding::annotations::serializer::IntoSerializerAnnotated;
 use diffbelt_wasm_binding::annotations::{Annotated, FlatbufferAnnotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use regex::Regex;
 use thiserror_no_std::Error;
-use diffbelt_wasm_binding::annotations::serializer::IntoSerializerAnnotated;
 
 struct UpdateMsIntermediateKv;
 
@@ -56,6 +61,10 @@ impl HumanReadable for UpdateMsIntermediateKv {
         let mut ms = None;
 
         for line in input.lines() {
+            if line.is_empty() {
+                continue;
+            }
+
             if let Some(captures) = UPDATE_TYPE_RE.captures(line) {
                 let m = captures.get(1).expect("no capture");
                 update_type = Some(m.as_str());
@@ -100,9 +109,27 @@ impl HumanReadable for UpdateMsIntermediateKv {
 
     #[export_name = "updateMsIntermediateBytesToValue"]
     extern "C" fn bytes_to_human_readable_value(
-        _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
-        _buffer: Annotated<*mut BytesVecRawParts, &str>,
+        input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
+        buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
+        let input = {
+            let bytes = unsafe { (&*input_and_output.value).as_slice() };
+            let bytes =
+                AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
+                    .expect("align error");
+            deserialize::<UpdateMsIntermediate>(bytes).expect("deserialization")
+        };
+
+        let output = unsafe { (&*buffer.value).into_empty_vec() };
+        let mut output = String::from_utf8(output).expect("vector was empty");
+
+        let update_type = input.update_type().expect("no update_type");
+        let ms = input.ms();
+
+        () = output
+            .write_fmt(format_args!("updateType: {update_type}\nms: {ms}\n"))
+            .expect("fmt");
+
         ErrorCode::Ok
     }
 }
