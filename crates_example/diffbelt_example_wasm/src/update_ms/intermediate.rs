@@ -115,10 +115,12 @@ impl<'t> MapFilter for UpdateMsDayIntermediate {
             }
         }
 
+        let target_update_records = serializer.create_vector(&records);
+
         let result = MapFilterMultiOutput::create(
             serializer.buffer_builder(),
             &MapFilterMultiOutputArgs {
-                target_update_records: None,
+                target_update_records: Some(target_update_records),
             },
         );
 
@@ -153,7 +155,7 @@ fn value_to_key(
 
     if parsed_log_line.log_level() != ('S' as u8)
         || parsed_log_line.log_key().unwrap_or("") != "handleFull"
-        || MIDDLEWARE_RE.is_match(logger_key)
+        || !MIDDLEWARE_RE.is_match(logger_key)
     {
         return (false, None);
     }
@@ -195,7 +197,7 @@ fn value_to_key(
 
     () = key_output
         .write_fmt(format_args!(
-            "{:0>4}-{:0>4}-{:0>4} {:0>11.1} ",
+            "{:0>4}-{:0>2}-{:0>2} {:0>11.1} ",
             time.year(),
             time.month(),
             time.day(),

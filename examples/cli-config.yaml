@@ -307,7 +307,7 @@ tests:
     - name: with props and two extras
       input:
         source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 2|another extra 2'
-        source_old_value: (none)
+        source_old_value: !none
         source_new_value: ''
       output:
         - key: 2023-02-20T21:42:48.822Z.000 worker258688
@@ -328,7 +328,7 @@ tests:
     - name: with no props and no extras
       input:
         source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull'
-        source_old_value: (none)
+        source_old_value: !none
         source_new_value: ''
       output:
         - key: 2023-02-20T21:42:48.822Z.000 worker258688
@@ -343,7 +343,7 @@ tests:
     - name: with no props and two extras
       input:
         source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull |some extra|another extra'
-        source_old_value: (none)
+        source_old_value: !none
         source_new_value: ''
       output:
         - key: 2023-02-20T21:42:48.822Z.000 worker258688
@@ -361,16 +361,14 @@ tests:
     - name: not matches start
       input:
         source_key: 'S ------- worker258688:middlewares handleFull |some extra|another extra'
-        source_old_value: (none)
+        source_old_value: !none
         source_new_value: ''
-      output:
-        - key: S ------- worker258688:middlewares handleFull |some extra|another extra
-          value: !none
+      output: []
 
     - name: with stack extra
       input:
         source_key: 'E 2022-10-31T10:18:35.254Z.000 main:report report reason:undefined |FetchError: request to https://api.telegram.org/-----/getChatMember failed, reason: connect ETIMEDOUT 149.154.167.220:443\n    at ClientRequest.<anonymous> (/home/shieldy/shieldy/node_modules/node-fetch/lib/index.js:1461:11)\n    at ClientRequest.emit (events.js:375:28)\n    at TLSSocket.socketErrorListener (_http_client.js:475:9)\n    at TLSSocket.emit (events.js:375:28)\n    at emitErrorNT (internal/streams/destroy.js:106:8)\n    at emitErrorCloseNT (internal/streams/destroy.js:74:3)\n    at processTicksAndRejections (internal/process/task_queues.js:82:21)'
-        source_old_value: (none)
+        source_old_value: !none
         source_new_value: ''
       output:
         - key: 2022-10-31T10:18:35.254Z.000 main
@@ -606,7 +604,7 @@ tests:
       output: !should_safe_fail
 
   transforms.updateMs_1d_intermediate.map_filter:
-    - name: basic
+    - name: should not match
       input:
         source_key: 2023-02-20T21:42:48.822Z.000 worker4242
         source_old_value: !none
@@ -620,6 +618,24 @@ tests:
           extra:
             some extra
             another extra
+      output: []
+
+    - name: should match
+      input:
+        source_key: 2023-02-20T21:42:48.822Z.000 worker4242
+        source_old_value: !none
+        source_new_value: |
+          logLevel: S (83)
+          tsStr: 2023-02-20T21:42:48.822Z.000
+          tsMs: 1676929368822
+          tsMicro: 0
+          loggerKey: worker4242:middlewares
+          logKey: handleFull
+          props:
+            updateType: edited_message
+            ms: 27
       output:
-        - key: 42
-          value: !none
+        - key: 2023-02-20 000000027.0 2023-02-20T21:42:48.822Z.000 worker4242
+          value: |-
+            updateType: edited_message
+            ms: 27

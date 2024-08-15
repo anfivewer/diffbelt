@@ -130,6 +130,11 @@ impl HumanReadable for UpdateMsIntermediateKv {
             .write_fmt(format_args!("updateType: {update_type}\nms: {ms}\n"))
             .expect("fmt");
 
+        unsafe {
+            *input_and_output.value = BytesSlice::from(output.as_bytes());
+            *buffer.value = BytesVecRawParts::from(output.into_bytes());
+        }
+
         ErrorCode::Ok
     }
 }

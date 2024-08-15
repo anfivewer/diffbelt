@@ -331,6 +331,14 @@ impl<'a> MapFilterTransformTest<'a> {
                     }));
                 }
 
+                if let Some((expected_key, _expected_value)) = expected_iter.next() {
+                    return Ok(Some(AssertError::ValueMissmatch {
+                        message: Cow::Borrowed("Extra expected key"),
+                        actual: None,
+                        expected: Some(expected_key.to_string()),
+                    }));
+                }
+
                 Ok::<_, TestError>(None)
             })?;
 
