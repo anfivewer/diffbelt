@@ -1,32 +1,17 @@
 use crate::global::BUFFER_FOR_REALIGN;
-use alloc::string::FromUtf8Error;
 use alloc::string::String;
 use core::fmt::Write;
-use core::str::Utf8Error;
 use diffbelt_example_protos::protos::update_ms::{UpdateMsIntermediate, UpdateMsIntermediateArgs};
 use diffbelt_protos::align_util::AlignedBytes;
-use diffbelt_protos::protos::transform::map_filter::MapFilterMultiInput;
-use diffbelt_protos::{deserialize, Serializer};
+use diffbelt_protos::deserialize;
 use diffbelt_wasm_binding::annotations::serializer::IntoSerializerAnnotated;
 use diffbelt_wasm_binding::annotations::{Annotated, FlatbufferAnnotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use regex::Regex;
-use thiserror_no_std::Error;
 
 struct UpdateMsIntermediateKv;
-
-#[derive(Error, Debug)]
-enum LogLinesError {
-    Utf8(#[from] Utf8Error),
-}
-
-impl From<FromUtf8Error> for LogLinesError {
-    fn from(value: FromUtf8Error) -> Self {
-        LogLinesError::Utf8(value.utf8_error())
-    }
-}
 
 impl HumanReadable for UpdateMsIntermediateKv {
     #[export_name = "updateMsIntermediateKeyToBytes"]

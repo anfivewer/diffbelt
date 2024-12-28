@@ -37,39 +37,16 @@ collections:
       bytes_to_value: updateMsIntermediateBytesToValue
 
   - name: updateMs:1d:p
+    human_readable:
+      wasm: example
+      key_to_bytes: updateMsPercentilesKeyToBytes
+      bytes_to_key: updateMsPercentilesBytesToKey
+      value_to_bytes: updateMsPercentilesValueToBytes
+      bytes_to_value: updateMsPercentilesBytesToValue
 
   - name: uniqueChats:1d
 
   - name: uniqueUsers:1d
-
-#functions:
-#  parsed_log_lines_day_date_as_key: &parsed_log_lines_day_date_as_key
-#    - vars:
-#        date:
-#          date_from_unix_ms: source.timestampMilliseconds
-#        key: ${date.year}-${(padLeft date.month '0' 2)}-${(padLeft date.day '0', 2)}
-#    - return: key
-#  parsed_log_lines_aggregate_increment_log_keys: &parsed_log_lines_aggregate_increment_log_keys
-#    - vars:
-#        count: accumulator.log_keys.get_or_default(key, 0)
-#    - update_map:
-#        var: accumulator.log_keys
-#        key: key
-#        value: count + value
-#  take_str_before_space: &take_str_before_space
-#    - regexp:
-#        var: str
-#        regexp: ^([^\s]+)\s
-#        groups:
-#          - str
-#    - return: str
-#  update_ms_percentiles_increment_ms_by_type: &update_ms_percentiles_increment_ms_by_type
-#    - vars:
-#        count: accumulator.ms_by_type.get_or_default(key, 0)
-#    - update_map:
-#        var: accumulator.ms_by_type
-#        key: key
-#        value: count + value
 
 transforms:
   - name: parse_lines
@@ -103,113 +80,25 @@ transforms:
     reader_name: updateMs:1d:intermediate
     map_filter: example.updateMs1dIntermediateMapFilter
 
-#  - source: parsed-log-lines
-#    intermediate:
-#      collection:
-#        name: updateMs:1d:intermediate
-#      reader_name: parsed-log-lines
-#    target: updateMs:1d:p
-#    reader_name: updateMs:1d:intermediate
-#    percentiles:
-#      percentiles: [0, 50, 75, 90, 95, 100]
-#      target_key:
-#        source:
-#          - call:
-#              fn: parsed_log_lines_day_date_as_key
-#              vars:
-#                source: source
-#              result: key
-#          - return: key
-#        intermediate:
-#          - call:
-#              fn: take_str_before_space
-#              vars:
-#                str: intermediate_key
-#              result: key
-#          - return: key
-#      intermediate:
-#        - vars:
-#            is_stats: source.logLevel == 'S'
-#            is_handle_full: source.logKey == 'handleFull'
-#            is_from_middleware:
-#              regexp_test:
-#                var: source.loggerKey
-#                regexp: ^worker\d*:middlewares$
-#        - if:
-#            condition: is_stats && is_handle_full && is_from_middleware
-#            then: noop
-#            else: return
-#        - vars:
-#            update_type: source.props.updateType.or_default('???')
-#            ms:
-#              parse_float: source.props.ms
-#        - vars:
-#            ms_fixed:
-#              positive_float_to_fixed_length_string:
-#                integer_digits: 9
-#                fractional_digits: 1
-#                overflow_as_max: yes
-#        - call:
-#            fn: parsed_log_lines_day_date_as_key
-#            vars:
-#              source: source
-#            result: key
-#        - return:
-#            key: ${key} ${ms_fixed} ${source_key}
-#            value:
-#              updateType: update_type
-#              ms: ms
-#      empty_accumulator:
-#        - return: !record
-#            sum_ms:
-#              type: int64
-#              value: 0
-#            ms_by_type: map<string, int64>
-#      initial_accumulator:
-#        - return:
-#            sum_ms: target.sumMs
-#            ms_by_type: target.msByType
-#      reduce:
-#        - if:
-#            condition: intermediate_old is not none
-#            then:
-#              - update_record:
-#                  var: accumulator.sum_ms
-#                  value: accumulator.sum_ms - intermediate_old.sum_ms
-#              - vars:
-#                  key: intermediate_old.updateType
-#                  value: -1
-#              - call:
-#                  fn: update_ms_percentiles_increment_ms_by_type
-#                  vars:
-#                    accumulator: accumulator
-#                    key: key
-#                    count: count
-#                    value: value
-#        - if:
-#            condition: intermediate_new is not none
-#            then:
-#              - update_record:
-#                  var: accumulator.sum_ms
-#                  value: accumulator.sum_ms + intermediate_old.sum_ms
-#              - vars:
-#                  key: intermediate_old.updateType
-#                  value: 1
-#              - call:
-#                  fn: update_ms_percentiles_increment_ms_by_type
-#                  vars:
-#                    accumulator: accumulator
-#                    key: key
-#                    count: count
-#                    value: value
-#      percentiles_data:
-#        - return: target.percentilesData
-#      apply:
-#        - return:
-#            sumMs: accumulator.sum_ms
-#            msByType: accumulator.ms_by_type
-#            percentilesData: percentiles_data
-#
+  - name: updateMs_1d_intermediate
+    source: updateMs:1d:intermediate
+    target: updateMs:1d:p
+    reader_name: updateMs:1d:p
+    map_filter: example.updateMs1dIntermediateMapFilter
+    aggregate:
+      wasm: example
+      map: updateMsPercentilesMap
+      initial_accumulator: updateMsPercentilesInitialAccumulator
+      reduce: updateMsPercentilesReduce
+      apply: updateMsPercentilesMsApply
+      human_readable:
+        wasm: example
+        bytes_to_target_key: updateMsPercentilesBytesToTargetKey
+        bytes_to_mapped_value: updateMsPercentilesBytesToMappedValue
+        mapped_value_to_bytes: updateMsPercentilesBytesToMappedValue
+        bytes_to_accumulator: updateMsPercentilesBytesToAccumulator
+        accumulator_to_bytes: updateMsPercentilesAccumulatorToBytes
+
 #  - source: parsed-log-lines
 #    intermediate:
 #      collection:

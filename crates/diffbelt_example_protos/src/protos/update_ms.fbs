@@ -2,3 +2,20 @@ table UpdateMsIntermediate {
     update_type: string;
     ms: float32;
 }
+
+table UpdateMsAggregateByType {
+    key: string;
+    sum_ms: float64;
+    count: ulong;
+}
+
+table UpdateMsPerc {
+    percentile: float32;
+    intermediate_key: string;
+}
+
+table UpdateMsPercentiles {
+    sum_ms: float64;
+    by_type: [UpdateMsAggregateByType];
+    percentiles: [UpdateMsPerc];
+}
