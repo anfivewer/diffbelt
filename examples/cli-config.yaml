@@ -80,7 +80,7 @@ transforms:
     reader_name: updateMs:1d:intermediate
     map_filter: example.updateMs1dIntermediateMapFilter
 
-  - name: updateMs_1d_intermediate
+  - name: updateMs_1d_percentiles
     source: updateMs:1d:intermediate
     target: updateMs:1d:p
     reader_name: updateMs:1d:p
@@ -98,57 +98,6 @@ transforms:
         mapped_value_to_bytes: updateMsPercentilesBytesToMappedValue
         bytes_to_accumulator: updateMsPercentilesBytesToAccumulator
         accumulator_to_bytes: updateMsPercentilesAccumulatorToBytes
-
-#  - source: parsed-log-lines
-#    intermediate:
-#      collection:
-#        name: uniqueChats:1d:intermediate
-#        format: empty
-#      reader_name: parsed-log-lines
-#    target: uniqueChats:1d
-#    reader_name: uniqueChats:1d:intermediate
-#    unique_count:
-#      target_key:
-#        source:
-#          - call:
-#              fn: parsed_log_lines_day_date_as_key
-#              vars:
-#                source: source
-#              result: key
-#          - return: key
-#        intermediate:
-#          - call:
-#              fn: take_str_before_space
-#              vars:
-#                str: intermediate_key
-#              result: key
-#          - return: key
-#      intermediate:
-#        - vars:
-#            is_stats: source.logLevel == 'S'
-#            is_chat: source.logKey == 'chat'
-#            is_unique_chats:
-#              regexp_test:
-#                var: source.loggerKey
-#                regexp: ^[^:]+:uniqueChats$
-#            id: source.props.id
-#        - if:
-#            condition: is_stats && is_chat && is_unique_chats && id
-#            then: noop
-#            else: return
-#        - call:
-#            fn: parsed_log_lines_day_date_as_key
-#            vars:
-#              source: source
-#            result: key
-#        - return:
-#            key: ${key} ${id}
-#      empty_target:
-#        - return:
-#            count: 0
-#      apply:
-#        - return:
-#            count: target.count + count_diff
 
 wasm:
   - name: example
@@ -528,3 +477,8 @@ tests:
           value: |-
             updateType: edited_message
             ms: 27
+
+
+#  integration:
+#    - name: updateMs_1d_percentiles_empty
+#      wasm: example.calculatePercentilesEmptyIntegrationTest

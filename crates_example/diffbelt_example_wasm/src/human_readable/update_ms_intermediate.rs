@@ -111,7 +111,7 @@ impl HumanReadable for UpdateMsIntermediateKv {
         let update_type = input.update_type().expect("no update_type");
         let ms = input.ms();
 
-        () = output
+        let () = output
             .write_fmt(format_args!("updateType: {update_type}\nms: {ms}\n"))
             .expect("fmt");
 
