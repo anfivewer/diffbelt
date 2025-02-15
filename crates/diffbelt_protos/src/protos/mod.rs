@@ -16,6 +16,12 @@ pub mod api {
     pub mod put_many {
         pub use super::super::generated::api::put_many_generated::*;
     }
+    pub mod generation {
+        pub use super::super::generated::api::generation_generated::*;
+    }
+    pub mod query {
+        pub use super::super::generated::api::query_generated::*;
+    }
 }
 
 pub mod transform {

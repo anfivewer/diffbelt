@@ -31,6 +31,14 @@ fn main() {
                     None,
                 )),
                 SubPath::File((
+                    "generation.fbs",
+                    None,
+                )),
+                SubPath::File((
+                    "get_keys_around.fbs",
+                    None,
+                )),
+                SubPath::File((
                     "methods.fbs",
                     None,
                 )),
@@ -39,11 +47,11 @@ fn main() {
                     None,
                 )),
                 SubPath::File((
-                    "get_keys_around.fbs",
+                    "put_many.fbs",
                     None,
                 )),
                 SubPath::File((
-                    "put_many.fbs",
+                    "query.fbs",
                     None,
                 )),
             ],

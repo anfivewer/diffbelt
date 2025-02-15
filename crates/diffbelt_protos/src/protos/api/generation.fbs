@@ -1,0 +1,19 @@
+table StartGenerationRequest {
+  generation_id: [ubyte];
+  abort_outdated: bool = false;
+}
+
+table StartGenerationResponse {}
+
+table ReaderUpdate {
+    reader_name: string;
+    generation_id: [ubyte];
+}
+
+table CommitGenerationRequest {
+  generation_id: [ubyte];
+  /// optional
+  update_readers: [ReaderUpdate];
+}
+
+table CommitGenerationResponse {}

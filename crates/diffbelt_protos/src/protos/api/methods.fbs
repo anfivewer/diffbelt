@@ -1,12 +1,17 @@
 include "common.fbs";
+include "generation.fbs";
 include "phantom.fbs";
 include "put_many.fbs";
+include "query.fbs";
 include "get_keys_around.fbs";
 
 enum RequestResponseType : ushort {
     Error,
+    StartGeneration,
     StartPhantom,
     PutMany,
+    StartQuery,
+    NextQuery,
     GetKeysAround,
 }
 
@@ -14,9 +19,17 @@ table Request {
     type: RequestResponseType;
 
     /// optional
+    start_generation: StartGenerationRequest;
+    /// optional
+    commit_generation: CommitGenerationRequest;
+    /// optional
     start_phantom: StartPhantomRequest;
     /// optional
     put_many: PutManyRequest;
+    /// optional
+    start_query: StartQueryRequest;
+    /// optional
+    next_query: NextQueryRequest;
     /// optional
     get_keys_around: GetKeysAroundRequest;
 }
@@ -29,9 +42,17 @@ table Response {
     error: ErrorResponse;
 
     /// optional
+    start_generation: StartGenerationResponse;
+    /// optional
+    commit_generation: CommitGenerationResponse;
+    /// optional
     start_phantom: StartPhantomResponse;
     /// optional
     put_many: PutManyResponse;
+    /// optional
+    start_query: QueryResponse;
+    /// optional
+    next_query: QueryResponse;
     /// optional
     get_keys_around: GetKeysAroundResponse;
 }

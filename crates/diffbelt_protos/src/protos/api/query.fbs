@@ -1,0 +1,20 @@
+include "common.fbs";
+
+table StartQueryRequest {
+  /// optional, default is latest
+  generation_id: [ubyte];
+  /// optional
+  phantom_id: [ubyte];
+}
+
+table NextQueryRequest {
+  cursor_id: string;
+}
+
+table QueryResponse {
+  /// requested or latest, if was no requested generation
+  generation_id: [ubyte];
+  /// optional, absense means there is no more items
+  cursor_id: string;
+  items: [KeyValue];
+}

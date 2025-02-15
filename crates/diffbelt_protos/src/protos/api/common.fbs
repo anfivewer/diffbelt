@@ -5,6 +5,11 @@ table KeyValueUpdate {
   if_not_present: bool = false;
 }
 
+table KeyValue {
+  key: [ubyte];
+  value: [ubyte];
+}
+
 table ErrorResponse {
   code: int;
   reason: string;
