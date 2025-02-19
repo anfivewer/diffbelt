@@ -117,7 +117,7 @@ impl AggregateTransform {
                         query: Vec::with_capacity(0),
                         body: DiffbeltRequestBody::GetRecord(GetRequestJsonData {
                             key: EncodedKeyJsonData::from_bytes_slice(target_key),
-                            generation_id: Some(state.to_generation_id.clone()),
+                            generation_id: Some(state.to_generation_id_json.clone()),
                             phantom_id: None,
                         }),
                     }),

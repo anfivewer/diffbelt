@@ -35,7 +35,7 @@ impl AggregateTransform {
             panic!("already checked");
         };
 
-        let to_generation_id = state.to_generation_id;
+        let to_generation_id = state.to_generation_id_json;
 
         let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 

@@ -43,6 +43,8 @@ impl AggregateTransform {
 
         handle_received_target_record(
             &mut actions,
+            &state.from_generation_id,
+            &state.to_generation_id,
             &mut target,
             target_key_rc,
             target_old_value,
@@ -55,6 +57,8 @@ impl AggregateTransform {
 
 pub fn handle_received_target_record(
     actions: &mut ActionInputHandlerActionsVec<AggregateTransform, HandlerContext>,
+    from_generation_id: &[u8],
+    to_generation_id: &[u8],
     target: &mut Target,
     target_key_rc: Rc<[u8]>,
     target_old_value: Option<Box<[u8]>>,
@@ -79,11 +83,16 @@ pub fn handle_received_target_record(
     let target_key = serializer.create_vector(&target_key_rc);
     let target_old_value = target_old_value.map(|x| serializer.create_vector(&x));
 
+    let from_generation_id = serializer.create_vector(from_generation_id);
+    let to_generation_id = serializer.create_vector(to_generation_id);
+
     let target_info = AggregateTargetInfo::create(
         serializer.buffer_builder(),
         &AggregateTargetInfoArgs {
             target_key: Some(target_key),
             target_old_value,
+            generation_id: Some(from_generation_id),
+            new_generation_id: Some(to_generation_id),
         },
     );
     let target_info = serializer.finish(target_info).into_owned();

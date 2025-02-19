@@ -15,3 +15,6 @@ serde_json = "1.0.91"
 
 [dependencies.diffbelt_util_no_std]
 path = "../diffbelt_util_no_std"
+
+[dependencies.diffbelt_aligned_bytes]
+path = "../diffbelt_aligned_bytes"

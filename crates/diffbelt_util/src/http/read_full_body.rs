@@ -1,15 +1,10 @@
 use std::collections::VecDeque;
 use std::io::Read;
 
+use crate::http::error::BodyReadError;
 use futures::future::BoxFuture;
 use hyper::body::{Buf, Bytes, HttpBody};
 use hyper::Body;
-
-#[derive(Debug)]
-pub enum BodyReadError {
-    IO,
-    SizeLimit,
-}
 
 pub struct FullBody {
     bufs: VecDeque<Bytes>,

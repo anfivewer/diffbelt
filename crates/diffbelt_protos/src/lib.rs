@@ -19,7 +19,6 @@ pub mod error;
 pub mod protos;
 #[cfg(test)]
 mod tests;
-pub mod util;
 
 pub const FLATBUFFERS_ALIGNMENT: usize = 8;
 
@@ -84,7 +83,7 @@ impl<'fbb, F: FlatbuffersType<'fbb>> Serializer<'fbb, F> {
     }
 
     pub fn finish(mut self, root: WIPOffset<F>) -> Serialized<'fbb, F> {
-        () = self.buffer_builder_.finish_minimal(root);
+        let () = self.buffer_builder_.finish_minimal(root);
         let len = self.buffer_builder_.finished_data().len();
         let (buffer, head) = self.buffer_builder_.collapse();
 
@@ -157,7 +156,7 @@ impl<'fbb, F: FlatbuffersType<'fbb>> OwnedSerialized<'fbb, F> {
     ) -> Result<Self, FlatbufferError> {
         let opts = VerifierOptions::default();
         let mut v = Verifier::new(&opts, bytes.as_slice());
-        () = match <ForwardsUOffset<F>>::run_verifier(&mut v, 0) {
+        let () = match <ForwardsUOffset<F>>::run_verifier(&mut v, 0) {
             Ok(()) => (),
             Err(error) => {
                 return Err(FlatbufferError::InvalidFlatbufferWithBuffer(
@@ -181,6 +180,10 @@ impl<'fbb, F: FlatbuffersType<'fbb>> OwnedSerialized<'fbb, F> {
 
     pub fn data(&'fbb self) -> F::Inner {
         unsafe { flatbuffers::root_unchecked::<F>(self.as_bytes()) }
+    }
+
+    pub fn into_aligned_bytes(self) -> OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT> {
+        self.bytes
     }
 
     pub fn into_buffer_vec(self) -> Vec<u8> {

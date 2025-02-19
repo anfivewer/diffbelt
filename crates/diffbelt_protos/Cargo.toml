@@ -10,3 +10,6 @@ enum-as-inner = "0.6.0"
 
 [dependencies.diffbelt_util_no_std]
 path = "../diffbelt_util_no_std"
+
+[dependencies.diffbelt_aligned_bytes]
+path = "../diffbelt_aligned_bytes"

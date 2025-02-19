@@ -2,19 +2,24 @@ use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use hyper::http::HeaderValue;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server, StatusCode};
-
-use diffbelt_util::idling_status::BusyTask;
-
 use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::request::HyperRequestWrapped;
 use crate::http::routing::response::{
-    BaseResponse, BytesVecResponse, Response as ResponseByRoute, StaticStrResponse, StringResponse,
+    BaseResponse, BytesVecResponse, FlatbuffersResponse, Response as ResponseByRoute,
+    StaticStrResponse, StringResponse,
 };
 use crate::http::routing::StaticRouteOptions;
+use diffbelt_protos::protos::api::common::{ErrorResponse, ErrorResponseArgs};
+use diffbelt_protos::protos::api::methods::{
+    RequestResponseType, Response as ResponseProto, ResponseArgs,
+};
+use diffbelt_protos::Serializer;
+use diffbelt_util::idling_status::BusyTask;
+use hyper::body::Bytes;
+use hyper::http::HeaderValue;
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Response, Server, StatusCode};
 
 async fn handle_request(
     context: Arc<Context>,
@@ -89,6 +94,13 @@ async fn handle_response(result: ResponseByRoute) -> Result<Response<Body>, Http
         ResponseByRoute::BytesVec(BytesVecResponse { base, bytes }) => {
             (Response::new(bytes.into()), base)
         }
+        ResponseByRoute::Flatbuffers(FlatbuffersResponse { base, bytes }) => {
+            // TODO: streaming?
+            (
+                Response::new(Bytes::copy_from_slice(bytes.as_slice()).into()),
+                base,
+            )
+        }
     };
 
     init_response(&mut response, &base)?;
@@ -132,6 +144,46 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
                     Ok(response) => Ok::<Response<Body>, Infallible>(response),
                     Err(err) => {
                         let mut is_json = true;
+                        let mut is_flatbuffers = false;
+
+                        let mut make_flatbuffers_error = |reason: Option<&str>, details: &str| {
+                            is_flatbuffers = true;
+
+                            let mut serializer = Serializer::new();
+                            let reason = if let Some(reason) = reason {
+                                Some(serializer.create_string(reason))
+                            } else {
+                                None
+                            };
+                            let details = serializer.create_string(&details);
+                            let error = ErrorResponse::create(
+                                serializer.buffer_builder(),
+                                &ErrorResponseArgs {
+                                    code: 400,
+                                    reason,
+                                    details: Some(details),
+                                },
+                            );
+                            let response = ResponseProto::create(
+                                serializer.buffer_builder(),
+                                &ResponseArgs {
+                                    type_: RequestResponseType::Error,
+                                    error: Some(error),
+                                    start_generation: None,
+                                    commit_generation: None,
+                                    start_phantom: None,
+                                    put_many: None,
+                                    start_query: None,
+                                    next_query: None,
+                                    get_keys_around: None,
+                                    create_collection: None,
+                                },
+                            );
+                            let serialized = serializer.finish(response);
+                            let serialized = serialized.into_buffer();
+
+                            (StatusCode::BAD_REQUEST, serialized.into())
+                        };
 
                         let (status_code, body): (StatusCode, Body) = match err {
                             HttpError::Unspecified => (
@@ -145,7 +197,7 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
                             | HttpError::ContentTypeUnsupported(reason) => (
                                 StatusCode::BAD_REQUEST,
                                 format!(
-                                    "{{\"error\":\"400\",\"reason\":{}}}",
+                                    "{{\"error\":\"400\",\"details\":{}}}",
                                     serde_json::json!(reason).to_string()
                                 )
                                 .into(),
@@ -153,16 +205,19 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
                             HttpError::CustomJson400(json) => {
                                 (StatusCode::BAD_REQUEST, json.into())
                             }
-                            HttpError::GenericString400(reason) => {
-                                is_json = false;
-                                (
-                                    StatusCode::BAD_REQUEST,
-                                    format!(
-                                        "{{\"error\":\"400\",\"reason\":{}}}",
-                                        serde_json::json!(reason).to_string()
-                                    )
-                                    .into(),
+                            HttpError::GenericString400(reason) => (
+                                StatusCode::BAD_REQUEST,
+                                format!(
+                                    "{{\"error\":\"400\",\"details\":{}}}",
+                                    serde_json::json!(reason).to_string()
                                 )
+                                .into(),
+                            ),
+                            HttpError::InvalidFlatbuffers(details) => {
+                                make_flatbuffers_error(Some("invalidFlatbuffers"), &details)
+                            }
+                            HttpError::GenericFlatbuffers400(details) => {
+                                make_flatbuffers_error(None, details)
                             }
                             HttpError::TooBigPayload(max_size) => (
                                 StatusCode::PAYLOAD_TOO_LARGE,
@@ -171,7 +226,7 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
                             HttpError::InvalidJson(reason) => (
                                 StatusCode::BAD_REQUEST,
                                 format!(
-                                    "{{\"error\":\"400\",\"type\":\"invalidJson\",\"reason\":{}}}",
+                                    "{{\"error\":\"400\",\"reason\":\"invalidJson\",\"details\":{}}}",
                                     serde_json::json!(reason).to_string()
                                 )
                                 .into(),
@@ -191,7 +246,13 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
                         let mut response = Response::new(body);
                         *(response.status_mut()) = status_code;
 
-                        if is_json {
+                        if is_flatbuffers {
+                            let headers = response.headers_mut();
+                            headers.insert(
+                                "Content-Type",
+                                HeaderValue::from_static("application/x-flatbuffers"),
+                            );
+                        } else if is_json {
                             let headers = response.headers_mut();
                             headers.insert(
                                 "Content-Type",

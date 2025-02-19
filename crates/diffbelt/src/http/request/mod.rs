@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use hyper::{Body, Request as HyperRequest};
 
 use diffbelt_util::http::read_full_body::{into_full_body_as_read, IntoFullBodyAsReadReturn};
+use diffbelt_util::http::read_to_aligned_bytes::{into_aligned_bytes, IntoAlignedBytesReturn};
 pub use request_trait::*;
 
 mod request_trait;
@@ -88,5 +89,12 @@ impl Request for HyperRequestWrapped {
 
     fn into_full_body_as_read(self, max_size: usize) -> IntoFullBodyAsReadReturn {
         into_full_body_as_read(self.inner.into_body(), max_size)
+    }
+
+    fn into_aligned_bytes<const ALIGN: usize>(
+        self,
+        max_size: usize,
+    ) -> IntoAlignedBytesReturn<ALIGN> {
+        into_aligned_bytes(self.inner.into_body(), max_size)
     }
 }

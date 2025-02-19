@@ -60,8 +60,10 @@ pub enum State {
 #[derive(Debug)]
 pub struct ProcessingState {
     pub cursor_id: Option<Box<str>>,
-    pub from_generation_id: EncodedGenerationIdJsonData,
-    pub to_generation_id: EncodedGenerationIdJsonData,
+    pub from_generation_id: Box<[u8]>,
+    pub from_generation_id_json: EncodedGenerationIdJsonData,
+    pub to_generation_id: Box<[u8]>,
+    pub to_generation_id_json: EncodedGenerationIdJsonData,
     pub current_limits: Limits,
     pub target_keys: LruCache<Rc<[u8]>, Target>,
     pub chunk_id_counter: u64,

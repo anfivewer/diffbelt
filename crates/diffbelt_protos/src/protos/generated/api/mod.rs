@@ -1,4 +1,6 @@
 #[allow(unused_imports)]
+pub mod collection_generated;
+#[allow(unused_imports)]
 pub mod common_generated;
 #[allow(unused_imports)]
 pub mod generation_generated;

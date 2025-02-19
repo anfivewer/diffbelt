@@ -1,6 +1,9 @@
 mod generated;
 
 pub mod api {
+    pub mod collection {
+        pub use super::super::generated::api::collection_generated::*;
+    }
     pub mod common {
         pub use super::super::generated::api::common_generated::*;
     }

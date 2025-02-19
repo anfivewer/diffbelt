@@ -27,6 +27,10 @@ fn main() {
             "api",
             vec![
                 SubPath::File((
+                    "collection.fbs",
+                    None,
+                )),
+                SubPath::File((
                     "common.fbs",
                     None,
                 )),

@@ -45,6 +45,12 @@ path = "../diffbelt_macro"
 [dependencies.diffbelt_http_client]
 path = "../diffbelt_http_client"
 
+[dependencies.diffbelt_aligned_bytes]
+path = "../diffbelt_aligned_bytes"
+
+[dependencies.diffbelt_protos]
+path = "../diffbelt_protos"
+
 [build-dependencies]
 protobuf-codegen = "3.2.0"
 protoc-rust = "2.28.0"

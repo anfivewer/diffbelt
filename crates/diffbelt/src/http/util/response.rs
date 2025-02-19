@@ -1,7 +1,10 @@
-use serde::Serialize;
-
 use crate::http::errors::HttpError;
-use crate::http::routing::response::{BaseResponse, BytesVecResponse, Response, StaticStrResponse};
+use crate::http::routing::response::{
+    BaseResponse, BytesVecResponse, FlatbuffersResponse, Response, StaticStrResponse,
+};
+use diffbelt_protos::protos::api::methods::Response as ResponseProto;
+use diffbelt_protos::{FlatbuffersType, OwnedSerialized, Serializer};
+use serde::Serialize;
 
 pub fn create_ok_static_str_json_response<E>(str: &'static str) -> Result<Response, E> {
     Ok(Response::StaticStr(StaticStrResponse {
@@ -28,5 +31,17 @@ pub fn create_ok_json_response<T: Serialize>(response: &T) -> Result<Response, H
             ..Default::default()
         },
         bytes: response,
+    }))
+}
+
+pub fn create_ok_flatbuffers_response<'a>(
+    serialized: OwnedSerialized<'a, ResponseProto<'a>>,
+) -> Result<Response, HttpError> {
+    Ok(Response::Flatbuffers(FlatbuffersResponse {
+        base: BaseResponse {
+            content_type: "application/x-flatbuffers",
+            ..Default::default()
+        },
+        bytes: serialized.into_aligned_bytes(),
     }))
 }
