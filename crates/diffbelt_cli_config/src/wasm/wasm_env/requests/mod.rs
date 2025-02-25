@@ -14,6 +14,7 @@ use wasmtime::{AsContext, AsContextMut, Caller, Linker, Store};
 use crate::requests::DiffbeltRequests;
 use diffbelt_protos::align_util::OwnedAlignedBytes;
 use diffbelt_protos::protos::api::methods::{Request, Response};
+use diffbelt_protos::protos::impls::{RequestProto, ResponseProto};
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
@@ -28,10 +29,7 @@ use crate::wasm::{WasmError, WasmStoreData};
 pub struct ActiveDiffbeltRequests {
     requests: HashMap<
         RequestId,
-        Either<
-            oneshot::Receiver<OwnedSerialized<'static, Response<'static>>>,
-            OwnedSerialized<'static, Response<'static>>,
-        >,
+        Either<oneshot::Receiver<OwnedSerialized<ResponseProto>>, OwnedSerialized<ResponseProto>>,
     >,
     next_id: u32,
 }
@@ -84,7 +82,7 @@ impl WasmEnv {
                     let buffer = requests.take_request_buffer();
                     let data =
                         OwnedAlignedBytes::copy_slice(buffer, data).map_err(NoStdErrorWrap)?;
-                    let data = OwnedSerialized::<Request>::from_aligned_bytes(data)?;
+                    let data = OwnedSerialized::<RequestProto>::from_aligned_bytes(data)?;
 
                     Either::Right((requests, data))
                 };
@@ -168,7 +166,8 @@ impl WasmEnv {
                     let mut state = state_mutex.lock().expect("lock");
                     let state = state.deref_mut();
 
-                    let active_requests = state.active_requests.as_mut().expect("no ActiveRequests");
+                    let active_requests =
+                        state.active_requests.as_mut().expect("no ActiveRequests");
 
                     let Some(item) = active_requests.requests.remove(&RequestId(request_id)) else {
                         return Ok(ErrorCode::UnsafeFail);

@@ -37,7 +37,7 @@ macro_rules! impl_human_readable_call {
                     .allocation
                     .memory
                     .data_mut(store.as_context_mut());
-                () = self.slice_holder.ptr.write(memory, slice)?;
+                let () = self.slice_holder.ptr.write(memory, slice)?;
             }
 
             let error_code = self

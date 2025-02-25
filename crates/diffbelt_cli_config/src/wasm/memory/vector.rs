@@ -119,7 +119,7 @@ impl<'a> WasmVecHolder<'a> {
             WasmError::Unspecified(format!("replace_vec_with_slice: slice len {}", slice.len()))
         })?;
 
-        () = self
+        let () = self
             .instance
             .allocation
             .ensure_vec_capacity
@@ -137,7 +137,7 @@ impl<'a> WasmVecHolder<'a> {
         let vec_ptr = raw_parts.0.ptr;
 
         let vec_slice = vec_ptr.slice();
-        () = vec_slice.write_slice(memory, slice)?;
+        let () = vec_slice.write_slice(memory, slice)?;
 
         let wasm_slice = WasmBytesSlice(SliceRawParts { ptr: vec_ptr, len });
 

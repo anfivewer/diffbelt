@@ -174,7 +174,7 @@ impl WasmEnv {
                 let memory_bytes = memory.data_mut(caller.as_context_mut());
 
                 for (i, capture) in captures_to_write.drain(..).enumerate() {
-                    () = captures_slice.write_at(memory_bytes, i, capture)?;
+                    let () = captures_slice.write_at(memory_bytes, i, capture)?;
                 }
 
                 Ok::<_, WasmError>(unchecked_usize_to_i32(captures_count))

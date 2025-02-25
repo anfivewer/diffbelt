@@ -4,6 +4,7 @@ use std::rc::Rc;
 use std::str::from_utf8;
 
 use diffbelt_protos::align_util::AlignedBytes;
+use diffbelt_protos::protos::impls::{MapFilterMultiInputProto, MapFilterMultiOutputProto};
 use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFilterMultiOutput};
 use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_util::errors::NoStdErrorWrap;
@@ -130,7 +131,7 @@ pub struct MapFilterTransformTest<'a> {
     map_filter: MapFilterFunction<'a>,
 }
 
-type Input<'a> = OwnedSerialized<'static, MapFilterMultiInput<'static>>;
+type Input<'a> = OwnedSerialized<MapFilterMultiInputProto>;
 type Output<'a> = (
     WasmVecHolder<'a>,
     Vec<(BytesSlice<WasmPtrImpl>, Option<BytesSlice<WasmPtrImpl>>)>,
@@ -162,8 +163,8 @@ impl<'a> MapFilterTransformTest<'a> {
             let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, &mut temp_for_realign)
                 .map_err(TestError::AlignedBytes)?;
 
-            let multi_output =
-                deserialize::<MapFilterMultiOutput>(bytes).map_err(TestError::InvalidFlatbuffer)?;
+            let multi_output = deserialize::<MapFilterMultiOutputProto>(bytes)
+                .map_err(TestError::InvalidFlatbuffer)?;
 
             let Some(update_records) = multi_output.target_update_records() else {
                 return Ok(Vec::new());

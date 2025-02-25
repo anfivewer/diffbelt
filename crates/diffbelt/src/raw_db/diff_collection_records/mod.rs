@@ -142,7 +142,7 @@ impl RawDb {
         if let Some(continuation) = prev_diff_state {
             let key = continuation.seek_cursor_to.as_ref().map(|x| x.as_ref());
             if let Some(key) = key {
-                () = gc_iterator.seek(key.get_byte_array())?;
+                let () = gc_iterator.seek(key.get_byte_array())?;
             } else {
                 gc_iterator.make_invalid();
             }
@@ -195,7 +195,7 @@ impl RawDb {
                     to_key,
                     next_action,
                 }) => {
-                    () = gc_iterator.save_state()?;
+                    let () = gc_iterator.save_state()?;
 
                     let from_value = from_key
                         .map(|x| gc_iterator.get_value_for_key(x))
@@ -222,7 +222,7 @@ impl RawDb {
                         });
                     }
 
-                    () = gc_iterator.restore_state()?;
+                    let () = gc_iterator.restore_state()?;
 
                     next_action
                 }

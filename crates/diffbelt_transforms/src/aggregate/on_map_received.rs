@@ -147,7 +147,7 @@ impl AggregateTransform {
         }
 
         if actions.is_empty() {
-            () = Self::try_apply(
+            let () = Self::try_apply(
                 &mut actions,
                 &self.max_limits,
                 &mut state.current_limits,

@@ -1,3 +1,4 @@
+use diffbelt_protos::protos::impls::AggregateTargetInfoProto;
 use diffbelt_protos::protos::transform::aggregate::{AggregateTargetInfo, AggregateTargetInfoArgs};
 use diffbelt_protos::{OwnedSerialized, Serializer};
 use diffbelt_yaml::YamlNode;
@@ -12,7 +13,7 @@ use crate::{
 pub async fn yaml_test_vars_to_aggregate_initial_accumulator_input(
     target_human_readable: &HumanReadableFunctions<'_>,
     node: &YamlNode,
-) -> Result<OwnedSerialized<'static, AggregateTargetInfo<'static>>, YamlTestVarsError> {
+) -> Result<OwnedSerialized<AggregateTargetInfoProto>, YamlTestVarsError> {
     let mut serializer = Serializer::new();
 
     let instance = target_human_readable.instance;

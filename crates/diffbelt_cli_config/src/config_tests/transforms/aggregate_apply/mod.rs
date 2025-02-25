@@ -3,6 +3,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::str::from_utf8;
 
+use diffbelt_protos::protos::impls::AggregateApplyOutputProto;
 use diffbelt_protos::protos::transform::aggregate::AggregateApplyOutput;
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_wasm_binding::error_code::ErrorCode;
@@ -95,7 +96,7 @@ enum ExpectedError {
 }
 
 type Input = Vec<u8>;
-type Output<'a> = Result<OwnedSerialized<'static, AggregateApplyOutput<'static>>, ExpectedError>;
+type Output<'a> = Result<OwnedSerialized<AggregateApplyOutputProto>, ExpectedError>;
 type ActualOutput = Result<Option<String>, ExpectedError>;
 type ExpectedOutput<'a> = Result<Option<&'a str>, ExpectedError>;
 
@@ -112,7 +113,7 @@ impl<'a> AggregateApplyTransformTest<'a> {
         let accumulator = input;
 
         let holder = self.aggregate.instance.alloc_vec_holder().await?;
-        () = holder.replace_with_slice(accumulator.as_slice()).await?;
+        let () = holder.replace_with_slice(accumulator.as_slice()).await?;
 
         let output = self.aggregate.call_apply(&holder, &mut None).await;
 
@@ -142,7 +143,7 @@ impl<'a> AggregateApplyTransformTest<'a> {
             None => None,
             Some(target_value) => {
                 let holder = self.aggregate.instance.alloc_vec_holder().await?;
-                () = holder.replace_with_slice(target_value.bytes()).await?;
+                let () = holder.replace_with_slice(target_value.bytes()).await?;
 
                 let input_slice = holder.read_slice()?;
                 let output_holder = self.aggregate.instance.alloc_vec_holder().await?;

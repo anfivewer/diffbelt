@@ -3,7 +3,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::fmt::{Debug, Formatter};
+use core::fmt::{Debug, Formatter, Write};
 use core::marker::PhantomData;
 
 use crate::align_util::{AlignedBytes, OwnedAlignedBytes};
@@ -14,6 +14,8 @@ pub use flatbuffers::{InvalidFlatbuffer, Vector, WIPOffset};
 
 use crate::error::{FlatbufferError, InvalidFlatbufferWithBuffer};
 
+extern crate self as diffbelt_protos;
+
 pub mod align_util;
 pub mod error;
 pub mod protos;
@@ -22,23 +24,36 @@ mod tests;
 
 pub const FLATBUFFERS_ALIGNMENT: usize = 8;
 
-pub trait FlatbuffersType<'fbb>: Follow<'fbb> + Verifiable + 'fbb {}
+trait FlatbuffersType<'fbb>: Follow<'fbb> + Verifiable + 'fbb {}
 
 impl<'fbb, T: Follow<'fbb> + Verifiable + 'fbb> FlatbuffersType<'fbb> for T {}
 
-pub fn deserialize<'fbb, T: FlatbuffersType<'fbb>>(
-    bytes: AlignedBytes<'fbb, FLATBUFFERS_ALIGNMENT>,
-) -> Result<T::Inner, InvalidFlatbuffer> {
-    flatbuffers::root::<T>(bytes.as_slice())
+pub trait FlatbuffersGenericType {
+    type FlatType<'a>: FlatbuffersType<'a> + Debug;
+    fn name() -> &'static str;
 }
 
-#[derive(Debug)]
-pub struct Serializer<'fbb, T: FlatbuffersType<'fbb>> {
-    buffer_builder_: FlatBufferBuilder<'fbb>,
-    phantom: PhantomData<T>,
+pub fn deserialize<'a, T: FlatbuffersGenericType>(
+    bytes: AlignedBytes<'a, FLATBUFFERS_ALIGNMENT>,
+) -> Result<<T::FlatType<'a> as Follow>::Inner, InvalidFlatbuffer> {
+    flatbuffers::root::<T::FlatType<'a>>(bytes.as_slice())
 }
 
-impl<'fbb, F: FlatbuffersType<'fbb>> Serializer<'fbb, F> {
+pub struct Serializer<'a, T: FlatbuffersGenericType> {
+    buffer_builder_: FlatBufferBuilder<'a>,
+    phantom: PhantomData<&'a T>,
+}
+
+impl<'a, T: FlatbuffersGenericType> Debug for Serializer<'a, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.write_str("Serializer(")?;
+        f.write_str(T::name())?;
+        f.write_str(")")?;
+        Ok(())
+    }
+}
+
+impl<'fbb, F: FlatbuffersGenericType> Serializer<'fbb, F> {
     pub fn new() -> Self {
         Self {
             buffer_builder_: FlatBufferBuilder::new(),
@@ -82,14 +97,14 @@ impl<'fbb, F: FlatbuffersType<'fbb>> Serializer<'fbb, F> {
         self.buffer_builder_.end_vector(items_count)
     }
 
-    pub fn finish(mut self, root: WIPOffset<F>) -> Serialized<'fbb, F> {
+    pub fn finish(mut self, root: WIPOffset<F::FlatType<'fbb>>) -> OwnedSerialized<F> {
         let () = self.buffer_builder_.finish_minimal(root);
         let len = self.buffer_builder_.finished_data().len();
         let (buffer, head) = self.buffer_builder_.collapse();
 
         let bytes = OwnedAlignedBytes::new(buffer, head, len).expect("serialization error");
 
-        Serialized {
+        OwnedSerialized {
             bytes,
             phantom: PhantomData::default(),
         }
@@ -105,58 +120,32 @@ impl<'fbb, F: FlatbuffersType<'fbb>> Serializer<'fbb, F> {
     }
 }
 
-pub struct Serialized<'fbb, F: FlatbuffersType<'fbb>> {
+pub struct OwnedSerialized<T: FlatbuffersGenericType> {
     bytes: OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT>,
-    phantom: PhantomData<&'fbb F>,
+    phantom: PhantomData<T>,
 }
 
-impl<'fbb, F: FlatbuffersType<'fbb>> Serialized<'fbb, F> {
-    pub fn as_bytes(&self) -> &[u8] {
-        self.bytes.as_slice()
-    }
-
-    pub fn data(&'fbb self) -> F::Inner {
-        unsafe { flatbuffers::root_unchecked::<F>(self.as_bytes()) }
-    }
-
-    pub fn into_owned(self) -> OwnedSerialized<'fbb, F> {
-        OwnedSerialized {
-            bytes: self.bytes,
-            phantom: PhantomData::default(),
-        }
-    }
-
-    pub fn into_buffer(self) -> Vec<u8> {
-        self.bytes.into_vec()
-    }
-}
-
-pub struct OwnedSerialized<'fbb, T: FlatbuffersType<'fbb>> {
-    bytes: OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT>,
-    phantom: PhantomData<&'fbb T>,
-}
-
-impl<'fbb, T: FlatbuffersType<'fbb>> Debug for OwnedSerialized<'fbb, T> {
+impl<T: FlatbuffersGenericType> Debug for OwnedSerialized<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.write_str("OwnedSerialized(?)")
     }
 }
 
-impl<'fbb, T: FlatbuffersType<'fbb>> PartialEq for OwnedSerialized<'fbb, T> {
+impl<T: FlatbuffersGenericType> PartialEq for OwnedSerialized<T> {
     fn eq(&self, other: &Self) -> bool {
         self.bytes.as_slice() == other.bytes.as_slice()
     }
 }
 
-impl<'fbb, T: FlatbuffersType<'fbb>> Eq for OwnedSerialized<'fbb, T> {}
+impl<T: FlatbuffersGenericType> Eq for OwnedSerialized<T> {}
 
-impl<'fbb, F: FlatbuffersType<'fbb>> OwnedSerialized<'fbb, F> {
+impl<F: FlatbuffersGenericType> OwnedSerialized<F> {
     pub fn from_aligned_bytes(
         bytes: OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT>,
     ) -> Result<Self, FlatbufferError> {
         let opts = VerifierOptions::default();
         let mut v = Verifier::new(&opts, bytes.as_slice());
-        let () = match <ForwardsUOffset<F>>::run_verifier(&mut v, 0) {
+        let () = match <ForwardsUOffset<F::FlatType<'_>>>::run_verifier(&mut v, 0) {
             Ok(()) => (),
             Err(error) => {
                 return Err(FlatbufferError::InvalidFlatbufferWithBuffer(
@@ -178,16 +167,26 @@ impl<'fbb, F: FlatbuffersType<'fbb>> OwnedSerialized<'fbb, F> {
         self.bytes.as_slice()
     }
 
-    pub fn data(&'fbb self) -> F::Inner {
-        unsafe { flatbuffers::root_unchecked::<F>(self.as_bytes()) }
+    pub fn data(&self) -> <F::FlatType<'_> as Follow>::Inner {
+        unsafe { flatbuffers::root_unchecked::<F::FlatType<'_>>(self.as_bytes()) }
     }
 
     pub fn into_aligned_bytes(self) -> OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT> {
         self.bytes
     }
 
+    pub fn into_buffer(self) -> Vec<u8> {
+        self.bytes.into_vec()
+    }
+
+    #[deprecated]
     pub fn into_buffer_vec(self) -> Vec<u8> {
         self.bytes.into_vec()
+    }
+
+    #[deprecated]
+    pub fn into_owned(self) -> Self {
+        self
     }
 
     pub fn into_raw_parts(self) -> SerializedRawParts {
@@ -202,3 +201,6 @@ pub struct SerializedRawParts {
     pub head: usize,
     pub len: usize,
 }
+
+#[deprecated]
+pub type Serialized<T: FlatbuffersGenericType> = OwnedSerialized<T>;

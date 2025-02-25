@@ -62,7 +62,7 @@ impl AggregateTransform {
 
         let need_try_apply = actions.is_empty();
 
-        () = Self::maybe_read_cursor(
+        let () = Self::maybe_read_cursor(
             &mut actions,
             &self.max_limits,
             &mut state.current_limits,
@@ -72,7 +72,7 @@ impl AggregateTransform {
         );
 
         if need_try_apply {
-            () = Self::try_apply(
+            let () = Self::try_apply(
                 &mut actions,
                 &self.max_limits,
                 &mut state.current_limits,

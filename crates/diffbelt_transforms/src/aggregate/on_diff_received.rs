@@ -118,7 +118,7 @@ impl AggregateTransform {
             }),
         ));
 
-        () = Self::maybe_read_cursor(
+        let () = Self::maybe_read_cursor(
             &mut actions,
             &self.max_limits,
             &mut state.current_limits,

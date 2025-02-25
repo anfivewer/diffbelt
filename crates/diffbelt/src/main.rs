@@ -68,11 +68,11 @@ async fn run() {
     });
 
     loop {
-        () = idling.on_idle_for(Duration::from_millis(500)).await;
+        let () = idling.on_idle_for(Duration::from_millis(500)).await;
 
         println!("IDLE");
 
-        () = idling.on_busy().await;
+        let () = idling.on_busy().await;
 
         println!("BUSY");
     }

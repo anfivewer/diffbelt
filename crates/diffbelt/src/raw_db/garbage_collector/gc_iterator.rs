@@ -58,7 +58,7 @@ impl<'a> GcIterator<'a> {
             self.db_iterator.seek_to_first();
         } else {
             self.db_iterator.next();
-            () = self.db_iterator.status()?;
+            let () = self.db_iterator.status()?;
         }
 
         let Some(gc_phantom_id) = self.gc_phantom_id else {
@@ -88,7 +88,7 @@ impl<'a> GcIterator<'a> {
 
                 let db_iterator = unsafe { &mut *db_iterator_ptr };
                 db_iterator.next();
-                () = db_iterator.status()?;
+                let () = db_iterator.status()?;
                 // FIXME: there should be limit
                 continue;
             }
@@ -103,7 +103,7 @@ impl<'a> GcIterator<'a> {
     ) -> Result<CollectionValue<'_>, RawDbError> {
         let key_bytes = key.get_byte_array();
 
-        () = self.seek(key_bytes)?;
+        let () = self.seek(key_bytes)?;
 
         let Some(actual_key) = self.db_iterator.key() else {
             return Err(RawDbError::Unspecified(
@@ -136,7 +136,7 @@ impl<'a> GcIterator<'a> {
             self.db_iterator.seek_to_first();
         } else if self.need_go_next {
             self.db_iterator.next();
-            () = self.db_iterator.status()?;
+            let () = self.db_iterator.status()?;
         }
 
         self.need_go_next = true;
@@ -168,7 +168,7 @@ impl<'a> GcIterator<'a> {
 
                 let db_iterator = unsafe { &mut *db_iterator_ptr };
                 db_iterator.next();
-                () = db_iterator.status()?;
+                let () = db_iterator.status()?;
                 continue;
             }
 
@@ -181,7 +181,7 @@ impl<'a> GcIterator<'a> {
         self.need_seek_to_first = false;
         self.need_go_next = false;
         self.db_iterator.seek(key);
-        () = self.db_iterator.status()?;
+        let () = self.db_iterator.status()?;
         Ok(())
     }
 
@@ -236,7 +236,7 @@ impl<'a> GcIterator<'a> {
             self.need_go_next = true;
         }
 
-        () = self.db_iterator.status()?;
+        let () = self.db_iterator.status()?;
         Ok(())
     }
 

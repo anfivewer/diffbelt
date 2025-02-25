@@ -2,13 +2,14 @@ pub mod buffers;
 mod mocks;
 
 use diffbelt_protos::protos::api::methods::{Request, Response};
+use diffbelt_protos::protos::impls::{RequestProto, ResponseProto};
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_util::Wrap;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
 use tokio::sync::{mpsc, oneshot};
 
-type RequestData = OwnedSerialized<'static, Request<'static>>;
-type ResponseData = OwnedSerialized<'static, Response<'static>>;
+type RequestData = OwnedSerialized<RequestProto>;
+type ResponseData = OwnedSerialized<ResponseProto>;
 
 pub struct DiffbeltRequests {
     sender: mpsc::Sender<(RequestData, oneshot::Sender<ResponseData>)>,
@@ -33,11 +34,11 @@ impl DiffbeltRequests {
 
     pub async fn request(
         &self,
-        data: OwnedSerialized<'static, Request<'static>>,
+        data: OwnedSerialized<RequestProto>,
     ) -> Result<oneshot::Receiver<ResponseData>, ()> {
         let (sender, receiver) = oneshot::channel();
 
-        () = self.sender.send((data, sender)).await.map_err(|_| ())?;
+        let () = self.sender.send((data, sender)).await.map_err(|_| ())?;
 
         Ok(receiver)
     }

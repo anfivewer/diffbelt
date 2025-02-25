@@ -2,6 +2,7 @@ use crate::global::BUFFER_FOR_REALIGN;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
+use diffbelt_example_protos::protos::impls::UpdateMsPercentilesProto;
 use diffbelt_example_protos::protos::update_ms::{
     UpdateMsAggregateByType, UpdateMsAggregateByTypeArgs, UpdateMsIntermediate,
     UpdateMsIntermediateArgs, UpdateMsPerc, UpdateMsPercArgs, UpdateMsPercentiles,
@@ -71,7 +72,7 @@ impl HumanReadable for UpdateMsPercentilesKv {
             static ref PERCENTILES_INTERMEDIATE_KEY_RE: Regex = Regex::new(r"^    intermediate_key: (.+)$").expect("Cannot build PERCENTILES_INTERMEDIATE_KEY_RE");
         }
 
-        let buffer_ptr = FlatbufferAnnotated::from(buffer);
+        let buffer_ptr = FlatbufferAnnotated::<_, UpdateMsPercentilesProto>::from(buffer);
         let mut serializer_with_ptr = unsafe { buffer_ptr.into_serializer() };
         let serializer = serializer_with_ptr.serializer_mut();
 
@@ -206,7 +207,7 @@ impl HumanReadable for UpdateMsPercentilesKv {
             let bytes =
                 AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
                     .expect("align error");
-            deserialize::<UpdateMsPercentiles>(bytes).expect("deserialization")
+            deserialize::<UpdateMsPercentilesProto>(bytes).expect("deserialization")
         };
 
         let output = unsafe { (&*buffer.value).into_empty_vec() };

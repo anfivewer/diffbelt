@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::str::from_utf8;
 
+use diffbelt_protos::protos::impls::MapFilterMultiOutputProto;
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate, RecordUpdateArgs,
 };
@@ -415,7 +416,7 @@ struct MapFilterEvalInputRecord {
 }
 
 fn make_map_filter_eval_input(records: Vec<MapFilterEvalInputRecord>) -> MapFilterEvalInput {
-    let mut serializer = Serializer::<MapFilterMultiOutput>::new();
+    let mut serializer = Serializer::<MapFilterMultiOutputProto>::new();
 
     let records = records
         .into_iter()

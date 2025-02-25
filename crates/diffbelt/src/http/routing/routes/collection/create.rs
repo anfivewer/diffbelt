@@ -23,6 +23,8 @@ use diffbelt_protos::protos::api::collection::{
 use diffbelt_protos::protos::api::methods::{
     RequestResponseType, Response as ResponseProto, ResponseArgs,
 };
+use diffbelt_protos::protos::handlers::{ApiHandler, CreateCollectionApiHandler};
+use diffbelt_protos::protos::impls::CreateCollectionRequestProto;
 use diffbelt_protos::{deserialize, Serializer};
 use diffbelt_util::http::read_full_body::FullBody;
 use diffbelt_util_no_std::option::store_in_option;
@@ -74,7 +76,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
                 let body = read_limited_aligned_bytes(request, CREATE_COLLECTION_REQUEST_MAX_BYTES)
                     .await?;
                 let body = store_in_option(&mut aligned_body, body);
-                let data = deserialize::<CreateCollectionRequest>(body.as_ref())
+                let data = deserialize::<CreateCollectionRequestProto>(body.as_ref())
                     .map_err(map_invalid_flatbuffer_error_to_http_error)?;
                 UnifiedRequestData {
                     is_flatbuffers: true,
@@ -118,26 +120,10 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
         if data.is_flatbuffers {
             let mut serializer = Serializer::new();
             let generation_id = Some(serializer.create_vector(generation_id.get_byte_array()));
-            let create_collection = Some(CreateCollectionResponse::create(
-                serializer.buffer_builder(),
-                &CreateCollectionResponseArgs { generation_id },
-            ));
-            let response = ResponseProto::create(
-                serializer.buffer_builder(),
-                &ResponseArgs {
-                    type_: RequestResponseType::CreateCollection,
-                    error: None,
-                    start_generation: None,
-                    commit_generation: None,
-                    start_phantom: None,
-                    put_many: None,
-                    start_query: None,
-                    next_query: None,
-                    get_keys_around: None,
-                    create_collection,
-                },
+            let response = CreateCollectionApiHandler::create_response(
+                serializer,
+                CreateCollectionResponseArgs { generation_id },
             );
-            let response = serializer.finish(response).into_owned();
 
             create_ok_flatbuffers_response(response)
         } else {

@@ -127,7 +127,7 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
 
     let local = LocalSet::new();
 
-    () = local
+    let () = local
         .run_until(async {
             loop {
                 let need_continue = processing_iteration(
@@ -177,7 +177,7 @@ impl InputEmitter {
 
         let mut msg = result;
 
-        () = loop {
+        let () = loop {
             match self.sender.try_send(msg) {
                 Ok(()) => {
                     break ();
@@ -259,14 +259,14 @@ async fn processing_iteration(
                                 Err(err) => Err(err.into()),
                             };
 
-                            () = sender.send(message).await.unwrap_or(());
+                            let () = sender.send(message).await.unwrap_or(());
                         });
                     }
                     ActionType::FunctionEval(eval) => {
                         let eval_handler = eval_handler.clone();
                         let transform = transform.clone();
                         spawn_local(async move {
-                            () = eval_handler
+                            let () = eval_handler
                                 .handle_action(eval, input_emitter, transform)
                                 .await;
                         });

@@ -1,3 +1,4 @@
+use diffbelt_protos::protos::impls::MapFilterMultiInputProto;
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterInput, MapFilterInputArgs, MapFilterMultiInput, MapFilterMultiInputArgs,
 };
@@ -12,7 +13,7 @@ use crate::wasm::human_readable::HumanReadableFunctions;
 pub async fn yaml_test_vars_to_map_filter_input(
     human_readable_functions: &HumanReadableFunctions<'_>,
     node: &YamlNode,
-) -> Result<OwnedSerialized<'static, MapFilterMultiInput<'static>>, YamlTestVarsError> {
+) -> Result<OwnedSerialized<MapFilterMultiInputProto>, YamlTestVarsError> {
     let mut serializer = Serializer::new();
 
     let map = node
@@ -36,7 +37,7 @@ pub async fn yaml_test_vars_to_map_filter_input(
         match key {
             "source_key" => {
                 if let Some(s) = parse_scalar(value)?.as_str() {
-                    () = call_human_readable_conversion!(
+                    let () = call_human_readable_conversion!(
                         s.as_bytes(),
                         human_readable_functions,
                         call_key_to_bytes,
@@ -52,7 +53,7 @@ pub async fn yaml_test_vars_to_map_filter_input(
             }
             "source_old_value" => {
                 if let Some(s) = parse_scalar(value)?.as_str() {
-                    () = call_human_readable_conversion!(
+                    let () = call_human_readable_conversion!(
                         s.as_bytes(),
                         human_readable_functions,
                         call_value_to_bytes,
@@ -68,7 +69,7 @@ pub async fn yaml_test_vars_to_map_filter_input(
             }
             "source_new_value" => {
                 if let Some(s) = parse_scalar(value)?.as_str() {
-                    () = call_human_readable_conversion!(
+                    let () = call_human_readable_conversion!(
                         s.as_bytes(),
                         human_readable_functions,
                         call_value_to_bytes,

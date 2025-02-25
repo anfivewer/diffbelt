@@ -1,6 +1,7 @@
 use diffbelt_protos::protos::api::phantom::{
     StartPhantomRequest, StartPhantomRequestArgs, StartPhantomResponse,
 };
+use diffbelt_protos::protos::impls::StartPhantomRequestProto;
 use diffbelt_protos::{Serialized, Serializer};
 use lexpr::from_str;
 use serde::Deserialize;
@@ -35,7 +36,7 @@ pub enum PhantomSerializationError {
 impl StartPhantomRequestMock {
     pub fn to_flatbuffers(
         &self,
-    ) -> Result<Serialized<StartPhantomRequest>, PhantomSerializationError> {
+    ) -> Result<Serialized<StartPhantomRequestProto>, PhantomSerializationError> {
         let mut serializer = Serializer::new();
 
         let generation_id = if self.generation_id_base64 {

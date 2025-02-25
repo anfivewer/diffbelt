@@ -52,7 +52,7 @@ impl YamlNode {
             }
 
             let result = yaml_emitter_open(emitter);
-            () = check_error(result.ok, emitter)?;
+            let () = check_error(result.ok, emitter)?;
 
             let closure = |bytes: *const [u8]| -> libc::c_int {
                 let bytes = &*bytes;
@@ -70,7 +70,7 @@ impl YamlNode {
             let mut closure = Closure { ptr, fun };
             let closure = &mut closure as *mut Closure as *mut libc::c_void;
 
-            () = yaml_emitter_set_output(emitter, emitter_handler, closure);
+            let () = yaml_emitter_set_output(emitter, emitter_handler, closure);
 
             let mut event = MaybeUninit::<yaml_event_t>::uninit();
             let event = event.as_mut_ptr();
@@ -82,20 +82,20 @@ impl YamlNode {
                 ptr::null_mut(),
                 true,
             );
-            () = check_error(result.ok, emitter)?;
+            let () = check_error(result.ok, emitter)?;
 
             let result = yaml_emitter_emit(emitter, event);
-            () = check_error(result.ok, emitter)?;
+            let () = check_error(result.ok, emitter)?;
 
             let mut ctx = SerializationContext {
                 emitter,
                 events: Vec::with_capacity(64),
             };
 
-            () = self.serialize_node(&mut ctx)?;
+            let () = self.serialize_node(&mut ctx)?;
 
             let result = yaml_emitter_flush(emitter);
-            () = check_error(result.ok, emitter)?;
+            let () = check_error(result.ok, emitter)?;
 
             yaml_emitter_delete(emitter);
         }

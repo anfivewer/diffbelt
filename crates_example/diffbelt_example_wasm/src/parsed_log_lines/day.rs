@@ -1,13 +1,17 @@
+use crate::global::{BUFFER_FOR_REALIGN, BUFFER_FOR_REALIGN_2};
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
 use core::str::from_utf8;
-
-use crate::global::{BUFFER_FOR_REALIGN, BUFFER_FOR_REALIGN_2};
+use diffbelt_example_protos::protos::impls::{ParsedLogLine1dProto, ParsedLogLineProto};
 use diffbelt_example_protos::protos::log_line::{
     ParsedLogLine, ParsedLogLine1d, ParsedLogLine1dArgs,
 };
 use diffbelt_protos::align_util::AlignedBytes;
+use diffbelt_protos::protos::impls::{
+    AggregateApplyOutputProto, AggregateMapMultiInputProto, AggregateMapMultiOutputProto,
+    AggregateReduceInputProto, AggregateTargetInfoProto,
+};
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateApplyOutputArgs, AggregateMapMultiInput,
     AggregateMapMultiOutput, AggregateMapMultiOutputArgs, AggregateMapOutput,
@@ -55,14 +59,14 @@ impl<'t>
         buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode {
         let buffer = unsafe { (*buffer_ptr).into_empty_vec() };
-        let mut serializer = Serializer::from_vec(buffer);
+        let mut serializer = Serializer::<AggregateMapMultiOutputProto>::from_vec(buffer);
 
         let input = {
             let bytes = unsafe { (&*input_and_output.value).as_slice() };
             let bytes =
                 AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
                     .expect("align error");
-            deserialize::<AggregateMapMultiInput>(bytes).expect("deserialization")
+            deserialize::<AggregateMapMultiInputProto>(bytes).expect("deserialization")
         };
 
         let mut mapped_value = String::new();
@@ -134,7 +138,7 @@ impl<'t>
         let target_info =
             AlignedBytes::ensure_alignment_or_copy(target_info, unsafe { &mut BUFFER_FOR_REALIGN })
                 .expect("align error");
-        let target_info = deserialize::<AggregateTargetInfo>(target_info)
+        let target_info = deserialize::<AggregateTargetInfoProto>(target_info)
             .expect("Cannot deserialize AggregateTargetInfo");
 
         let target_value = target_info.target_old_value().map(|bytes| bytes.bytes());
@@ -143,7 +147,7 @@ impl<'t>
 
         let (mut buffer, head, len) = match target_value {
             None => {
-                let mut serializer = Serializer::from_vec(buffer);
+                let mut serializer = Serializer::<ParsedLogLine1dProto>::from_vec(buffer);
 
                 let result = ParsedLogLine1d::create(
                     serializer.buffer_builder(),
@@ -196,7 +200,8 @@ impl<'t>
         let input =
             AlignedBytes::ensure_alignment_or_copy(input, unsafe { &mut BUFFER_FOR_REALIGN })
                 .expect("align error");
-        let serialized = deserialize::<AggregateReduceInput>(input).expect("cannot parse items");
+        let serialized =
+            deserialize::<AggregateReduceInputProto>(input).expect("cannot parse items");
 
         for item in serialized.items().expect("no items") {
             let Some(mapped_value) = item.mapped_value() else {
@@ -216,7 +221,7 @@ impl<'t>
 
                 let name = line.get(1..).expect("no second char");
 
-                () = accumulator.update_log_type(name, is_add);
+                let () = accumulator.update_log_type(name, is_add);
             }
         }
 
@@ -274,7 +279,7 @@ impl<'t>
         }
 
         let buffer = unsafe { (*buffer_ptr).into_empty_vec() };
-        let mut serializer = Serializer::from_vec(buffer);
+        let mut serializer = Serializer::<AggregateApplyOutputProto>::from_vec(buffer);
 
         if accumulator.is_empty() {
             let result = AggregateApplyOutput::create(
@@ -333,13 +338,13 @@ fn map_source_value(
 
     let value = AlignedBytes::ensure_alignment_or_copy(value, unsafe { &mut BUFFER_FOR_REALIGN_2 })
         .expect("align error");
-    let value = deserialize::<SourceValue>(value).expect("invalid source value");
+    let value = deserialize::<ParsedLogLineProto>(value).expect("invalid source value");
 
     if has_old {
-        () = output.write_char('\n').expect("cannot write");
+        let () = output.write_char('\n').expect("cannot write");
     }
 
-    () = output
+    let () = output
         .write_char(if is_new { '+' } else { '-' })
         .expect("cannot write");
 
@@ -351,16 +356,16 @@ fn map_source_value(
         .replace_one(value.logger_key().expect("no log key"), "$1#$2")
         .expect("logger_key regexp");
 
-    () = output.write_str(logger_key.as_ref()).expect("cannot write");
-    () = output.write_str("::").expect("cannot write");
-    () = output
+    let () = output.write_str(logger_key.as_ref()).expect("cannot write");
+    let () = output.write_str("::").expect("cannot write");
+    let () = output
         .write_str(value.log_key().expect("no log key"))
         .expect("cannot write");
-    () = output.write_str("::").expect("cannot write");
+    let () = output.write_str("::").expect("cannot write");
 
     let log_level = u8_to_char(value.log_level());
 
-    () = output.write_char(log_level).expect("cannot write");
+    let () = output.write_char(log_level).expect("cannot write");
 
     true
 }

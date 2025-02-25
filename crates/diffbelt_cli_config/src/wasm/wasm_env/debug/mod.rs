@@ -27,7 +27,7 @@ impl WasmEnv {
                 Ok::<_, WasmError>(())
             })();
 
-            () = WasmEnv::handle_error(&caller.data().error, result).unwrap_or(());
+            let () = WasmEnv::handle_error(&caller.data().error, result).unwrap_or(());
         }
 
         linker.func_wrap("debug", "print", print)?;

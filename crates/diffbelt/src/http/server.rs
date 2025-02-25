@@ -11,10 +11,9 @@ use crate::http::routing::response::{
 };
 use crate::http::routing::StaticRouteOptions;
 use diffbelt_protos::protos::api::common::{ErrorResponse, ErrorResponseArgs};
-use diffbelt_protos::protos::api::methods::{
-    RequestResponseType, Response as ResponseProto, ResponseArgs,
-};
-use diffbelt_protos::Serializer;
+use diffbelt_protos::protos::api::methods::{RequestResponseType, ResponseArgs};
+use diffbelt_protos::protos::impls::ResponseProto;
+use diffbelt_protos::{FlatbuffersGenericType, Serializer};
 use diffbelt_util::idling_status::BusyTask;
 use hyper::body::Bytes;
 use hyper::http::HeaderValue;
@@ -149,7 +148,7 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
                         let mut make_flatbuffers_error = |reason: Option<&str>, details: &str| {
                             is_flatbuffers = true;
 
-                            let mut serializer = Serializer::new();
+                            let mut serializer = Serializer::<ResponseProto>::new();
                             let reason = if let Some(reason) = reason {
                                 Some(serializer.create_string(reason))
                             } else {
@@ -164,21 +163,22 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
                                     details: Some(details),
                                 },
                             );
-                            let response = ResponseProto::create(
-                                serializer.buffer_builder(),
-                                &ResponseArgs {
-                                    type_: RequestResponseType::Error,
-                                    error: Some(error),
-                                    start_generation: None,
-                                    commit_generation: None,
-                                    start_phantom: None,
-                                    put_many: None,
-                                    start_query: None,
-                                    next_query: None,
-                                    get_keys_around: None,
-                                    create_collection: None,
-                                },
-                            );
+                            let response =
+                                <ResponseProto as FlatbuffersGenericType>::FlatType::create(
+                                    serializer.buffer_builder(),
+                                    &ResponseArgs {
+                                        type_: RequestResponseType::Error,
+                                        error: Some(error),
+                                        start_generation: None,
+                                        commit_generation: None,
+                                        start_phantom: None,
+                                        put_many: None,
+                                        start_query: None,
+                                        next_query: None,
+                                        get_keys_around: None,
+                                        create_collection: None,
+                                    },
+                                );
                             let serialized = serializer.finish(response);
                             let serialized = serialized.into_buffer();
 

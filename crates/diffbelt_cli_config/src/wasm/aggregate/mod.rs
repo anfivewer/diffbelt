@@ -4,6 +4,7 @@ use wasmtime::{AsContextMut, TypedFunc};
 
 use diffbelt_protos::align_util::OwnedAlignedBytes;
 use diffbelt_protos::error::map_flatbuffer_error_to_return_buffer;
+use diffbelt_protos::protos::impls::{AggregateApplyOutputProto, AggregateMapMultiOutputProto};
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput, AggregateReduceInput,
     AggregateTargetInfo,
@@ -112,7 +113,7 @@ impl<'a> AggregateFunctions<'a> {
         &self,
         input: FlatbufferAnnotated<&[u8], AggregateMapMultiInput<'static>>,
         buffer_holder: &mut Option<Vec<u8>>,
-    ) -> Result<OwnedSerialized<'static, AggregateMapMultiOutput<'static>>, WasmError> {
+    ) -> Result<OwnedSerialized<AggregateMapMultiOutputProto>, WasmError> {
         let wasm_slice = self
             .input_vector
             .replace_with_slice_and_return_slice(input.value)
@@ -128,7 +129,7 @@ impl<'a> AggregateFunctions<'a> {
                     .allocation
                     .memory
                     .data_mut(store.as_context_mut());
-                () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
+                let () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
             }
 
             let error_code = self
@@ -161,7 +162,7 @@ impl<'a> AggregateFunctions<'a> {
             Ok::<_, WasmError>(bytes)
         })?;
 
-        let result = OwnedSerialized::<AggregateMapMultiOutput>::from_aligned_bytes(buffer)
+        let result = OwnedSerialized::<AggregateMapMultiOutputProto>::from_aligned_bytes(buffer)
             .map_err(map_flatbuffer_error_to_return_buffer(buffer_holder))?;
 
         Ok(result)
@@ -187,7 +188,7 @@ impl<'a> AggregateFunctions<'a> {
                     .allocation
                     .memory
                     .data_mut(store.as_context_mut());
-                () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
+                let () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
             }
 
             let error_code = self
@@ -230,7 +231,7 @@ impl<'a> AggregateFunctions<'a> {
                     .allocation
                     .memory
                     .data_mut(store.as_context_mut());
-                () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
+                let () = self.bytes_slice.ptr.write(memory, wasm_slice)?;
             }
 
             let error_code = self
@@ -269,7 +270,7 @@ impl<'a> AggregateFunctions<'a> {
             let mut store = self.instance.store.try_borrow_mut()?;
             let store = store.deref_mut();
 
-            () = self
+            let () = self
                 .instance
                 .allocation
                 .ensure_vec_of_bytes_vec_raw_parts_capacity
@@ -293,13 +294,13 @@ impl<'a> AggregateFunctions<'a> {
                 for accumulator in input {
                     let accumulator = accumulator.as_ref();
                     let raw_parts = accumulator.ptr.read(memory)?;
-                    () = accumulators_ptr.write(memory, raw_parts)?;
+                    let () = accumulators_ptr.write(memory, raw_parts)?;
                     accumulators_ptr = accumulators_ptr.add_offset(1)?;
                 }
 
                 accumulators_vec.0.len = input_len;
 
-                () = self.accumulators_vector.write(memory, accumulators_vec)?;
+                let () = self.accumulators_vector.write(memory, accumulators_vec)?;
 
                 first_accumulator_ptr
             };
@@ -327,7 +328,7 @@ impl<'a> AggregateFunctions<'a> {
         &self,
         accumulator_holder: &WasmVecHolder<'a>,
         output_holder: &mut Option<Vec<u8>>,
-    ) -> Result<OwnedSerialized<'static, AggregateApplyOutput<'static>>, WasmError> {
+    ) -> Result<OwnedSerialized<AggregateApplyOutputProto>, WasmError> {
         let mut store = self.instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
 

@@ -50,7 +50,7 @@ impl IdlingStatus {
                 return;
             }
 
-            () = receiver
+            let () = receiver
                 .changed()
                 .await
                 .expect("cannot be dropped, it in self");
@@ -70,7 +70,7 @@ impl IdlingStatus {
                 }
             }
 
-            () = select! {
+            let () = select! {
                 result = receiver.changed() => {
                     // require to run timeout again
                     is_first = true;
@@ -91,7 +91,7 @@ impl IdlingStatus {
                 return;
             }
 
-            () = receiver
+            let () = receiver
                 .changed()
                 .await
                 .expect("cannot be dropped, it in self");
@@ -112,7 +112,7 @@ impl BusyTask {
         let inner = idling.inner.clone();
 
         inner.counter.fetch_add(1, Ordering::Relaxed);
-        () = inner.change_sender.send(UniqueValue).unwrap_or(());
+        let () = inner.change_sender.send(UniqueValue).unwrap_or(());
 
         Self { inner }
     }
@@ -121,6 +121,6 @@ impl BusyTask {
 impl Drop for BusyTask {
     fn drop(&mut self) {
         self.inner.counter.fetch_sub(1, Ordering::Relaxed);
-        () = self.inner.change_sender.send(UniqueValue).unwrap_or(());
+        let () = self.inner.change_sender.send(UniqueValue).unwrap_or(());
     }
 }

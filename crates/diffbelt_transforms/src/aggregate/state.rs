@@ -4,6 +4,7 @@ use std::rc::Rc;
 use enum_as_inner::EnumAsInner;
 use lru::LruCache;
 
+use diffbelt_protos::protos::impls::AggregateReduceInputProto;
 use diffbelt_protos::protos::transform::aggregate::{AggregateReduceInput, AggregateReduceItem};
 use diffbelt_protos::{Serializer, WIPOffset};
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
@@ -76,7 +77,8 @@ pub struct TargetKeyCollectingChunk {
     pub accumulator_data_bytes: u64,
     pub is_accumulator_pending: bool,
     pub is_reducing: bool,
-    pub reduce_input: Serializer<'static, AggregateReduceInput<'static>>,
+    /// TODO: make private, reduce lifetime on access
+    pub reduce_input: Serializer<'static, AggregateReduceInputProto>,
     pub reduce_input_items: Vec<WIPOffset<AggregateReduceItem<'static>>>,
 }
 

@@ -32,9 +32,9 @@ impl WasmEnv {
         store: &mut Store<WasmStoreData>,
         linker: &mut Linker<WasmStoreData>,
     ) -> Result<(), WasmError> {
-        () = self.register_debug_wasm_imports(linker)?;
-        () = self.register_regex_wasm_imports(store, linker)?;
-        () = self.register_requests_wasm_imports(store, linker)?;
+        let () = self.register_debug_wasm_imports(linker)?;
+        let () = self.register_regex_wasm_imports(store, linker)?;
+        let () = self.register_requests_wasm_imports(store, linker)?;
         Ok(())
     }
 

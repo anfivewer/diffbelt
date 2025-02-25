@@ -67,7 +67,7 @@ impl RawDb {
             }
         }
 
-        () = Self::on_generation_finish(db, &meta_cf, &mut batch)?;
+        let () = Self::on_generation_finish(db, &meta_cf, &mut batch)?;
 
         db.write(batch)?;
 

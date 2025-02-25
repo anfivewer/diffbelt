@@ -1,7 +1,4 @@
-use std::borrow::Cow;
-use std::mem;
-use std::ops::Deref;
-
+use diffbelt_protos::protos::impls::MapFilterMultiInputProto;
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterInput, MapFilterInputArgs, MapFilterMultiInput, MapFilterMultiInputArgs,
 };
@@ -15,6 +12,9 @@ use diffbelt_types::common::key_value::{EncodedKeyJsonData, EncodedValueJsonData
 use diffbelt_types::common::key_value_update::KeyValueUpdateJsonData;
 use diffbelt_types::common::reader::UpdateReaderJsonData;
 use diffbelt_util::option::{cut_layer, lift_result_from_option};
+use std::borrow::Cow;
+use std::mem;
+use std::ops::Deref;
 
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
 use crate::base::action::function_eval::{FunctionEvalAction, MapFilterEvalAction};
@@ -212,7 +212,7 @@ impl MapFilterTransform {
             ));
         }
 
-        () = Self::diff_items_to_actions(
+        let () = Self::diff_items_to_actions(
             &mut self.free_buffers_for_eval_inputs,
             &mut self.free_buffers_for_eval_outputs,
             &mut actions,
@@ -277,7 +277,7 @@ impl MapFilterTransform {
         actions: &mut ActionInputHandlerActionsVec<Self, ()>,
         items: Vec<KeyValueDiffJsonData>,
     ) -> Result<(), TransformError> {
-        let mut serializer = Serializer::<MapFilterMultiInput>::from_vec(
+        let mut serializer = Serializer::<MapFilterMultiInputProto>::from_vec(
             buffer_for_eval_inputs.take().unwrap_or_else(|| Vec::new()),
         );
 
@@ -381,7 +381,7 @@ impl MapFilterTransform {
             state.cursor_id = cursor_id;
         }
 
-        () = Self::diff_items_to_actions(
+        let () = Self::diff_items_to_actions(
             &mut self.free_buffers_for_eval_inputs,
             &mut self.free_buffers_for_eval_outputs,
             &mut actions,
@@ -446,7 +446,8 @@ impl MapFilterTransform {
             });
         }
 
-        self.free_buffers_for_eval_outputs.push(input.into_buffer_vec());
+        self.free_buffers_for_eval_outputs
+            .push(input.into_buffer_vec());
 
         self.post_handle()
     }
@@ -542,7 +543,7 @@ impl MapFilterTransform {
             input_handler!(this, MapFilterTransform, _ctx, (), input, {
                 let DiffbeltCallInput { body: () } = input.into_diffbelt_ok()?;
 
-                () = this.state.as_commiting()?;
+                let () = this.state.as_commiting()?;
 
                 // Not finishing, repeat cycle until we get diff result with from_generation = to_generation
                 this.run_init()

@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::str::from_utf8;
 
 use crate::config_tests::compare::compare_strings;
+use diffbelt_protos::protos::impls::AggregateTargetInfoProto;
 use diffbelt_protos::protos::transform::aggregate::AggregateTargetInfo;
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
@@ -89,7 +90,7 @@ pub struct AggregateInitialAccumulatorTransformTest<'a> {
     aggregate: AggregateFunctions<'a>,
 }
 
-type Input = OwnedSerialized<'static, AggregateTargetInfo<'static>>;
+type Input = OwnedSerialized<AggregateTargetInfoProto>;
 type Output<'a> = WasmVecHolder<'a>;
 type ActualOutput = String;
 type ExpectedOutput<'a> = &'a str;

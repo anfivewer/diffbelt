@@ -208,7 +208,7 @@ pub async fn yaml_node_to_aggregate_accumulator(
         YamlTestVarsError::Unspecified("input item should be a string".to_string())
     })?;
 
-    () = call_human_readable_conversion!(
+    let () = call_human_readable_conversion!(
         item.as_bytes(),
         aggregate_human_readable,
         call_accumulator_to_bytes,

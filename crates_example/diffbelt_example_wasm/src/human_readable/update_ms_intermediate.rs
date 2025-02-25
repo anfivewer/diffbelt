@@ -1,6 +1,7 @@
 use crate::global::BUFFER_FOR_REALIGN;
 use alloc::string::String;
 use core::fmt::Write;
+use diffbelt_example_protos::protos::impls::UpdateMsIntermediateProto;
 use diffbelt_example_protos::protos::update_ms::{UpdateMsIntermediate, UpdateMsIntermediateArgs};
 use diffbelt_protos::align_util::AlignedBytes;
 use diffbelt_protos::deserialize;
@@ -71,7 +72,7 @@ impl HumanReadable for UpdateMsIntermediateKv {
 
         let ms = ms.parse::<f32>().expect("ms is not a float");
 
-        let buffer_ptr = FlatbufferAnnotated::from(buffer);
+        let buffer_ptr = FlatbufferAnnotated::<_, UpdateMsIntermediateProto>::from(buffer);
         let mut serializer_with_ptr = unsafe { buffer_ptr.into_serializer() };
         let serializer = serializer_with_ptr.serializer_mut();
         let update_type = serializer.create_string(update_type);
@@ -86,7 +87,7 @@ impl HumanReadable for UpdateMsIntermediateKv {
 
         unsafe {
             *input_and_output.value = BytesSlice::from(result.serialized_data().value);
-            () = result.save();
+            let () = result.save();
         }
 
         ErrorCode::Ok
@@ -102,7 +103,7 @@ impl HumanReadable for UpdateMsIntermediateKv {
             let bytes =
                 AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
                     .expect("align error");
-            deserialize::<UpdateMsIntermediate>(bytes).expect("deserialization")
+            deserialize::<UpdateMsIntermediateProto>(bytes).expect("deserialization")
         };
 
         let output = unsafe { (&*buffer.value).into_empty_vec() };

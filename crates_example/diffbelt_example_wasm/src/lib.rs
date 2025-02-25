@@ -8,6 +8,7 @@ use core::str::from_utf8;
 
 use diffbelt_protos::align_util::AlignedBytes;
 use diffbelt_protos::deserialize;
+use diffbelt_protos::protos::impls::{MapFilterMultiInputProto, MapFilterMultiOutputProto};
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterMultiInput, MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate,
     RecordUpdateArgs,
@@ -43,17 +44,17 @@ impl MapFilter for LogLinesMapFilter {
     extern "C" fn map_filter(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,
-            MapFilterMultiInput,
-            MapFilterMultiOutput,
+            MapFilterMultiInputProto,
+            MapFilterMultiOutputProto,
         >,
-        buffer_holder: FlatbufferAnnotated<*mut BytesVecRawParts, MapFilterMultiOutput>,
+        buffer_holder: FlatbufferAnnotated<*mut BytesVecRawParts, MapFilterMultiOutputProto>,
     ) -> ErrorCode {
         let input = {
             let bytes = unsafe { (&*input_and_output.value).as_slice() };
             let bytes =
                 AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
                     .expect("align error");
-            deserialize::<MapFilterMultiInput>(bytes).expect("deserialization")
+            deserialize::<MapFilterMultiInputProto>(bytes).expect("deserialization")
         };
 
         let items = input.items().expect("no inputs");

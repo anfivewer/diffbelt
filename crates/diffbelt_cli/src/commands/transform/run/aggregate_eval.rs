@@ -11,6 +11,7 @@ use diffbelt_cli_config::transforms::aggregate::Aggregate;
 use diffbelt_cli_config::wasm::aggregate::AggregateFunctions;
 use diffbelt_cli_config::wasm::memory::vector::WasmVecHolder;
 use diffbelt_cli_config::wasm::WasmModuleInstance;
+use diffbelt_protos::protos::impls::AggregateTargetInfoProto;
 use diffbelt_protos::protos::transform::aggregate::AggregateTargetInfo;
 use diffbelt_protos::{OwnedSerialized, SerializedRawParts};
 use diffbelt_transforms::base::action::function_eval::{
@@ -46,7 +47,7 @@ struct Inner {
 }
 
 struct InnerMut {
-    target_info_arena: Arena<OwnedSerialized<'static, AggregateTargetInfo<'static>>>,
+    target_info_arena: Arena<OwnedSerialized<AggregateTargetInfoProto>>,
     accumulators_arena: Arena<AccumulatorInfo>,
     free_accumulator_indexes: Vec<usize>,
     temp_merge_vec: TemporaryVec<WasmVecHolderTemp>,
@@ -225,7 +226,7 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                             }
                         };
 
-                        () = self
+                        let () = self
                             .inner
                             .aggregate_functions
                             .call_initial_accumulator(

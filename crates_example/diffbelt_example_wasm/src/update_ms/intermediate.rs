@@ -8,9 +8,11 @@ use chrono::{Datelike, NaiveDateTime};
 use regex::Regex;
 
 use alloc::format;
+use diffbelt_example_protos::protos::impls::{ParsedLogLineProto, UpdateMsIntermediateProto};
 use diffbelt_example_protos::protos::log_line::ParsedLogLine;
 use diffbelt_example_protos::protos::update_ms::{UpdateMsIntermediate, UpdateMsIntermediateArgs};
 use diffbelt_protos::align_util::AlignedBytes;
+use diffbelt_protos::protos::impls::{MapFilterMultiInputProto, MapFilterMultiOutputProto};
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterMultiInput, MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate,
     RecordUpdateArgs,
@@ -33,17 +35,17 @@ impl<'t> MapFilter for UpdateMsDayIntermediate {
     extern "C" fn map_filter(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,
-            MapFilterMultiInput,
-            MapFilterMultiOutput,
+            MapFilterMultiInputProto,
+            MapFilterMultiOutputProto,
         >,
-        buffer_holder: FlatbufferAnnotated<*mut BytesVecRawParts, MapFilterMultiOutput>,
+        buffer_holder: FlatbufferAnnotated<*mut BytesVecRawParts, MapFilterMultiOutputProto>,
     ) -> ErrorCode {
         let input = {
             let bytes = unsafe { (&*input_and_output.value).as_slice() };
             let bytes =
                 AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
                     .expect("align error");
-            deserialize::<MapFilterMultiInput>(bytes).expect("deserialization")
+            deserialize::<MapFilterMultiInputProto>(bytes).expect("deserialization")
         };
 
         let items = input.items().unwrap_or_else(|| Default::default());
@@ -139,13 +141,10 @@ fn value_to_key(
     source_key: &str,
     key_output: &mut String,
     intermediate_buffer: Option<Vec<u8>>,
-) -> (
-    HasKey,
-    Option<Serialized<'static, UpdateMsIntermediate<'static>>>,
-) {
+) -> (HasKey, Option<Serialized<UpdateMsIntermediateProto>>) {
     let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN_2 })
         .expect("align error");
-    let parsed_log_line = deserialize::<ParsedLogLine>(bytes).expect("deserialization");
+    let parsed_log_line = deserialize::<ParsedLogLineProto>(bytes).expect("deserialization");
 
     lazy_static::lazy_static! {
         static ref MIDDLEWARE_RE: Regex = Regex::new(r"^worker[0-9]*:middlewares$").expect("Cannot build MIDDLEWARE_RE");
@@ -195,7 +194,7 @@ fn value_to_key(
 
     key_output.clear();
 
-    () = key_output
+    let () = key_output
         .write_fmt(format_args!(
             "{:0>4}-{:0>2}-{:0>2} {:0>11.1} ",
             time.year(),
@@ -211,7 +210,7 @@ fn value_to_key(
         "Invalid format"
     );
 
-    () = key_output.write_str(source_key).expect("cannot write_str");
+    let () = key_output.write_str(source_key).expect("cannot write_str");
 
     let intermediate = if let Some(buffer) = intermediate_buffer {
         let mut serializer = Serializer::from_vec(buffer);

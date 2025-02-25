@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::rc::Rc;
 use std::str::from_utf8;
 
+use diffbelt_protos::protos::impls::AggregateReduceInputProto;
 use diffbelt_protos::protos::transform::aggregate::AggregateReduceInput;
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
@@ -83,10 +84,7 @@ pub struct AggregateReduceTransformTest<'a> {
     aggregate: AggregateFunctions<'a>,
 }
 
-type Input = (
-    Vec<u8>,
-    OwnedSerialized<'static, AggregateReduceInput<'static>>,
-);
+type Input = (Vec<u8>, OwnedSerialized<AggregateReduceInputProto>);
 type Output<'a> = WasmVecHolder<'a>;
 type ActualOutput = String;
 type ExpectedOutput<'a> = &'a str;

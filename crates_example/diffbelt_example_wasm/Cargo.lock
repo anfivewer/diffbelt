@@ -89,6 +89,7 @@ version = "0.1.0"
 name = "diffbelt_example_protos"
 version = "0.1.0"
 dependencies = [
+ "diffbelt_protos",
  "flatbuffers",
 ]
 

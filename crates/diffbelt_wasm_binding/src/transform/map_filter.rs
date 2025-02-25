@@ -1,3 +1,4 @@
+use diffbelt_protos::protos::impls::{MapFilterMultiInputProto, MapFilterMultiOutputProto};
 use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFilterMultiOutput};
 
 use crate::annotations::{FlatbufferAnnotated, InputOutputAnnotated};
@@ -8,9 +9,9 @@ pub trait MapFilter {
     extern "C" fn map_filter(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,
-            MapFilterMultiInput,
-            MapFilterMultiOutput,
+            MapFilterMultiInputProto,
+            MapFilterMultiOutputProto,
         >,
-        buffer: FlatbufferAnnotated<*mut BytesVecRawParts, MapFilterMultiOutput>,
+        buffer: FlatbufferAnnotated<*mut BytesVecRawParts, MapFilterMultiOutputProto>,
     ) -> ErrorCode;
 }

@@ -174,7 +174,7 @@ impl Wasm {
 
         let env = WasmEnv::new();
 
-        () = env.register_imports(&mut store, &mut linker)?;
+        let () = env.register_imports(&mut store, &mut linker)?;
 
         let instance = linker.instantiate_async(&mut store, &wasm_mod).await?;
 
@@ -289,9 +289,9 @@ impl MapFilterFunction<'_> {
                 .memory
                 .data_mut(store.as_context_mut());
             let ptr_slice = ptr.slice();
-            () = ptr_slice.write_slice(memory, inputs)?;
+            let () = ptr_slice.write_slice(memory, inputs)?;
 
-            () = self.slice.ptr.write(
+            let () = self.slice.ptr.write(
                 memory,
                 WasmBytesSlice(BytesSlice {
                     ptr,

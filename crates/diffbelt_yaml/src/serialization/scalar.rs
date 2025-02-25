@@ -37,10 +37,10 @@ pub(crate) unsafe fn emit_scalar(
         true,
         style,
     );
-    () = check_error(result.ok, ctx.emitter)?;
+    let () = check_error(result.ok, ctx.emitter)?;
 
     let result = yaml_emitter_emit(ctx.emitter, event);
-    () = check_error(result.ok, ctx.emitter)?;
+    let () = check_error(result.ok, ctx.emitter)?;
 
     Ok(())
 }

@@ -6,8 +6,11 @@ use core::str::{from_utf8, Utf8Error};
 
 use bytemuck::{Pod, Zeroable};
 
-use diffbelt_protos::{FlatbuffersType, OwnedSerialized};
-use diffbelt_util_no_std::cast::{checked_positive_i32_to_usize, checked_usize_to_i32, checked_usize_to_u32, u32_to_usize, unchecked_usize_to_u32, unsafe_ptr_to_i32};
+use diffbelt_protos::{FlatbuffersGenericType, OwnedSerialized};
+use diffbelt_util_no_std::cast::{
+    checked_positive_i32_to_usize, checked_usize_to_i32, checked_usize_to_u32, u32_to_usize,
+    unchecked_usize_to_u32, unsafe_ptr_to_i32,
+};
 
 use crate::ptr::slice::SliceRawParts;
 use crate::ptr::{ConstPtr, MutPtr, NativePtrImpl, PtrImpl};
@@ -45,9 +48,9 @@ impl<T: Pod> VecRawParts<T, NativePtrImpl> {
     }
 }
 
-impl<'fbb, T: FlatbuffersType<'fbb>> From<OwnedSerialized<'fbb, T>> for BytesVecRawParts {
-    fn from(serialized: OwnedSerialized<'fbb, T>) -> Self {
-        let buffer = serialized.into_buffer_vec();
+impl<T: FlatbuffersGenericType> From<OwnedSerialized<T>> for BytesVecRawParts {
+    fn from(serialized: OwnedSerialized<T>) -> Self {
+        let buffer = serialized.into_buffer();
 
         Self::from(buffer)
     }

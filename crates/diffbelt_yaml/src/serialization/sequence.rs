@@ -21,22 +21,22 @@ pub(crate) unsafe fn emit_sequence(
         false,
         yaml_sequence_style_t::YAML_BLOCK_SEQUENCE_STYLE,
     );
-    () = check_error(result.ok, ctx.emitter)?;
+    let () = check_error(result.ok, ctx.emitter)?;
 
     let result = yaml_emitter_emit(ctx.emitter, event);
-    () = check_error(result.ok, ctx.emitter)?;
+    let () = check_error(result.ok, ctx.emitter)?;
 
     for node in &sequence.items {
-        () = node.serialize_node(ctx)?;
+        let () = node.serialize_node(ctx)?;
     }
 
     let event = ctx.take_event();
 
     let result = yaml_sequence_end_event_initialize(event);
-    () = check_error(result.ok, ctx.emitter)?;
+    let () = check_error(result.ok, ctx.emitter)?;
 
     let result = yaml_emitter_emit(ctx.emitter, event);
-    () = check_error(result.ok, ctx.emitter)?;
+    let () = check_error(result.ok, ctx.emitter)?;
 
     Ok(())
 }

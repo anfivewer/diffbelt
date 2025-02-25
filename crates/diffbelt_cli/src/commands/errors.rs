@@ -51,7 +51,7 @@ impl Debug for WasmAggregateMapCallError {
         let data = &self.input_buffer[self.input_head..(self.input_head + self.input_len)];
         let encoded = base64::encode(data);
 
-        () = f.write_fmt(format_args!(
+        let () = f.write_fmt(format_args!(
             "Aggregate::map error: {:?}, input data: {encoded}",
             self.error
         ))?;

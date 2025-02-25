@@ -156,7 +156,7 @@ async fn garbage_collector_test_inner() {
         .unwrap();
 
     // Wait for cleanup to finish
-    () = database
+    let () = database
         .idling
         .on_idle_for(Duration::from_millis(100))
         .await;
