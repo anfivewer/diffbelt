@@ -21,7 +21,7 @@ pub trait ApiHandler {
     fn method() -> &'static str;
     fn make_url(params: Self::Params) -> String;
     fn request<'a>(
-        request: &'a OwnedSerialized<RequestProto>,
+        request: &'a <RequestProto as FlatbuffersGenericType>::FlatType<'a>,
     ) -> Option<<Self::FlatbuffersRequest as FlatbuffersGenericType>::FlatType<'a>>;
     fn create_request<'a>(
         serializer: Serializer<'a, RequestProto>,
@@ -54,9 +54,9 @@ impl ApiHandler for CreateCollectionApiHandler {
     }
 
     fn request<'a>(
-        request: &'a OwnedSerialized<RequestProto>,
+        request: &'a <RequestProto as FlatbuffersGenericType>::FlatType<'a>,
     ) -> Option<<Self::FlatbuffersRequest as FlatbuffersGenericType>::FlatType<'a>> {
-        request.data().create_collection()
+        request.create_collection()
     }
 
     fn create_request<'a>(

@@ -1,11 +1,10 @@
 use crate::common::constants::MAX_COLLECTION_NAME_LENGTH;
-use crate::common::{IsByteArray, OwnedGenerationId};
+use crate::common::IsByteArray;
 use crate::context::Context;
 use crate::database::create_collection::{CreateCollectionError, CreateCollectionOptions};
 use crate::http::constants::CREATE_COLLECTION_REQUEST_MAX_BYTES;
 use crate::http::data::encoded_generation_id::{
-    encoded_generation_id_data_decode_opt, encoded_generation_id_data_encode,
-    EncodedGenerationIdJsonData,
+    encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
 };
 use crate::http::errors::HttpError;
 use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
@@ -16,17 +15,10 @@ use crate::http::util::response::{create_ok_flatbuffers_response, create_ok_json
 use crate::http::validation::content_type::ContentType;
 use crate::http::validation::ContentTypeValidation;
 use crate::util::str_serialization::StrSerializationType;
-use diffbelt_aligned_bytes::OwnedAlignedBytes;
-use diffbelt_protos::protos::api::collection::{
-    CreateCollectionRequest, CreateCollectionResponse, CreateCollectionResponseArgs,
-};
-use diffbelt_protos::protos::api::methods::{
-    RequestResponseType, Response as ResponseProto, ResponseArgs,
-};
+use diffbelt_protos::protos::api::collection::CreateCollectionResponseArgs;
 use diffbelt_protos::protos::handlers::{ApiHandler, CreateCollectionApiHandler};
-use diffbelt_protos::protos::impls::CreateCollectionRequestProto;
+use diffbelt_protos::protos::impls::{CreateCollectionRequestProto, RequestProto};
 use diffbelt_protos::{deserialize, Serializer};
-use diffbelt_util::http::read_full_body::FullBody;
 use diffbelt_util_no_std::option::store_in_option;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -60,6 +52,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
 
         let mut json_data = None;
         let mut aligned_body = None;
+        let mut stored_request = None;
 
         let data = match content_type {
             ContentType::JsonUtf8 => {
@@ -76,8 +69,13 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
                 let body = read_limited_aligned_bytes(request, CREATE_COLLECTION_REQUEST_MAX_BYTES)
                     .await?;
                 let body = store_in_option(&mut aligned_body, body);
-                let data = deserialize::<CreateCollectionRequestProto>(body.as_ref())
-                    .map_err(map_invalid_flatbuffer_error_to_http_error)?;
+                let request = store_in_option(
+                    &mut stored_request,
+                    deserialize::<RequestProto>(body.as_ref())
+                        .map_err(map_invalid_flatbuffer_error_to_http_error)?,
+                );
+                let data = CreateCollectionApiHandler::request(request)
+                    .ok_or_else(|| HttpError::Generic400("no request data"))?;
                 UnifiedRequestData {
                     is_flatbuffers: true,
                     collection_name: data
