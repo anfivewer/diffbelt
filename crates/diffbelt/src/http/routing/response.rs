@@ -35,7 +35,7 @@ pub struct FlatbuffersResponse {
     pub bytes: OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT>,
 }
 
-pub enum Response {
+pub enum HttpResponse {
     StaticStr(StaticStrResponse),
     String(StringResponse),
     BytesVec(BytesVecResponse),

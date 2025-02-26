@@ -7,7 +7,7 @@ use regex::{Captures, Regex};
 use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::request::{HyperRequestWrapped, Request};
-use crate::http::routing::response::Response;
+use crate::http::routing::response::HttpResponse;
 
 pub mod register_routes;
 pub mod response;
@@ -18,8 +18,8 @@ pub struct StaticRouteOptions {
     pub request: HyperRequestWrapped,
 }
 
-pub type HttpHandlerResult = Result<Response, HttpError>;
-pub type StaticRouteFnFutureResult = BoxFuture<'static, Result<Response, HttpError>>;
+pub type HttpHandlerResult = Result<HttpResponse, HttpError>;
+pub type StaticRouteFnFutureResult = BoxFuture<'static, Result<HttpResponse, HttpError>>;
 pub type StaticRouteFn = fn(options: StaticRouteOptions) -> StaticRouteFnFutureResult;
 
 pub struct PatternRouteOptions<T> {

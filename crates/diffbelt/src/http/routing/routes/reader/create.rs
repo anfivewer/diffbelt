@@ -10,7 +10,7 @@ use crate::http::data::encoded_generation_id::{
 };
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
-use crate::http::routing::response::Response;
+use crate::http::routing::response::HttpResponse;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
 use crate::http::util::response::create_ok_no_error_json_response;
@@ -27,7 +27,7 @@ struct RequestJsonData {
 pub async fn create_reader(
     request: impl Request,
     collection: Arc<Collection>,
-) -> Result<Response, HttpError> {
+) -> Result<HttpResponse, HttpError> {
     request.allow_only_utf8_json_by_default()?;
 
     let body = read_limited_body(request, READER_REQUEST_MAX_BYTES).await?;

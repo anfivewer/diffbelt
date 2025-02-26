@@ -14,7 +14,7 @@ use crate::http::data::encoded_generation_id::{
 use crate::http::data::encoded_phantom_id::EncodedPhantomIdJsonDataTrait;
 use crate::http::data::key_value_update::KeyValueUpdateJsonDataTrait;
 use crate::http::errors::HttpError;
-use crate::http::routing::response::{BaseResponse, BytesVecResponse, Response};
+use crate::http::routing::response::{BaseResponse, BytesVecResponse, HttpResponse};
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 use crate::http::util::encoding::StringDecoder;
@@ -60,7 +60,7 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
         "result serialization failed",
     )))?;
 
-    Ok(Response::BytesVec(BytesVecResponse {
+    Ok(HttpResponse::BytesVec(BytesVecResponse {
         base: BaseResponse {
             content_type: "application/json; charset=utf-8",
             ..Default::default()

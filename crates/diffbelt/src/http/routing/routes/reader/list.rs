@@ -8,7 +8,7 @@ use crate::collection::Collection;
 use crate::http::data::reader_record::ReaderRecordJsonData;
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
-use crate::http::routing::response::Response;
+use crate::http::routing::response::HttpResponse;
 use crate::http::util::response::create_ok_json_response;
 
 #[skip_serializing_none]
@@ -21,7 +21,7 @@ struct ResponseJsonData {
 pub async fn list_readers(
     _request: impl Request,
     collection: Arc<Collection>,
-) -> Result<Response, HttpError> {
+) -> Result<HttpResponse, HttpError> {
     let result = collection.list_readers().await;
 
     let result = match result {

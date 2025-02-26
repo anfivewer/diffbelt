@@ -15,7 +15,7 @@ use crate::http::data::encoded_generation_id::{
 };
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
-use crate::http::routing::response::Response;
+use crate::http::routing::response::HttpResponse;
 use crate::http::routing::{PatternRouteFnResult, PatternRouteOptions};
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 use crate::http::util::response::create_ok_json_response;
@@ -129,7 +129,7 @@ pub fn register_collection_generation_id_stream_route(context: &mut Context) {
     );
 }
 
-fn make_response(id: OwnedGenerationId) -> Result<Response, HttpError> {
+fn make_response(id: OwnedGenerationId) -> Result<HttpResponse, HttpError> {
     let generation_id = encoded_generation_id_data_encode(id.as_ref(), StrSerializationType::Utf8);
 
     create_ok_json_response(&CollectionGenerationIdStreamResponseJsonData { generation_id })

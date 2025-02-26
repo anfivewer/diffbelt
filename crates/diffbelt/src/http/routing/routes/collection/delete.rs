@@ -3,10 +3,10 @@ use std::sync::Arc;
 use crate::collection::methods::errors::CollectionMethodError;
 use crate::collection::Collection;
 use crate::http::errors::HttpError;
-use crate::http::routing::response::Response;
+use crate::http::routing::response::HttpResponse;
 use crate::http::util::response::create_ok_no_error_json_response;
 
-pub async fn delete_collection(collection: Arc<Collection>) -> Result<Response, HttpError> {
+pub async fn delete_collection(collection: Arc<Collection>) -> Result<HttpResponse, HttpError> {
     let result = collection.delete_collection();
 
     drop(collection);

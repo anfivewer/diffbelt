@@ -6,7 +6,7 @@ use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::request::HyperRequestWrapped;
 use crate::http::routing::response::{
-    BaseResponse, BytesVecResponse, FlatbuffersResponse, Response as ResponseByRoute,
+    BaseResponse, BytesVecResponse, FlatbuffersResponse, HttpResponse as ResponseByRoute,
     StaticStrResponse, StringResponse,
 };
 use crate::http::routing::StaticRouteOptions;
