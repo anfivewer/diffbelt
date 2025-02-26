@@ -4,6 +4,7 @@ use crate::http::errors::HttpError;
 use crate::http::routing::routes::collection::create::create_collection_flatbuffers_route;
 use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 use crate::http::util::read_body::read_limited_aligned_bytes;
+use crate::http::validation::MethodsValidation;
 use diffbelt_protos::deserialize;
 use diffbelt_protos::protos::handlers::{ApiHandler, CreateCollectionApiHandler};
 use diffbelt_protos::protos::impls::RequestProto;
@@ -11,15 +12,17 @@ use diffbelt_protos::protos::impls::RequestProto;
 fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
     Box::pin(async move {
         let context = options.context;
+        let request = options.request;
 
-        let bytes =
-            read_limited_aligned_bytes(options.request, FLATBUFFERS_REQUEST_MAX_BYTES).await?;
+        request.allow_only_methods(&["POST"])?;
+
+        let bytes = read_limited_aligned_bytes(request, FLATBUFFERS_REQUEST_MAX_BYTES).await?;
         let serialized = deserialize::<RequestProto>(bytes.as_ref())
             .map_err(|err| HttpError::InvalidFlatbuffers(err.to_string()))?;
-        let request = CreateCollectionApiHandler::request(&serialized)
+        let data = CreateCollectionApiHandler::request(&serialized)
             .ok_or_else(|| HttpError::GenericFlatbuffers400("no request data"))?;
 
-        create_collection_flatbuffers_route(context, request).await
+        create_collection_flatbuffers_route(context, data).await
     })
 }
 

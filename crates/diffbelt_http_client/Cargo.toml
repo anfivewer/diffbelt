@@ -21,3 +21,6 @@ path = "../diffbelt_util"
 
 [dependencies.diffbelt_transforms]
 path = "../diffbelt_transforms"
+
+[dependencies.diffbelt_protos]
+path = "../diffbelt_protos"

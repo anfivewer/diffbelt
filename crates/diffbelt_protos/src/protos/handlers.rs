@@ -18,8 +18,6 @@ pub trait ApiHandler {
     type FlatbuffersResponse: FlatbuffersGenericType;
     type FlatbuffersResponseArgs<'a>;
 
-    fn method() -> &'static str;
-    fn make_url(params: Self::Params) -> String;
     fn request<'a>(
         request: &'a <RequestProto as FlatbuffersGenericType>::FlatType<'a>,
     ) -> Option<<Self::FlatbuffersRequest as FlatbuffersGenericType>::FlatType<'a>>;
@@ -44,14 +42,6 @@ impl ApiHandler for CreateCollectionApiHandler {
     type FlatbuffersRequestArgs<'a> = CreateCollectionRequestArgs<'a>;
     type FlatbuffersResponse = CreateCollectionResponseProto;
     type FlatbuffersResponseArgs<'a> = CreateCollectionResponseArgs<'a>;
-
-    fn method() -> &'static str {
-        "POST"
-    }
-
-    fn make_url(_params: Self::Params) -> String {
-        String::from("/collections/")
-    }
 
     fn request<'a>(
         request: &'a <RequestProto as FlatbuffersGenericType>::FlatType<'a>,

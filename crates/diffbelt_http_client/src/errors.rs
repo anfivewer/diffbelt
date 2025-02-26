@@ -1,3 +1,4 @@
+use diffbelt_protos::InvalidFlatbuffer;
 use diffbelt_util::http::error::BodyReadError;
 use thiserror::Error;
 
@@ -15,6 +16,8 @@ pub enum DiffbeltClientError {
     JsonParsing,
     #[error(transparent)]
     JsonSerialize(serde_json::Error),
+    #[error("{0:?}")]
+    InvalidFlatbuffer(InvalidFlatbuffer),
 }
 
 impl From<hyper::Error> for DiffbeltClientError {
@@ -26,5 +29,11 @@ impl From<hyper::Error> for DiffbeltClientError {
 impl From<BodyReadError> for DiffbeltClientError {
     fn from(value: BodyReadError) -> Self {
         DiffbeltClientError::BodyRead(value)
+    }
+}
+
+impl From<InvalidFlatbuffer> for DiffbeltClientError {
+    fn from(value: InvalidFlatbuffer) -> Self {
+        DiffbeltClientError::InvalidFlatbuffer(value)
     }
 }

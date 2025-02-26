@@ -712,6 +712,7 @@ version = "0.1.0"
 name = "diffbelt_http_client"
 version = "0.0.1"
 dependencies = [
+ "diffbelt_protos",
  "diffbelt_transforms",
  "diffbelt_types",
  "diffbelt_util",

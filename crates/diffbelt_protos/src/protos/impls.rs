@@ -8,6 +8,7 @@ use crate::protos::transform::aggregate::{
 use crate::protos::transform::map_filter::{
     MapFilterMultiInput, MapFilterMultiOutput, RecordUpdate,
 };
+use diffbelt_protos::protos::api::common::ErrorResponse;
 
 #[macro_export]
 macro_rules! flatbuffers_generic {
@@ -24,6 +25,7 @@ macro_rules! flatbuffers_generic {
 
 flatbuffers_generic!(Request, RequestProto);
 flatbuffers_generic!(Response, ResponseProto);
+flatbuffers_generic!(ErrorResponse, ErrorResponseProto);
 flatbuffers_generic!(CreateCollectionRequest, CreateCollectionRequestProto);
 flatbuffers_generic!(CreateCollectionResponse, CreateCollectionResponseProto);
 flatbuffers_generic!(RecordUpdate, RecordUpdateProto);
