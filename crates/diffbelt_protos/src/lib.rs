@@ -168,6 +168,7 @@ impl<F: FlatbuffersGenericType> OwnedSerialized<F> {
     }
 
     pub fn data(&self) -> <F::FlatType<'_> as Follow>::Inner {
+        // SAFETY: checked in from_aligned_bytes, or created from just serialized data
         unsafe { flatbuffers::root_unchecked::<F::FlatType<'_>>(self.as_bytes()) }
     }
 

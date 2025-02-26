@@ -25,9 +25,9 @@ pub trait ApiHandler {
         serializer: Serializer<'a, RequestProto>,
         request: Self::FlatbuffersRequestArgs<'a>,
     ) -> OwnedSerialized<RequestProto>;
-    fn response<'a>(
-        response: &'a OwnedSerialized<ResponseProto>,
-    ) -> Option<<Self::FlatbuffersResponse as FlatbuffersGenericType>::FlatType<'a>>;
+    fn response(
+        response: <ResponseProto as FlatbuffersGenericType>::FlatType<'_>,
+    ) -> Option<<Self::FlatbuffersResponse as FlatbuffersGenericType>::FlatType<'_>>;
     fn create_response<'a>(
         serializer: Serializer<'a, ResponseProto>,
         response: Self::FlatbuffersResponseArgs<'a>,
@@ -74,10 +74,10 @@ impl ApiHandler for CreateCollectionApiHandler {
         serializer.finish(request).into_owned()
     }
 
-    fn response<'a>(
-        response: &'a OwnedSerialized<ResponseProto>,
-    ) -> Option<<Self::FlatbuffersResponse as FlatbuffersGenericType>::FlatType<'a>> {
-        response.data().create_collection()
+    fn response(
+        response: <ResponseProto as FlatbuffersGenericType>::FlatType<'_>,
+    ) -> Option<<Self::FlatbuffersResponse as FlatbuffersGenericType>::FlatType<'_>> {
+        response.create_collection()
     }
 
     fn create_response<'a>(

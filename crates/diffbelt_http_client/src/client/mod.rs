@@ -113,12 +113,12 @@ impl DiffbeltClient {
     pub async fn flatbuffers_call<A: ApiHandler>(
         &self,
         request: OwnedSerialized<RequestProto>,
-    ) -> Result<impl FnOnce() -> FlatbuffersResponse<A>, DiffbeltClientError> {
+    ) -> Result<FlatbuffersResponse<A>, DiffbeltClientError> {
         let body = Body::from(Bytes::copy_from_slice(request.as_bytes()));
 
         let req = Request::builder()
             .method("POST")
-            .uri("/flatbuffers")
+            .uri(format!("{}/flatbuffers", self.uri_start))
             .body(body)
             .unwrap();
 
@@ -127,12 +127,12 @@ impl DiffbeltClient {
         let status = res.status();
 
         let body = res.into_body();
-        let mut body = into_aligned_bytes(body, MAX_RESPONSE_BYTES).await?;
+        let body = into_aligned_bytes(body, MAX_RESPONSE_BYTES).await?;
 
-        let response = deserialize::<ResponseProto>(body.as_ref())?;
+        let response = OwnedSerialized::<ResponseProto>::from_aligned_bytes(body)?;
 
         if status != 200 {
-            let error = response.error();
+            let error = response.data().error();
             let Some(error) = error else {
                 return Err(DiffbeltClientError::Not200Unknown);
             };
@@ -159,21 +159,34 @@ impl DiffbeltClient {
             return Err(DiffbeltClientError::Not200(s));
         }
 
-        Ok(move || FlatbuffersResponse {
+        Ok(FlatbuffersResponse {
+            response,
             phantom: Default::default(),
         })
     }
 }
 
-struct FlatbuffersResponse<A: ApiHandler> {
+pub struct FlatbuffersResponse<A: ApiHandler> {
+    response: OwnedSerialized<ResponseProto>,
     phantom: PhantomData<A>,
 }
 
 impl<A: ApiHandler> FlatbuffersResponse<A> {
-    fn response(
+    pub fn response(
         &self,
-    ) -> Result<<A::FlatbuffersResponse as FlatbuffersGenericType>::FlatType<'_>, ErrorResponse<'_>>
-    {
-        todo!()
+    ) -> Result<
+        <A::FlatbuffersResponse as FlatbuffersGenericType>::FlatType<'_>,
+        Option<ErrorResponse<'_>>,
+    > {
+        let data = self.response.data();
+        if let Some(error) = data.error() {
+            return Err(Some(error));
+        }
+
+        if let Some(ok) = A::response(data) {
+            return Ok(ok);
+        }
+
+        Err(None)
     }
 }

@@ -25,6 +25,8 @@ pub enum CommandError {
     Wasm(#[from] WasmError),
     #[error(transparent)]
     TransformEval(#[from] TransformEvalError),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }
 
 impl From<TransformError> for CommandError {

@@ -26,7 +26,7 @@ compile_error!("Only LE targets are supported because we are copying data to WAS
 pub struct CliConfig {
     self_path: Rc<str>,
 
-    collections: Vec<Collection>,
+    pub collections: Vec<Collection>,
     transforms: Vec<Transform>,
     wasm: HashMap<Rc<str>, Wasm>,
     tests: HashMap<Rc<str>, TestSuite>,
