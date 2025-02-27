@@ -479,6 +479,7 @@ tests:
             ms: 27
 
 
-#  integration:
-#    - name: updateMs_1d_percentiles_empty
-#      wasm: example.calculatePercentilesEmptyIntegrationTest
+
+integration_tests:
+  - name: updateMs_1d_percentiles_empty
+    wasm: example.calculatePercentilesEmptyIntegrationTest

@@ -41,5 +41,8 @@ path = "../diffbelt_example_protos"
 [dependencies.diffbelt_wasm_binding]
 path = "../diffbelt_wasm_binding"
 
+[dependencies.diffbelt_http_client]
+path = "../diffbelt_http_client"
+
 [dev-dependencies.diffbelt_example_wasm_rebuild]
 path = "../../crates_example/diffbelt_example_wasm_rebuild"

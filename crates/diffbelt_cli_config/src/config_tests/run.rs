@@ -4,7 +4,7 @@ use thiserror::Error;
 use diffbelt_yaml::YamlParsingError;
 
 use crate::config_tests::error::AssertError;
-use crate::config_tests::{SingleTestResult, TestResult};
+use crate::config_tests::{RunTestsOptions, SingleTestResult, TestResult};
 use crate::errors::ConfigParsingError;
 use crate::CliConfig;
 
@@ -16,8 +16,11 @@ pub enum RunTestsError {
     ConfigParsing(ConfigParsingError),
 }
 
-pub async fn run_tests(config: &CliConfig) -> Result<bool, RunTestsError> {
-    let results = config.run_tests().await;
+pub async fn run_tests(
+    config: &CliConfig,
+    options: RunTestsOptions,
+) -> Result<bool, RunTestsError> {
+    let results = config.run_tests(options).await;
 
     let mut is_ok = true;
 

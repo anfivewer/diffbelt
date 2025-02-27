@@ -62,6 +62,8 @@ pub enum TestError {
     YamlSerialization(#[from] YamlSerializationError),
     #[error("{:?}", .0.reason)]
     AlignedBytes(AlignedBytesError),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }
 
 impl_from_either!(TestError);

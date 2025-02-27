@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
-
+use crate::config_tests::integration::IntegrationTestDef;
 use crate::config_tests::TestSuite;
 use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::formats::collection_human_readable_config::CollectionHumanReadableConfig;
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
 use crate::wasm::{NewWasmInstanceOptions, Wasm, WasmError, WasmModuleInstance};
+use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
 
 pub mod config_tests;
 pub mod errors;
@@ -30,6 +30,7 @@ pub struct CliConfig {
     transforms: Vec<Transform>,
     wasm: HashMap<Rc<str>, Wasm>,
     tests: HashMap<Rc<str>, TestSuite>,
+    integration_tests: Vec<IntegrationTestDef>,
 }
 
 #[derive(Debug)]
@@ -46,6 +47,7 @@ impl CliConfig {
         let mut transforms = None;
         let mut wasm = HashMap::new();
         let mut tests = None;
+        let mut integration_tests = None;
 
         for (key_node, value) in &root.items {
             let key = expect_str(&key_node)?;
@@ -74,6 +76,10 @@ impl CliConfig {
                     let parsed_tests = decode_yaml(value)?;
                     tests = Some(parsed_tests);
                 }
+                "integration_tests" => {
+                    let parsed_tests = decode_yaml(value)?;
+                    integration_tests = Some(parsed_tests);
+                }
                 other => {
                     return Err(ConfigParsingError::UnknownKey(ExpectedError {
                         message: other.to_string(),
@@ -89,6 +95,7 @@ impl CliConfig {
             transforms: transforms.unwrap_or_else(|| Vec::new()),
             wasm,
             tests: tests.unwrap_or_else(|| HashMap::new()),
+            integration_tests: integration_tests.unwrap_or_else(|| Vec::new()),
         })
     }
 

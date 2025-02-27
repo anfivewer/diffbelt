@@ -1,7 +1,6 @@
-use std::rc::Rc;
-
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
 use diffbelt_yaml::parse_yaml;
+use std::rc::Rc;
 
 use crate::config_tests::run::run_tests;
 use crate::CliConfig;
@@ -19,7 +18,9 @@ async fn run_example_config_tests_inner() {
     let doc = &docs[0];
     let config = CliConfig::from_yaml(Rc::from("../../examples"), doc).expect("reading");
 
-    let is_ok = run_tests(&config).await.expect("Running tests");
+    let is_ok = run_tests(&config, Default::default())
+        .await
+        .expect("Running tests");
 
     assert!(is_ok);
 }

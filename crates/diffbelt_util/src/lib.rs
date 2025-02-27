@@ -2,6 +2,7 @@ pub use wrap::Wrap;
 
 pub mod debug_print;
 pub mod errors;
+pub mod fs;
 pub mod http;
 pub mod idling_status;
 pub mod option;
