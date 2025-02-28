@@ -2,7 +2,8 @@ use std::ops::Deref;
 
 use either::Either;
 
-use crate::wasm::{WasmError, WasmModuleInstance};
+use crate::wasm::WasmModuleInstance;
+use crate::wasm::error::WasmError;
 
 impl WasmModuleInstance {
     pub fn enter_memory_observe_context<T, E, F: FnOnce(&[u8]) -> Result<T, E>>(

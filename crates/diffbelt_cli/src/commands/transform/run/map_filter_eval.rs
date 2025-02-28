@@ -3,10 +3,9 @@ use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
 use diffbelt_cli_config::wasm::memory::vector::WasmVecHolder;
-use diffbelt_cli_config::wasm::{MapFilterFunction, WasmError, WasmModuleInstance};
+use diffbelt_cli_config::wasm::{MapFilterFunction, WasmModuleInstance};
 use diffbelt_protos::align_util::OwnedAlignedBytes;
 use diffbelt_protos::protos::impls::MapFilterMultiOutputProto;
-use diffbelt_protos::protos::transform::map_filter::MapFilterMultiOutput;
 use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_transforms::base::action::function_eval::{FunctionEvalAction, MapFilterEvalAction};
 use diffbelt_transforms::base::input::function_eval::{

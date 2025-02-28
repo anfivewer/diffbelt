@@ -2,7 +2,7 @@ use std::fmt::{Debug, Formatter};
 use thiserror::Error;
 
 use diffbelt_cli_config::config_tests::run::RunTestsError;
-use diffbelt_cli_config::wasm::WasmError;
+use diffbelt_cli_config::wasm::error::WasmError;
 use diffbelt_http_client::errors::DiffbeltClientError;
 use diffbelt_protos::align_util::AlignedBytesError;
 use diffbelt_protos::error::FlatbufferError;

@@ -2,24 +2,20 @@ use std::io::ErrorKind;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::str::Utf8Error;
 use std::sync::{Arc, Mutex};
 
-use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
+use dioxus_hooks::RefCell;
 use serde::Deserialize;
-use thiserror::Error;
 use wasmtime::{
     AsContext, AsContextMut, Config, Engine, Instance, Linker, Memory, Module, Store, TypedFunc,
 };
-use diffbelt_protos::align_util::AlignedBytesError;
 
-use diffbelt_protos::error::FlatbufferError;
-use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::Wrap;
-use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32, try_usize_to_u32, u32_to_usize};
+use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
 use diffbelt_util_no_std::impl_from_either;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
+pub use error::WasmError;
 use memory::vector::WasmVecHolder;
 use memory::Allocation;
 pub use types::WasmPtrImpl;
@@ -35,6 +31,8 @@ use crate::wasm::wasm_env::requests::ActiveDiffbeltRequests;
 use crate::wasm::wasm_env::WasmEnv;
 
 pub mod aggregate;
+pub mod engine;
+pub mod error;
 pub mod human_readable;
 pub mod memory;
 pub mod ptr;
@@ -49,49 +47,7 @@ pub struct Wasm {
     pub wasm_path: WithMark<String>,
 }
 
-#[derive(Error, Debug)]
-pub enum WasmError {
-    #[error("AlreadyErrored")]
-    AlreadyErrored,
-    #[error("{0:?}")]
-    Io(std::io::Error),
-    #[error("{0:?}")]
-    Utf8(Utf8Error),
-    #[error("MutexPoisoned")]
-    MutexPoisoned,
-    #[error("NoMemory")]
-    NoMemory,
-    #[error("NoAllocation")]
-    NoAllocation,
-    #[error("DiffbeltRequestSend")]
-    DiffbeltRequestSend,
-    #[error("{0:?}")]
-    Regex(regex::Error),
-    #[error("{0:?}")]
-    Borrow(#[from] BorrowError),
-    #[error("{0:?}")]
-    BorrowMut(#[from] BorrowMutError),
-    #[error("{0:?}")]
-    Flatbuffer(FlatbufferError),
-    #[error("BadPointer")]
-    BadPointer,
-    #[error("{0:?}")]
-    WasmTime(#[from] wasmtime::Error),
-    #[error("Aggregate::apply error code {0:?}")]
-    AggregateApplyErrorCode(ErrorCode),
-    #[error(transparent)]
-    AlignedBytes(#[from] NoStdErrorWrap<AlignedBytesError>),
-    #[error("{0:?}")]
-    Unspecified(String),
-}
-
 impl_from_either!(WasmError);
-
-impl From<FlatbufferError> for WasmError {
-    fn from(value: FlatbufferError) -> Self {
-        Self::Flatbuffer(value)
-    }
-}
 
 pub struct NewWasmInstanceOptions<'a> {
     pub config_path: &'a str,

@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use serde::Deserialize;
@@ -6,7 +7,9 @@ use serde::Deserialize;
 use diffbelt_yaml::YamlNodeRc;
 use error::{AssertError, TestError};
 
+use crate::config_tests::options::RunTestsContext;
 use crate::config_tests::transforms::{TransformTest, TransformTestCreator};
+use crate::wasm::engine::{WasmEngine, WasmEngineOptions};
 use crate::CliConfig;
 pub use options::RunTestsOptions;
 
@@ -20,6 +23,7 @@ mod tests;
 pub mod transforms;
 mod unit;
 pub mod value;
+pub mod wasm;
 
 #[derive(Debug, Deserialize)]
 #[serde(transparent)]
@@ -54,8 +58,34 @@ impl CliConfig {
             self.run_unit_tests(&mut result).await;
         }
 
-        if options.with_integration {
-            self.run_integration_tests(&mut result, &options).await;
+        let integration_result = 'outer: {
+            if options.with_integration {
+                let wasm_root_path = PathBuf::from(self.self_path.as_ref());
+                let wasm_engine = match WasmEngine::new(WasmEngineOptions { wasm_root_path }).await
+                {
+                    Ok(x) => x,
+                    Err(err) => {
+                        break 'outer Err(err);
+                    }
+                };
+                let mut context = RunTestsContext { wasm_engine };
+
+                if let Err(err) = self.init_run_tests_context(&mut context).await {
+                    break 'outer Err(err);
+                }
+
+                self.run_integration_tests(&mut result, &options, &mut context)
+                    .await;
+            }
+
+            Ok(())
+        };
+
+        if let Err(err) = integration_result {
+            result.push(TestResult {
+                name: Rc::from("integration"),
+                result: Err(TestError::Wasm(err)),
+            });
         }
 
         result

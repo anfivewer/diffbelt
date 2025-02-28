@@ -3,14 +3,15 @@ use std::ops::{Deref, DerefMut};
 use either::Either;
 use wasmtime::AsContextMut;
 
-use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32, try_usize_to_u32, u32_to_usize};
+use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 
 use crate::wasm::memory::DeallocType;
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{WasmBytesSlice, WasmPtrToVecRawParts};
-use crate::wasm::{WasmError, WasmModuleInstance};
+use crate::wasm::WasmModuleInstance;
+use crate::wasm::error::WasmError;
 
 // FIXME: we cannot use any WasmVecHolder which was passed to wasm if function paniced/failed,
 //        we should mark them as broken and not try to dealloc and replace it with fresh one.

@@ -1,4 +1,5 @@
 use crate::config_tests::error::TestError;
+use crate::config_tests::options::RunTestsContext;
 use crate::config_tests::{RunTestsOptions, SingleTestResult, TestResult};
 use crate::util::init_collections::{
     init_collections, InitCollectionsError, InitCollectionsOptions,
@@ -23,9 +24,10 @@ impl CliConfig {
         &self,
         results: &mut Vec<TestResult>,
         options: &RunTestsOptions<'_>,
+        context: &mut RunTestsContext,
     ) {
         for test in &self.integration_tests {
-            match self.run_integration_test(test, options).await {
+            match self.run_integration_test(test, options, context).await {
                 Ok(()) => results.push(TestResult {
                     name: test.name.clone(),
                     result: Ok(vec![SingleTestResult {
@@ -48,6 +50,7 @@ impl CliConfig {
         &self,
         test: &IntegrationTestDef,
         options: &RunTestsOptions<'_>,
+        context: &mut RunTestsContext,
     ) -> Result<(), TestError> {
         let client = options
             .client
@@ -69,6 +72,8 @@ impl CliConfig {
 
             (module_name, function_name)
         };
+
+        let wasm_mod = context.wasm_engine.get_module(module_name).await?;
 
         let temp_dir = TempDir::new()?;
 
@@ -92,7 +97,7 @@ impl CliConfig {
             client,
             collections: &self.collections,
             print_before_create: |_| {},
-            print_after_create: || {},
+            print_after_create: |_| {},
         })
         .await
         .map_err(|err| match err {

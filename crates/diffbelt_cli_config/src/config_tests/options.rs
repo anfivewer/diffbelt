@@ -1,3 +1,4 @@
+use crate::wasm::engine::WasmEngine;
 use diffbelt_http_client::client::DiffbeltClient;
 
 pub struct RunTestsOptions<'a> {
@@ -14,4 +15,8 @@ impl Default for RunTestsOptions<'_> {
             client: None,
         }
     }
+}
+
+pub struct RunTestsContext {
+    pub wasm_engine: WasmEngine,
 }

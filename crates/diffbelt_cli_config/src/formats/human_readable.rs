@@ -4,8 +4,9 @@ use std::rc::Rc;
 use thiserror::Error;
 
 use crate::wasm::human_readable::HumanReadableFunctions;
-use crate::wasm::{WasmError, WasmModuleInstance};
+use crate::wasm::WasmModuleInstance;
 use crate::Collection;
+use crate::wasm::error::WasmError;
 
 #[derive(Error, Debug)]
 pub enum HumanReadableError {

@@ -6,14 +6,14 @@ use diffbelt_protos::align_util::OwnedAlignedBytes;
 use diffbelt_protos::error::map_flatbuffer_error_to_return_buffer;
 use diffbelt_protos::protos::impls::{AggregateApplyOutputProto, AggregateMapMultiOutputProto};
 use diffbelt_protos::protos::transform::aggregate::{
-    AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput, AggregateReduceInput,
+    AggregateMapMultiInput, AggregateReduceInput,
     AggregateTargetInfo,
 };
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::lift_result_from_option;
 use diffbelt_util_no_std::cast::{
-    try_positive_i32_to_usize, try_usize_to_i32, try_usize_to_u32, u32_to_usize,
+    try_usize_to_u32, u32_to_usize,
 };
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
 use diffbelt_wasm_binding::error_code::ErrorCode;
@@ -21,7 +21,8 @@ use diffbelt_wasm_binding::error_code::ErrorCode;
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr, WasmVecRawParts};
-use crate::wasm::{WasmError, WasmModuleInstance};
+use crate::wasm::WasmModuleInstance;
+use crate::wasm::error::WasmError;
 
 pub struct AggregateFunctions<'a> {
     pub instance: &'a WasmModuleInstance,

@@ -4,7 +4,6 @@ use std::rc::Rc;
 use std::str::from_utf8;
 
 use diffbelt_protos::protos::impls::AggregateApplyOutputProto;
-use diffbelt_protos::protos::transform::aggregate::AggregateApplyOutput;
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_yaml::YamlNode;
@@ -23,7 +22,8 @@ use crate::transforms::aggregate::Aggregate;
 use crate::wasm::aggregate::AggregateFunctions;
 use crate::wasm::human_readable::aggregate::AggregateHumanReadableFunctions;
 use crate::wasm::human_readable::HumanReadableFunctions;
-use crate::wasm::{WasmError, WasmModuleInstance};
+use crate::wasm::WasmModuleInstance;
+use crate::wasm::error::WasmError;
 
 mod yaml_input;
 

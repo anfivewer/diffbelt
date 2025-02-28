@@ -5,7 +5,8 @@ use wasmtime::{AsContextMut, Instance, Memory, Store, TypedFunc};
 use diffbelt_util::Wrap;
 
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr, WasmVecRawParts};
-use crate::wasm::{WasmError, WasmStoreData};
+use crate::wasm::WasmStoreData;
+use crate::wasm::error::WasmError;
 
 pub mod slice;
 pub mod vector;

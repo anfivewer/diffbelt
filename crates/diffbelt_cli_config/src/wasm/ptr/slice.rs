@@ -6,7 +6,7 @@ use bytemuck::Pod;
 use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, u32_to_usize};
 
 use crate::wasm::types::{WasmBytesSlice, WasmPtr};
-use crate::wasm::WasmError;
+use crate::wasm::error::WasmError;
 
 pub struct WasmSlice<T: Pod> {
     ptr: usize,

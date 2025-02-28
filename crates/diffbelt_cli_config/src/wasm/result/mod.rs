@@ -2,12 +2,13 @@ use std::ops::Deref;
 
 use either::Either;
 
-use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32, u32_to_usize};
+use diffbelt_util_no_std::cast::{try_usize_to_i32, u32_to_usize};
 use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::types::WasmPtr;
-use crate::wasm::{WasmError, WasmModuleInstance, WasmPtrImpl};
+use crate::wasm::{WasmModuleInstance, WasmPtrImpl};
+use crate::wasm::error::WasmError;
 
 #[deprecated(note = "Use just WasmBytesSlice")]
 pub struct WasmBytesSliceResult<'a> {

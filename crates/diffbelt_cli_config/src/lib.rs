@@ -8,8 +8,9 @@ use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::formats::collection_human_readable_config::CollectionHumanReadableConfig;
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
-use crate::wasm::{NewWasmInstanceOptions, Wasm, WasmError, WasmModuleInstance};
+use crate::wasm::{NewWasmInstanceOptions, Wasm, WasmModuleInstance};
 use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
+use wasm::error::WasmError;
 
 pub mod config_tests;
 pub mod errors;

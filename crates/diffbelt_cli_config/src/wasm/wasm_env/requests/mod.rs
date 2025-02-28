@@ -4,16 +4,11 @@ use either::Either;
 use std::collections::HashMap;
 use std::future::Future;
 use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
-
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::TryRecvError;
-use tokio::sync::oneshot::Receiver;
 use wasmtime::{AsContext, AsContextMut, Caller, Linker, Store};
 
-use crate::requests::DiffbeltRequests;
 use diffbelt_protos::align_util::OwnedAlignedBytes;
-use diffbelt_protos::protos::api::methods::{Request, Response};
 use diffbelt_protos::protos::impls::{RequestProto, ResponseProto};
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_util::errors::NoStdErrorWrap;
@@ -21,10 +16,11 @@ use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::requests::RequestId;
 
-use crate::wasm::types::{WasmPtr, WasmPtrToByte, WasmPtrToVecRawParts};
+use crate::wasm::types::{WasmPtrToByte, WasmPtrToVecRawParts};
 use crate::wasm::wasm_env::requests::constants::ACTIVE_REQUESTS_LIMIT;
 use crate::wasm::wasm_env::WasmEnv;
-use crate::wasm::{WasmError, WasmStoreData};
+use crate::wasm::WasmStoreData;
+use crate::wasm::error::WasmError;
 
 pub struct ActiveDiffbeltRequests {
     requests: HashMap<

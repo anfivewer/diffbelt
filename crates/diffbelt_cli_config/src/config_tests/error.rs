@@ -15,7 +15,7 @@ use diffbelt_yaml::YamlSerializationError;
 
 use crate::config_tests::value::{ScalarParseError, YamlValueConstructionError};
 use crate::formats::human_readable::HumanReadableError;
-use crate::wasm::WasmError;
+use crate::wasm::error::WasmError;
 
 #[derive(Debug)]
 pub enum AssertError {

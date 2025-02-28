@@ -5,7 +5,7 @@ use wasmtime::component::__internal::StoreOpaque;
 use wasmtime::{ValRaw, ValType, WasmTy};
 
 use crate::wasm::types::WasmPtr;
-use crate::wasm::WasmError;
+use crate::wasm::error::WasmError;
 
 pub mod slice;
 

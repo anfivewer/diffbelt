@@ -6,7 +6,8 @@ use wasmtime::{Linker, Memory, Store};
 use diffbelt_util::Wrap;
 
 use crate::wasm::memory::Allocation;
-use crate::wasm::{WasmError, WasmStoreData};
+use crate::wasm::WasmStoreData;
+use crate::wasm::error::WasmError;
 
 pub mod debug;
 pub mod memory;

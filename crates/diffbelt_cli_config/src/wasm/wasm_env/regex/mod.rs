@@ -17,7 +17,8 @@ use crate::wasm::types::{
 };
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
-use crate::wasm::{WasmError, WasmStoreData};
+use crate::wasm::WasmStoreData;
+use crate::wasm::error::WasmError;
 
 pub struct WasmRegex {
     regex: Regex,

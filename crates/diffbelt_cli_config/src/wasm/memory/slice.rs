@@ -4,7 +4,8 @@ use either::Either;
 
 use crate::wasm::memory::DeallocType;
 use crate::wasm::types::{WasmBytesSlice, WasmPtr};
-use crate::wasm::{WasmError, WasmModuleInstance};
+use crate::wasm::WasmModuleInstance;
+use crate::wasm::error::WasmError;
 
 pub struct WasmSliceHolder<'a> {
     pub instance: &'a WasmModuleInstance,
