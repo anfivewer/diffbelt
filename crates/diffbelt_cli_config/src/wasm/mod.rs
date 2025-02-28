@@ -1,14 +1,9 @@
-use std::io::ErrorKind;
-use std::ops::DerefMut;
-use std::path::PathBuf;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
-
 use dioxus_hooks::RefCell;
 use serde::Deserialize;
-use wasmtime::{
-    AsContext, AsContextMut, Config, Engine, Instance, Linker, Memory, Module, Store, TypedFunc,
-};
+use std::ops::DerefMut;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use wasmtime::{AsContext, AsContextMut, Instance, Linker, Memory, Module, Store, TypedFunc};
 
 use diffbelt_util::Wrap;
 use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
@@ -22,6 +17,7 @@ pub use types::WasmPtrImpl;
 
 use crate::errors::WithMark;
 use crate::requests::DiffbeltRequests;
+use crate::wasm::engine::WasmEngine;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::result::WasmBytesSliceResult;
@@ -50,7 +46,8 @@ pub struct Wasm {
 impl_from_either!(WasmError);
 
 pub struct NewWasmInstanceOptions<'a> {
-    pub config_path: &'a str,
+    pub engine: &'a mut WasmEngine,
+    pub module: &'a Module,
 }
 
 pub struct WasmStoreData {
@@ -99,40 +96,18 @@ impl Wasm {
         &self,
         options: NewWasmInstanceOptions<'_>,
     ) -> Result<WasmModuleInstance, WasmError> {
-        let NewWasmInstanceOptions { config_path } = options;
-
-        let mut wasm_path =
-            PathBuf::with_capacity(config_path.as_bytes().len() + 1 + self.name.as_bytes().len());
-        wasm_path.push(config_path);
-        wasm_path.push(self.wasm_path.value.as_str());
-
-        let wat_bytes = tokio::fs::read(&wasm_path).await.map_err(|err| {
-            if let ErrorKind::NotFound = err.kind() {
-                return WasmError::Unspecified(format!(
-                    "Did not found wasm file at \"{}\"",
-                    wasm_path.to_str().unwrap_or("?")
-                ));
-            }
-
-            WasmError::Io(err)
-        })?;
-
-        let mut config = Config::new();
-        config.async_support(true);
-        let engine = Engine::new(&config)?;
+        let NewWasmInstanceOptions { engine, module } = options;
 
         let data = WasmStoreData::new();
 
-        let mut store = Store::new(&engine, data);
-        let wasm_mod = Module::new(&engine, &wat_bytes)?;
-
-        let mut linker = Linker::<WasmStoreData>::new(&engine);
+        let mut store = Store::new(&engine.engine, data);
+        let mut linker = Linker::<WasmStoreData>::new(&engine.engine);
 
         let env = WasmEnv::new();
 
         let () = env.register_imports(&mut store, &mut linker)?;
 
-        let instance = linker.instantiate_async(&mut store, &wasm_mod).await?;
+        let instance = linker.instantiate_async(&mut store, module).await?;
 
         let mut memory = None;
 

@@ -1,6 +1,7 @@
 use diffbelt_cli_config::transforms::aggregate::Aggregate;
 use diffbelt_cli_config::transforms::wasm::WasmMethodDef;
 use diffbelt_cli_config::transforms::Transform as TransformConfig;
+use diffbelt_cli_config::wasm::engine::WasmEngine;
 use diffbelt_cli_config::wasm::WasmModuleInstance;
 use diffbelt_cli_config::CliConfig;
 use diffbelt_transforms::aggregate::AggregateTransform;
@@ -26,6 +27,7 @@ pub struct TransformDirection<'a> {
 
 pub async fn create_transform(
     config: &CliConfig,
+    engine: &mut WasmEngine,
     transform_config: &TransformConfig,
     transform_direction: TransformDirection<'_>,
     verbose: bool,
@@ -71,12 +73,19 @@ pub async fn create_transform(
     }
 
     if let Some(map_filter_wasm) = map_filter_wasm {
-        return create_map_filter_transform(config, map_filter_wasm, transform_direction, verbose)
-            .await;
+        return create_map_filter_transform(
+            config,
+            engine,
+            map_filter_wasm,
+            transform_direction,
+            verbose,
+        )
+        .await;
     }
 
     if let Some(aggregate) = aggregate {
-        return create_aggregate_transform(config, aggregate, transform_direction, verbose).await;
+        return create_aggregate_transform(config, engine, aggregate, transform_direction, verbose)
+            .await;
     }
 
     Err(CommandError::Message(
@@ -86,6 +95,7 @@ pub async fn create_transform(
 
 async fn create_map_filter_transform(
     config: &CliConfig,
+    engine: &mut WasmEngine,
     map_filter_wasm: &WasmMethodDef,
     transform_direction: TransformDirection<'_>,
     verbose: bool,
@@ -103,7 +113,7 @@ async fn create_map_filter_transform(
         )));
     };
 
-    let wasm_instance = config.new_wasm_instance(wasm_def).await?;
+    let wasm_instance = config.new_wasm_instance(wasm_def, engine).await?;
 
     let handler =
         MapFilterEvalHandler::new(wasm_instance, map_filter_wasm.method_name.as_str(), verbose)
@@ -117,6 +127,7 @@ async fn create_map_filter_transform(
 
 async fn create_aggregate_transform(
     config: &CliConfig,
+    engine: &mut WasmEngine,
     aggregate: &Aggregate,
     transform_direction: TransformDirection<'_>,
     verbose: bool,
@@ -137,7 +148,7 @@ async fn create_aggregate_transform(
         )));
     };
 
-    let wasm_instance = config.new_wasm_instance(wasm_def).await?;
+    let wasm_instance = config.new_wasm_instance(wasm_def, engine).await?;
 
     let handler = AggregateEvalHandler::new(wasm_instance, aggregate, verbose).await?;
 

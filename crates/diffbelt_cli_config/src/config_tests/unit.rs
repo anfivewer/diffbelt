@@ -1,4 +1,5 @@
 use crate::config_tests::error::TestError;
+use crate::config_tests::options::RunTestsContext;
 use crate::config_tests::transforms::aggregate_apply::AggregateApplyTransformTestCreator;
 use crate::config_tests::transforms::aggregate_initial_accumulator::AggregateInitialAccumulatorTransformTestCreator;
 use crate::config_tests::transforms::aggregate_map::AggregateMapTransformTestCreator;
@@ -14,9 +15,14 @@ use crate::wasm::{NewWasmInstanceOptions, WasmModuleInstance};
 use crate::CliConfig;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::time::Instant;
 
 impl CliConfig {
-    pub async fn run_unit_tests(&self, result: &mut Vec<TestResult>) {
+    pub async fn run_unit_tests(
+        &self,
+        result: &mut Vec<TestResult>,
+        context: &mut RunTestsContext,
+    ) {
         'outer: for (name, suite) in self.tests.iter() {
             let TestSuite { tests } = suite;
 
@@ -221,9 +227,12 @@ impl CliConfig {
                     .get(name)
                     .ok_or_else(|| TestError::Unspecified(format!("no wasm module {name}"))));
 
+                let module = match_ok!(context.wasm_engine.get_module(name).await);
+
                 let instance = match_ok!(
                     wasm.new_wasm_instance(NewWasmInstanceOptions {
-                        config_path: self.self_path.deref(),
+                        engine: &mut context.wasm_engine,
+                        module: &module,
                     })
                     .await
                 );
@@ -247,6 +256,8 @@ impl CliConfig {
             let mut single_tests = Vec::with_capacity(tests.len());
 
             'test: for test in tests {
+                let start = Instant::now();
+
                 macro_rules! match_ok {
                     ( $expr:expr ) => {
                         match $expr {
@@ -255,6 +266,7 @@ impl CliConfig {
                                 single_tests.push(SingleTestResult {
                                     name: name.clone(),
                                     result: Err(err.into()),
+                                    elapsed: Some(start.elapsed()),
                                 });
                                 continue 'test;
                             }
@@ -280,6 +292,7 @@ impl CliConfig {
                 single_tests.push(SingleTestResult {
                     name: name.clone(),
                     result: Ok(comparison),
+                    elapsed: Some(start.elapsed()),
                 });
             }
 

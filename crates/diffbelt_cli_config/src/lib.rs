@@ -8,6 +8,7 @@ use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::formats::collection_human_readable_config::CollectionHumanReadableConfig;
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
+use crate::wasm::engine::WasmEngine;
 use crate::wasm::{NewWasmInstanceOptions, Wasm, WasmModuleInstance};
 use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
 use wasm::error::WasmError;
@@ -25,7 +26,7 @@ compile_error!("Only LE targets are supported because we are copying data to WAS
 
 #[derive(Debug)]
 pub struct CliConfig {
-    self_path: Rc<str>,
+    pub self_path: Rc<str>,
 
     pub collections: Vec<Collection>,
     transforms: Vec<Transform>,
@@ -121,9 +122,16 @@ impl CliConfig {
         self.wasm.get(name)
     }
 
-    pub async fn new_wasm_instance(&self, wasm: &Wasm) -> Result<WasmModuleInstance, WasmError> {
+    pub async fn new_wasm_instance(
+        &self,
+        wasm: &Wasm,
+        engine: &mut WasmEngine,
+    ) -> Result<WasmModuleInstance, WasmError> {
+        let module = engine.get_module(wasm.name.as_ref()).await?;
+
         wasm.new_wasm_instance(NewWasmInstanceOptions {
-            config_path: self.self_path.deref(),
+            engine,
+            module: &module,
         })
         .await
     }

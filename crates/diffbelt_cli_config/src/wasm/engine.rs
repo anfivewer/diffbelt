@@ -1,19 +1,19 @@
 use crate::wasm::error::WasmError;
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::sync::Arc;
-use wasmtime::{Config, Engine, Module};
+use tokio::time::Instant;
+use wasmtime::{Config, Engine, Module, OptLevel, Strategy};
 
 struct WasmModule {
     name: Arc<str>,
     relative_path: PathBuf,
-    wasm_mod: Option<Arc<Module>>,
+    wasm_mod: Option<Module>,
 }
 
 pub struct WasmEngine {
-    engine: Engine,
+    pub engine: Engine,
     modules: HashMap<Arc<str>, WasmModule>,
     wasm_root_path: PathBuf,
     temp_wasm_path: PathBuf,
@@ -27,6 +27,11 @@ impl WasmEngine {
     pub async fn new(options: WasmEngineOptions) -> Result<Self, WasmError> {
         let mut config = Config::new();
         config.async_support(true);
+
+        // Speedups compilation
+        #[cfg(debug_assertions)]
+        config.cranelift_pcc(false);
+
         let engine = Engine::new(&config)?;
 
         Ok(Self {
@@ -64,7 +69,7 @@ impl WasmEngine {
         Ok(())
     }
 
-    pub async fn get_module(&mut self, name: &str) -> Result<Arc<Module>, WasmError> {
+    pub async fn get_module(&mut self, name: &str) -> Result<Module, WasmError> {
         let Some(wasm_module) = self.modules.get_mut(name) else {
             return Err(WasmError::Unspecified(format!(
                 "Module {name} is not registered"
@@ -87,6 +92,8 @@ impl WasmEngine {
         self.temp_wasm_path.push(&self.wasm_root_path);
         self.temp_wasm_path.push(&wasm_module.relative_path);
 
+        let before = Instant::now();
+
         let wat_bytes = tokio::fs::read(&self.temp_wasm_path).await.map_err(|err| {
             if let ErrorKind::NotFound = err.kind() {
                 return WasmError::Unspecified(format!(
@@ -99,7 +106,8 @@ impl WasmEngine {
         })?;
 
         let wasm_mod = Module::new(&self.engine, &wat_bytes)?;
-        let wasm_mod = Arc::new(wasm_mod);
+
+        println!("Loaded wasm file {name} in {:?}", before.elapsed());
 
         wasm_module.wasm_mod = Some(wasm_mod.clone());
 

@@ -11,6 +11,8 @@ use diffbelt_cli_config::config_tests::RunTestsOptions;
 #[derive(Parser, Debug)]
 pub struct Test {
     #[arg(long)]
+    unit: bool,
+    #[arg(long)]
     integration: bool,
 }
 
@@ -19,13 +21,24 @@ impl Test {
         let config = state.require_config()?;
 
         let mut options = RunTestsOptions {
-            with_unit: true,
-            with_integration: true,
+            with_unit: false,
+            with_integration: false,
             client: Some(&state.client),
         };
 
+        let mut with_filter = false;
+
+        if self.unit {
+            with_filter = true;
+            options.with_unit = true;
+        }
         if self.integration {
-            options.with_unit = false;
+            with_filter = true;
+            options.with_integration = true;
+        }
+        if !with_filter {
+            options.with_unit = true;
+            options.with_integration = true;
         }
 
         let is_ok = run_tests(config, options)

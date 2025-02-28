@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use clap::Args;
@@ -7,6 +8,7 @@ use tokio::sync::mpsc::error::TrySendError;
 use tokio::task::{spawn_local, yield_now, LocalSet};
 
 use diffbelt_cli_config::transforms::Transform as TransformConfig;
+use diffbelt_cli_config::wasm::engine::{WasmEngine, WasmEngineOptions};
 use diffbelt_cli_config::Collection;
 use diffbelt_http_client::client::DiffbeltClient;
 use diffbelt_transforms::base::action::{Action, ActionType};
@@ -111,10 +113,22 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
         reader_name,
     };
 
+    let mut engine = WasmEngine::new(WasmEngineOptions {
+        wasm_root_path: PathBuf::from(config.self_path.as_ref()),
+    })
+    .await?;
+
     let TransformEvaluator {
         transform,
         eval_handler,
-    } = create_transform(config, transform_config, transform_direction, verbose).await?;
+    } = create_transform(
+        config,
+        &mut engine,
+        transform_config,
+        transform_direction,
+        verbose,
+    )
+    .await?;
 
     // TODO: thread pool, parallelize function evals and diffbelt calls
     //       (they parse/serialize jsons currently)

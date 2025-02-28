@@ -40,19 +40,29 @@ pub async fn run_tests(
         };
 
         for result in results {
-            let SingleTestResult { name, result } = result;
+            let SingleTestResult {
+                name,
+                result,
+                elapsed,
+            } = result;
+
+            let elapsed_str = if let Some(elapsed) = elapsed {
+                format!(", {elapsed:?}")
+            } else {
+                String::new()
+            };
 
             let result = match result {
                 Ok(x) => x,
                 Err(err) => {
-                    println!("[FAIL] {function_name} > {name}: {:?}", err);
+                    println!("[FAIL] {function_name} > {name}: {:?}{elapsed_str}", err);
                     is_ok = false;
                     continue;
                 }
             };
 
             if let Some(err) = result {
-                println!("[FAIL] {function_name} > {name}:");
+                println!("[FAIL] {function_name} > {name}{elapsed_str}:");
 
                 match err {
                     AssertError::ValueMissmatch { .. } => {
@@ -92,7 +102,7 @@ pub async fn run_tests(
 
                 is_ok = false;
             } else {
-                println!("[ OK ] {function_name} > {name}");
+                println!("[ OK ] {function_name} > {name}{elapsed_str}");
             }
         }
     }

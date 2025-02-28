@@ -10,6 +10,7 @@ use diffbelt_util::fs::temp_dir::TempDir;
 use serde::Deserialize;
 use std::process::Stdio;
 use std::rc::Rc;
+use std::time::Instant;
 use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
 
@@ -27,12 +28,15 @@ impl CliConfig {
         context: &mut RunTestsContext,
     ) {
         for test in &self.integration_tests {
+            let start = Instant::now();
+
             match self.run_integration_test(test, options, context).await {
                 Ok(()) => results.push(TestResult {
                     name: test.name.clone(),
                     result: Ok(vec![SingleTestResult {
                         name: test.name.clone(),
                         result: Ok(None),
+                        elapsed: Some(start.elapsed()),
                     }]),
                 }),
                 Err(err) => results.push(TestResult {
@@ -40,6 +44,7 @@ impl CliConfig {
                     result: Ok(vec![SingleTestResult {
                         name: test.name.clone(),
                         result: Err(err),
+                        elapsed: Some(start.elapsed()),
                     }]),
                 }),
             }
