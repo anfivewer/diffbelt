@@ -1,11 +1,15 @@
 use crate::config_tests::error::TestError;
-use crate::config_tests::{SingleTestResult, TestResult};
+use crate::config_tests::{RunTestsOptions, SingleTestResult, TestResult};
+use crate::util::init_collections::{
+    init_collections, InitCollectionsError, InitCollectionsOptions,
+};
 use crate::CliConfig;
+use diffbelt_util::diffbelt::stdout::{DiffbeltStdout, DiffbeltStdoutOptions};
 use diffbelt_util::fs::temp_dir::TempDir;
 use serde::Deserialize;
 use std::process::Stdio;
 use std::rc::Rc;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
 
 #[derive(Debug, Deserialize)]
@@ -15,9 +19,13 @@ pub struct IntegrationTestDef {
 }
 
 impl CliConfig {
-    pub async fn run_integration_tests(&self, results: &mut Vec<TestResult>) {
+    pub async fn run_integration_tests(
+        &self,
+        results: &mut Vec<TestResult>,
+        options: &RunTestsOptions<'_>,
+    ) {
         for test in &self.integration_tests {
-            match run_integration_test(test).await {
+            match self.run_integration_test(test, options).await {
                 Ok(()) => results.push(TestResult {
                     name: test.name.clone(),
                     result: Ok(vec![SingleTestResult {
@@ -35,52 +43,63 @@ impl CliConfig {
             }
         }
     }
-}
 
-async fn run_integration_test(test: &IntegrationTestDef) -> Result<(), TestError> {
-    let (module_name, function_name) = {
-        let mut s = test.wasm.split('.');
-        let module_name = s
-            .next()
-            .ok_or_else(|| TestError::Unspecified(String::from("Invalid wasm field format")))?;
-        let function_name = s
-            .next()
-            .ok_or_else(|| TestError::Unspecified(String::from("Invalid wasm field format")))?;
-        if let Some(_) = s.next() {
-            return Err(TestError::Unspecified(String::from(
-                "Invalid wasm field format: too much dots",
-            )));
-        }
+    pub async fn run_integration_test(
+        &self,
+        test: &IntegrationTestDef,
+        options: &RunTestsOptions<'_>,
+    ) -> Result<(), TestError> {
+        let client = options
+            .client
+            .ok_or_else(|| TestError::Unspecified(String::from("missing client")))?;
 
-        (module_name, function_name)
-    };
+        let (module_name, function_name) = {
+            let mut s = test.wasm.split('.');
+            let module_name = s
+                .next()
+                .ok_or_else(|| TestError::Unspecified(String::from("Invalid wasm field format")))?;
+            let function_name = s
+                .next()
+                .ok_or_else(|| TestError::Unspecified(String::from("Invalid wasm field format")))?;
+            if let Some(_) = s.next() {
+                return Err(TestError::Unspecified(String::from(
+                    "Invalid wasm field format: too much dots",
+                )));
+            }
 
-    let temp_dir = TempDir::new()?;
+            (module_name, function_name)
+        };
 
-    let mut command = Command::new("diffbelt");
-    let command = command
-        .kill_on_drop(true)
-        .env("DIFFBELT_DATA_PATH", temp_dir.get_path_buf())
-        .stdout(Stdio::piped());
+        let temp_dir = TempDir::new()?;
 
-    let mut child = command.spawn()?;
+        let mut command = Command::new("diffbelt");
+        let command = command
+            .kill_on_drop(true)
+            .env("DIFFBELT_DATA_PATH", temp_dir.get_path_buf())
+            .stdout(Stdio::piped());
 
-    let Some(stdout) = child.stdout.take() else {
-        return Err(TestError::Unspecified(String::from("No stdout")));
-    };
+        let mut child = command.spawn()?;
 
-    let buf_reader = BufReader::new(stdout);
-    let mut stdout_lines = buf_reader.lines();
+        let Some(stdout) = child.stdout.take() else {
+            return Err(TestError::Unspecified(String::from("No stdout")));
+        };
 
-    // TODO: parse port number and tell server to start on 0 port (any available)
-    // Wait for startup
-    while let Some(line) = stdout_lines.next_line().await? {
-        if &line == "IDLE" {
-            break;
-        }
+        let mut stdout = DiffbeltStdout::new(DiffbeltStdoutOptions { read: stdout });
+
+        stdout.wait_for_idle().await?;
+
+        let () = init_collections(InitCollectionsOptions {
+            client,
+            collections: &self.collections,
+            print_before_create: |_| {},
+            print_after_create: || {},
+        })
+        .await
+        .map_err(|err| match err {
+            InitCollectionsError::Message(msg) => TestError::Unspecified(msg),
+            InitCollectionsError::DiffbeltClient(err) => err.into(),
+        })?;
+
+        Ok(())
     }
-
-    //
-
-    Ok(())
 }

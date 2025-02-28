@@ -10,14 +10,9 @@ use clap::{Parser, Subcommand};
 use crossterm::cursor::{MoveToColumn, MoveToPreviousLine};
 use crossterm::execute;
 use crossterm::terminal::{Clear, ClearType};
-use diffbelt_protos::protos::api::collection::{
-    CreateCollectionRequestArgs, CreateCollectionResponse,
+use diffbelt_cli_config::util::init_collections::{
+    init_collections, InitCollectionsError, InitCollectionsOptions,
 };
-use diffbelt_protos::protos::api::common::ErrorResponse;
-use diffbelt_protos::protos::api::methods::RequestArgs;
-use diffbelt_protos::protos::handlers::{ApiHandler, CreateCollectionApiHandler};
-use diffbelt_protos::protos::impls::RequestProto;
-use diffbelt_protos::Serializer;
 
 #[derive(Parser, Debug)]
 pub struct Collections {
@@ -50,75 +45,40 @@ impl Collections {
         match &self.command {
             CollectionsSubcommand::Init => {
                 let config = state.require_config()?;
-                for collection in &config.collections {
-                    let existing = existing_collections_is_manual.get(collection.name.as_ref());
-                    if let Some(is_manual) = existing {
-                        if collection.manual == *is_manual {
-                            continue;
-                        } else if *is_manual {
-                            return Err(CommandError::Message(format!(
-                                "Collection {} already exists and is manual, but should not",
-                                collection.name
-                            )));
-                        } else {
-                            return Err(CommandError::Message(format!(
-                                "Collection {} already exists and is not manual, but should be",
-                                collection.name
-                            )));
-                        }
-                    }
-
-                    println!(
-                        "Create {}collection {}...",
-                        if collection.manual { "manual " } else { "" },
-                        &collection.name
-                    );
-
-                    let mut serializer = Serializer::<RequestProto>::new();
-                    let collection_name = Some(serializer.create_string(collection.name.as_ref()));
-                    let request = CreateCollectionApiHandler::create_request(
-                        serializer,
-                        CreateCollectionRequestArgs {
-                            collection_name,
-                            is_manual: collection.manual,
-                        },
-                    );
-                    let response = state
-                        .client
-                        .flatbuffers_call::<CreateCollectionApiHandler>(request)
-                        .await?;
-
-                    match response.response() {
-                        Ok(_) => (),
-                        Err(Some(err)) => {
-                            return Err(CommandError::Message(format!(
-                                "Error code {}, reason: {}, details: {}",
-                                err.code(),
-                                err.reason().unwrap_or("()"),
-                                err.details().unwrap_or("()"),
-                            )));
-                        }
-                        Err(None) => {
-                            return Err(CommandError::Message(String::from("No response")));
-                        }
-                    };
-
-                    execute!(
-                        io::stdout(),
-                        MoveToPreviousLine(1),
-                        Clear(ClearType::CurrentLine),
-                        MoveToColumn(0)
-                    )?;
-                    println!(
-                        "{} {} created",
-                        if collection.manual {
-                            "Manual collection"
-                        } else {
-                            "Collection"
-                        },
-                        &collection.name,
-                    );
-                }
+                init_collections(InitCollectionsOptions {
+                    client: &state.client,
+                    collections: &config.collections,
+                    print_before_create: |collection| {
+                        println!(
+                            "Create {}collection {}...",
+                            if collection.manual { "manual " } else { "" },
+                            &collection.name
+                        );
+                    },
+                    print_after_create: |collection| {
+                        execute!(
+                            io::stdout(),
+                            MoveToPreviousLine(1),
+                            Clear(ClearType::CurrentLine),
+                            MoveToColumn(0)
+                        )
+                        .expect("IO error");
+                        println!(
+                            "{} {} created",
+                            if collection.manual {
+                                "Manual collection"
+                            } else {
+                                "Collection"
+                            },
+                            &collection.name,
+                        );
+                    },
+                })
+                .await
+                .map_err(|err| match err {
+                    InitCollectionsError::Message(msg) => CommandError::Message(msg),
+                    InitCollectionsError::DiffbeltClient(err) => err.into(),
+                })?;
             }
             CollectionsSubcommand::List | CollectionsSubcommand::Ls => {
                 for item in response.items {

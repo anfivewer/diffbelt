@@ -47,7 +47,7 @@ pub struct TestResult {
 }
 
 impl CliConfig {
-    pub async fn run_tests(&self, options: RunTestsOptions) -> Vec<TestResult> {
+    pub async fn run_tests(&self, options: RunTestsOptions<'_>) -> Vec<TestResult> {
         let mut result = Vec::new();
 
         if options.with_unit {
@@ -55,7 +55,7 @@ impl CliConfig {
         }
 
         if options.with_integration {
-            self.run_integration_tests(&mut result).await;
+            self.run_integration_tests(&mut result, &options).await;
         }
 
         result

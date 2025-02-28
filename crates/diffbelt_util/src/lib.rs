@@ -1,6 +1,7 @@
 pub use wrap::Wrap;
 
 pub mod debug_print;
+pub mod diffbelt;
 pub mod errors;
 pub mod fs;
 pub mod http;

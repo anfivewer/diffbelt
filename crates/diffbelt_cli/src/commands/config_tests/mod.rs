@@ -21,6 +21,7 @@ impl Test {
         let mut options = RunTestsOptions {
             with_unit: true,
             with_integration: true,
+            client: Some(&state.client),
         };
 
         if self.integration {

@@ -1,11 +1,13 @@
 use std::borrow::Cow;
 use std::str::Utf8Error;
 
+use diffbelt_http_client::errors::DiffbeltClientError;
+use diffbelt_protos::align_util::AlignedBytesError;
 use text_diff::Difference;
 use thiserror::Error;
-use diffbelt_protos::align_util::AlignedBytesError;
 
 use diffbelt_protos::InvalidFlatbuffer;
+use diffbelt_util::diffbelt::stdout::DiffbeltStdoutError;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util_no_std::impl_from_either;
 use diffbelt_util_no_std::slice::SliceOffsetError;
@@ -64,6 +66,10 @@ pub enum TestError {
     AlignedBytes(AlignedBytesError),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    DiffbeltStdout(#[from] DiffbeltStdoutError),
+    #[error(transparent)]
+    DiffbeltClient(#[from] DiffbeltClientError),
 }
 
 impl_from_either!(TestError);
