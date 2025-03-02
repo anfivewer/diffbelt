@@ -57,6 +57,13 @@ impl WasmEnv {
         }
 
         fn regex_new(caller: Caller<'_, WasmStoreData>, s: WasmPtrToByte, s_size: u32) -> i32 {
+            let token = {
+                let Some(token) = caller.data().non_broken_token() else {
+                    return -1;
+                };
+                token
+            };
+
             let mut state = caller.data().inner.lock().expect("lock");
             let state = state.deref_mut();
 
@@ -81,7 +88,7 @@ impl WasmEnv {
                 Ok::<_, WasmError>(index)
             })();
 
-            let Some(index) = WasmEnv::handle_error(&caller.data().error, result) else {
+            let Some(index) = WasmEnv::handle_error(&caller.data().error, result, token) else {
                 return -1;
             };
 
@@ -104,6 +111,13 @@ impl WasmEnv {
             captures_ptr: WasmPtr<WasmRegexCapture>,
             max_captures_count: i32,
         ) -> i32 {
+            let token = {
+                let Some(token) = caller.data().non_broken_token() else {
+                    return -1;
+                };
+                token
+            };
+
             let state = caller.data().inner.clone();
             let mut state = state.lock().expect("lock");
             let state = state.deref_mut();
@@ -183,7 +197,8 @@ impl WasmEnv {
                 Ok::<_, WasmError>(unchecked_usize_to_i32(captures_count))
             })();
 
-            let Some(captures_count) = WasmEnv::handle_error(&caller.data().error, result) else {
+            let Some(captures_count) = WasmEnv::handle_error(&caller.data().error, result, token)
+            else {
                 return -1;
             };
 
@@ -238,6 +253,13 @@ impl WasmEnv {
             target_len: u32,
             replace_result_ptr: WasmPtr<WasmReplaceResult>,
         ) -> () {
+            let token = {
+                let Some(token) = caller.data().non_broken_token() else {
+                    return;
+                };
+                token
+            };
+
             let state = caller.data().inner.clone();
 
             let mut ctx = caller.as_context_mut();
@@ -301,9 +323,13 @@ impl WasmEnv {
                     .call_async(ctx.as_context_mut(), result_bytes_len_u32)
                     .await?;
 
+                if ctx.data().non_broken_token().is_none() {
+                    return Err(WasmError::NonBrokenTokenCheckFail);
+                }
+
                 {
                     let vec_slice = vec_ptr.slice();
-                    () = vec_slice
+                    let () = vec_slice
                         .write_slice(memory.data_mut(ctx.as_context_mut()), result.as_bytes())?;
                 }
 
@@ -321,12 +347,13 @@ impl WasmEnv {
             })()
             .await;
 
-            let Some((memory, result)) = WasmEnv::handle_error(&caller.data().error, result) else {
-                return ();
+            let Some((memory, result)) = WasmEnv::handle_error(&caller.data().error, result, token)
+            else {
+                return;
             };
 
             let result = (|| {
-                () = replace_result_ptr.write(
+                let () = replace_result_ptr.write(
                     memory.data_mut(caller.as_context_mut()),
                     WasmReplaceResult(result),
                 )?;
@@ -334,7 +361,7 @@ impl WasmEnv {
                 Ok::<(), WasmError>(())
             })();
 
-            () = WasmEnv::handle_error(&caller.data().error, result).unwrap_or(());
+            let () = WasmEnv::handle_error(&caller.data().error, result, token).unwrap_or(());
         }
 
         linker.func_wrap("Regex", "new", regex_new)?;

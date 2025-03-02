@@ -28,12 +28,13 @@ impl WasmEnv {
             });
         }
 
-        fn set_test_error(mut caller: Caller<'_, WasmStoreData>, s_ptr: WasmPtrToByte, s_len: u32) {
-            {
-                if caller.data_mut().check_broken() {
+        fn set_test_error(caller: Caller<'_, WasmStoreData>, s_ptr: WasmPtrToByte, s_len: u32) {
+            let token = {
+                let Some(token) = caller.data().non_broken_token() else {
                     return;
-                }
-            }
+                };
+                token
+            };
 
             let mut state = caller.data().inner.lock().expect("lock");
             let state = state.deref_mut();
@@ -59,7 +60,7 @@ impl WasmEnv {
                 Ok(())
             })();
 
-            let Some(()) = WasmEnv::handle_error(&caller.data().error, result) else {
+            let Some(()) = WasmEnv::handle_error(&caller.data().error, result, token) else {
                 return;
             };
         }

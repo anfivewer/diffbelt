@@ -38,6 +38,9 @@ pub enum WasmError {
     AggregateApplyErrorCode(ErrorCode),
     #[error(transparent)]
     AlignedBytes(#[from] NoStdErrorWrap<AlignedBytesError>),
+    /// Used inside wasm exported functions to show that there is no need to compute anymore
+    #[error("NonBrokenTokenCheckFail")]
+    NonBrokenTokenCheckFail,
     #[error("{0:?}")]
     Unspecified(String),
 }

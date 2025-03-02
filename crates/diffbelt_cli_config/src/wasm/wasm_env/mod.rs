@@ -7,7 +7,7 @@ use diffbelt_util::Wrap;
 
 use crate::wasm::error::WasmError;
 use crate::wasm::memory::Allocation;
-use crate::wasm::{WasmStoreData, WasmStoreErrorState};
+use crate::wasm::{NonBrokenToken, WasmStoreData, WasmStoreErrorState};
 
 pub mod debug;
 pub mod integration_tests;
@@ -45,10 +45,15 @@ impl WasmEnv {
     pub fn handle_error<T>(
         error: &Arc<Mutex<WasmStoreErrorState>>,
         result: Result<T, WasmError>,
+        // Just to trust that we are checked for existing error before reporting about second one
+        _non_broken_token: NonBrokenToken,
     ) -> Option<T> {
         let wasm_err = match result {
             Ok(x) => {
                 return Some(x);
+            }
+            Err(WasmError::NonBrokenTokenCheckFail) => {
+                return None;
             }
             Err(x) => x,
         };
@@ -58,18 +63,11 @@ impl WasmEnv {
             return None;
         };
 
-        if lock.is_broken {
-            panic!("WasmStoreErrorState is already broken, but continues to execute");
-        }
-
         if lock.error.is_some() {
             return None;
         }
 
-        let error = lock.deref_mut();
-
-        error.is_broken = true;
-        error.error = Some(wasm_err);
+        lock.set_error(wasm_err);
 
         None
     }

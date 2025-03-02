@@ -1,12 +1,12 @@
 use std::ops::DerefMut;
 
-use wasmtime::{AsContext, Caller, Linker};
-
 use crate::wasm::error::WasmError;
 use crate::wasm::types::WasmPtr;
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::WasmStoreData;
+use diffbelt_wasm_binding::error_code::ErrorCode;
+use wasmtime::{AsContext, Caller, Linker};
 
 impl WasmEnv {
     pub fn register_debug_wasm_imports(
@@ -28,7 +28,15 @@ impl WasmEnv {
                 Ok::<_, WasmError>(())
             })();
 
-            let () = WasmEnv::handle_error(&caller.data().error, result).unwrap_or(());
+            // Checking after execution because it is debug method
+            let token = {
+                let Some(token) = caller.data().non_broken_token() else {
+                    return;
+                };
+                token
+            };
+
+            let () = WasmEnv::handle_error(&caller.data().error, result, token).unwrap_or(());
         }
 
         linker.func_wrap("debug", "print", print)?;

@@ -38,6 +38,13 @@ impl WasmEnv {
             caller: Caller<'_, WasmStoreData>,
             parts_ptr: WasmPtr<WasmBytesVecRawParts>,
         ) {
+            let token = {
+                let Some(token) = caller.data().non_broken_token() else {
+                    return;
+                };
+                token
+            };
+
             let mut state = caller.data().inner.lock().expect("lock");
             let state = state.deref_mut();
 
@@ -45,7 +52,7 @@ impl WasmEnv {
             let allocation_env = state.allocation_env.as_mut().expect("No allocation_env");
 
             let parts = parts_ptr.access(memory.data(caller.as_context()));
-            let Some(parts) = WasmEnv::handle_error(&caller.data().error, parts) else {
+            let Some(parts) = WasmEnv::handle_error(&caller.data().error, parts, token) else {
                 return;
             };
 

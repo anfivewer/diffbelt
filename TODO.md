@@ -7,6 +7,8 @@
 * Limit `gc_iterator` lookups count (writing too much phantoms may crash server on gc collection of this phantoms)
 * Move `items_limit` out of DiffLogic, it miscalculates on equal values
 * Ensure some alignment for input slices going to wasm (and/or make input mutable?)
+* Remove Regex wasm bindings
+* Do not forget to call deallocs which are scheduled
 
 -----
 

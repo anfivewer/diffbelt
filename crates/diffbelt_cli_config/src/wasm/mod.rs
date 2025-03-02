@@ -2,6 +2,7 @@ use dioxus_hooks::RefCell;
 use serde::Deserialize;
 use std::ops::DerefMut;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use wasmtime::{AsContext, AsContextMut, Instance, Linker, Memory, Module, Store, TypedFunc};
 
@@ -56,20 +57,19 @@ pub struct NewWasmInstanceOptions<'a> {
 pub struct WasmStoreErrorState {
     // FIXME: check everywhere
     /// Mark this instance as broken, since unrecoverable error happened and memory may be corrupted
-    is_broken: bool,
+    is_broken: Arc<AtomicBool>,
     error: Option<WasmError>,
 }
 
 impl WasmStoreErrorState {
     pub fn set_error(&mut self, error: WasmError) {
-        self.is_broken = true;
+        self.is_broken.store(true, Ordering::Relaxed);
         self.error = Some(error);
     }
 }
 
 pub struct WasmStoreData {
-    /// Shortcut for `error.is_broken`, you need to check both
-    pub is_broken: bool,
+    pub is_broken: Arc<AtomicBool>,
     // FIXME: use it somewhere and check error
     pub error: Arc<Mutex<WasmStoreErrorState>>,
     pub inner: Arc<Mutex<WasmStoreDataInner>>,
@@ -85,12 +85,19 @@ pub struct WasmStoreDataInner {
     pub integration_tests: Option<IntegrationTestsEnv>,
 }
 
+#[derive(Copy, Clone)]
+pub struct NonBrokenToken {
+    inner: (),
+}
+
 impl WasmStoreData {
     pub fn new() -> Self {
+        let is_broken = Arc::new(AtomicBool::new(false));
+
         Self {
-            is_broken: false,
+            is_broken: is_broken.clone(),
             error: Wrap::wrap(WasmStoreErrorState {
-                is_broken: false,
+                is_broken,
                 error: None,
             }),
             inner: Wrap::wrap(WasmStoreDataInner {
@@ -105,17 +112,21 @@ impl WasmStoreData {
         }
     }
 
-    pub fn check_broken(&mut self) -> bool {
-        match self.check_error() {
-            Ok(()) => false,
-            Err(_) => true,
+    pub fn non_broken_token(&self) -> Option<NonBrokenToken> {
+        if self.is_broken.load(Ordering::Relaxed) {
+            None
+        } else {
+            Some(NonBrokenToken { inner: () })
         }
     }
 
-    pub fn check_error(&mut self) -> Result<(), WasmError> {
-        if self.is_broken {
-            return Err(WasmError::Unspecified(String::from("Wasm store is broken")));
+    pub fn check_error(&self) -> Result<(), WasmError> {
+        if !self.is_broken.load(Ordering::Relaxed) {
+            return Ok(());
         }
+
+        // There `is_broken` is true, which means that under lock we are should see error,
+        // because is_broken was set under this lock
 
         let mut lock = self
             .error
@@ -125,16 +136,10 @@ impl WasmStoreData {
         let error = lock.error.take();
 
         if let Some(error) = error {
-            self.is_broken = true;
             return Err(error);
         }
 
-        if lock.is_broken {
-            self.is_broken = true;
-            return Err(WasmError::Unspecified(String::from("Wasm store is broken")));
-        }
-
-        Ok(())
+        Err(WasmError::Unspecified(String::from("Wasm store is broken")))
     }
 }
 

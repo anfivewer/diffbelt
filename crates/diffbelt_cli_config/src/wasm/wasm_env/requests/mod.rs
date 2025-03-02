@@ -51,6 +51,13 @@ impl WasmEnv {
             slice_ptr: WasmPtrToByte,
             slice_len: u32,
         ) -> u32 {
+            let token = {
+                let Some(token) = caller.data().non_broken_token() else {
+                    return RequestId::invalid().0;
+                };
+                token
+            };
+
             let state_mutex = caller.data().inner.clone();
             let ctx = caller.as_context();
 
@@ -113,7 +120,8 @@ impl WasmEnv {
             })()
             .await;
 
-            let Some(request_id) = WasmEnv::handle_error(&caller.data().error, result) else {
+            let Some(request_id) = WasmEnv::handle_error(&caller.data().error, result, token)
+            else {
                 return RequestId::invalid().0;
             };
 
@@ -154,6 +162,13 @@ impl WasmEnv {
             request_id: u32,
             vec_ptr: WasmPtrToVecRawParts,
         ) -> i32 {
+            let token = {
+                let Some(token) = caller.data().non_broken_token() else {
+                    return ErrorCode::UnsafeFail.repr();
+                };
+                token
+            };
+
             let state_mutex = caller.data().inner.clone();
             let mut ctx = caller.as_context_mut();
 
@@ -198,29 +213,34 @@ impl WasmEnv {
                 };
 
                 if u32_to_usize(vec_raw_parts.0.capacity) < data_len {
-                    () = allocation
+                    let () = allocation
                         .ensure_vec_capacity
                         .call_async(ctx.as_context_mut(), (vec_ptr, data_len_u32))
                         .await?;
+                }
+
+                if ctx.data().non_broken_token().is_none() {
+                    return Ok(ErrorCode::UnsafeFail);
                 }
 
                 let memory = memory.data_mut(ctx.as_context_mut());
                 let mut vec_raw_parts = vec_ptr.read(memory)?;
 
                 vec_raw_parts.0.len = data_len_u32;
-                () = vec_raw_parts
+                let () = vec_raw_parts
                     .0
                     .ptr
                     .slice()
                     .write_slice(memory, value.as_bytes())?;
 
-                () = vec_ptr.write(memory, vec_raw_parts)?;
+                let () = vec_ptr.write(memory, vec_raw_parts)?;
 
                 Ok(ErrorCode::Ok)
             })()
             .await;
 
-            let Some(error_code) = WasmEnv::handle_error(&caller.data().error, result) else {
+            let Some(error_code) = WasmEnv::handle_error(&caller.data().error, result, token)
+            else {
                 return ErrorCode::UnsafeFail.repr();
             };
 
