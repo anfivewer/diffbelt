@@ -27,6 +27,8 @@ impl<'a> WasmIntegrationTestFunctions<'a> {
 
         let error_code = self.test.call_async(store.as_context_mut(), ()).await?;
 
+        let () = store.data().check_error()?;
+        
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {
             return Ok(Some(format!("Test exit code {error_code:?}")));

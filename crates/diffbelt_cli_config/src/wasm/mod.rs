@@ -282,6 +282,8 @@ impl MapFilterFunction<'_> {
             .call_async(store.as_context_mut(), inputs_len_u32)
             .await?;
 
+        let () = store.data().check_error()?;
+
         {
             let memory = self
                 .instance
@@ -305,6 +307,8 @@ impl MapFilterFunction<'_> {
                 .call_async(store.as_context_mut(), (self.slice.ptr, result_buffer.ptr))
                 .await?
         };
+
+        let () = store.data().check_error()?;
 
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {

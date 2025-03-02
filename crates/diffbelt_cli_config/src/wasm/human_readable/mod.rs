@@ -48,6 +48,9 @@ macro_rules! impl_human_readable_call {
                     (self.slice_holder.ptr, buffer_holder.ptr),
                 )
                 .await?;
+
+            let () = store.data().check_error()?;
+
             let error_code = ErrorCode::from_repr(error_code);
 
             let ErrorCode::Ok = error_code else {

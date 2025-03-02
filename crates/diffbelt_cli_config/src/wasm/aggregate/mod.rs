@@ -75,6 +75,8 @@ impl<'a> AggregateFunctions<'a> {
             .call_async(store.as_context_mut(), ())
             .await?;
 
+        let () = store.data().check_error()?;
+
         let map = instance
             .instance
             .get_typed_func(store.as_context_mut(), map)?;
@@ -141,6 +143,8 @@ impl<'a> AggregateFunctions<'a> {
                 )
                 .await?;
 
+            let () = store.data().check_error()?;
+
             let error_code = ErrorCode::from_repr(error_code);
             let ErrorCode::Ok = error_code else {
                 return Err(WasmError::Unspecified(format!(
@@ -154,7 +158,7 @@ impl<'a> AggregateFunctions<'a> {
             let output = self.bytes_slice.ptr.access(memory)?;
             let output = output.access(memory)?;
 
-            let mut buffer = buffer_holder
+            let buffer = buffer_holder
                 .take()
                 .unwrap_or_else(|| Vec::with_capacity(output.len()));
 
@@ -200,6 +204,8 @@ impl<'a> AggregateFunctions<'a> {
                 )
                 .await?;
 
+            let () = store.data().check_error()?;
+
             let error_code = ErrorCode::from_repr(error_code);
             let ErrorCode::Ok = error_code else {
                 return Err(WasmError::Unspecified(format!(
@@ -243,6 +249,8 @@ impl<'a> AggregateFunctions<'a> {
                 )
                 .await?;
 
+            let () = store.data().check_error()?;
+
             let error_code = ErrorCode::from_repr(error_code);
             let ErrorCode::Ok = error_code else {
                 return Err(WasmError::Unspecified(format!(
@@ -281,6 +289,8 @@ impl<'a> AggregateFunctions<'a> {
                 )
                 .await?;
 
+            let () = store.data().check_error()?;
+
             let first_accumulator_ptr = {
                 let memory = self
                     .instance
@@ -313,6 +323,8 @@ impl<'a> AggregateFunctions<'a> {
                 )
                 .await?;
 
+            let () = store.data().check_error()?;
+
             let error_code = ErrorCode::from_repr(error_code);
             let ErrorCode::Ok = error_code else {
                 return Err(WasmError::Unspecified(format!(
@@ -344,6 +356,8 @@ impl<'a> AggregateFunctions<'a> {
                 ),
             )
             .await?;
+
+        let () = store.data().check_error()?;
 
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {
