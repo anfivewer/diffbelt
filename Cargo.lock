@@ -828,6 +828,7 @@ name = "diffbelt_wasm_binding"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "diffbelt_example_wasm_rebuild",
  "diffbelt_protos",
  "diffbelt_util_no_std",
  "thiserror-no-std",

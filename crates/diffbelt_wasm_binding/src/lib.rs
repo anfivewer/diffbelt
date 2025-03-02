@@ -13,6 +13,7 @@ pub mod annotations;
 mod debug_print;
 pub mod error_code;
 pub mod human_readable;
+pub mod integration_tests;
 pub mod panic;
 pub mod ptr;
 mod regex;

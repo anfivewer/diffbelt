@@ -1,9 +1,11 @@
-use crate::config_tests::error::TestError;
+use crate::config_tests::error::{AssertError, TestError};
 use crate::config_tests::options::RunTestsContext;
 use crate::config_tests::{RunTestsOptions, SingleTestResult, TestResult};
 use crate::util::init_collections::{
     init_collections, InitCollectionsError, InitCollectionsOptions,
 };
+use crate::wasm::integration_tests::WasmIntegrationTestFunctions;
+use crate::wasm::{NewWasmInstanceOptions, WasmModuleInstance};
 use crate::CliConfig;
 use diffbelt_util::diffbelt::stdout::{DiffbeltStdout, DiffbeltStdoutOptions};
 use diffbelt_util::fs::temp_dir::TempDir;
@@ -31,16 +33,16 @@ impl CliConfig {
             let start = Instant::now();
 
             match self.run_integration_test(test, options, context).await {
-                Ok(()) => results.push(TestResult {
-                    name: test.name.clone(),
+                Ok(assert_error) => results.push(TestResult {
+                    name: Rc::from("Integration"),
                     result: Ok(vec![SingleTestResult {
                         name: test.name.clone(),
-                        result: Ok(None),
+                        result: Ok(assert_error),
                         elapsed: Some(start.elapsed()),
                     }]),
                 }),
                 Err(err) => results.push(TestResult {
-                    name: test.name.clone(),
+                    name: Rc::from("Integration"),
                     result: Ok(vec![SingleTestResult {
                         name: test.name.clone(),
                         result: Err(err),
@@ -56,7 +58,7 @@ impl CliConfig {
         test: &IntegrationTestDef,
         options: &RunTestsOptions<'_>,
         context: &mut RunTestsContext,
-    ) -> Result<(), TestError> {
+    ) -> Result<Option<AssertError>, TestError> {
         let client = options
             .client
             .ok_or_else(|| TestError::Unspecified(String::from("missing client")))?;
@@ -110,6 +112,22 @@ impl CliConfig {
             InitCollectionsError::DiffbeltClient(err) => err.into(),
         })?;
 
-        Ok(())
+        stdout.wait_for_idle().await?;
+
+        let wasm_instance = WasmModuleInstance::new(NewWasmInstanceOptions {
+            engine: &mut context.wasm_engine,
+            module: &wasm_mod,
+        })
+        .await?;
+
+        let test_functions = WasmIntegrationTestFunctions::new(&wasm_instance, function_name)?;
+
+        let test_result_error = test_functions.call_test().await?;
+
+        if let Some(error) = test_result_error {
+            return Ok(Some(AssertError::Message(error)));
+        }
+
+        Ok(None)
     }
 }

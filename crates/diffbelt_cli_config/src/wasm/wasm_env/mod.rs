@@ -5,11 +5,12 @@ use wasmtime::{Linker, Memory, Store};
 
 use diffbelt_util::Wrap;
 
-use crate::wasm::memory::Allocation;
-use crate::wasm::WasmStoreData;
 use crate::wasm::error::WasmError;
+use crate::wasm::memory::Allocation;
+use crate::wasm::{WasmStoreData, WasmStoreErrorState};
 
 pub mod debug;
+pub mod integration_tests;
 pub mod memory;
 pub mod regex;
 pub mod requests;
@@ -34,13 +35,15 @@ impl WasmEnv {
         linker: &mut Linker<WasmStoreData>,
     ) -> Result<(), WasmError> {
         let () = self.register_debug_wasm_imports(linker)?;
+        let () = self.register_allocation_imports(store, linker)?;
         let () = self.register_regex_wasm_imports(store, linker)?;
         let () = self.register_requests_wasm_imports(store, linker)?;
+        let () = self.register_integration_tests_imports(store, linker)?;
         Ok(())
     }
 
     pub fn handle_error<T>(
-        error: &Arc<Mutex<Option<WasmError>>>,
+        error: &Arc<Mutex<WasmStoreErrorState>>,
         result: Result<T, WasmError>,
     ) -> Option<T> {
         let wasm_err = match result {
@@ -55,13 +58,18 @@ impl WasmEnv {
             return None;
         };
 
-        if lock.is_some() {
+        if lock.is_broken {
+            panic!("WasmStoreErrorState is already broken, but continues to execute");
+        }
+
+        if lock.error.is_some() {
             return None;
         }
 
         let error = lock.deref_mut();
 
-        *error = Some(wasm_err);
+        error.is_broken = true;
+        error.error = Some(wasm_err);
 
         None
     }

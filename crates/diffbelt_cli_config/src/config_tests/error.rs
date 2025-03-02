@@ -19,6 +19,7 @@ use crate::wasm::error::WasmError;
 
 #[derive(Debug)]
 pub enum AssertError {
+    Message(String),
     ValueMissmatch {
         message: Cow<'static, str>,
         expected: Option<String>,

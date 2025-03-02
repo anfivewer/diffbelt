@@ -7,18 +7,20 @@ use std::ops::DerefMut;
 use regex::Regex;
 use wasmtime::{AsContext, AsContextMut, Caller, Linker, Store};
 
-use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32, try_usize_to_u32, unchecked_usize_to_i32};
+use diffbelt_util_no_std::cast::{
+    try_positive_i32_to_usize, try_usize_to_i32, try_usize_to_u32, unchecked_usize_to_i32,
+};
 use diffbelt_util_no_std::temporary_collection::vec::{TempVecType, TemporaryVec};
 use diffbelt_wasm_binding::ptr::bytes::BytesVecRawParts;
 use diffbelt_wasm_binding::{RegexCapture, ReplaceResult};
 
+use crate::wasm::error::WasmError;
 use crate::wasm::types::{
     BytesVecFullTrait, WasmPtr, WasmPtrImpl, WasmPtrToByte, WasmReplaceResult,
 };
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::WasmStoreData;
-use crate::wasm::error::WasmError;
 
 pub struct WasmRegex {
     regex: Regex,

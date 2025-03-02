@@ -65,6 +65,9 @@ pub async fn run_tests(
                 println!("[FAIL] {function_name} > {name}{elapsed_str}:");
 
                 match err {
+                    AssertError::Message(msg) => {
+                        println!("{msg}");
+                    }
                     AssertError::ValueMissmatch { .. } => {
                         println!("{err:#?}");
                     }

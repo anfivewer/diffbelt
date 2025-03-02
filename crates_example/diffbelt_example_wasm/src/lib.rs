@@ -31,6 +31,7 @@ mod date;
 mod global;
 mod global_allocator;
 mod human_readable;
+mod integration_tests;
 mod log_lines;
 mod parsed_log_lines;
 pub mod types;

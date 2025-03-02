@@ -22,6 +22,8 @@ use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{WasmBytesSlice, WasmPtrToBytesSlice, WasmPtrToVecRawParts};
+use crate::wasm::wasm_env::integration_tests::IntegrationTestsEnv;
+use crate::wasm::wasm_env::memory::AllocationEnv;
 use crate::wasm::wasm_env::regex::RegexEnv;
 use crate::wasm::wasm_env::requests::ActiveDiffbeltRequests;
 use crate::wasm::wasm_env::WasmEnv;
@@ -30,6 +32,7 @@ pub mod aggregate;
 pub mod engine;
 pub mod error;
 pub mod human_readable;
+pub mod integration_tests;
 pub mod memory;
 pub mod ptr;
 pub mod result;
@@ -50,32 +53,88 @@ pub struct NewWasmInstanceOptions<'a> {
     pub module: &'a Module,
 }
 
+pub struct WasmStoreErrorState {
+    // FIXME: check everywhere
+    /// Mark this instance as broken, since unrecoverable error happened and memory may be corrupted
+    is_broken: bool,
+    error: Option<WasmError>,
+}
+
+impl WasmStoreErrorState {
+    pub fn set_error(&mut self, error: WasmError) {
+        self.is_broken = true;
+        self.error = Some(error);
+    }
+}
+
 pub struct WasmStoreData {
+    /// Shortcut for `error.is_broken`, you need to check both
+    pub is_broken: bool,
     // FIXME: use it somewhere and check error
-    pub error: Arc<Mutex<Option<WasmError>>>,
+    pub error: Arc<Mutex<WasmStoreErrorState>>,
     pub inner: Arc<Mutex<WasmStoreDataInner>>,
 }
 
 pub struct WasmStoreDataInner {
     pub memory: Option<Memory>,
     pub allocation: Option<Allocation>,
+    pub allocation_env: Option<AllocationEnv>,
     pub regex: Option<RegexEnv>,
     pub requests: Option<Arc<DiffbeltRequests>>,
     pub active_requests: Option<ActiveDiffbeltRequests>,
+    pub integration_tests: Option<IntegrationTestsEnv>,
 }
 
 impl WasmStoreData {
     pub fn new() -> Self {
         Self {
-            error: Wrap::wrap(None),
+            is_broken: false,
+            error: Wrap::wrap(WasmStoreErrorState {
+                is_broken: false,
+                error: None,
+            }),
             inner: Wrap::wrap(WasmStoreDataInner {
                 memory: None,
                 allocation: None,
+                allocation_env: None,
                 regex: None,
                 requests: None,
                 active_requests: None,
+                integration_tests: None,
             }),
         }
+    }
+
+    pub fn check_broken(&mut self) -> bool {
+        match self.check_error() {
+            Ok(()) => false,
+            Err(_) => true,
+        }
+    }
+
+    pub fn check_error(&mut self) -> Result<(), WasmError> {
+        if self.is_broken {
+            return Err(WasmError::Unspecified(String::from("Wasm store is broken")));
+        }
+
+        let mut lock = self
+            .error
+            .lock()
+            .map_err(|_| WasmError::Unspecified(String::from("Wasm error lock is poisoned")))?;
+
+        let error = lock.error.take();
+
+        if let Some(error) = error {
+            self.is_broken = true;
+            return Err(error);
+        }
+
+        if lock.is_broken {
+            self.is_broken = true;
+            return Err(WasmError::Unspecified(String::from("Wasm store is broken")));
+        }
+
+        Ok(())
     }
 }
 
@@ -92,10 +151,17 @@ pub struct MapFilterFunction<'a> {
 }
 
 impl Wasm {
+    #[deprecated]
     pub async fn new_wasm_instance(
         &self,
         options: NewWasmInstanceOptions<'_>,
     ) -> Result<WasmModuleInstance, WasmError> {
+        WasmModuleInstance::new(options).await
+    }
+}
+
+impl WasmModuleInstance {
+    pub async fn new(options: NewWasmInstanceOptions<'_>) -> Result<WasmModuleInstance, WasmError> {
         let NewWasmInstanceOptions { engine, module } = options;
 
         let data = WasmStoreData::new();
@@ -152,9 +218,7 @@ impl Wasm {
             allocation,
         })
     }
-}
 
-impl WasmModuleInstance {
     pub async fn map_filter_function(
         &self,
         name: &str,

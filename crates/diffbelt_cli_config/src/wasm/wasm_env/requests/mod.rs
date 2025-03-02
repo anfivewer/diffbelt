@@ -16,11 +16,11 @@ use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::requests::RequestId;
 
+use crate::wasm::error::WasmError;
 use crate::wasm::types::{WasmPtrToByte, WasmPtrToVecRawParts};
 use crate::wasm::wasm_env::requests::constants::ACTIVE_REQUESTS_LIMIT;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::WasmStoreData;
-use crate::wasm::error::WasmError;
 
 pub struct ActiveDiffbeltRequests {
     requests: HashMap<
