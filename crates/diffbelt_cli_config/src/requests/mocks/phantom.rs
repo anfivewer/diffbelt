@@ -2,8 +2,7 @@ use diffbelt_protos::protos::api::phantom::{
     StartPhantomRequest, StartPhantomRequestArgs, StartPhantomResponse,
 };
 use diffbelt_protos::protos::impls::StartPhantomRequestProto;
-use diffbelt_protos::{Serialized, Serializer};
-use lexpr::from_str;
+use diffbelt_protos::{OwnedSerialized, Serializer};
 use serde::Deserialize;
 use std::str::from_utf8;
 use thiserror::Error;
@@ -36,7 +35,7 @@ pub enum PhantomSerializationError {
 impl StartPhantomRequestMock {
     pub fn to_flatbuffers(
         &self,
-    ) -> Result<Serialized<StartPhantomRequestProto>, PhantomSerializationError> {
+    ) -> Result<OwnedSerialized<StartPhantomRequestProto>, PhantomSerializationError> {
         let mut serializer = Serializer::new();
 
         let generation_id = if self.generation_id_base64 {

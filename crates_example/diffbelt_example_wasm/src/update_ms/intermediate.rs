@@ -7,21 +7,17 @@ use core::str::from_utf8;
 use chrono::{Datelike, NaiveDateTime};
 use regex::Regex;
 
-use alloc::format;
 use diffbelt_example_protos::protos::impls::{ParsedLogLineProto, UpdateMsIntermediateProto};
-use diffbelt_example_protos::protos::log_line::ParsedLogLine;
 use diffbelt_example_protos::protos::update_ms::{UpdateMsIntermediate, UpdateMsIntermediateArgs};
 use diffbelt_protos::align_util::AlignedBytes;
 use diffbelt_protos::protos::impls::{MapFilterMultiInputProto, MapFilterMultiOutputProto};
 use diffbelt_protos::protos::transform::map_filter::{
-    MapFilterMultiInput, MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate,
-    RecordUpdateArgs,
+    MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate, RecordUpdateArgs,
 };
-use diffbelt_protos::{deserialize, Serialized, Serializer};
+use diffbelt_protos::{deserialize, OwnedSerialized, Serializer};
 use diffbelt_util_no_std::cast::try_u64_to_i64;
 use diffbelt_wasm_binding::annotations::serializer::{IntoSerializerAnnotated, OutputAnnotated};
 use diffbelt_wasm_binding::annotations::{FlatbufferAnnotated, InputOutputAnnotated};
-use diffbelt_wasm_binding::debug_print_string;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::transform::map_filter::MapFilter;
@@ -141,7 +137,7 @@ fn value_to_key(
     source_key: &str,
     key_output: &mut String,
     intermediate_buffer: Option<Vec<u8>>,
-) -> (HasKey, Option<Serialized<UpdateMsIntermediateProto>>) {
+) -> (HasKey, Option<OwnedSerialized<UpdateMsIntermediateProto>>) {
     let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN_2 })
         .expect("align error");
     let parsed_log_line = deserialize::<ParsedLogLineProto>(bytes).expect("deserialization");

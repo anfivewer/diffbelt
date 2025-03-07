@@ -195,6 +195,13 @@ impl<F: FlatbuffersGenericType> OwnedSerialized<F> {
 
         SerializedRawParts { buffer, head, len }
     }
+
+    pub fn as_ref(&self) -> Serialized<'_, F> {
+        Serialized {
+            bytes: self.as_bytes(),
+            phantom: Default::default(),
+        }
+    }
 }
 
 pub struct SerializedRawParts {
@@ -203,5 +210,36 @@ pub struct SerializedRawParts {
     pub len: usize,
 }
 
-#[deprecated]
-pub type Serialized<T: FlatbuffersGenericType> = OwnedSerialized<T>;
+pub struct Serialized<'a, F: FlatbuffersGenericType> {
+    bytes: &'a [u8],
+    phantom: PhantomData<F>,
+}
+
+impl<'a, F: FlatbuffersGenericType> Serialized<'a, F> {
+    pub fn from_aligned_bytes(
+        bytes: AlignedBytes<'a, FLATBUFFERS_ALIGNMENT>,
+    ) -> Result<Self, FlatbufferError> {
+        let opts = VerifierOptions::default();
+        let mut v = Verifier::new(&opts, bytes.as_slice());
+        let () = match <ForwardsUOffset<F::FlatType<'_>>>::run_verifier(&mut v, 0) {
+            Ok(()) => (),
+            Err(err) => {
+                return Err(FlatbufferError::InvalidFlatbuffer(err));
+            }
+        };
+
+        Ok(Self {
+            bytes: bytes.as_slice(),
+            phantom: Default::default(),
+        })
+    }
+
+    pub fn data(&self) -> <F::FlatType<'_> as Follow>::Inner {
+        // SAFETY: constructor of this struct is always checking validity
+        unsafe { flatbuffers::root_unchecked::<F::FlatType<'_>>(self.bytes) }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.bytes
+    }
+}
