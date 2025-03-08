@@ -11,7 +11,7 @@ use crate::http::routing::response::{
 };
 use crate::http::routing::StaticRouteOptions;
 use diffbelt_protos::protos::api::common::{ErrorResponse, ErrorResponseArgs};
-use diffbelt_protos::protos::api::methods::{RequestResponseType, ResponseArgs};
+use diffbelt_protos::protos::api::methods::{ResponseArgs, ResponseBody};
 use diffbelt_protos::protos::impls::ResponseProto;
 use diffbelt_protos::{FlatbuffersGenericType, Serializer};
 use diffbelt_util::idling_status::BusyTask;
@@ -167,16 +167,8 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
                                 <ResponseProto as FlatbuffersGenericType>::FlatType::create(
                                     serializer.buffer_builder(),
                                     &ResponseArgs {
-                                        type_: RequestResponseType::Error,
-                                        error: Some(error),
-                                        start_generation: None,
-                                        commit_generation: None,
-                                        start_phantom: None,
-                                        put_many: None,
-                                        start_query: None,
-                                        next_query: None,
-                                        get_keys_around: None,
-                                        create_collection: None,
+                                        body_type: ResponseBody::Error,
+                                        body: Some(error.as_union_value()),
                                     },
                                 );
                             let serialized = serializer.finish(response);

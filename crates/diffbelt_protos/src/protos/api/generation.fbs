@@ -1,4 +1,5 @@
 table StartGenerationRequest {
+  collection_name: string;
   generation_id: [ubyte];
   abort_outdated: bool = false;
 }

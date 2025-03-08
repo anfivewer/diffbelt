@@ -1,16 +1,21 @@
+pub mod errors;
+
 use crate::debug_print_string;
 use crate::error_code::ErrorCode;
 use crate::ptr::bytes::BytesVecRawParts;
 use crate::ptr::{ConstPtr, MutPtr};
+use crate::requests::errors::RequestErrorWithBuffer;
 use alloc::format;
+use alloc::string::String;
 use core::marker::PhantomData;
-use diffbelt_protos::align_util::{AlignedBytesError, OwnedAlignedBytes};
+use diffbelt_protos::align_util::{AlignedBytes, AlignedBytesError, OwnedAlignedBytes};
 use diffbelt_protos::protos::handlers::ApiHandler;
-use diffbelt_protos::protos::impls::RequestProto;
-use diffbelt_protos::{Serialized, Serializer, FLATBUFFERS_ALIGNMENT};
+use diffbelt_protos::protos::impls::{RequestProto, ResponseProto};
+use diffbelt_protos::{FlatbuffersGenericType, Serialized, Serializer, FLATBUFFERS_ALIGNMENT};
 use diffbelt_util_no_std::cast::{checked_usize_to_u32, u32_to_usize};
 use diffbelt_util_no_std::from_either::Either;
 use diffbelt_util_no_std::option::store_in_option;
+use diffbelt_wasm_binding::requests::errors::RequestError;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(C)]
@@ -51,7 +56,7 @@ impl<A: ApiHandler> Request<A> {
     pub fn call<'a>(
         serializer: Serializer<'a, RequestProto>,
         request_args: A::FlatbuffersRequestArgs<'a>,
-    ) -> Result<Self, OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT>> {
+    ) -> Result<Self, RequestErrorWithBuffer> {
         let serializer = A::create_request(serializer, request_args);
 
         let bytes = serializer.as_bytes();
@@ -63,7 +68,10 @@ impl<A: ApiHandler> Request<A> {
         let buffer = serializer.into_aligned_bytes();
 
         if !request_id.is_valid() {
-            return Err(buffer);
+            return Err(RequestErrorWithBuffer {
+                buffer: Some(buffer),
+                error: RequestError::HostCall(ErrorCode::SafeFail),
+            });
         }
 
         Ok(Self {
@@ -98,7 +106,7 @@ impl<A: ApiHandler> Request<A> {
         }
     }
 
-    pub fn on_request_finished(&mut self) -> Result<Response<'_, A>, ErrorCode> {
+    pub fn on_request_finished(&mut self) -> Result<Response<'_, A>, RequestError> {
         let mut response_len = 0u32;
         // SAFETY: trust in host
         let code = unsafe {
@@ -110,7 +118,7 @@ impl<A: ApiHandler> Request<A> {
         if code.is_error() {
             self.request_id_ = RequestId::invalid();
 
-            return Err(code);
+            return Err(RequestError::HostCall(code));
         }
 
         assert!(response_len > 0, "response length is zero");
@@ -120,12 +128,10 @@ impl<A: ApiHandler> Request<A> {
             .take()
             .unwrap_or_else(|| OwnedAlignedBytes::empty());
 
-        let result: Result<_, Either<AlignedBytesError, ErrorCode>> = (|| {
+        let result: Result<_, RequestError> = (|| {
             // SAFETY: trust in host, it should fully initialize buffer bytes, else we will cancel write
             unsafe {
-                let mut write = buffer
-                    .write_slice(u32_to_usize(response_len))
-                    .map_err(Either::Left)?;
+                let mut write = buffer.write_slice(u32_to_usize(response_len))?;
                 let slice_ptr = write.as_mut();
 
                 let code = copy_response_to(self.request_id_, MutPtr::from(slice_ptr));
@@ -133,7 +139,7 @@ impl<A: ApiHandler> Request<A> {
                     self.request_id_ = RequestId::invalid();
                     write.cancel();
 
-                    return Err(Either::Right(code));
+                    return Err(RequestError::HostCall(code));
                 }
 
                 // Drop will resize buffer and we should have correct slice in it
@@ -148,27 +154,43 @@ impl<A: ApiHandler> Request<A> {
             Err(err) => {
                 self.buffer = Some(buffer);
 
-                return match err {
-                    Either::Left(err) => {
-                        debug_print_string(format!("{err:?}"));
-                        Err(ErrorCode::UnsafeFail)
-                    }
-                    Either::Right(code) => Err(code),
-                };
+                return Err(err);
             }
         }
 
         let buffer = store_in_option(&mut self.buffer, buffer);
-        let slice = buffer.as_slice();
+        let bytes = buffer.as_ref();
 
         Ok(Response {
-            slice,
+            bytes,
             phantom: Default::default(),
         })
     }
 }
 
 pub struct Response<'a, A: ApiHandler> {
-    slice: &'a [u8],
+    bytes: AlignedBytes<'a, FLATBUFFERS_ALIGNMENT>,
     phantom: PhantomData<A>,
+}
+
+impl<'a, A: ApiHandler> Response<'a, A> {
+    pub fn response(
+        &self,
+    ) -> Result<<A::FlatbuffersResponse as FlatbuffersGenericType>::FlatType<'a>, RequestError>
+    {
+        let serialized = Serialized::<ResponseProto>::from_aligned_bytes(self.bytes)?;
+        let response = serialized.data();
+
+        if let Some(error) = response.body_as_error() {
+            return Err(RequestError::Response {
+                code: error.code(),
+                reason: error.reason().map(String::from),
+                details: error.details().map(String::from),
+            });
+        }
+
+        let body =
+            A::response(response).ok_or_else(|| RequestError::MessageStatic("no response body"))?;
+        Ok(body)
+    }
 }

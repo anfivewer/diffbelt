@@ -1,3 +1,17 @@
+table GetCollectionRequest {
+  collection_name: string;
+  with_generation_id: bool = false;
+  with_next_generation_id: bool = false;
+}
+
+table GetCollectionResponse {
+  is_manual: bool;
+  /// optional
+  generation_id: [ubyte];
+  /// optional
+  next_generation_id: [ubyte];
+}
+
 table CreateCollectionRequest {
   collection_name: string;
   is_manual: bool;

@@ -8,7 +8,9 @@ include "collection.fbs";
 
 union RequestBody {
     Error: ErrorResponse,
+    GetCollection: GetCollectionRequest,
     StartGeneration: StartGenerationRequest,
+    CommitGeneration: CommitGenerationRequest,
     StartPhantom: StartPhantomRequest,
     PutMany: PutManyRequest,
     StartQuery: StartQueryRequest,
@@ -19,7 +21,9 @@ union RequestBody {
 
 union ResponseBody {
     Error: ErrorResponse,
+    GetCollection: GetCollectionResponse,
     StartGeneration: StartGenerationResponse,
+    CommitGeneration: CommitGenerationResponse,
     StartPhantom: StartPhantomResponse,
     PutMany: PutManyResponse,
     StartQuery: QueryResponse,

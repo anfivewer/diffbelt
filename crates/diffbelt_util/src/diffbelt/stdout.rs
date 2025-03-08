@@ -42,6 +42,8 @@ impl DiffbeltStdout {
         let join_handle = tokio::spawn(async move {
             let result = (|| async move {
                 while let Some(line) = lines.next_line().await? {
+                    println!("  [diffbelt] {line}");
+                    
                     match line.as_str() {
                         "IDLE" => idle_sender.send(true)?,
                         "BUSY" => idle_sender.send(false)?,

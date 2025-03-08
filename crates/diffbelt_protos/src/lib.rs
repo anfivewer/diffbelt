@@ -24,7 +24,7 @@ mod tests;
 
 pub const FLATBUFFERS_ALIGNMENT: usize = 8;
 
-trait FlatbuffersType<'fbb>: Follow<'fbb> + Verifiable + 'fbb {}
+pub trait FlatbuffersType<'fbb>: Follow<'fbb> + Verifiable + 'fbb {}
 
 impl<'fbb, T: Follow<'fbb> + Verifiable + 'fbb> FlatbuffersType<'fbb> for T {}
 
@@ -234,9 +234,9 @@ impl<'a, F: FlatbuffersGenericType> Serialized<'a, F> {
         })
     }
 
-    pub fn data(&self) -> <F::FlatType<'_> as Follow>::Inner {
+    pub fn data<'b>(&'b self) -> <F::FlatType<'a> as Follow<'a>>::Inner {
         // SAFETY: constructor of this struct is always checking validity
-        unsafe { flatbuffers::root_unchecked::<F::FlatType<'_>>(self.bytes) }
+        unsafe { flatbuffers::root_unchecked::<F::FlatType<'a>>(self.bytes) }
     }
 
     pub fn as_bytes(&self) -> &[u8] {
