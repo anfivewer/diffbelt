@@ -3,7 +3,7 @@ use crate::protos::api::collection::{
     CreateCollectionResponseArgs,
 };
 use crate::protos::api::methods::{
-    Request, RequestArgs, RequestResponseType, Response, ResponseArgs,
+    Request, RequestArgs, RequestBody, Response, ResponseArgs, ResponseBody,
 };
 use crate::protos::impls::{
     CreateCollectionRequestProto, CreateCollectionResponseProto, RequestProto, ResponseProto,
@@ -46,7 +46,7 @@ impl ApiHandler for CreateCollectionApiHandler {
     fn request<'a>(
         request: &'a <RequestProto as FlatbuffersGenericType>::FlatType<'a>,
     ) -> Option<<Self::FlatbuffersRequest as FlatbuffersGenericType>::FlatType<'a>> {
-        request.create_collection()
+        request.body_as_create_collection()
     }
 
     fn create_request<'a>(
@@ -60,15 +60,8 @@ impl ApiHandler for CreateCollectionApiHandler {
         let request = Request::create(
             serializer.buffer_builder(),
             &RequestArgs {
-                type_: RequestResponseType::CreateCollection,
-                start_generation: None,
-                commit_generation: None,
-                start_phantom: None,
-                put_many: None,
-                start_query: None,
-                next_query: None,
-                get_keys_around: None,
-                create_collection: Some(request),
+                body_type: RequestBody::CreateCollection,
+                body: Some(request.as_union_value()),
             },
         );
         serializer.finish(request).into_owned()
@@ -77,7 +70,7 @@ impl ApiHandler for CreateCollectionApiHandler {
     fn response(
         response: <ResponseProto as FlatbuffersGenericType>::FlatType<'_>,
     ) -> Option<<Self::FlatbuffersResponse as FlatbuffersGenericType>::FlatType<'_>> {
-        response.create_collection()
+        response.body_as_create_collection()
     }
 
     fn create_response<'a>(
@@ -91,16 +84,8 @@ impl ApiHandler for CreateCollectionApiHandler {
         let response = Response::create(
             serializer.buffer_builder(),
             &ResponseArgs {
-                type_: RequestResponseType::CreateCollection,
-                error: None,
-                start_generation: None,
-                commit_generation: None,
-                start_phantom: None,
-                put_many: None,
-                start_query: None,
-                next_query: None,
-                get_keys_around: None,
-                create_collection: Some(response),
+                body_type: ResponseBody::CreateCollection,
+                body: Some(response.as_union_value()),
             },
         );
         serializer.finish(response).into_owned()

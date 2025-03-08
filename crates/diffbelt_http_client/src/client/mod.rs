@@ -132,7 +132,7 @@ impl DiffbeltClient {
         let response = OwnedSerialized::<ResponseProto>::from_aligned_bytes(body)?;
 
         if status != 200 {
-            let error = response.data().error();
+            let error = response.data().body_as_error();
             let Some(error) = error else {
                 return Err(DiffbeltClientError::Not200Unknown);
             };
@@ -179,7 +179,7 @@ impl<A: ApiHandler> FlatbuffersResponse<A> {
         Option<ErrorResponse<'_>>,
     > {
         let data = self.response.data();
-        if let Some(error) = data.error() {
+        if let Some(error) = data.body_as_error() {
             return Err(Some(error));
         }
 

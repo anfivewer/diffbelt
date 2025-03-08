@@ -7,6 +7,8 @@ struct PercentilesIntegrationTest;
 impl IntegrationTest for PercentilesIntegrationTest {
     #[export_name = "calculatePercentilesEmptyIntegrationTest"]
     extern "C" fn test() -> ErrorCode {
+        //
+
         report_single_test_error(String::from("some error message"));
         ErrorCode::Ok
     }
