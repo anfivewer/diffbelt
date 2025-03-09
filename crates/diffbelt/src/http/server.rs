@@ -1,7 +1,3 @@
-use std::convert::Infallible;
-use std::net::SocketAddr;
-use std::sync::Arc;
-
 use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::request::HyperRequestWrapped;
@@ -15,14 +11,21 @@ use diffbelt_protos::protos::api::methods::{ResponseArgs, ResponseBody};
 use diffbelt_protos::protos::impls::ResponseProto;
 use diffbelt_protos::{FlatbuffersGenericType, Serializer};
 use diffbelt_util::idling_status::BusyTask;
+use diffbelt_util_no_std::on_drop::OnDrop;
 use hyper::body::Bytes;
 use hyper::http::HeaderValue;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server, StatusCode};
+use std::convert::Infallible;
+use std::net::SocketAddr;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use tracing::{span, trace, trace_span, Level, Span};
 
 async fn handle_request(
     context: Arc<Context>,
     req: Request<Body>,
+    span: Span,
 ) -> Result<Response<Body>, HttpError> {
     let uri = req.uri();
     let path_and_query = uri
@@ -37,7 +40,7 @@ async fn handle_request(
 
     let static_route = match static_route {
         None => {
-            return handle_pattern_request(context, req).await;
+            return handle_pattern_request(context, req, span).await;
         }
         Some(static_route) => static_route,
     };
@@ -47,6 +50,7 @@ async fn handle_request(
     let result = static_route(StaticRouteOptions {
         context: context.clone(),
         request,
+        span,
     })
     .await?;
 
@@ -56,6 +60,7 @@ async fn handle_request(
 async fn handle_pattern_request(
     context: Arc<Context>,
     req: Request<Body>,
+    span: Span,
 ) -> Result<Response<Body>, HttpError> {
     let routing = &context.routing;
     let _path = req.uri().path();
@@ -63,6 +68,7 @@ async fn handle_pattern_request(
     let mut options = StaticRouteOptions {
         context: context.clone(),
         request: HyperRequestWrapped::from(req),
+        span,
     };
 
     for route in &routing.pattern_routes {
@@ -128,19 +134,53 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
 
     let addr = SocketAddr::from(([127, 0, 0, 1], PORT));
 
+    let request_id_counter = Box::leak(Box::new(AtomicU64::new(1))) as &AtomicU64;
+
     let make_svc = make_service_fn(|_conn| {
         let context = context.clone();
 
-        let fun = move |req| {
+        let fun = move |req: Request<Body>| {
+            let span = trace_span!(
+                "request",
+                id = request_id_counter.fetch_add(1, Ordering::Relaxed),
+            );
+            trace!(
+                parent: &span,
+                "start {}",
+                req.uri()
+                    .path_and_query()
+                    .map(|x| x.as_str())
+                    .unwrap_or("?")
+            );
+
+            struct ResultStatus {
+                span: Span,
+                status: StatusCode,
+            }
+
+            let mut result_trace = OnDrop::new(
+                |params| {
+                    trace!(parent: &params.span, "end status:{}", params.status.as_u16());
+                },
+                ResultStatus {
+                    span: span.clone(),
+                    status: StatusCode::IM_A_TEAPOT,
+                },
+            );
+
             let context = context.clone();
 
             let task = context.idling.start_work();
 
             async move {
-                let result = handle_request(context, req).await;
+                let result = handle_request(context, req, span).await;
 
                 match result {
-                    Ok(response) => Ok::<Response<Body>, Infallible>(response),
+                    Ok(response) => {
+                        result_trace.params_mut().status = response.status();
+
+                        Ok::<Response<Body>, Infallible>(response)
+                    }
                     Err(err) => {
                         let mut is_json = true;
                         let mut is_flatbuffers = false;
@@ -237,6 +277,7 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
 
                         let mut response = Response::new(body);
                         *(response.status_mut()) = status_code;
+                        result_trace.params_mut().status = status_code;
 
                         if is_flatbuffers {
                             let headers = response.headers_mut();

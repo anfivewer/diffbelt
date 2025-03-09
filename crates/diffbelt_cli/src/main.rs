@@ -4,16 +4,17 @@ use std::rc::Rc;
 use std::str::from_utf8;
 use std::sync::Arc;
 
-use clap::{Arg, Command, Parser};
-
-use diffbelt_cli_config::CliConfig;
-use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
-use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
-
 use crate::commands::errors::CommandError;
 use crate::commands::Commands;
 use crate::global::set_global_config;
 use crate::state::CliState;
+use clap::{Arg, Command, Parser};
+use diffbelt_cli_config::CliConfig;
+use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
+use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
+use tracing::{debug, trace, Level};
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::FmtSubscriber;
 
 mod commands;
 pub mod format;
@@ -34,6 +35,14 @@ struct Args {
 }
 
 async fn run() {
+    let () = tracing::subscriber::set_global_default(
+        FmtSubscriber::builder()
+            .with_span_events(FmtSpan::ACTIVE)
+            .with_env_filter("trace,hyper=off")
+            .finish(),
+    )
+    .expect("cannot set tracing subscriber");
+
     let pre_cli = Command::new("CLI")
         .arg(Arg::new("verbose").long("verbose"))
         .arg(Arg::new("config").short('c').long("config"))

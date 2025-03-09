@@ -29,6 +29,8 @@ lru = "0.10.0"
 enum-as-inner = "0.6.0"
 thiserror = "1.0.50"
 enum_dispatch = "0.3.12"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 [dependencies.diffbelt_types]
 path = "../diffbelt_types"

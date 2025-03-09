@@ -6,6 +6,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader, Lines};
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
+use tracing::trace;
 
 pub struct DiffbeltStdoutOptions<Read: AsyncRead> {
     pub read: Read,
@@ -42,12 +43,12 @@ impl DiffbeltStdout {
         let join_handle = tokio::spawn(async move {
             let result = (|| async move {
                 while let Some(line) = lines.next_line().await? {
-                    println!("  [diffbelt] {line}");
-                    
-                    match line.as_str() {
-                        "IDLE" => idle_sender.send(true)?,
-                        "BUSY" => idle_sender.send(false)?,
-                        _ => {}
+                    trace!(target: "diffbelt", "{line}");
+
+                    if line.as_str().contains("  INFO diffbeltIdleStatus: IDLE") {
+                        let () = idle_sender.send(true)?;
+                    } else if line.as_str().contains("  INFO diffbeltIdleStatus: BUSY") {
+                        let () = idle_sender.send(false)?;
                     }
                 }
 

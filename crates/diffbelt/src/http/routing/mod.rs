@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use futures::future::BoxFuture;
 use regex::{Captures, Regex};
-
+use tracing::Span;
 use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::request::{HyperRequestWrapped, Request};
@@ -16,6 +16,7 @@ mod routes;
 pub struct StaticRouteOptions {
     pub context: Arc<Context>,
     pub request: HyperRequestWrapped,
+    pub span: Span,
 }
 
 pub type HttpHandlerResult = Result<HttpResponse, HttpError>;

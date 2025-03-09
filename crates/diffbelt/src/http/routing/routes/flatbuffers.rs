@@ -8,6 +8,7 @@ use crate::http::validation::MethodsValidation;
 use diffbelt_protos::deserialize;
 use diffbelt_protos::protos::handlers::{ApiHandler, CreateCollectionApiHandler};
 use diffbelt_protos::protos::impls::RequestProto;
+use tracing::trace;
 
 fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
     Box::pin(async move {
@@ -19,6 +20,14 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
         let bytes = read_limited_aligned_bytes(request, FLATBUFFERS_REQUEST_MAX_BYTES).await?;
         let serialized = deserialize::<RequestProto>(bytes.as_ref())
             .map_err(|err| HttpError::InvalidFlatbuffers(err.to_string()))?;
+
+        options.span.in_scope(|| {
+            trace!(
+                "method:{}",
+                serialized.body_type().variant_name().unwrap_or("?")
+            );
+        });
+
         let data = CreateCollectionApiHandler::request(&serialized)
             .ok_or_else(|| HttpError::GenericFlatbuffers400("no request data"))?;
 

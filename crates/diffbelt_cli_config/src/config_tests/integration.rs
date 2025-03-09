@@ -90,6 +90,7 @@ impl CliConfig {
         let command = command
             .kill_on_drop(true)
             .env("DIFFBELT_DATA_PATH", temp_dir.get_path_buf())
+            .env("WITH_COLOR", "0")
             .stdout(Stdio::piped());
 
         let mut child = command.spawn()?;

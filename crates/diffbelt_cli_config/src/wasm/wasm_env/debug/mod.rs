@@ -1,11 +1,11 @@
-use std::ops::DerefMut;
-
 use crate::wasm::error::WasmError;
 use crate::wasm::types::WasmPtr;
 use crate::wasm::wasm_env::util::ptr_to_utf8;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::WasmStoreData;
 use diffbelt_wasm_binding::error_code::ErrorCode;
+use std::ops::DerefMut;
+use tracing::debug;
 use wasmtime::{AsContext, Caller, Linker};
 
 impl WasmEnv {
@@ -23,7 +23,7 @@ impl WasmEnv {
                 let s = ptr_to_utf8(caller.as_context(), memory, s, s_size).unwrap();
                 let s = s.as_str().unwrap();
 
-                println!("WASM: {s}");
+                debug!("WASM: {s}");
 
                 Ok::<_, WasmError>(())
             })();
