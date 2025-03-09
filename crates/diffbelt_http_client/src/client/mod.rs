@@ -110,10 +110,10 @@ impl DiffbeltClient {
         }
     }
 
-    pub async fn flatbuffers_call<A: ApiHandler>(
+    pub async fn flatbuffers_raw_call(
         &self,
         request: OwnedSerialized<RequestProto>,
-    ) -> Result<FlatbuffersResponse<A>, DiffbeltClientError> {
+    ) -> Result<OwnedSerialized<ResponseProto>, DiffbeltClientError> {
         let body = Body::from(Bytes::copy_from_slice(request.as_bytes()));
 
         let req = Request::builder()
@@ -158,6 +158,15 @@ impl DiffbeltClient {
 
             return Err(DiffbeltClientError::Not200(s));
         }
+
+        Ok(response)
+    }
+
+    pub async fn flatbuffers_call<A: ApiHandler>(
+        &self,
+        request: OwnedSerialized<RequestProto>,
+    ) -> Result<FlatbuffersResponse<A>, DiffbeltClientError> {
+        let response = self.flatbuffers_raw_call(request).await?;
 
         Ok(FlatbuffersResponse {
             response,

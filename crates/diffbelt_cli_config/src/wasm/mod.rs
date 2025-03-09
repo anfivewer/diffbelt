@@ -52,6 +52,7 @@ impl_from_either!(WasmError);
 pub struct NewWasmInstanceOptions<'a> {
     pub engine: &'a mut WasmEngine,
     pub module: &'a Module,
+    pub requests: Arc<DiffbeltRequests>,
 }
 
 pub struct WasmStoreErrorState {
@@ -91,7 +92,7 @@ pub struct NonBrokenToken {
 }
 
 impl WasmStoreData {
-    pub fn new() -> Self {
+    pub fn new(requests: Arc<DiffbeltRequests>) -> Self {
         let is_broken = Arc::new(AtomicBool::new(false));
 
         Self {
@@ -105,7 +106,7 @@ impl WasmStoreData {
                 allocation: None,
                 allocation_env: None,
                 regex: None,
-                requests: None,
+                requests: Some(requests),
                 active_requests: None,
                 integration_tests: None,
             }),
@@ -155,21 +156,15 @@ pub struct MapFilterFunction<'a> {
     slice: WasmSliceHolder<'a>,
 }
 
-impl Wasm {
-    #[deprecated]
-    pub async fn new_wasm_instance(
-        &self,
-        options: NewWasmInstanceOptions<'_>,
-    ) -> Result<WasmModuleInstance, WasmError> {
-        WasmModuleInstance::new(options).await
-    }
-}
-
 impl WasmModuleInstance {
     pub async fn new(options: NewWasmInstanceOptions<'_>) -> Result<WasmModuleInstance, WasmError> {
-        let NewWasmInstanceOptions { engine, module } = options;
+        let NewWasmInstanceOptions {
+            engine,
+            module,
+            requests,
+        } = options;
 
-        let data = WasmStoreData::new();
+        let data = WasmStoreData::new(requests);
 
         let mut store = Store::new(&engine.engine, data);
         let mut linker = Linker::<WasmStoreData>::new(&engine.engine);

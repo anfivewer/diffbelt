@@ -230,9 +230,10 @@ impl CliConfig {
                 let module = match_ok!(context.wasm_engine.get_module(name).await);
 
                 let instance = match_ok!(
-                    wasm.new_wasm_instance(NewWasmInstanceOptions {
+                    WasmModuleInstance::new(NewWasmInstanceOptions {
                         engine: &mut context.wasm_engine,
                         module: &module,
+                        requests: context.requests.clone(),
                     })
                     .await
                 );

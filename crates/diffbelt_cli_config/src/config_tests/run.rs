@@ -18,7 +18,7 @@ pub enum RunTestsError {
 
 pub async fn run_tests(
     config: &CliConfig,
-    options: RunTestsOptions<'_>,
+    options: RunTestsOptions,
 ) -> Result<bool, RunTestsError> {
     let results = config.run_tests(options).await;
 

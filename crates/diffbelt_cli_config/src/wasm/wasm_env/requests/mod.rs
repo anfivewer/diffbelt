@@ -1,5 +1,14 @@
 mod constants;
 
+use diffbelt_http_client::errors::DiffbeltClientError;
+use diffbelt_protos::align_util::OwnedAlignedBytes;
+use diffbelt_protos::protos::impls::{RequestProto, ResponseProto};
+use diffbelt_protos::OwnedSerialized;
+use diffbelt_util::errors::NoStdErrorWrap;
+use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
+use diffbelt_wasm_binding::error_code::ErrorCode;
+use diffbelt_wasm_binding::ptr::MutPtr;
+use diffbelt_wasm_binding::requests::RequestId;
 use either::Either;
 use std::collections::HashMap;
 use std::future::Future;
@@ -8,16 +17,8 @@ use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::TryRecvError;
 use wasmtime::{AsContext, AsContextMut, Caller, Linker, Store};
 
-use diffbelt_protos::align_util::OwnedAlignedBytes;
-use diffbelt_protos::protos::impls::{RequestProto, ResponseProto};
-use diffbelt_protos::OwnedSerialized;
-use diffbelt_util::errors::NoStdErrorWrap;
-use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
-use diffbelt_wasm_binding::error_code::ErrorCode;
-use diffbelt_wasm_binding::requests::RequestId;
-
 use crate::wasm::error::WasmError;
-use crate::wasm::types::{WasmPtrToByte, WasmPtrToVecRawParts};
+use crate::wasm::types::{WasmPtr, WasmPtrToByte, WasmPtrToVecRawParts};
 use crate::wasm::wasm_env::requests::constants::ACTIVE_REQUESTS_LIMIT;
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::WasmStoreData;
@@ -25,9 +26,13 @@ use crate::wasm::WasmStoreData;
 pub struct ActiveDiffbeltRequests {
     requests: HashMap<
         RequestId,
-        Either<oneshot::Receiver<OwnedSerialized<ResponseProto>>, OwnedSerialized<ResponseProto>>,
+        Either<
+            oneshot::Receiver<Result<OwnedSerialized<ResponseProto>, DiffbeltClientError>>,
+            Result<OwnedSerialized<ResponseProto>, DiffbeltClientError>,
+        >,
     >,
     next_id: u32,
+    current_response: Option<(RequestId, OwnedSerialized<ResponseProto>)>,
 }
 
 impl WasmEnv {
@@ -43,6 +48,7 @@ impl WasmEnv {
             state.active_requests = Some(ActiveDiffbeltRequests {
                 requests: HashMap::new(),
                 next_id: 1,
+                current_response: None,
             });
         }
 
@@ -160,7 +166,7 @@ impl WasmEnv {
         async fn on_request_finished_fn(
             mut caller: Caller<'_, WasmStoreData>,
             request_id: u32,
-            vec_ptr: WasmPtrToVecRawParts,
+            len_ptr: WasmPtr<u32>,
         ) -> i32 {
             let token = {
                 let Some(token) = caller.data().non_broken_token() else {
@@ -195,9 +201,21 @@ impl WasmEnv {
                             return Ok(ErrorCode::UnsafeFail);
                         };
 
+                        if ctx.data().non_broken_token().is_none() {
+                            return Ok(ErrorCode::UnsafeFail);
+                        }
+
                         value
                     }
                     Either::Right(value) => value,
+                };
+
+                let value = match value {
+                    Ok(x) => x,
+                    Err(err) => {
+                        println!("request error: {err:?}");
+                        return Ok(ErrorCode::SafeFail);
+                    }
                 };
 
                 let data_len = value.as_bytes().len();
@@ -207,33 +225,24 @@ impl WasmEnv {
 
                 let memory = &allocation.memory;
 
-                let vec_raw_parts = {
-                    let memory = memory.data(ctx.as_context());
-                    vec_ptr.read(memory)?
-                };
-
-                if u32_to_usize(vec_raw_parts.0.capacity) < data_len {
-                    let () = allocation
-                        .ensure_vec_capacity
-                        .call_async(ctx.as_context_mut(), (vec_ptr, data_len_u32))
-                        .await?;
-                }
-
-                if ctx.data().non_broken_token().is_none() {
-                    return Ok(ErrorCode::UnsafeFail);
-                }
-
                 let memory = memory.data_mut(ctx.as_context_mut());
-                let mut vec_raw_parts = vec_ptr.read(memory)?;
 
-                vec_raw_parts.0.len = data_len_u32;
-                let () = vec_raw_parts
-                    .0
-                    .ptr
-                    .slice()
-                    .write_slice(memory, value.as_bytes())?;
+                let () = len_ptr.write(memory, data_len_u32)?;
 
-                let () = vec_ptr.write(memory, vec_raw_parts)?;
+                {
+                    let mut state = state_mutex.lock().expect("lock");
+                    let state = state.deref_mut();
+
+                    let active_requests =
+                        state.active_requests.as_mut().expect("no ActiveRequests");
+
+                    if active_requests.current_response.is_some() {
+                        // Previous response should be consumed
+                        return Ok(ErrorCode::UnsafeFail);
+                    }
+
+                    active_requests.current_response = Some((RequestId(request_id), value));
+                }
 
                 Ok(ErrorCode::Ok)
             })()
@@ -245,6 +254,50 @@ impl WasmEnv {
             };
 
             error_code.repr()
+        }
+
+        fn copy_response_to_fn(
+            mut caller: Caller<'_, WasmStoreData>,
+            request_id: u32,
+            head_ptr: WasmPtr<u8>,
+        ) -> i32 {
+            let token = {
+                let Some(token) = caller.data().non_broken_token() else {
+                    return ErrorCode::UnsafeFail.repr();
+                };
+                token
+            };
+
+            let (expected_request_id, response, memory) = {
+                let mut state = caller.data().inner.lock().expect("lock");
+                let state = state.deref_mut();
+
+                let active_requests = state.active_requests.as_mut().expect("no ActiveRequests");
+
+                let Some((expected_request_id, response)) = active_requests.current_response.take()
+                else {
+                    return ErrorCode::UnsafeFail.repr();
+                };
+
+                let memory = state.allocation.as_ref().expect("no allocation").memory;
+
+                (expected_request_id, response, memory)
+            };
+
+            if expected_request_id.0 != request_id {
+                return ErrorCode::UnsafeFail.repr();
+            }
+
+            let memory = memory.data_mut(caller.as_context_mut());
+            match head_ptr.slice().write_slice(memory, response.as_bytes()) {
+                Ok(()) => {}
+                Err(err) => {
+                    let _ = WasmEnv::handle_error(&caller.data().error, Err::<(), _>(err), token);
+                    return ErrorCode::UnsafeFail.repr();
+                }
+            }
+
+            ErrorCode::Ok.repr()
         }
 
         linker.func_wrap2_async(
@@ -263,11 +316,12 @@ impl WasmEnv {
             "on_request_finished",
             |caller: Caller<'_, WasmStoreData>,
              request_id: u32,
-             vec_ptr: WasmPtrToVecRawParts|
+             len_ptr: WasmPtr<u32>|
              -> Box<dyn Future<Output = i32> + Send> {
-                Box::new(on_request_finished_fn(caller, request_id, vec_ptr))
+                Box::new(on_request_finished_fn(caller, request_id, len_ptr))
             },
         )?;
+        linker.func_wrap("Diffbelt", "copy_response_to", copy_response_to_fn)?;
 
         Ok(())
     }

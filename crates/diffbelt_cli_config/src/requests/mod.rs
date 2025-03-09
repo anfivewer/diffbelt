@@ -1,7 +1,7 @@
 pub mod buffers;
-mod mocks;
+pub mod client_impl;
 
-use diffbelt_protos::protos::api::methods::{Request, Response};
+use diffbelt_http_client::errors::DiffbeltClientError;
 use diffbelt_protos::protos::impls::{RequestProto, ResponseProto};
 use diffbelt_protos::OwnedSerialized;
 use diffbelt_util::Wrap;
@@ -9,7 +9,7 @@ use diffbelt_util_no_std::buffers_pool::BuffersPool;
 use tokio::sync::{mpsc, oneshot};
 
 type RequestData = OwnedSerialized<RequestProto>;
-type ResponseData = OwnedSerialized<ResponseProto>;
+type ResponseData = Result<OwnedSerialized<ResponseProto>, DiffbeltClientError>;
 
 pub struct DiffbeltRequests {
     sender: mpsc::Sender<(RequestData, oneshot::Sender<ResponseData>)>,

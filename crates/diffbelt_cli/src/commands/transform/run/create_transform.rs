@@ -1,12 +1,16 @@
+use diffbelt_cli_config::requests::client_impl::DiffbeltRequestsClientImpl;
+use diffbelt_cli_config::requests::DiffbeltRequests;
 use diffbelt_cli_config::transforms::aggregate::Aggregate;
 use diffbelt_cli_config::transforms::wasm::WasmMethodDef;
 use diffbelt_cli_config::transforms::Transform as TransformConfig;
 use diffbelt_cli_config::wasm::engine::WasmEngine;
-use diffbelt_cli_config::wasm::WasmModuleInstance;
+use diffbelt_cli_config::wasm::{NewWasmInstanceOptions, WasmModuleInstance};
 use diffbelt_cli_config::CliConfig;
+use diffbelt_http_client::client::DiffbeltClient;
 use diffbelt_transforms::aggregate::AggregateTransform;
 use diffbelt_transforms::map_filter::MapFilterTransform;
 use diffbelt_transforms::TransformImpl;
+use std::sync::Arc;
 
 use crate::commands::errors::CommandError;
 use crate::commands::transform::run::aggregate_eval::AggregateEvalHandler;
@@ -17,6 +21,7 @@ pub struct TransformEvaluator {
     // TODO: replace with enum_dispatch?
     pub transform: TransformImpl,
     pub eval_handler: FunctionEvalHandlerImpl,
+    pub requests_impl: DiffbeltRequestsClientImpl,
 }
 
 pub struct TransformDirection<'a> {
@@ -26,8 +31,8 @@ pub struct TransformDirection<'a> {
 }
 
 pub async fn create_transform(
-    config: &CliConfig,
     engine: &mut WasmEngine,
+    client: Arc<DiffbeltClient>,
     transform_config: &TransformConfig,
     transform_direction: TransformDirection<'_>,
     verbose: bool,
@@ -72,10 +77,13 @@ pub async fn create_transform(
         ));
     }
 
+    let (requests, requests_impl) = DiffbeltRequestsClientImpl::new(client);
+
     if let Some(map_filter_wasm) = map_filter_wasm {
         return create_map_filter_transform(
-            config,
             engine,
+            requests,
+            requests_impl,
             map_filter_wasm,
             transform_direction,
             verbose,
@@ -84,8 +92,15 @@ pub async fn create_transform(
     }
 
     if let Some(aggregate) = aggregate {
-        return create_aggregate_transform(config, engine, aggregate, transform_direction, verbose)
-            .await;
+        return create_aggregate_transform(
+            engine,
+            requests,
+            requests_impl,
+            aggregate,
+            transform_direction,
+            verbose,
+        )
+        .await;
     }
 
     Err(CommandError::Message(
@@ -94,8 +109,9 @@ pub async fn create_transform(
 }
 
 async fn create_map_filter_transform(
-    config: &CliConfig,
     engine: &mut WasmEngine,
+    requests: DiffbeltRequests,
+    requests_impl: DiffbeltRequestsClientImpl,
     map_filter_wasm: &WasmMethodDef,
     transform_direction: TransformDirection<'_>,
     verbose: bool,
@@ -107,13 +123,14 @@ async fn create_map_filter_transform(
     );
 
     let wasm_module_name = map_filter_wasm.module_name.as_str();
-    let Some(wasm_def) = config.wasm_module_def_by_name(wasm_module_name) else {
-        return Err(CommandError::Message(format!(
-            "WASM module {wasm_module_name} not defined in config"
-        )));
-    };
+    let wasm_module = engine.get_module(wasm_module_name).await?;
 
-    let wasm_instance = config.new_wasm_instance(wasm_def, engine).await?;
+    let wasm_instance = WasmModuleInstance::new(NewWasmInstanceOptions {
+        engine,
+        module: &wasm_module,
+        requests: Arc::new(requests),
+    })
+    .await?;
 
     let handler =
         MapFilterEvalHandler::new(wasm_instance, map_filter_wasm.method_name.as_str(), verbose)
@@ -122,12 +139,14 @@ async fn create_map_filter_transform(
     Ok(TransformEvaluator {
         transform: TransformImpl::MapFilter(transform),
         eval_handler: FunctionEvalHandlerImpl::MapFilter(handler),
+        requests_impl,
     })
 }
 
 async fn create_aggregate_transform(
-    config: &CliConfig,
     engine: &mut WasmEngine,
+    requests: DiffbeltRequests,
+    requests_impl: DiffbeltRequestsClientImpl,
     aggregate: &Aggregate,
     transform_direction: TransformDirection<'_>,
     verbose: bool,
@@ -142,18 +161,20 @@ async fn create_aggregate_transform(
     );
 
     let wasm_module_name = aggregate.wasm.as_str();
-    let Some(wasm_def) = config.wasm_module_def_by_name(wasm_module_name) else {
-        return Err(CommandError::Message(format!(
-            "WASM module {wasm_module_name} not defined in config"
-        )));
-    };
+    let wasm_module = engine.get_module(wasm_module_name).await?;
 
-    let wasm_instance = config.new_wasm_instance(wasm_def, engine).await?;
+    let wasm_instance = WasmModuleInstance::new(NewWasmInstanceOptions {
+        engine,
+        module: &wasm_module,
+        requests: Arc::new(requests),
+    })
+    .await?;
 
     let handler = AggregateEvalHandler::new(wasm_instance, aggregate, verbose).await?;
 
     Ok(TransformEvaluator {
         transform: TransformImpl::Aggregate(transform),
         eval_handler: FunctionEvalHandlerImpl::Aggregate(handler),
+        requests_impl,
     })
 }

@@ -1,14 +1,16 @@
+use diffbelt_http_client::client::DiffbeltClient;
+use diffbelt_yaml::YamlNodeRc;
+use error::{AssertError, TestError};
 use serde::Deserialize;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
-
-use diffbelt_yaml::YamlNodeRc;
-use error::{AssertError, TestError};
 
 use crate::config_tests::options::RunTestsContext;
 use crate::config_tests::transforms::{TransformTest, TransformTestCreator};
+use crate::requests::client_impl::DiffbeltRequestsClientImpl;
 use crate::wasm::engine::{WasmEngine, WasmEngineOptions};
 use crate::wasm::WasmError;
 use crate::CliConfig;
@@ -53,7 +55,7 @@ pub struct TestResult {
 }
 
 impl CliConfig {
-    pub async fn run_tests(&self, options: RunTestsOptions<'_>) -> Vec<TestResult> {
+    pub async fn run_tests(&self, options: RunTestsOptions) -> Vec<TestResult> {
         let mut result = Vec::new();
 
         let context = 'outer: {
@@ -64,7 +66,18 @@ impl CliConfig {
                     break 'outer Err(err);
                 }
             };
-            let mut context = RunTestsContext { wasm_engine };
+            let client = match options.client.as_ref() {
+                Some(client) => client.clone(),
+                None => {
+                    break 'outer Err(WasmError::Unspecified(String::from("No DiffbeltClient")));
+                }
+            };
+            let (requests, requests_impl) = DiffbeltRequestsClientImpl::new(client);
+            let mut context = RunTestsContext {
+                wasm_engine,
+                requests: Arc::new(requests),
+                requests_impl,
+            };
 
             if let Err(err) = self.init_run_tests_context(&mut context).await {
                 break 'outer Err(err);

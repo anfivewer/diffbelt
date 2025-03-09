@@ -122,20 +122,6 @@ impl CliConfig {
         self.wasm.get(name)
     }
 
-    pub async fn new_wasm_instance(
-        &self,
-        wasm: &Wasm,
-        engine: &mut WasmEngine,
-    ) -> Result<WasmModuleInstance, WasmError> {
-        let module = engine.get_module(wasm.name.as_ref()).await?;
-
-        wasm.new_wasm_instance(NewWasmInstanceOptions {
-            engine,
-            module: &module,
-        })
-        .await
-    }
-
     pub fn collection_by_name(&self, collection_name: &str) -> Option<&Collection> {
         self.collections
             .iter()

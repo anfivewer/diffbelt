@@ -23,7 +23,7 @@ impl Test {
         let mut options = RunTestsOptions {
             with_unit: false,
             with_integration: false,
-            client: Some(&state.client),
+            client: Some(state.client.clone()),
         };
 
         let mut with_filter = false;

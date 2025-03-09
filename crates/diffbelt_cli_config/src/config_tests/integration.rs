@@ -26,7 +26,7 @@ impl CliConfig {
     pub async fn run_integration_tests(
         &self,
         results: &mut Vec<TestResult>,
-        options: &RunTestsOptions<'_>,
+        options: &RunTestsOptions,
         context: &mut RunTestsContext,
     ) {
         for test in &self.integration_tests {
@@ -56,12 +56,14 @@ impl CliConfig {
     pub async fn run_integration_test(
         &self,
         test: &IntegrationTestDef,
-        options: &RunTestsOptions<'_>,
+        options: &RunTestsOptions,
         context: &mut RunTestsContext,
     ) -> Result<Option<AssertError>, TestError> {
         let client = options
             .client
-            .ok_or_else(|| TestError::Unspecified(String::from("missing client")))?;
+            .as_ref()
+            .ok_or_else(|| TestError::Unspecified(String::from("missing client")))?
+            .as_ref();
 
         let (module_name, function_name) = {
             let mut s = test.wasm.split('.');
@@ -117,6 +119,7 @@ impl CliConfig {
         let wasm_instance = WasmModuleInstance::new(NewWasmInstanceOptions {
             engine: &mut context.wasm_engine,
             module: &wasm_mod,
+            requests: context.requests.clone(),
         })
         .await?;
 

@@ -121,9 +121,10 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
     let TransformEvaluator {
         transform,
         eval_handler,
+        requests_impl,
     } = create_transform(
-        config,
         &mut engine,
+        client.clone(),
         transform_config,
         transform_direction,
         verbose,
@@ -163,6 +164,8 @@ pub async fn run_transform_command(command: &RunSubcommand, state: Arc<CliState>
             Ok::<(), CommandError>(())
         })
         .await?;
+
+    drop(requests_impl);
 
     println!("Finished");
 
