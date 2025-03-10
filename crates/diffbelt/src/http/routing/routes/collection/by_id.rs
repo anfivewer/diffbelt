@@ -1,7 +1,6 @@
 use regex::Regex;
 
 use crate::context::Context;
-use crate::http::custom_errors::no_such_collection_error;
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
 use crate::http::routing::routes::collection::delete::delete_collection;
@@ -18,7 +17,7 @@ fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
         let result = context.database.get_collection(&collection_name).await;
 
         let Some(collection) = result else {
-            return Err(no_such_collection_error());
+            return Err(HttpError::NoSuchCollection);
         };
 
         match request.method() {

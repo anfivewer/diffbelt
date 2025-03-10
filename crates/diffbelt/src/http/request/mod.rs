@@ -6,6 +6,7 @@ use diffbelt_util::http::read_full_body::{into_full_body_as_read, IntoFullBodyAs
 use diffbelt_util::http::read_to_aligned_bytes::{into_aligned_bytes, IntoAlignedBytesReturn};
 pub use request_trait::*;
 
+pub mod request_context;
 mod request_trait;
 
 pub struct HyperRequestWrapped {

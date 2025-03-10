@@ -5,7 +5,6 @@ pub enum HttpError {
     Generic400(&'static str),
     GenericFlatbuffers400(&'static str),
     GenericString400(String),
-    CustomJson400(&'static str),
     /** max_size */
     TooBigPayload(usize),
     InvalidJson(String),
@@ -13,4 +12,5 @@ pub enum HttpError {
     PublicInternal500(&'static str),
     MethodNotAllowed,
     ContentTypeUnsupported(&'static str),
+    NoSuchCollection,
 }

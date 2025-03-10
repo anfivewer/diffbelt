@@ -21,7 +21,8 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
         let serialized = deserialize::<RequestProto>(bytes.as_ref())
             .map_err(|err| HttpError::InvalidFlatbuffers(err.to_string()))?;
 
-        options.span.in_scope(|| {
+        options.request_context.set_flatbuffers();
+        options.request_context.span.in_scope(|| {
             trace!(
                 "method:{}",
                 serialized.body_type().variant_name().unwrap_or("?")
@@ -31,7 +32,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
         let data = CreateCollectionApiHandler::request(&serialized)
             .ok_or_else(|| HttpError::GenericFlatbuffers400("no request data"))?;
 
-        create_collection_flatbuffers_route(context, data).await
+        create_collection_flatbuffers_route(context, options.request_context, data).await
     })
 }
 

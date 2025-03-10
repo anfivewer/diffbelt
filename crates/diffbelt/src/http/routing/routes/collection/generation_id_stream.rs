@@ -9,7 +9,6 @@ use tokio::time::{sleep, Instant};
 
 use crate::common::OwnedGenerationId;
 use crate::context::Context;
-use crate::http::custom_errors::no_such_collection_error;
 use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
 };
@@ -40,7 +39,7 @@ fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> PatternRouteFnResult {
         let result = context.database.get_collection(&collection_name).await;
 
         let Some(collection) = result else {
-            return Err(no_such_collection_error());
+            return Err(HttpError::NoSuchCollection);
         };
 
         let params = request

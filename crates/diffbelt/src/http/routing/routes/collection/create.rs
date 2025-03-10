@@ -7,6 +7,7 @@ use crate::http::data::encoded_generation_id::{
     encoded_generation_id_data_encode, EncodedGenerationIdJsonData,
 };
 use crate::http::errors::HttpError;
+use crate::http::request::request_context::RequestContext;
 use crate::http::routing::response::HttpResponse;
 use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 use crate::http::util::read_body::read_limited_body;
@@ -44,6 +45,7 @@ struct ResponseJsonData {
 
 async fn unified_handler<'a>(
     context: Arc<Context>,
+    request_context: RequestContext,
     data: UnifiedRequestData<'a>,
 ) -> Result<HttpResponse, HttpError> {
     let collection_name = data.collection_name;
@@ -116,7 +118,7 @@ fn json_handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
             }
         };
 
-        unified_handler(context, data).await
+        unified_handler(context, options.request_context, data).await
     })
 }
 
@@ -128,6 +130,7 @@ pub fn register_create_collection_route(context: &mut Context) {
 
 pub async fn create_collection_flatbuffers_route<'a>(
     context: Arc<Context>,
+    request_context: RequestContext,
     request: <<CreateCollectionApiHandler as ApiHandler>::FlatbuffersRequest as FlatbuffersGenericType>::FlatType<'a>,
 ) -> Result<HttpResponse, HttpError> {
     let data = UnifiedRequestData {
@@ -138,5 +141,5 @@ pub async fn create_collection_flatbuffers_route<'a>(
         is_manual: request.is_manual(),
     };
 
-    unified_handler(context, data).await
+    unified_handler(context, request_context, data).await
 }
