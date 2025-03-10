@@ -1,28 +1,26 @@
-use regex::Regex;
-use std::sync::Arc;
-
 use crate::collection::methods::start_generation::StartGenerationOptions;
 use crate::common::{GenerationId, OwnedGenerationId};
 use crate::context::Context;
-use crate::http::constants::{
-    CREATE_COLLECTION_REQUEST_MAX_BYTES, READER_REQUEST_MAX_BYTES,
-    START_GENERATION_REQUEST_MAX_BYTES,
-};
+use crate::http::constants::START_GENERATION_REQUEST_MAX_BYTES;
+use crate::http::data::bytes_generation_id::flatbuffers_generation_id_to_owned_generation_id;
 use crate::http::data::encoded_generation_id::encoded_generation_id_data_into_generation_id;
 use crate::http::errors::HttpError;
 use crate::http::request::request_context::RequestContext;
-use crate::http::routing::{
-    HttpHandlerResult, PatternRouteOptions, StaticRouteFnFutureResult, StaticRouteOptions,
-};
+use crate::http::routing::response::HttpResponse;
+use crate::http::routing::{HttpHandlerResult, PatternRouteOptions, StaticRouteFnFutureResult};
 use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 use crate::http::util::get_collection::get_collection;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
 use crate::http::util::response::create_ok_no_error_json_response;
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
-use diffbelt_macro::fn_box_pin_async;
+use diffbelt_protos::protos::handlers::{
+    ApiHandler, CreateCollectionApiHandler, StartGenerationApiHandler,
+};
+use diffbelt_protos::FlatbuffersGenericType;
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
-use diffbelt_util_no_std::option::store_in_option;
+use regex::Regex;
+use std::sync::Arc;
 
 struct UnifiedRequestData<'a> {
     collection_name: &'a str,
@@ -89,4 +87,22 @@ pub fn register_start_generation_route(context: &mut Context) {
         id_only_group,
         json_handler,
     );
+}
+
+pub async fn start_generation_flatbuffers_route<'a>(
+    context: Arc<Context>,
+    request_context: RequestContext,
+    request: <<StartGenerationApiHandler as ApiHandler>::FlatbuffersRequest as FlatbuffersGenericType>::FlatType<'a>,
+) -> Result<HttpResponse, HttpError> {
+    let generation_id = flatbuffers_generation_id_to_owned_generation_id(request.generation_id())?;
+
+    let data = UnifiedRequestData {
+        collection_name: request
+            .collection_name()
+            .ok_or_else(|| HttpError::GenericFlatbuffers400("no collection_name"))?,
+        generation_id,
+        abort_outdated: false,
+    };
+
+    unified_handler(context, request_context, data).await
 }

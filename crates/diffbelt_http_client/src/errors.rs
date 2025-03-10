@@ -21,6 +21,11 @@ pub enum DiffbeltClientError {
     InvalidFlatbuffer(InvalidFlatbuffer),
     #[error("{0:?}")]
     Flatbuffer(FlatbufferError),
+    #[error("FlatbufferWithBodyAsString({body}, {flatbuffer:?})")]
+    FlatbufferWithBodyAsString {
+        body: String,
+        flatbuffer: FlatbufferError,
+    }
 }
 
 impl From<hyper::Error> for DiffbeltClientError {

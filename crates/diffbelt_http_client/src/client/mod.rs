@@ -2,6 +2,7 @@ use crate::constants::MAX_RESPONSE_BYTES;
 use crate::errors::DiffbeltClientError;
 use crate::util::body::{ExpectedResponseType, TransformBodyTrait};
 use crate::util::http::TransformMethodTrait;
+use diffbelt_protos::error::{FlatbufferError, InvalidFlatbufferWithBuffer};
 use diffbelt_protos::protos::api::common::ErrorResponse;
 use diffbelt_protos::protos::handlers::ApiHandler;
 use diffbelt_protos::protos::impls::{RequestProto, ResponseProto};
@@ -20,6 +21,8 @@ use std::fmt::Write;
 use std::future::Future;
 use std::io::Read;
 use std::marker::PhantomData;
+use std::str::from_utf8;
+use std::string::FromUtf8Error;
 use tracing::trace;
 
 pub mod methods;
@@ -130,12 +133,42 @@ impl DiffbeltClient {
         let body = res.into_body();
         let body = into_aligned_bytes(body, MAX_RESPONSE_BYTES).await?;
 
-        let response = OwnedSerialized::<ResponseProto>::from_aligned_bytes(body)?;
+        let response =
+            OwnedSerialized::<ResponseProto>::from_aligned_bytes(body).map_err(|err| match err
+                .into_invalid_flatbuffer_with_buffer()
+            {
+                Ok(err) => {
+                    let Some(buffer) = err.buffer else {
+                        return DiffbeltClientError::Flatbuffer(
+                            FlatbufferError::InvalidFlatbuffer(err.error),
+                        );
+                    };
+
+                    match from_utf8(buffer.as_slice()) {
+                        Ok(body) => DiffbeltClientError::FlatbufferWithBodyAsString {
+                            body: String::from(body),
+                            flatbuffer: FlatbufferError::InvalidFlatbuffer(err.error),
+                        },
+                        Err(_) => DiffbeltClientError::Flatbuffer(
+                            FlatbufferError::InvalidFlatbufferWithBuffer(
+                                InvalidFlatbufferWithBuffer {
+                                    buffer: Some(buffer),
+                                    error: err.error,
+                                },
+                            ),
+                        ),
+                    }
+                }
+                Err(err) => DiffbeltClientError::Flatbuffer(err),
+            })?;
 
         if status != 200 {
             let response_data = response.data();
             let error = response_data.body_as_error();
-            trace!("diffbelt call status:{status} type:{:?}", response_data.body_type());
+            trace!(
+                "diffbelt call status:{status} type:{:?}",
+                response_data.body_type()
+            );
             let Some(error) = error else {
                 return Err(DiffbeltClientError::Not200Unknown);
             };

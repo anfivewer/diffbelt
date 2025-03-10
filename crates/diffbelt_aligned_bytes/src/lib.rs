@@ -8,11 +8,22 @@ extern crate alloc;
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::fmt::{Debug, Formatter};
 
 pub struct OwnedAlignedBytes<const ALIGN: usize> {
     buffer: Vec<u8>,
     head: usize,
     len: usize,
+}
+
+impl<const ALIGN: usize> Debug for OwnedAlignedBytes<ALIGN> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.write_str("OwnedAlignedBytes(")?;
+        f.write_fmt(format_args!("head:{} ", self.head))?;
+        f.write_fmt(format_args!("len:{}", self.len))?;
+        f.write_str(")")?;
+        Ok(())
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -262,7 +273,7 @@ impl<const ALIGN: usize> OwnedAlignedBytes<ALIGN> {
         &self.buffer[self.head..(self.head + self.len)]
     }
 
-    pub fn into_vec(self) -> Vec<u8> {
+    pub fn into_underlying_vec(self) -> Vec<u8> {
         self.buffer
     }
 

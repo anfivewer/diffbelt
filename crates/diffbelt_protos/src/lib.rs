@@ -150,7 +150,7 @@ impl<F: FlatbuffersGenericType> OwnedSerialized<F> {
             Err(error) => {
                 return Err(FlatbufferError::InvalidFlatbufferWithBuffer(
                     InvalidFlatbufferWithBuffer {
-                        buffer: Some(bytes.into_vec()),
+                        buffer: Some(bytes),
                         error,
                     },
                 ));
@@ -177,12 +177,12 @@ impl<F: FlatbuffersGenericType> OwnedSerialized<F> {
     }
 
     pub fn into_underlying_buffer(self) -> Vec<u8> {
-        self.bytes.into_vec()
+        self.bytes.into_underlying_vec()
     }
 
     #[deprecated]
     pub fn into_buffer_vec(self) -> Vec<u8> {
-        self.bytes.into_vec()
+        self.bytes.into_underlying_vec()
     }
 
     #[deprecated]
