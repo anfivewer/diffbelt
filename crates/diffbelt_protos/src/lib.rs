@@ -176,7 +176,7 @@ impl<F: FlatbuffersGenericType> OwnedSerialized<F> {
         self.bytes
     }
 
-    pub fn into_buffer(self) -> Vec<u8> {
+    pub fn into_underlying_buffer(self) -> Vec<u8> {
         self.bytes.into_vec()
     }
 

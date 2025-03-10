@@ -1,6 +1,7 @@
 mod generated;
 pub mod handlers;
 pub mod impls;
+mod tests;
 
 pub mod api {
     pub mod collection {

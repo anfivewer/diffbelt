@@ -17,7 +17,7 @@ use diffbelt_util_no_std::from_either::Either;
 use diffbelt_util_no_std::option::store_in_option;
 use diffbelt_wasm_binding::requests::errors::RequestError;
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[repr(C)]
 pub struct RequestId(pub u32);
 
@@ -31,7 +31,7 @@ impl RequestId {
     }
 
     pub fn is_valid(&self) -> bool {
-        self.0 > 1
+        self.0 >= 64
     }
 }
 

@@ -20,6 +20,7 @@ use std::fmt::Write;
 use std::future::Future;
 use std::io::Read;
 use std::marker::PhantomData;
+use tracing::trace;
 
 pub mod methods;
 
@@ -132,7 +133,9 @@ impl DiffbeltClient {
         let response = OwnedSerialized::<ResponseProto>::from_aligned_bytes(body)?;
 
         if status != 200 {
-            let error = response.data().body_as_error();
+            let response_data = response.data();
+            let error = response_data.body_as_error();
+            trace!("diffbelt call status:{status} type:{:?}", response_data.body_type());
             let Some(error) = error else {
                 return Err(DiffbeltClientError::Not200Unknown);
             };

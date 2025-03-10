@@ -9,7 +9,7 @@ use crate::http::routing::StaticRouteOptions;
 use diffbelt_protos::protos::api::common::{ErrorResponse, ErrorResponseArgs};
 use diffbelt_protos::protos::api::methods::{ResponseArgs, ResponseBody};
 use diffbelt_protos::protos::impls::ResponseProto;
-use diffbelt_protos::{FlatbuffersGenericType, Serializer};
+use diffbelt_protos::{FlatbuffersGenericType, Serialized, Serializer};
 use diffbelt_util::idling_status::BusyTask;
 use diffbelt_util_no_std::on_drop::OnDrop;
 use hyper::body::Bytes;
@@ -21,6 +21,7 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tracing::{span, trace, trace_span, Level, Span};
+use diffbelt_aligned_bytes::AlignedBytes;
 
 async fn handle_request(
     context: Arc<Context>,
@@ -173,7 +174,7 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
             let task = context.idling.start_work();
 
             async move {
-                let result = handle_request(context, req, span).await;
+                let result = handle_request(context, req, span.clone()).await;
 
                 match result {
                     Ok(response) => {
@@ -212,10 +213,12 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
                                     },
                                 );
                             let serialized = serializer.finish(response);
-                            let serialized = serialized.into_buffer();
+                            let serialized = serialized.as_bytes().to_vec();
 
                             (StatusCode::BAD_REQUEST, serialized.into())
                         };
+
+                        trace!(parent: &span, "error: {err:?}");
 
                         let (status_code, body): (StatusCode, Body) = match err {
                             HttpError::Unspecified => (

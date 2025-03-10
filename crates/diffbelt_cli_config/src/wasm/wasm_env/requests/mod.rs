@@ -15,6 +15,7 @@ use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::TryRecvError;
+use tracing::warn;
 use wasmtime::{AsContext, AsContextMut, Caller, Linker, Store};
 
 use crate::wasm::error::WasmError;
@@ -47,7 +48,7 @@ impl WasmEnv {
 
             state.active_requests = Some(ActiveDiffbeltRequests {
                 requests: HashMap::new(),
-                next_id: 1,
+                next_id: 64,
                 current_response: None,
             });
         }
@@ -213,7 +214,7 @@ impl WasmEnv {
                 let value = match value {
                     Ok(x) => x,
                     Err(err) => {
-                        println!("request error: {err:?}");
+                        warn!("request error: {err:?}");
                         return Ok(ErrorCode::SafeFail);
                     }
                 };

@@ -107,7 +107,7 @@ impl<'t> MapFilter for UpdateMsDayIntermediate {
                 );
                 records.push(record);
 
-                let mut buffer = intermediate.into_buffer();
+                let mut buffer = intermediate.into_underlying_buffer();
                 buffer.clear();
                 temp_buffer = Some(buffer);
             }
