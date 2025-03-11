@@ -17,5 +17,3 @@ path = "../diffbelt_util_no_std"
 [dependencies.diffbelt_protos]
 path = "../diffbelt_protos"
 
-[dev-dependencies.diffbelt_example_wasm_rebuild]
-path = "../../crates_example/diffbelt_example_wasm_rebuild"

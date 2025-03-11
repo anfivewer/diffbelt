@@ -1,5 +1,5 @@
 use crate::collection::methods::start_generation::StartGenerationOptions;
-use crate::common::{GenerationId, OwnedGenerationId};
+use crate::common::{GenerationId, IsByteArray, OwnedGenerationId};
 use crate::context::Context;
 use crate::http::constants::START_GENERATION_REQUEST_MAX_BYTES;
 use crate::http::data::bytes_generation_id::flatbuffers_generation_id_to_owned_generation_id;
@@ -12,12 +12,16 @@ use crate::http::util::common_groups::{id_only_group, IdOnlyGroup};
 use crate::http::util::get_collection::get_collection;
 use crate::http::util::read_body::read_limited_body;
 use crate::http::util::read_json::read_json;
-use crate::http::util::response::create_ok_no_error_json_response;
+use crate::http::util::response::{
+    create_ok_flatbuffers_response, create_ok_no_error_json_response,
+};
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
+use diffbelt_protos::protos::api::collection::CreateCollectionResponseArgs;
+use diffbelt_protos::protos::api::generation::StartGenerationResponseArgs;
 use diffbelt_protos::protos::handlers::{
     ApiHandler, CreateCollectionApiHandler, StartGenerationApiHandler,
 };
-use diffbelt_protos::FlatbuffersGenericType;
+use diffbelt_protos::{FlatbuffersGenericType, Serializer};
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
 use regex::Regex;
 use std::sync::Arc;
@@ -30,7 +34,7 @@ struct UnifiedRequestData<'a> {
 
 async fn unified_handler(
     context: Arc<Context>,
-    _request_context: RequestContext,
+    request_context: RequestContext,
     data: UnifiedRequestData<'_>,
 ) -> HttpHandlerResult {
     let UnifiedRequestData {
@@ -56,7 +60,15 @@ async fn unified_handler(
         }
     };
 
-    create_ok_no_error_json_response()
+    if request_context.is_flatbuffers() {
+        let serializer = Serializer::new();
+        let response =
+            StartGenerationApiHandler::create_response(serializer, StartGenerationResponseArgs {});
+
+        create_ok_flatbuffers_response(response)
+    } else {
+        create_ok_no_error_json_response()
+    }
 }
 
 fn json_handler(options: PatternRouteOptions<IdOnlyGroup>) -> StaticRouteFnFutureResult {

@@ -6,17 +6,26 @@ use std::process::Command;
 fn diffbelt_example_wasm_build_rs() {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("No CARGO_MANIFEST_DIR var");
 
-    let mut wasm_crate_path = PathBuf::from(manifest_dir);
+    let mut manifest_path = PathBuf::from(manifest_dir);
 
+    let make_path = |dir: &str| {
+        let mut path = manifest_path.clone();
+        path.push("../../crates");
+        path.push(dir);
+        path.push("src");
+        let path = path.canonicalize().expect("Cannot canonicalize");
+
+        path
+    };
+
+    let mut wasm_crate_path = manifest_path.clone();
     wasm_crate_path.push("../diffbelt_example_wasm");
-
-    let mut wasm_src_path = wasm_crate_path.clone();
-    wasm_src_path.push("src");
-    let wasm_src_path = wasm_src_path.canonicalize().expect("Cannot canonicalize");
 
     let mut stack = Vec::new();
 
-    stack.push(wasm_src_path);
+    stack.push(make_path("../crates_example/diffbelt_example_wasm"));
+    stack.push(make_path("diffbelt_wasm_binding"));
+    stack.push(make_path("diffbelt_aligned_bytes"));
 
     while let Some(path) = stack.pop() {
         let files = read_dir(path).expect("Cannot read wasm src dir");
@@ -41,6 +50,7 @@ fn diffbelt_example_wasm_build_rs() {
     }
 
     let status = Command::new("make")
+        .arg("debug")
         .current_dir(&wasm_crate_path)
         .status()
         .expect("failed to run make");

@@ -44,8 +44,7 @@ impl<'a, const ALIGN: usize> AlignedBytes<'a, ALIGN> {
             return Ok(Self(bytes));
         }
 
-        // SAFETY: just checked
-        let ptr = unsafe { bytes.get_unchecked(0) as *const u8 };
+        let ptr = bytes.as_ptr();
         let offset = ptr.align_offset(ALIGN);
 
         if offset == usize::MAX {
@@ -61,30 +60,12 @@ impl<'a, const ALIGN: usize> AlignedBytes<'a, ALIGN> {
 
         buffer.clear();
         buffer.reserve(ALIGN + bytes.len());
-        buffer.extend_from_slice(&[0; ALIGN]);
-
-        // SAFETY: just extended
-        let ptr = unsafe { bytes.get_unchecked(0) as *const u8 };
-        let offset = ptr.align_offset(ALIGN);
-
-        if offset == usize::MAX {
-            return Err(AlignedBytesError {
-                reason: format!("AlignedBytes: impossible to align({ALIGN}) ptr({ptr:p})"),
-                buffer: None,
-            });
-        }
-
-        assert!(offset < ALIGN);
-
-        let head = ALIGN - offset;
-
-        // Remove extra zeroes
-        buffer.drain(head..);
+        buffer.extend_from_slice(&(&[0; ALIGN])[0..offset]);
         buffer.extend_from_slice(bytes);
 
         // Check to be sure
         // SAFETY: just inserted
-        let ptr = unsafe { bytes.get_unchecked(head) as *const u8 };
+        let ptr = buffer.as_ptr();
         let offset = ptr.align_offset(ALIGN);
 
         if offset != 0 {
@@ -94,7 +75,7 @@ impl<'a, const ALIGN: usize> AlignedBytes<'a, ALIGN> {
             });
         }
 
-        Ok(Self(&buffer[head..(head + bytes.len())]))
+        Ok(Self(&buffer[offset..(offset + bytes.len())]))
     }
 
     pub fn as_slice(&self) -> &'a [u8] {
@@ -130,11 +111,10 @@ impl<const ALIGN: usize> OwnedAlignedBytes<ALIGN> {
         &mut self,
         len: usize,
     ) -> Result<WriteAlignedBytes<ALIGN>, AlignedBytesError> {
-        let head = Self::calculate_head_for_buffer(&self.buffer)?;
-        let end_len = head + len;
-
         self.buffer.clear();
-        self.buffer.reserve(end_len);
+        self.buffer.reserve(ALIGN + len);
+
+        let head = Self::calculate_head_for_buffer(&self.buffer)?;
 
         // Fill prefix with zeroes
         self.buffer.extend_from_slice(&(&[0; ALIGN])[0..head]);
@@ -209,12 +189,7 @@ impl<const ALIGN: usize> OwnedAlignedBytes<ALIGN> {
     }
 
     fn calculate_head_for_buffer(buffer: &Vec<u8>) -> Result<usize, AlignedBytesError> {
-        let head_ptr = unsafe {
-            let ptr = buffer.get_unchecked(0) as *const u8;
-            // Pointing to potential head
-            ptr.add(ALIGN)
-        };
-
+        let head_ptr = buffer.as_ptr();
         let offset = head_ptr.align_offset(ALIGN);
 
         if offset == usize::MAX {
@@ -228,18 +203,14 @@ impl<const ALIGN: usize> OwnedAlignedBytes<ALIGN> {
 
         assert!(offset <= ALIGN);
 
-        let backward_offset = ALIGN - offset;
-
-        Ok(backward_offset)
+        Ok(offset)
     }
 
     pub fn copy_slice(mut buffer: Vec<u8>, bytes: &[u8]) -> Result<Self, AlignedBytesError> {
         buffer.clear();
         buffer.reserve(ALIGN + bytes.len());
-        // Prefix to be able to move without second resize
-        buffer.extend_from_slice(&[0; ALIGN]);
 
-        let backward_offset = match Self::calculate_head_for_buffer(&buffer) {
+        let head = match Self::calculate_head_for_buffer(&buffer) {
             Ok(x) => x,
             Err(err) => {
                 return Err(AlignedBytesError {
@@ -249,19 +220,8 @@ impl<const ALIGN: usize> OwnedAlignedBytes<ALIGN> {
             }
         };
 
-        let head = if backward_offset == ALIGN {
-            // No need to align
-            buffer.extend_from_slice(bytes);
-            ALIGN
-        } else {
-            let head = ALIGN - backward_offset;
-            // Remove last `backward_offset` bytes
-            _ = buffer.drain(head..);
-
-            buffer.extend_from_slice(bytes);
-
-            head
-        };
+        buffer.extend_from_slice(&(&[0; ALIGN])[0..head]);
+        buffer.extend_from_slice(bytes);
 
         let len = bytes.len();
 
@@ -300,7 +260,7 @@ pub struct WriteAlignedBytes<'a, const ALIGN: usize> {
 
 impl<'a, const ALIGN: usize> WriteAlignedBytes<'a, ALIGN> {
     pub unsafe fn as_mut(&mut self) -> *mut u8 {
-        self.aligned.buffer.get_unchecked_mut(self.head) as *mut u8
+        self.aligned.buffer.as_ptr().add(self.head) as *mut u8
     }
 
     pub fn cancel(mut self) {
@@ -314,9 +274,13 @@ impl<'a, const ALIGN: usize> Drop for WriteAlignedBytes<'a, ALIGN> {
             return;
         }
 
+        let new_len = self.head + self.len;
+
         // SAFETY: `write_slice()` constructor of this struct is unsafe
         unsafe {
-            self.aligned.buffer.set_len(self.head + self.len);
+            self.aligned.buffer.set_len(new_len);
+            self.aligned.head = self.head;
+            self.aligned.len = self.len;
         }
     }
 }

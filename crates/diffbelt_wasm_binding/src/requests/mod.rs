@@ -1,19 +1,15 @@
 pub mod errors;
 
-use crate::debug_print_string;
 use crate::error_code::ErrorCode;
-use crate::ptr::bytes::BytesVecRawParts;
 use crate::ptr::{ConstPtr, MutPtr};
 use crate::requests::errors::RequestErrorWithBuffer;
-use alloc::format;
 use alloc::string::String;
 use core::marker::PhantomData;
-use diffbelt_protos::align_util::{AlignedBytes, AlignedBytesError, OwnedAlignedBytes};
+use diffbelt_protos::align_util::{AlignedBytes, OwnedAlignedBytes};
 use diffbelt_protos::protos::handlers::ApiHandler;
 use diffbelt_protos::protos::impls::{RequestProto, ResponseProto};
 use diffbelt_protos::{FlatbuffersGenericType, Serialized, Serializer, FLATBUFFERS_ALIGNMENT};
 use diffbelt_util_no_std::cast::{checked_usize_to_u32, u32_to_usize};
-use diffbelt_util_no_std::from_either::Either;
 use diffbelt_util_no_std::option::store_in_option;
 use diffbelt_wasm_binding::requests::errors::RequestError;
 

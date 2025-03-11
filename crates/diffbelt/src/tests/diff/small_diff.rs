@@ -145,8 +145,6 @@ async fn small_diff_inner() {
         .await
         .expect("commit");
 
-    debug_print("======================== second diff");
-
     let (from_generation_id, to_generation_id, items) = read_diff(
         &collection,
         DiffOptions {

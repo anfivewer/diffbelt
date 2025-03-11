@@ -44,7 +44,7 @@ impl IntegrationTest for PercentilesIntegrationTest {
         //     },
         // );
 
-        report_single_test_error(String::from("some error message"));
+        report_single_test_error(String::from("some error message3"));
         ErrorCode::Ok
     }
 }

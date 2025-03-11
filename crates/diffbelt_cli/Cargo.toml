@@ -41,3 +41,8 @@ path = "../diffbelt_protos"
 
 [dependencies.diffbelt_wasm_binding]
 path = "../diffbelt_wasm_binding"
+
+[target.'cfg(debug_assertions)'.dependencies.diffbelt_example_wasm_rebuild]
+path = "../../crates_example/diffbelt_example_wasm_rebuild"
+[dev-dependencies.diffbelt_example_wasm_rebuild]
+path = "../../crates_example/diffbelt_example_wasm_rebuild"
