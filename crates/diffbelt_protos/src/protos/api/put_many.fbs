@@ -1,6 +1,7 @@
 include "common.fbs";
 
 table PutManyRequest {
+  collection_name: string;
   items: [KeyValueUpdate];
   /// optional
   generation_id: [ubyte];

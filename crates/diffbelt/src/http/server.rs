@@ -350,7 +350,7 @@ fn map_http_err<F: FnOnce(Option<&str>, Option<&str>) -> Body>(
                 make_flatbuffers_error(Some("500"), Some(str))
             } else {
                 format!(
-                    r#"{{"error":"500","details":"{}"}}"#,
+                    r#"{{"error":"500","details":{}}}"#,
                     serde_json::json!(str).to_string()
                 )
                 .into()
@@ -365,6 +365,31 @@ fn map_http_err<F: FnOnce(Option<&str>, Option<&str>) -> Body>(
                 make_flatbuffers_error(Some("noSuchCollection"), None)
             } else {
                 r#"{"error":"404","reason":"noSuchCollection"}"#.into()
+            },
+        ),
+        HttpError::Custom {
+            status_code,
+            error,
+            reason,
+            details,
+        } => (
+            status_code,
+            if is_flatbuffers {
+                make_flatbuffers_error(reason, details)
+            } else {
+                format!(
+                    r#"{{"error":{},"reason":{},"details":{}}}"#,
+                    error
+                        .map(|x| serde_json::json!(error).to_string())
+                        .unwrap_or(String::from("null")),
+                    reason
+                        .map(|x| serde_json::json!(error).to_string())
+                        .unwrap_or(String::from("null")),
+                    details
+                        .map(|x| serde_json::json!(error).to_string())
+                        .unwrap_or(String::from("null")),
+                )
+                .into()
             },
         ),
     }

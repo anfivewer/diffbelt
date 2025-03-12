@@ -36,6 +36,9 @@ pub trait ApiHandler {
     ) -> OwnedSerialized<ResponseProto>;
 }
 
+pub type ApiHandlerRequestFlatType<'a, T: ApiHandler> =
+    <T::FlatbuffersRequest as FlatbuffersGenericType>::FlatType<'a>;
+
 macro_rules! api_handler {
     (
         $struct_name:tt,

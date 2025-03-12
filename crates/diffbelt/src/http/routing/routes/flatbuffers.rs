@@ -3,13 +3,14 @@ use crate::http::constants::FLATBUFFERS_REQUEST_MAX_BYTES;
 use crate::http::errors::HttpError;
 use crate::http::routing::routes::collection::create::create_collection_flatbuffers_route;
 use crate::http::routing::routes::generation::start::start_generation_flatbuffers_route;
+use crate::http::routing::routes::put_many::put_many_flatbuffers_route;
 use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
 use crate::http::util::read_body::read_limited_aligned_bytes;
 use crate::http::validation::MethodsValidation;
 use diffbelt_protos::deserialize;
 use diffbelt_protos::protos::api::methods::RequestBody;
 use diffbelt_protos::protos::handlers::{
-    ApiHandler, CreateCollectionApiHandler, StartGenerationApiHandler,
+    ApiHandler, CreateCollectionApiHandler, PutManyApiHandler, StartGenerationApiHandler,
 };
 use diffbelt_protos::protos::impls::RequestProto;
 use diffbelt_util_no_std::option::store_in_option;
@@ -51,6 +52,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
                 StartGenerationApiHandler,
                 start_generation_flatbuffers_route
             ),
+            RequestBody::PutMany => body_handler!(PutManyApiHandler, put_many_flatbuffers_route),
             body => {
                 let mut variant_name = None;
                 let variant_name = match body.variant_name() {

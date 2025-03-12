@@ -1,3 +1,5 @@
+use hyper::StatusCode;
+
 #[derive(Debug)]
 pub enum HttpError {
     NotFound,
@@ -13,4 +15,10 @@ pub enum HttpError {
     MethodNotAllowed,
     ContentTypeUnsupported(&'static str),
     NoSuchCollection,
+    Custom {
+        status_code: StatusCode,
+        error: Option<&'static str>,
+        reason: Option<&'static str>,
+        details: Option<&'static str>,
+    },
 }

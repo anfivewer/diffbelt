@@ -1,5 +1,5 @@
 use crate::collection::methods::start_generation::StartGenerationOptions;
-use crate::common::{GenerationId, IsByteArray, OwnedGenerationId};
+use crate::common::OwnedGenerationId;
 use crate::context::Context;
 use crate::http::constants::START_GENERATION_REQUEST_MAX_BYTES;
 use crate::http::data::bytes_generation_id::flatbuffers_generation_id_to_owned_generation_id;
@@ -16,10 +16,9 @@ use crate::http::util::response::{
     create_ok_flatbuffers_response, create_ok_no_error_json_response,
 };
 use crate::http::validation::{ContentTypeValidation, MethodsValidation};
-use diffbelt_protos::protos::api::collection::CreateCollectionResponseArgs;
 use diffbelt_protos::protos::api::generation::StartGenerationResponseArgs;
 use diffbelt_protos::protos::handlers::{
-    ApiHandler, CreateCollectionApiHandler, StartGenerationApiHandler,
+    ApiHandler, ApiHandlerRequestFlatType, StartGenerationApiHandler,
 };
 use diffbelt_protos::{FlatbuffersGenericType, Serializer};
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
@@ -104,7 +103,7 @@ pub fn register_start_generation_route(context: &mut Context) {
 pub async fn start_generation_flatbuffers_route<'a>(
     context: Arc<Context>,
     request_context: RequestContext,
-    request: <<StartGenerationApiHandler as ApiHandler>::FlatbuffersRequest as FlatbuffersGenericType>::FlatType<'a>,
+    request: ApiHandlerRequestFlatType<'a, StartGenerationApiHandler>,
 ) -> Result<HttpResponse, HttpError> {
     let generation_id = flatbuffers_generation_id_to_owned_generation_id(request.generation_id())?;
 

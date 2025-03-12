@@ -35,7 +35,7 @@ impl IntegrationTest for PercentilesIntegrationTest {
         //     },
         // )
         // .expect("start generation request");
-        // 
+        //
         // let response = request
         //     .on_request_finished()
         //     .expect("start generation on_request_finished");
@@ -44,14 +44,13 @@ impl IntegrationTest for PercentilesIntegrationTest {
         //     .expect("start generation response parsing");
 
         let mut serializer = Serializer::new();
-        let generation_id = Some(serializer.create_vector("01".as_bytes()));
         let mut items = Vec::new();
 
         let mut key = String::new();
         const UPDATE_TYPES: [&'static str; 4] = ["first", "second", "third", "four"];
         let mut rnd = ChaCha8Rng::seed_from_u64(0x9a9ddd206ce854ef);
 
-        for i in 0usize..100 {
+        for i in 0usize..1000 {
             // S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27.42
             key.clear();
             let date = NaiveDateTime::from_timestamp_millis(
@@ -91,25 +90,23 @@ impl IntegrationTest for PercentilesIntegrationTest {
         }
 
         let items = Some(serializer.create_vector(&items));
+        let collection_name = Some(serializer.create_string("log-lines"));
         let mut request = Request::<PutManyApiHandler>::call(
             serializer,
             PutManyRequestArgs {
+                collection_name,
                 items,
-                generation_id,
+                generation_id: None,
                 phantom_id: None,
             },
-        ).expect("request");
+        )
+        .expect("request");
 
-        let response = request
-            .on_request_finished()
-            .expect("request");
-        let response = response
-            .response()
-            .expect("request");
+        let response = request.on_request_finished().expect("request");
+        let response = response.response().expect("request");
 
         let generation_id = response.generation_id().expect("no generation id").bytes();
-        assert_eq!(generation_id, &[]);
-        
+
         // let mut serializer = Serializer::new();
         // let request = Request::<PutManyApiHandler>::call(
         //     serializer,
