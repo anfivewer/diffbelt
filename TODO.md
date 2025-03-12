@@ -9,13 +9,4 @@
 * Ensure some alignment for input slices going to wasm (and/or make input mutable?)
 * Remove Regex wasm bindings
 * Do not forget to call deallocs which are scheduled
-
------
-
-# Misc
-
-Regexp for purging dev printlines:
-
-```
-[^e]println!\((?!"cargo|"Temp)
-```
+* Return diffbelt parseable flatbuffers errors as it

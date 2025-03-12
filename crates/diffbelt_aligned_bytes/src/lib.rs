@@ -26,6 +26,12 @@ impl<const ALIGN: usize> Debug for OwnedAlignedBytes<ALIGN> {
     }
 }
 
+impl<const ALIGN: usize> Default for OwnedAlignedBytes<ALIGN> {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct AlignedBytes<'a, const ALIGN: usize>(&'a [u8]);
 

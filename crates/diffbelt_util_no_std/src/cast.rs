@@ -6,6 +6,13 @@ pub fn usize_to_u64(value: usize) -> u64 {
 
 #[inline(always)]
 #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+pub fn checked_usize_to_i64(value: usize) -> i64 {
+    assert!(value <= (i64::MAX as usize));
+    value as i64
+}
+
+#[inline(always)]
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
 pub fn unchecked_usize_to_u32(value: usize) -> u32 {
     value as u32
 }
@@ -91,6 +98,16 @@ pub fn try_positive_i32_to_u32(value: i32) -> Option<u32> {
 #[inline(always)]
 pub fn unchecked_i32_to_u32(value: i32) -> u32 {
     value as u32
+}
+
+#[inline(always)]
+pub fn u32_to_f32(value: u32) -> f32 {
+    value as f32
+}
+
+#[inline(always)]
+pub fn i32_to_f32(value: i32) -> f32 {
+    value as f32
 }
 
 #[inline(always)]
