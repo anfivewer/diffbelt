@@ -1,8 +1,12 @@
-use crate::protos::log_line::{ParsedLogLine, ParsedLogLine1d};
-use crate::protos::update_ms::{UpdateMsIntermediate, UpdateMsPercentiles};
+use crate::protos::log_line::{
+    ParsedLogLine, ParsedLogLine1d, ParsedLogLine1dArgs, ParsedLogLineArgs,
+};
+use crate::protos::update_ms::{
+    UpdateMsIntermediate, UpdateMsIntermediateArgs, UpdateMsPercentiles, UpdateMsPercentilesArgs,
+};
 use diffbelt_protos::flatbuffers_generic;
 
-flatbuffers_generic!(ParsedLogLine);
-flatbuffers_generic!(UpdateMsIntermediate);
-flatbuffers_generic!(UpdateMsPercentiles);
-flatbuffers_generic!(ParsedLogLine1d);
+flatbuffers_generic!(ParsedLogLine, ParsedLogLineArgs<'a>);
+flatbuffers_generic!(UpdateMsIntermediate, UpdateMsIntermediateArgs<'a>);
+flatbuffers_generic!(UpdateMsPercentiles, UpdateMsPercentilesArgs<'a>);
+flatbuffers_generic!(ParsedLogLine1d, ParsedLogLine1dArgs<'a>);

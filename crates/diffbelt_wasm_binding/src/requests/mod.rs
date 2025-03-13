@@ -8,7 +8,9 @@ use core::marker::PhantomData;
 use diffbelt_protos::align_util::{AlignedBytes, OwnedAlignedBytes};
 use diffbelt_protos::protos::handlers::ApiHandler;
 use diffbelt_protos::protos::impls::{RequestProto, ResponseProto};
-use diffbelt_protos::{FlatbuffersGenericType, Serialized, Serializer, FLATBUFFERS_ALIGNMENT};
+use diffbelt_protos::{
+    FlatbuffersGenericType, OwnedSerialized, Serialized, Serializer, FLATBUFFERS_ALIGNMENT,
+};
 use diffbelt_util_no_std::cast::{checked_usize_to_u32, u32_to_usize};
 use diffbelt_util_no_std::option::store_in_option;
 use diffbelt_wasm_binding::requests::errors::RequestError;
@@ -73,6 +75,29 @@ impl<A: ApiHandler> Request<A> {
         Ok(Self {
             request_id_: request_id,
             buffer: Some(buffer),
+            phantom: Default::default(),
+        })
+    }
+
+    pub fn call_raw(
+        request_data: Serialized<'_, RequestProto>,
+    ) -> Result<Self, RequestErrorWithBuffer> {
+        let bytes = request_data.as_bytes();
+        let slice_ptr = ConstPtr::from(bytes.as_ptr());
+
+        // SAFETY: trust in host
+        let request_id = unsafe { request(slice_ptr, checked_usize_to_u32(bytes.len())) };
+
+        if !request_id.is_valid() {
+            return Err(RequestErrorWithBuffer {
+                buffer: None,
+                error: RequestError::HostCall(ErrorCode::SafeFail),
+            });
+        }
+
+        Ok(Self {
+            request_id_: request_id,
+            buffer: None,
             phantom: Default::default(),
         })
     }

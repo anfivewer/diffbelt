@@ -2,6 +2,7 @@ use crate::context::Context;
 use crate::http::constants::FLATBUFFERS_REQUEST_MAX_BYTES;
 use crate::http::errors::HttpError;
 use crate::http::routing::routes::collection::create::create_collection_flatbuffers_route;
+use crate::http::routing::routes::collection::generation_id_stream::generation_id_stream_flatbuffers_route;
 use crate::http::routing::routes::generation::start::start_generation_flatbuffers_route;
 use crate::http::routing::routes::put_many::put_many_flatbuffers_route;
 use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
@@ -10,7 +11,8 @@ use crate::http::validation::MethodsValidation;
 use diffbelt_protos::deserialize;
 use diffbelt_protos::protos::api::methods::RequestBody;
 use diffbelt_protos::protos::handlers::{
-    ApiHandler, CreateCollectionApiHandler, PutManyApiHandler, StartGenerationApiHandler,
+    ApiHandler, CreateCollectionApiHandler, GenerationIdStreamApiHandler, PutManyApiHandler,
+    StartGenerationApiHandler,
 };
 use diffbelt_protos::protos::impls::RequestProto;
 use diffbelt_util_no_std::option::store_in_option;
@@ -53,6 +55,10 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
                 start_generation_flatbuffers_route
             ),
             RequestBody::PutMany => body_handler!(PutManyApiHandler, put_many_flatbuffers_route),
+            RequestBody::GenerationIdStream => body_handler!(
+                GenerationIdStreamApiHandler,
+                generation_id_stream_flatbuffers_route
+            ),
             body => {
                 let mut variant_name = None;
                 let variant_name = match body.variant_name() {

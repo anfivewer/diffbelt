@@ -18,3 +18,15 @@ table CommitGenerationRequest {
 }
 
 table CommitGenerationResponse {}
+
+table GenerationIdStreamRequest {
+  collection_name: string;
+  /// optional
+  generation_id: [ubyte];
+  /// optional
+  to_generation_id: [ubyte];
+}
+
+table GenerationIdStreamResponse {
+  generation_id: [ubyte];
+}

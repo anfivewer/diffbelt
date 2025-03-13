@@ -30,6 +30,7 @@ impl<'fbb, T: Follow<'fbb> + Verifiable + 'fbb> FlatbuffersType<'fbb> for T {}
 
 pub trait FlatbuffersGenericType {
     type FlatType<'a>: FlatbuffersType<'a>;
+    type FlatArgs<'a>;
     fn name() -> &'static str;
 }
 

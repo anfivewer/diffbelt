@@ -1,7 +1,7 @@
 use crate::protos::api::collection::{CreateCollectionRequestArgs, CreateCollectionResponseArgs};
 use crate::protos::api::generation::{
-    CommitGenerationRequestArgs, CommitGenerationResponseArgs, StartGenerationRequestArgs,
-    StartGenerationResponseArgs,
+    CommitGenerationRequestArgs, CommitGenerationResponseArgs, GenerationIdStreamRequest,
+    GenerationIdStreamRequestArgs, StartGenerationRequestArgs, StartGenerationResponseArgs,
 };
 use crate::protos::api::methods::{
     Request, RequestArgs, RequestBody, Response, ResponseArgs, ResponseBody,
@@ -9,8 +9,9 @@ use crate::protos::api::methods::{
 use crate::protos::api::put_many::{PutManyRequestArgs, PutManyResponseArgs};
 use crate::protos::impls::{
     CommitGenerationRequestProto, CommitGenerationResponseProto, CreateCollectionRequestProto,
-    CreateCollectionResponseProto, PutManyRequestProto, PutManyResponseProto, RequestProto,
-    ResponseProto, StartGenerationRequestProto, StartGenerationResponseProto,
+    CreateCollectionResponseProto, GenerationIdStreamRequestProto, GenerationIdStreamResponseProto,
+    PutManyRequestProto, PutManyResponseProto, RequestProto, ResponseProto,
+    StartGenerationRequestProto, StartGenerationResponseProto,
 };
 use crate::{FlatbuffersGenericType, OwnedSerialized, Serializer};
 
@@ -45,17 +46,15 @@ macro_rules! api_handler {
         $body_type:ident,
         $union_method:ident,
         request = $request:ident,
-        $request_args:ident,
         response = $response:ident,
-        $response_args:ty,
     ) => {
         pub struct $struct_name;
 
         impl ApiHandler for $struct_name {
             type FlatbuffersRequest = $request;
-            type FlatbuffersRequestArgs<'a> = $request_args<'a>;
+            type FlatbuffersRequestArgs<'a> = <$request as FlatbuffersGenericType>::FlatArgs<'a>;
             type FlatbuffersResponse = $response;
-            type FlatbuffersResponseArgs<'a> = $response_args;
+            type FlatbuffersResponseArgs<'a> = <$response as FlatbuffersGenericType>::FlatArgs<'a>;
 
             fn request<'a>(
                 request: &'a <RequestProto as FlatbuffersGenericType>::FlatType<'a>,
@@ -115,34 +114,33 @@ api_handler!(
     CreateCollection,
     body_as_create_collection,
     request = CreateCollectionRequestProto,
-    CreateCollectionRequestArgs,
     response = CreateCollectionResponseProto,
-    CreateCollectionResponseArgs<'a>,
 );
 api_handler!(
     StartGenerationApiHandler,
     StartGeneration,
     body_as_start_generation,
     request = StartGenerationRequestProto,
-    StartGenerationRequestArgs,
     response = StartGenerationResponseProto,
-    StartGenerationResponseArgs,
 );
 api_handler!(
     CommitGenerationApiHandler,
     CommitGeneration,
     body_as_commit_generation,
     request = CommitGenerationRequestProto,
-    CommitGenerationRequestArgs,
     response = CommitGenerationResponseProto,
-    CommitGenerationResponseArgs,
 );
 api_handler!(
     PutManyApiHandler,
     PutMany,
     body_as_put_many,
     request = PutManyRequestProto,
-    PutManyRequestArgs,
     response = PutManyResponseProto,
-    PutManyResponseArgs<'a>,
+);
+api_handler!(
+    GenerationIdStreamApiHandler,
+    GenerationIdStream,
+    body_as_generation_id_stream,
+    request = GenerationIdStreamRequestProto,
+    response = GenerationIdStreamResponseProto,
 );

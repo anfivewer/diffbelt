@@ -5,10 +5,12 @@ use chrono::NaiveDateTime;
 use core::fmt::Write;
 use diffbelt_protos::protos::api::common::{KeyValueUpdate, KeyValueUpdateArgs};
 use diffbelt_protos::protos::api::generation::{
-    StartGenerationRequestArgs, StartGenerationResponse,
+    GenerationIdStreamRequestArgs, StartGenerationRequestArgs, StartGenerationResponse,
 };
 use diffbelt_protos::protos::api::put_many::PutManyRequestArgs;
-use diffbelt_protos::protos::handlers::{PutManyApiHandler, StartGenerationApiHandler};
+use diffbelt_protos::protos::handlers::{
+    ApiHandler, GenerationIdStreamApiHandler, PutManyApiHandler, StartGenerationApiHandler,
+};
 use diffbelt_protos::Serializer;
 use diffbelt_util_no_std::cast::{checked_usize_to_i64, i32_to_f32};
 use diffbelt_wasm_binding::error_code::ErrorCode;
@@ -107,15 +109,35 @@ impl IntegrationTest for PercentilesIntegrationTest {
 
         let generation_id = response.generation_id().expect("no generation id").bytes();
 
-        // let mut serializer = Serializer::new();
-        // let request = Request::<PutManyApiHandler>::call(
-        //     serializer,
-        //     PutManyRequestArgs {
-        //         items: None,
-        //         generation_id: None,
-        //         phantom_id: None,
-        //     },
-        // );
+        let mut serializer = Serializer::new();
+        let collection_name = Some(serializer.create_string("log-lines"));
+        let to_generation_id = Some(serializer.create_vector(generation_id));
+
+        let request_serialized = GenerationIdStreamApiHandler::create_request(
+            serializer,
+            GenerationIdStreamRequestArgs {
+                collection_name,
+                generation_id: None,
+                to_generation_id,
+            },
+        );
+
+        loop {
+            let mut request =
+                Request::<GenerationIdStreamApiHandler>::call_raw(request_serialized.as_ref())
+                    .expect("request");
+            let response = request.on_request_finished().expect("request");
+            let response = response.response().expect("request");
+
+            let id = response.generation_id().expect("no id").bytes();
+
+            if id >= generation_id {
+                break;
+            }
+        }
+
+        let buffer = request_serialized.into_aligned_bytes();
+        let buffer2 = request.take_buffer().unwrap_or_default();
 
         report_single_test_error(String::from("some error message3"));
         ErrorCode::Ok
