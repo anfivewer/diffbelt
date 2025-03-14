@@ -1,10 +1,16 @@
 use std::fmt::{Display, Formatter};
 
-use thiserror::Error;
-
+use crate::wasm::WasmError;
+use diffbelt_http_client::errors::DiffbeltClientError;
+use diffbelt_transforms::base::error::TransformError;
 use diffbelt_yaml::serde::error::YamlDecodingError;
 use diffbelt_yaml::serde::Mark;
 use diffbelt_yaml::YamlMark;
+use thiserror::Error;
+use diffbelt_protos::align_util::AlignedBytesError;
+use diffbelt_protos::error::FlatbufferError;
+use diffbelt_protos::InvalidFlatbuffer;
+use diffbelt_util::errors::NoStdErrorWrap;
 
 #[derive(Error, Debug)]
 pub enum ConfigParsingError {
@@ -98,4 +104,22 @@ impl From<YamlDecodingError> for ConfigParsingError {
             }
         }
     }
+}
+
+#[derive(Error, Debug)]
+pub enum RunTransformError {
+    #[error("{0}")]
+    Message(String),
+    #[error(transparent)]
+    Transform(#[from] TransformError),
+    #[error(transparent)]
+    Wasm(#[from] WasmError),
+    #[error(transparent)]
+    DiffbeltClient(#[from] DiffbeltClientError),
+    #[error(transparent)]
+    Flatbuffer(#[from] NoStdErrorWrap<FlatbufferError>),
+    #[error(transparent)]
+    InvalidFlatbuffer(#[from] NoStdErrorWrap<InvalidFlatbuffer>),
+    #[error(transparent)]
+    AlignedBytes(#[from] NoStdErrorWrap<AlignedBytesError>),
 }

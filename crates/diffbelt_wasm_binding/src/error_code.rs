@@ -26,4 +26,12 @@ impl ErrorCode {
             _ => true,
         }
     }
+
+    pub fn as_result(self) -> Result<(), Self> {
+        if self.is_error() {
+            Err(self)
+        } else {
+            Ok(())
+        }
+    }
 }

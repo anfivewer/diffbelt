@@ -8,9 +8,9 @@ use diffbelt_transforms::base::input::function_eval::{FunctionEvalInput, Functio
 use diffbelt_transforms::Transform;
 
 use crate::commands::errors::TransformEvalError;
-use crate::commands::transform::run::aggregate_eval::AggregateEvalHandler;
-use crate::commands::transform::run::map_filter_eval::MapFilterEvalHandler;
-use crate::commands::transform::run::InputEmitter;
+use crate::commands::transform::runner::aggregate_eval::AggregateEvalHandler;
+use crate::commands::transform::runner::map_filter_eval::MapFilterEvalHandler;
+use crate::commands::transform::runner::InputEmitter;
 
 #[enum_dispatch]
 pub trait FunctionEvalHandler {

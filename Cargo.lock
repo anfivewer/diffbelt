@@ -709,6 +709,7 @@ dependencies = [
  "diffbelt_example_wasm_rebuild",
  "diffbelt_http_client",
  "diffbelt_protos",
+ "diffbelt_transforms",
  "diffbelt_util",
  "diffbelt_util_no_std",
  "diffbelt_wasm_binding",

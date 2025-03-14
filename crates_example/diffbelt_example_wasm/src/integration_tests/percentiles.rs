@@ -19,6 +19,7 @@ use diffbelt_wasm_binding::requests::Request;
 use rand::Rng;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
+use diffbelt_wasm_binding::cli::run_transform;
 
 struct PercentilesIntegrationTest;
 
@@ -138,6 +139,8 @@ impl IntegrationTest for PercentilesIntegrationTest {
 
         let buffer = request_serialized.into_aligned_bytes();
         let buffer2 = request.take_buffer().unwrap_or_default();
+
+        let () = run_transform("parse_lines").expect("transform");
 
         report_single_test_error(String::from("some error message3"));
         ErrorCode::Ok

@@ -1,9 +1,13 @@
 use crate::wasm::error::WasmError;
+use diffbelt_util::Wrap;
 use std::collections::HashMap;
 use std::io::ErrorKind;
+use std::ops::DerefMut;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio::time::Instant;
+use tracing::info;
 use wasmtime::{Config, Engine, Module, OptLevel, Strategy};
 
 struct WasmModule {
@@ -12,8 +16,13 @@ struct WasmModule {
     wasm_mod: Option<Module>,
 }
 
+#[derive(Clone)]
 pub struct WasmEngine {
     pub engine: Engine,
+    inner: Arc<Mutex<WasmEngineInner>>,
+}
+
+pub struct WasmEngineInner {
     modules: HashMap<Arc<str>, WasmModule>,
     wasm_root_path: PathBuf,
     temp_wasm_path: PathBuf,
@@ -36,14 +45,23 @@ impl WasmEngine {
 
         Ok(Self {
             engine,
-            modules: Default::default(),
-            wasm_root_path: options.wasm_root_path,
-            temp_wasm_path: PathBuf::new(),
+            inner: Wrap::wrap(WasmEngineInner {
+                modules: Default::default(),
+                wasm_root_path: options.wasm_root_path,
+                temp_wasm_path: PathBuf::new(),
+            }),
         })
     }
 
-    pub fn register_module(&mut self, name: &str, relative_path: PathBuf) -> Result<(), WasmError> {
-        if let Some(module) = self.modules.get(name) {
+    pub async fn register_module(
+        &self,
+        name: &str,
+        relative_path: PathBuf,
+    ) -> Result<(), WasmError> {
+        let mut inner = self.inner.lock().await;
+        let inner = inner.deref_mut();
+
+        if let Some(module) = inner.modules.get(name) {
             if &module.relative_path == &relative_path {
                 return Ok(());
             }
@@ -64,13 +82,17 @@ impl WasmEngine {
             wasm_mod: None,
         };
 
-        self.modules.insert(name, wasm_module);
+        inner.modules.insert(name, wasm_module);
 
         Ok(())
     }
 
-    pub async fn get_module(&mut self, name: &str) -> Result<Module, WasmError> {
-        let Some(wasm_module) = self.modules.get_mut(name) else {
+    pub async fn get_module(&self, name: &str) -> Result<Module, WasmError> {
+        // TODO: do not lock for so long
+        let mut inner = self.inner.lock().await;
+        let inner = inner.deref_mut();
+
+        let Some(wasm_module) = inner.modules.get_mut(name) else {
             return Err(WasmError::Unspecified(format!(
                 "Module {name} is not registered"
             )));
@@ -80,34 +102,38 @@ impl WasmEngine {
             return Ok(module.clone());
         }
 
-        let need_capacity =
-            self.wasm_root_path.as_os_str().len() + 1 + wasm_module.relative_path.as_os_str().len();
+        let need_capacity = inner.wasm_root_path.as_os_str().len()
+            + 1
+            + wasm_module.relative_path.as_os_str().len();
 
-        if need_capacity < self.temp_wasm_path.capacity() {
-            self.temp_wasm_path
-                .reserve(self.temp_wasm_path.capacity() - need_capacity);
+        if need_capacity < inner.temp_wasm_path.capacity() {
+            inner
+                .temp_wasm_path
+                .reserve(inner.temp_wasm_path.capacity() - need_capacity);
         }
 
-        self.temp_wasm_path.clear();
-        self.temp_wasm_path.push(&self.wasm_root_path);
-        self.temp_wasm_path.push(&wasm_module.relative_path);
+        inner.temp_wasm_path.clear();
+        inner.temp_wasm_path.push(&inner.wasm_root_path);
+        inner.temp_wasm_path.push(&wasm_module.relative_path);
 
         let before = Instant::now();
 
-        let wat_bytes = tokio::fs::read(&self.temp_wasm_path).await.map_err(|err| {
-            if let ErrorKind::NotFound = err.kind() {
-                return WasmError::Unspecified(format!(
-                    "Did not found wasm file at \"{}\"",
-                    self.temp_wasm_path.to_str().unwrap_or("?")
-                ));
-            }
+        let wat_bytes = tokio::fs::read(&inner.temp_wasm_path)
+            .await
+            .map_err(|err| {
+                if let ErrorKind::NotFound = err.kind() {
+                    return WasmError::Unspecified(format!(
+                        "Did not found wasm file at \"{}\"",
+                        inner.temp_wasm_path.to_str().unwrap_or("?")
+                    ));
+                }
 
-            WasmError::Io(err)
-        })?;
+                WasmError::Io(err)
+            })?;
 
         let wasm_mod = Module::new(&self.engine, &wat_bytes)?;
 
-        println!("Loaded wasm file {name} in {:?}", before.elapsed());
+        info!("Wasm file {name} loaded in {:?}", before.elapsed());
 
         wasm_module.wasm_mod = Some(wasm_mod.clone());
 

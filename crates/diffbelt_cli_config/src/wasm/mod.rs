@@ -18,6 +18,7 @@ pub use types::WasmPtrImpl;
 
 use crate::errors::WithMark;
 use crate::requests::DiffbeltRequests;
+use crate::wasm::cli_api::WasmCliApi;
 use crate::wasm::engine::WasmEngine;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::slice::WasmSliceHolder;
@@ -30,6 +31,7 @@ use crate::wasm::wasm_env::requests::ActiveDiffbeltRequests;
 use crate::wasm::wasm_env::WasmEnv;
 
 pub mod aggregate;
+pub mod cli_api;
 pub mod engine;
 pub mod error;
 pub mod human_readable;
@@ -50,9 +52,10 @@ pub struct Wasm {
 impl_from_either!(WasmError);
 
 pub struct NewWasmInstanceOptions<'a> {
-    pub engine: &'a mut WasmEngine,
+    pub engine: &'a WasmEngine,
     pub module: &'a Module,
     pub requests: Arc<DiffbeltRequests>,
+    pub cli_api: Option<WasmCliApi>,
 }
 
 pub struct WasmStoreErrorState {
@@ -84,6 +87,7 @@ pub struct WasmStoreDataInner {
     pub requests: Option<Arc<DiffbeltRequests>>,
     pub active_requests: Option<ActiveDiffbeltRequests>,
     pub integration_tests: Option<IntegrationTestsEnv>,
+    pub cli_api: Option<WasmCliApi>,
 }
 
 #[derive(Copy, Clone)]
@@ -92,7 +96,7 @@ pub struct NonBrokenToken {
 }
 
 impl WasmStoreData {
-    pub fn new(requests: Arc<DiffbeltRequests>) -> Self {
+    pub fn new(requests: Arc<DiffbeltRequests>, cli_api: Option<WasmCliApi>) -> Self {
         let is_broken = Arc::new(AtomicBool::new(false));
 
         Self {
@@ -109,6 +113,7 @@ impl WasmStoreData {
                 requests: Some(requests),
                 active_requests: None,
                 integration_tests: None,
+                cli_api,
             }),
         }
     }
@@ -162,9 +167,10 @@ impl WasmModuleInstance {
             engine,
             module,
             requests,
+            cli_api,
         } = options;
 
-        let data = WasmStoreData::new(requests);
+        let data = WasmStoreData::new(requests, cli_api);
 
         let mut store = Store::new(&engine.engine, data);
         let mut linker = Linker::<WasmStoreData>::new(&engine.engine);

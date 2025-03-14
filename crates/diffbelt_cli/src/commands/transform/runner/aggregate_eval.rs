@@ -1,18 +1,15 @@
 use std::cell::RefCell;
-use std::future::Future;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use generational_arena::{Arena, Index};
-
+use diffbelt_cli_config::errors::RunTransformError;
 use diffbelt_cli_config::transforms::aggregate::Aggregate;
 use diffbelt_cli_config::wasm::aggregate::AggregateFunctions;
 use diffbelt_cli_config::wasm::memory::vector::WasmVecHolder;
 use diffbelt_cli_config::wasm::WasmModuleInstance;
 use diffbelt_protos::protos::impls::AggregateTargetInfoProto;
-use diffbelt_protos::protos::transform::aggregate::AggregateTargetInfo;
 use diffbelt_protos::{OwnedSerialized, SerializedRawParts};
 use diffbelt_transforms::base::action::function_eval::{
     AggregateApplyEvalAction, AggregateInitialAccumulatorEvalAction, AggregateMapEvalAction,
@@ -27,16 +24,17 @@ use diffbelt_transforms::base::input::function_eval::{
     FunctionEvalInput, FunctionEvalInputBody,
 };
 use diffbelt_transforms::Transform;
-use diffbelt_util_no_std::cast::{try_positive_i32_to_u64, u32_to_u64, u64_to_usize, usize_to_u64};
+use diffbelt_util_no_std::cast::{u32_to_u64, u64_to_usize, usize_to_u64};
 use diffbelt_util_no_std::temporary_collection::vec::{TempVecType, TemporaryVec};
 use diffbelt_wasm_binding::annotations::FlatbufferAnnotated;
+use generational_arena::{Arena, Index};
 
 use crate::commands::errors::{CommandError, TransformEvalError, WasmAggregateMapCallError};
-use crate::commands::transform::run::function_eval_handler::FunctionEvalHandler;
-use crate::commands::transform::run::InputEmitter;
+use crate::commands::transform::runner::function_eval_handler::FunctionEvalHandler;
+use crate::commands::transform::runner::transform_config::AggregateTransformInfo;
+use crate::commands::transform::runner::InputEmitter;
 
 pub struct AggregateEvalHandler {
-    verbose: bool,
     inner: Inner,
     inner_mut: RefCell<InnerMut>,
     instance: Pin<Box<WasmModuleInstance>>,
@@ -67,9 +65,8 @@ impl TempVecType for WasmVecHolderTemp {
 impl AggregateEvalHandler {
     pub async fn new(
         instance: WasmModuleInstance,
-        aggregate: &Aggregate,
-        verbose: bool,
-    ) -> Result<Self, CommandError> {
+        aggregate: &AggregateTransformInfo,
+    ) -> Result<Self, RunTransformError> {
         let instance = Box::pin(instance);
         let instance_static = unsafe {
             mem::transmute::<&WasmModuleInstance, &'static WasmModuleInstance>(instance.deref())
@@ -86,7 +83,6 @@ impl AggregateEvalHandler {
         .await?;
 
         Ok(Self {
-            verbose,
             inner: Inner {
                 aggregate_functions,
             },
@@ -265,7 +261,7 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                                 )
                             })?;
 
-                        () = self
+                        let () = self
                             .inner
                             .aggregate_functions
                             .call_reduce(
@@ -340,7 +336,7 @@ impl FunctionEvalHandler for AggregateEvalHandler {
                             free_accumulator_indexes.push(u64_to_usize(id.0));
                         }
 
-                        () = self
+                        let () = self
                             .inner
                             .aggregate_functions
                             .call_merge_accumulators(
@@ -429,7 +425,7 @@ impl FunctionEvalHandler for AggregateEvalHandler {
         })()
         .await;
 
-        () = input_emitter
+        let () = input_emitter
             .emit_input(body.map(|body| FunctionEvalInput { body }))
             .await;
     }

@@ -5,6 +5,7 @@ use diffbelt_protos::align_util::AlignedBytesError;
 use diffbelt_protos::error::FlatbufferError;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_wasm_binding::error_code::ErrorCode;
+use crate::errors::RunTransformError;
 
 #[derive(Error, Debug)]
 pub enum WasmError {
@@ -13,7 +14,7 @@ pub enum WasmError {
     #[error("{0:?}")]
     Io(std::io::Error),
     #[error("{0:?}")]
-    Utf8(Utf8Error),
+    Utf8(#[from] Utf8Error),
     #[error("MutexPoisoned")]
     MutexPoisoned,
     #[error("NoMemory")]
@@ -41,6 +42,8 @@ pub enum WasmError {
     /// Used inside wasm exported functions to show that there is no need to compute anymore
     #[error("NonBrokenTokenCheckFail")]
     NonBrokenTokenCheckFail,
+    #[error("RunTransform({0})")]
+    RunTransformStringified(String),
     #[error("{0:?}")]
     Unspecified(String),
 }

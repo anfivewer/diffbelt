@@ -234,6 +234,7 @@ impl CliConfig {
                         engine: &mut context.wasm_engine,
                         module: &module,
                         requests: context.requests.clone(),
+                        cli_api: None,
                     })
                     .await
                 );

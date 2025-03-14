@@ -2,7 +2,6 @@ use diffbelt_cli_config::requests::client_impl::DiffbeltRequestsClientImpl;
 use diffbelt_cli_config::requests::DiffbeltRequests;
 use diffbelt_cli_config::transforms::aggregate::Aggregate;
 use diffbelt_cli_config::transforms::wasm::WasmMethodDef;
-use diffbelt_cli_config::transforms::Transform as TransformConfig;
 use diffbelt_cli_config::wasm::engine::WasmEngine;
 use diffbelt_cli_config::wasm::{NewWasmInstanceOptions, WasmModuleInstance};
 use diffbelt_cli_config::CliConfig;
@@ -13,9 +12,14 @@ use diffbelt_transforms::TransformImpl;
 use std::sync::Arc;
 
 use crate::commands::errors::CommandError;
-use crate::commands::transform::run::aggregate_eval::AggregateEvalHandler;
-use crate::commands::transform::run::function_eval_handler::FunctionEvalHandlerImpl;
-use crate::commands::transform::run::map_filter_eval::MapFilterEvalHandler;
+use crate::commands::transform::runner::aggregate_eval::AggregateEvalHandler;
+use crate::commands::transform::runner::function_eval_handler::FunctionEvalHandlerImpl;
+use crate::commands::transform::runner::map_filter_eval::MapFilterEvalHandler;
+use crate::commands::transform::runner::transform_config::{
+    AggregateTransformInfo, MapFilterTransformInfo, TransformInfo, TransformTypeInfo,
+};
+use diffbelt_cli_config::errors::RunTransformError;
+use diffbelt_cli_config::wasm::cli_api::WasmCliApi;
 
 pub struct TransformEvaluator {
     // TODO: replace with enum_dispatch?
@@ -31,110 +35,75 @@ pub struct TransformDirection<'a> {
 }
 
 pub async fn create_transform(
-    engine: &mut WasmEngine,
+    engine: &WasmEngine,
     client: Arc<DiffbeltClient>,
-    transform_config: &TransformConfig,
+    cli_api: WasmCliApi,
+    transform_config: &TransformInfo,
     transform_direction: TransformDirection<'_>,
-    verbose: bool,
-) -> Result<TransformEvaluator, CommandError> {
-    let diffbelt_cli_config::transforms::Transform {
-        name: _,
-        source: _from_collection_name,
-        intermediate,
-        target: _,
-        reader_name: _,
-        map_filter: map_filter_wasm,
-        aggregate,
-        percentiles,
-        unique_count,
+) -> Result<TransformEvaluator, RunTransformError> {
+    let TransformInfo {
+        source_collection_name,
+        intermediate_collection_name,
+        target_collection_name,
+        reader_name,
+        transform,
     } = transform_config;
-
-    let transform_types_count = map_filter_wasm.as_ref().map(|_| 1).unwrap_or(0)
-        + aggregate.as_ref().map(|_| 1).unwrap_or(0)
-        + percentiles.as_ref().map(|_| 1).unwrap_or(0)
-        + unique_count.as_ref().map(|_| 1).unwrap_or(0);
-
-    if transform_types_count != 1 {
-        return Err(CommandError::Message(
-            "Conflicting transforms specified".to_string(),
-        ));
-    }
-
-    if let Some(_) = intermediate {
-        return Err(CommandError::Message(
-            "Transforms with intermediate collection are not supported yet".to_string(),
-        ));
-    }
-
-    if let Some(_) = percentiles {
-        return Err(CommandError::Message(
-            "Percentiles transforms are not supported yet".to_string(),
-        ));
-    }
-    if let Some(_) = unique_count {
-        return Err(CommandError::Message(
-            "Unique count transforms are not supported yet".to_string(),
-        ));
-    }
 
     let (requests, requests_impl) = DiffbeltRequestsClientImpl::new(client);
 
-    if let Some(map_filter_wasm) = map_filter_wasm {
-        return create_map_filter_transform(
-            engine,
-            requests,
-            requests_impl,
-            map_filter_wasm,
-            transform_direction,
-            verbose,
-        )
-        .await;
+    match transform {
+        TransformTypeInfo::MapFilter(info) => {
+            create_map_filter_transform(
+                engine,
+                requests,
+                requests_impl,
+                cli_api,
+                info,
+                transform_direction,
+            )
+            .await
+        }
+        TransformTypeInfo::Aggregate(info) => {
+            create_aggregate_transform(
+                engine,
+                requests,
+                requests_impl,
+                cli_api,
+                info,
+                transform_direction,
+            )
+            .await
+        }
     }
-
-    if let Some(aggregate) = aggregate {
-        return create_aggregate_transform(
-            engine,
-            requests,
-            requests_impl,
-            aggregate,
-            transform_direction,
-            verbose,
-        )
-        .await;
-    }
-
-    Err(CommandError::Message(
-        "There should be at least one transform".to_string(),
-    ))
 }
 
 async fn create_map_filter_transform(
-    engine: &mut WasmEngine,
+    engine: &WasmEngine,
     requests: DiffbeltRequests,
     requests_impl: DiffbeltRequestsClientImpl,
-    map_filter_wasm: &WasmMethodDef,
+    cli_api: WasmCliApi,
+    map_filter_wasm: &MapFilterTransformInfo,
     transform_direction: TransformDirection<'_>,
-    verbose: bool,
-) -> Result<TransformEvaluator, CommandError> {
+) -> Result<TransformEvaluator, RunTransformError> {
     let transform = MapFilterTransform::new(
         Box::from(transform_direction.from_collection_name),
         Box::from(transform_direction.to_collection_name),
         Box::from(transform_direction.reader_name),
     );
 
-    let wasm_module_name = map_filter_wasm.module_name.as_str();
+    let wasm_module_name = map_filter_wasm.wasm_module_name.as_str();
     let wasm_module = engine.get_module(wasm_module_name).await?;
 
     let wasm_instance = WasmModuleInstance::new(NewWasmInstanceOptions {
         engine,
         module: &wasm_module,
         requests: Arc::new(requests),
+        cli_api: Some(cli_api),
     })
     .await?;
 
     let handler =
-        MapFilterEvalHandler::new(wasm_instance, map_filter_wasm.method_name.as_str(), verbose)
-            .await?;
+        MapFilterEvalHandler::new(wasm_instance, map_filter_wasm.wasm_method_name.as_str()).await?;
 
     Ok(TransformEvaluator {
         transform: TransformImpl::MapFilter(transform),
@@ -144,13 +113,13 @@ async fn create_map_filter_transform(
 }
 
 async fn create_aggregate_transform(
-    engine: &mut WasmEngine,
+    engine: &WasmEngine,
     requests: DiffbeltRequests,
     requests_impl: DiffbeltRequestsClientImpl,
-    aggregate: &Aggregate,
+    cli_api: WasmCliApi,
+    aggregate: &AggregateTransformInfo,
     transform_direction: TransformDirection<'_>,
-    verbose: bool,
-) -> Result<TransformEvaluator, CommandError> {
+) -> Result<TransformEvaluator, RunTransformError> {
     let supports_accumulators_merge = aggregate.merge_accumulators.is_some();
 
     let transform = AggregateTransform::new(
@@ -160,17 +129,18 @@ async fn create_aggregate_transform(
         supports_accumulators_merge,
     );
 
-    let wasm_module_name = aggregate.wasm.as_str();
+    let wasm_module_name = aggregate.wasm_module_name.as_str();
     let wasm_module = engine.get_module(wasm_module_name).await?;
 
     let wasm_instance = WasmModuleInstance::new(NewWasmInstanceOptions {
         engine,
         module: &wasm_module,
         requests: Arc::new(requests),
+        cli_api: Some(cli_api),
     })
     .await?;
 
-    let handler = AggregateEvalHandler::new(wasm_instance, aggregate, verbose).await?;
+    let handler = AggregateEvalHandler::new(wasm_instance, aggregate).await?;
 
     Ok(TransformEvaluator {
         transform: TransformImpl::Aggregate(transform),

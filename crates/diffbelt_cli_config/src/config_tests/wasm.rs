@@ -14,7 +14,8 @@ impl CliConfig {
 
             context
                 .wasm_engine
-                .register_module(name, PathBuf::from(path))?;
+                .register_module(name, PathBuf::from(path))
+                .await?;
         }
 
         Ok(())

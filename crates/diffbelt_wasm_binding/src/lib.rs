@@ -10,6 +10,7 @@ pub use regex::*;
 
 mod allocator;
 pub mod annotations;
+pub mod cli;
 mod debug_print;
 pub mod error_code;
 pub mod human_readable;

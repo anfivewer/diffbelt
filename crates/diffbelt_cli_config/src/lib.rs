@@ -29,7 +29,7 @@ pub struct CliConfig {
     pub self_path: Rc<str>,
 
     pub collections: Vec<Collection>,
-    transforms: Vec<Transform>,
+    pub transforms: Vec<Transform>,
     wasm: HashMap<Rc<str>, Wasm>,
     tests: HashMap<Rc<str>, TestSuite>,
     integration_tests: Vec<IntegrationTestDef>,

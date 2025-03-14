@@ -1,7 +1,7 @@
 use std::mem;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
-
+use diffbelt_cli_config::errors::RunTransformError;
 use diffbelt_cli_config::wasm::memory::vector::WasmVecHolder;
 use diffbelt_cli_config::wasm::{MapFilterFunction, WasmModuleInstance};
 use diffbelt_protos::align_util::OwnedAlignedBytes;
@@ -15,11 +15,10 @@ use diffbelt_transforms::Transform;
 use diffbelt_util::errors::NoStdErrorWrap;
 
 use crate::commands::errors::{CommandError, TransformEvalError};
-use crate::commands::transform::run::function_eval_handler::FunctionEvalHandler;
-use crate::commands::transform::run::InputEmitter;
+use crate::commands::transform::runner::function_eval_handler::FunctionEvalHandler;
+use crate::commands::transform::runner::InputEmitter;
 
 pub struct MapFilterEvalHandler {
-    verbose: bool,
     inner: Inner,
     instance: Box<WasmModuleInstance>,
 }
@@ -33,8 +32,7 @@ impl MapFilterEvalHandler {
     pub async fn new(
         instance: WasmModuleInstance,
         map_filter_function_name: &str,
-        verbose: bool,
-    ) -> Result<Self, CommandError> {
+    ) -> Result<Self, RunTransformError> {
         let instance = Box::new(instance);
         let instance_static = unsafe {
             mem::transmute::<&WasmModuleInstance, &'static WasmModuleInstance>(instance.deref())
@@ -46,7 +44,6 @@ impl MapFilterEvalHandler {
         let vec_holder = instance_static.alloc_vec_holder().await?;
 
         Ok(Self {
-            verbose,
             inner: Inner {
                 vec_holder,
                 map_filter,

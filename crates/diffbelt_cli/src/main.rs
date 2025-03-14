@@ -12,10 +12,10 @@ use clap::{Arg, Command, Parser};
 use diffbelt_cli_config::CliConfig;
 use diffbelt_http_client::client::{DiffbeltClient, DiffbeltClientNewOptions};
 use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
-use tracing::{debug, trace, Level};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::FmtSubscriber;
 
+pub mod cli_api;
 mod commands;
 pub mod format;
 mod global;

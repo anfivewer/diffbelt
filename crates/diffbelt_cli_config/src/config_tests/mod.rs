@@ -56,27 +56,31 @@ pub struct TestResult {
 
 impl CliConfig {
     pub async fn run_tests(&self, options: RunTestsOptions) -> Vec<TestResult> {
+        let RunTestsOptions {
+            with_unit,
+            with_integration,
+            wasm_engine,
+            client,
+            cli_api,
+        } = options;
+
         let mut result = Vec::new();
 
         let context = 'outer: {
             let wasm_root_path = PathBuf::from(self.self_path.as_ref());
-            let wasm_engine = match WasmEngine::new(WasmEngineOptions { wasm_root_path }).await {
-                Ok(x) => x,
-                Err(err) => {
-                    break 'outer Err(err);
-                }
-            };
-            let client = match options.client.as_ref() {
+            let client = match client.as_ref() {
                 Some(client) => client.clone(),
                 None => {
                     break 'outer Err(WasmError::Unspecified(String::from("No DiffbeltClient")));
                 }
             };
-            let (requests, requests_impl) = DiffbeltRequestsClientImpl::new(client);
+            let (requests, requests_impl) = DiffbeltRequestsClientImpl::new(client.clone());
             let mut context = RunTestsContext {
                 wasm_engine,
+                client: Some(client),
                 requests: Arc::new(requests),
                 requests_impl,
+                cli_api: cli_api.clone(),
             };
 
             if let Err(err) = self.init_run_tests_context(&mut context).await {
@@ -97,12 +101,12 @@ impl CliConfig {
             }
         };
 
-        if options.with_unit {
+        if with_unit {
             self.run_unit_tests(&mut result, &mut context).await;
         }
 
-        if options.with_integration {
-            self.run_integration_tests(&mut result, &options, &mut context)
+        if with_integration {
+            self.run_integration_tests(&mut result, &mut context)
                 .await;
         }
 

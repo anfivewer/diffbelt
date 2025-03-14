@@ -8,5 +8,6 @@ pub mod http;
 pub mod idling_status;
 pub mod option;
 pub mod serde;
+pub mod tokio;
 pub mod tokio_runtime;
 pub mod wrap;

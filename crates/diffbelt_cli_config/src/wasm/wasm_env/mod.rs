@@ -9,6 +9,7 @@ use crate::wasm::error::WasmError;
 use crate::wasm::memory::Allocation;
 use crate::wasm::{NonBrokenToken, WasmStoreData, WasmStoreErrorState};
 
+pub mod cli;
 pub mod debug;
 pub mod integration_tests;
 pub mod memory;
@@ -39,6 +40,7 @@ impl WasmEnv {
         let () = self.register_regex_wasm_imports(store, linker)?;
         let () = self.register_requests_wasm_imports(store, linker)?;
         let () = self.register_integration_tests_imports(store, linker)?;
+        let () = self.register_cli_wasm_imports(store, linker)?;
         Ok(())
     }
 

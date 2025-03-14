@@ -33,6 +33,15 @@ pub struct WithMark<T, M> {
     pub mark: M,
 }
 
+impl <T: Clone, M: Clone> Clone for WithMark<T, M> {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value.clone(),
+            mark: self.mark.clone(),
+        }
+    }
+}
+
 struct WithMarkVisitor<T, M> {
     data: PhantomData<T>,
     mark: PhantomData<M>,
