@@ -58,6 +58,10 @@ fn main() {
                     "query.fbs",
                     None,
                 )),
+                SubPath::File((
+                    "readers.fbs",
+                    None,
+                )),
             ],
             Some(FileOptions {
                 include_prefix: Some("protos::generated::api"),

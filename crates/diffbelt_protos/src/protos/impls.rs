@@ -14,6 +14,9 @@ use crate::protos::api::phantom::{StartPhantomRequest, StartPhantomRequestArgs};
 use crate::protos::api::put_many::{
     PutManyRequest, PutManyRequestArgs, PutManyResponse, PutManyResponseArgs,
 };
+use crate::protos::api::readers::{
+    ListReadersRequest, ListReadersRequestArgs, ListReadersResponse, ListReadersResponseArgs,
+};
 use crate::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateApplyOutputArgs, AggregateMapMultiInput,
     AggregateMapMultiInputArgs, AggregateMapMultiOutput, AggregateMapMultiOutputArgs,
@@ -67,3 +70,5 @@ flatbuffers_generic!(
     GenerationIdStreamResponse,
     GenerationIdStreamResponseArgs<'a>
 );
+flatbuffers_generic!(ListReadersRequest, ListReadersRequestArgs<'a>);
+flatbuffers_generic!(ListReadersResponse, ListReadersResponseArgs<'a>);

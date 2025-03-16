@@ -1,0 +1,22 @@
+table ListReadersRequest {
+  collection_name: string;
+}
+
+table ReaderRecord {
+    reader_name: string;
+    /// optional
+    collection_name: string;
+    /// Can be optional for create record, but it is equal to empty vector
+    generation_id: [ubyte];
+}
+
+table ListReadersResponse {
+  readers: [ReaderRecord];
+}
+
+table CreateReaderRequest {
+  collection_name: string;
+  reader: ReaderRecord;
+}
+
+table CreateReaderResponse {}

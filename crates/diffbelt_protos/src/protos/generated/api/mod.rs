@@ -14,3 +14,5 @@ pub mod phantom_generated;
 pub mod put_many_generated;
 #[allow(unused_imports)]
 pub mod query_generated;
+#[allow(unused_imports)]
+pub mod readers_generated;

@@ -5,6 +5,7 @@ include "put_many.fbs";
 include "query.fbs";
 include "get_keys_around.fbs";
 include "collection.fbs";
+include "readers.fbs";
 
 union RequestBody {
     Error: ErrorResponse,
@@ -18,6 +19,7 @@ union RequestBody {
     NextQuery: NextQueryRequest,
     GetKeysAround: GetKeysAroundRequest,
     CreateCollection: CreateCollectionRequest,
+    ListReaders: ListReadersRequest,
 }
 
 union ResponseBody {
@@ -32,6 +34,7 @@ union ResponseBody {
     NextQuery: QueryResponse,
     GetKeysAround: GetKeysAroundResponse,
     CreateCollection: CreateCollectionResponse,
+    ListReaders: ListReadersResponse,
 }
 
 table Request {

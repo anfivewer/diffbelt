@@ -7,6 +7,7 @@ use diffbelt_protos::protos::impls::RequestProto;
 use diffbelt_protos::Serializer;
 use std::collections::HashMap;
 use thiserror::Error;
+use crate::transforms::Transform;
 
 pub struct InitCollectionsOptions<
     'a,
@@ -15,6 +16,7 @@ pub struct InitCollectionsOptions<
 > {
     pub client: &'a DiffbeltClient,
     pub collections: &'a [Collection],
+    pub transforms: &'a [Transform],
     pub print_before_create: PrintBeforeCreateFn,
     pub print_after_create: PrintAfterCreateFn,
 }
@@ -94,4 +96,8 @@ pub async fn init_collections<
     }
 
     Ok(())
+}
+
+pub async fn init_collection_readers(collection: &Collection, transforms: &[Transform]) {
+    //
 }

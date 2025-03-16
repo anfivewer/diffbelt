@@ -28,6 +28,10 @@ pub mod api {
     pub mod query {
         pub use super::super::generated::api::query_generated::*;
     }
+
+    pub mod readers {
+        pub use super::super::generated::api::readers_generated::*;
+    }
 }
 
 pub mod transform {

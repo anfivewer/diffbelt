@@ -1,17 +1,11 @@
-use crate::protos::api::collection::{CreateCollectionRequestArgs, CreateCollectionResponseArgs};
-use crate::protos::api::generation::{
-    CommitGenerationRequestArgs, CommitGenerationResponseArgs, GenerationIdStreamRequest,
-    GenerationIdStreamRequestArgs, StartGenerationRequestArgs, StartGenerationResponseArgs,
-};
 use crate::protos::api::methods::{
     Request, RequestArgs, RequestBody, Response, ResponseArgs, ResponseBody,
 };
-use crate::protos::api::put_many::{PutManyRequestArgs, PutManyResponseArgs};
 use crate::protos::impls::{
     CommitGenerationRequestProto, CommitGenerationResponseProto, CreateCollectionRequestProto,
     CreateCollectionResponseProto, GenerationIdStreamRequestProto, GenerationIdStreamResponseProto,
-    PutManyRequestProto, PutManyResponseProto, RequestProto, ResponseProto,
-    StartGenerationRequestProto, StartGenerationResponseProto,
+    ListReadersRequestProto, ListReadersResponseProto, PutManyRequestProto, PutManyResponseProto,
+    RequestProto, ResponseProto, StartGenerationRequestProto, StartGenerationResponseProto,
 };
 use crate::{FlatbuffersGenericType, OwnedSerialized, Serializer};
 
@@ -143,4 +137,11 @@ api_handler!(
     body_as_generation_id_stream,
     request = GenerationIdStreamRequestProto,
     response = GenerationIdStreamResponseProto,
+);
+api_handler!(
+    ListReadersApiHandler,
+    ListReaders,
+    body_as_list_readers,
+    request = ListReadersRequestProto,
+    response = ListReadersResponseProto,
 );
