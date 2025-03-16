@@ -6,7 +6,7 @@ table ReaderRecord {
     reader_name: string;
     /// optional
     collection_name: string;
-    /// Can be optional for create record, but it is equal to empty vector
+    /// optional
     generation_id: [ubyte];
 }
 

@@ -16,7 +16,9 @@ use crate::http::util::response::{create_ok_flatbuffers_response, create_ok_json
 use crate::http::validation::ContentTypeValidation;
 use crate::util::str_serialization::StrSerializationType;
 use diffbelt_protos::protos::api::collection::CreateCollectionResponseArgs;
-use diffbelt_protos::protos::handlers::{ApiHandler, CreateCollectionApiHandler};
+use diffbelt_protos::protos::handlers::{
+    ApiHandler, ApiHandlerRequestFlatType, CreateCollectionApiHandler,
+};
 use diffbelt_protos::{FlatbuffersGenericType, Serializer};
 use diffbelt_util_no_std::option::store_in_option;
 use serde::{Deserialize, Serialize};
@@ -128,10 +130,10 @@ pub fn register_create_collection_route(context: &mut Context) {
         .add_static_post_route("/collections/", json_handler);
 }
 
-pub async fn create_collection_flatbuffers_route<'a>(
+pub async fn create_collection_flatbuffers_route(
     context: Arc<Context>,
     request_context: RequestContext,
-    request: <<CreateCollectionApiHandler as ApiHandler>::FlatbuffersRequest as FlatbuffersGenericType>::FlatType<'a>,
+    request: ApiHandlerRequestFlatType<'_, CreateCollectionApiHandler>,
 ) -> Result<HttpResponse, HttpError> {
     let data = UnifiedRequestData {
         is_flatbuffers: true,

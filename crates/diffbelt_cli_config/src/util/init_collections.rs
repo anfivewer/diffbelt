@@ -1,3 +1,4 @@
+use crate::transforms::Transform;
 use crate::Collection;
 use diffbelt_http_client::client::DiffbeltClient;
 use diffbelt_http_client::errors::DiffbeltClientError;
@@ -7,7 +8,6 @@ use diffbelt_protos::protos::impls::RequestProto;
 use diffbelt_protos::Serializer;
 use std::collections::HashMap;
 use thiserror::Error;
-use crate::transforms::Transform;
 
 pub struct InitCollectionsOptions<
     'a,
@@ -48,6 +48,8 @@ pub async fn init_collections<
         let existing = existing_collections_is_manual.get(collection.name.as_ref());
         if let Some(is_manual) = existing {
             if collection.manual == *is_manual {
+                let () = init_collection_readers(collection, options.transforms, client).await?;
+
                 continue;
             } else if *is_manual {
                 return Err(InitCollectionsError::Message(format!(
@@ -93,11 +95,17 @@ pub async fn init_collections<
         };
 
         (&options.print_after_create)(collection);
+
+        let () = init_collection_readers(collection, options.transforms, client).await?;
     }
 
     Ok(())
 }
 
-pub async fn init_collection_readers(collection: &Collection, transforms: &[Transform]) {
-    //
+async fn init_collection_readers(
+    collection: &Collection,
+    transforms: &[Transform],
+    client: &DiffbeltClient,
+) -> Result<(), InitCollectionsError> {
+    todo!()
 }

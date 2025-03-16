@@ -48,6 +48,7 @@ impl Collections {
                 init_collections(InitCollectionsOptions {
                     client: &state.client,
                     collections: &config.collections,
+                    transforms: &config.transforms,
                     print_before_create: |collection| {
                         println!(
                             "Create {}collection {}...",

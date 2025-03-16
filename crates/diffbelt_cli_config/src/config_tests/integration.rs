@@ -104,6 +104,7 @@ impl CliConfig {
         let () = init_collections(InitCollectionsOptions {
             client,
             collections: &self.collections,
+            transforms: &self.transforms,
             print_before_create: |_| {},
             print_after_create: |_| {},
         })

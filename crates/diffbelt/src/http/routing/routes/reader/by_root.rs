@@ -33,8 +33,8 @@ async fn handler(options: PatternRouteOptions<IdOnlyGroup>) -> HttpHandlerResult
     let collection = get_collection(&context, &collection_name).await?;
 
     match request.method() {
-        "GET" => list_readers(request, collection).await,
-        "POST" => create_reader(request, collection).await,
+        "GET" => list_readers(options.request_context, collection).await,
+        "POST" => create_reader(request, options.request_context, collection).await,
         _ => Err(HttpError::MethodNotAllowed),
     }
 }

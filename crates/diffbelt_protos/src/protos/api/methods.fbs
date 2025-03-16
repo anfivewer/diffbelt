@@ -20,6 +20,7 @@ union RequestBody {
     GetKeysAround: GetKeysAroundRequest,
     CreateCollection: CreateCollectionRequest,
     ListReaders: ListReadersRequest,
+    CreateReader: CreateReaderRequest,
 }
 
 union ResponseBody {
@@ -35,6 +36,7 @@ union ResponseBody {
     GetKeysAround: GetKeysAroundResponse,
     CreateCollection: CreateCollectionResponse,
     ListReaders: ListReadersResponse,
+    CreateReader: CreateReaderResponse,
 }
 
 table Request {

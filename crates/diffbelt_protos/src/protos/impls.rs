@@ -15,6 +15,7 @@ use crate::protos::api::put_many::{
     PutManyRequest, PutManyRequestArgs, PutManyResponse, PutManyResponseArgs,
 };
 use crate::protos::api::readers::{
+    CreateReaderRequest, CreateReaderRequestArgs, CreateReaderResponse, CreateReaderResponseArgs,
     ListReadersRequest, ListReadersRequestArgs, ListReadersResponse, ListReadersResponseArgs,
 };
 use crate::protos::transform::aggregate::{
@@ -72,3 +73,5 @@ flatbuffers_generic!(
 );
 flatbuffers_generic!(ListReadersRequest, ListReadersRequestArgs<'a>);
 flatbuffers_generic!(ListReadersResponse, ListReadersResponseArgs<'a>);
+flatbuffers_generic!(CreateReaderRequest, CreateReaderRequestArgs<'a>);
+flatbuffers_generic!(CreateReaderResponse, CreateReaderResponseArgs);

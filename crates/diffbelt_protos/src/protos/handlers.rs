@@ -1,12 +1,7 @@
 use crate::protos::api::methods::{
     Request, RequestArgs, RequestBody, Response, ResponseArgs, ResponseBody,
 };
-use crate::protos::impls::{
-    CommitGenerationRequestProto, CommitGenerationResponseProto, CreateCollectionRequestProto,
-    CreateCollectionResponseProto, GenerationIdStreamRequestProto, GenerationIdStreamResponseProto,
-    ListReadersRequestProto, ListReadersResponseProto, PutManyRequestProto, PutManyResponseProto,
-    RequestProto, ResponseProto, StartGenerationRequestProto, StartGenerationResponseProto,
-};
+use crate::protos::impls::{CommitGenerationRequestProto, CommitGenerationResponseProto, CreateCollectionRequestProto, CreateCollectionResponseProto, CreateReaderRequestProto, CreateReaderResponseProto, GenerationIdStreamRequestProto, GenerationIdStreamResponseProto, ListReadersRequestProto, ListReadersResponseProto, PutManyRequestProto, PutManyResponseProto, RequestProto, ResponseProto, StartGenerationRequestProto, StartGenerationResponseProto};
 use crate::{FlatbuffersGenericType, OwnedSerialized, Serializer};
 
 pub trait ApiHandler {
@@ -144,4 +139,11 @@ api_handler!(
     body_as_list_readers,
     request = ListReadersRequestProto,
     response = ListReadersResponseProto,
+);
+api_handler!(
+    CreateReaderApiHandler,
+    CreateReader,
+    body_as_create_reader,
+    request = CreateReaderRequestProto,
+    response = CreateReaderResponseProto,
 );
