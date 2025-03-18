@@ -8,7 +8,7 @@ use const_format::concatcp;
 use diffbelt_example_protos::protos::impls::ParsedLogLineProto;
 use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineArgs, Prop, PropArgs};
 use diffbelt_protos::{OwnedSerialized, Serializer};
-use diffbelt_wasm_binding::{Regex, RegexError};
+use diffbelt_wasm_binding::{debug_print_string, Regex, RegexError};
 use thiserror_no_std::Error;
 
 use crate::date::{parse_date_to_timestamp_ms, ParseDateError};

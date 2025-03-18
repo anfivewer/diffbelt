@@ -178,7 +178,13 @@ impl<const ALIGN: usize> OwnedAlignedBytes<ALIGN> {
             buffer.copy_within(head..(head + len), head - backward_offset);
             head -= backward_offset;
         } else {
-            buffer.reserve(forward_offset);
+            if last + forward_offset >= buffer.len() {
+                let need_extend_for = last + forward_offset - buffer.len() + 1;
+                buffer.reserve(need_extend_for);
+                for _ in 0..need_extend_for {
+                    buffer.push(0);
+                }
+            }
             buffer.copy_within(head..(head + len), head + forward_offset);
             head += forward_offset;
         }

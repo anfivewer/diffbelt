@@ -19,7 +19,7 @@ use diffbelt_wasm_binding::requests::Request;
 use rand::Rng;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
-use diffbelt_wasm_binding::cli::run_transform;
+use diffbelt_wasm_binding::cli::{run_transform, sleep_ms};
 use diffbelt_wasm_binding::debug_print;
 
 struct PercentilesIntegrationTest;
@@ -61,8 +61,8 @@ impl IntegrationTest for PercentilesIntegrationTest {
                 1741803480953 + checked_usize_to_i64(i) * 10177,
             )
             .expect("cannot create date");
-            let date = date.format("%Y-%m-%dT%H:%M:%SZ%.3f").to_string();
-            key.write_fmt(format_args!("S {date} ")).expect("write");
+            let date = date.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+            key.write_fmt(format_args!("S {date}.{:0>3} ", i % 113)).expect("write");
             key.write_fmt(format_args!("worker{i}:middlewares handleFull "))
                 .expect("write");
             key.write_fmt(format_args!(
@@ -77,7 +77,7 @@ impl IntegrationTest for PercentilesIntegrationTest {
             .expect("write");
 
             if i == 0 {
-                assert_eq!(key.as_str(), "S 2025-03-12T18:18:00Z.953 worker0:middlewares handleFull updateType:first ms:85.583");
+                assert_eq!(key.as_str(), "S 2025-03-12T18:18:00.953Z.000 worker0:middlewares handleFull updateType:first ms:85.583");
             }
 
             let key = Some(serializer.create_vector(key.as_bytes()));
@@ -143,10 +143,13 @@ impl IntegrationTest for PercentilesIntegrationTest {
 
         let () = run_transform("parse_lines").expect("transform");
         debug_print("finish parse_lines");
+        sleep_ms(500);
         let () = run_transform("parsed_lines_1d").expect("transform");
         debug_print("finish parsed_lines_1d");
+        sleep_ms(500);
         let () = run_transform("updateMs_1d_intermediate").expect("transform");
         debug_print("end transforms");
+        sleep_ms(500);
 
         report_single_test_error(String::from("some error message3"));
         ErrorCode::Ok

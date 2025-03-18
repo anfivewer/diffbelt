@@ -25,7 +25,7 @@ use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 use diffbelt_wasm_binding::transform::aggregate::Aggregate;
-use diffbelt_wasm_binding::Regex;
+use diffbelt_wasm_binding::{debug_print_string, Regex};
 
 use crate::parsed_log_lines::accumulator::DayAccumulator;
 use crate::types::{ParsedLogLinesKey, ParsedLogLinesValue};

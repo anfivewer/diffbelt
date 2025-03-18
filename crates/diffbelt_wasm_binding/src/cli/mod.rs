@@ -11,6 +11,7 @@ mod extern_functions {
     extern "C" {
         /// Receives name of transform, runs it until fully finished
         pub fn run_transform(slice_ptr: ConstPtr<u8>, slice_len: u32) -> ErrorCode;
+        pub fn sleep_ms(duration_ms: u32) -> ErrorCode;
     }
 }
 
@@ -21,5 +22,11 @@ pub fn run_transform(name: &str) -> Result<(), ErrorCode> {
     // SAFETY: trust in host
     let code = unsafe { extern_functions::run_transform(ptr, len) };
 
+    code.as_result()
+}
+
+pub fn sleep_ms(duration_ms: u32) -> Result<(), ErrorCode> {
+    // SAFETY: trust in host
+    let code = unsafe { extern_functions::sleep_ms(duration_ms) };
     code.as_result()
 }

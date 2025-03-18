@@ -1,12 +1,14 @@
 use crate::wasm::types::{WasmPtr, WasmPtrToByte};
 use crate::wasm::wasm_env::WasmEnv;
 use crate::wasm::{WasmError, WasmStoreData};
-use diffbelt_util_no_std::cast::u32_to_usize;
+use diffbelt_util_no_std::cast::{u32_to_u64, u32_to_usize};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use std::fmt::Debug;
 use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use std::str::from_utf8;
+use std::time::Duration;
+use tokio::time::sleep;
 use tracing::debug;
 use wasmtime::{AsContext, Caller, Linker, Store};
 
@@ -74,6 +76,21 @@ impl WasmEnv {
             ErrorCode::Ok.repr()
         }
 
+        // TODO: move somewhere, make available only in debug mode
+        async fn sleep_ms_fn(mut caller: Caller<'_, WasmStoreData>, sleep_ms: u32) -> i32 {
+            if caller.data().non_broken_token().is_none() {
+                return ErrorCode::UnsafeFail.repr();
+            };
+
+            let () = sleep(Duration::from_millis(u32_to_u64(sleep_ms))).await;
+
+            if caller.data().non_broken_token().is_none() {
+                return ErrorCode::UnsafeFail.repr();
+            };
+
+            ErrorCode::Ok.repr()
+        }
+
         linker.func_wrap2_async(
             "Diffbelt",
             "run_transform",
@@ -82,6 +99,16 @@ impl WasmEnv {
              slice_len: u32|
              -> Box<dyn Future<Output = i32> + Send> {
                 Box::new(run_transform(caller, slice_ptr, slice_len))
+            },
+        )?;
+
+        linker.func_wrap1_async(
+            "Diffbelt",
+            "sleep_ms",
+            |caller: Caller<'_, WasmStoreData>,
+             sleep_ms: u32|
+             -> Box<dyn Future<Output = i32> + Send> {
+                Box::new(sleep_ms_fn(caller, sleep_ms))
             },
         )?;
 

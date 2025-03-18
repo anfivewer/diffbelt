@@ -4,11 +4,11 @@ use core::marker::PhantomData;
 use core::str::from_utf8_unchecked;
 use core::{ptr, slice};
 
-use bytemuck::{Pod, Zeroable};
-use thiserror_no_std::Error;
-
+use crate::debug_print_string;
 use crate::ptr::bytes::BytesVecRawParts;
 use crate::ptr::{ConstPtr, NativePtrImpl, PtrImpl};
+use bytemuck::{Pod, Zeroable};
+use thiserror_no_std::Error;
 
 #[derive(Pod, Zeroable, Copy, Clone)]
 #[repr(C, packed)]
@@ -213,6 +213,10 @@ impl<'s, 'mem> Captures<'s, 'mem> {
             capture,
             capture_len,
         } = *self.mem.get(index)?;
+
+        if capture.as_ptr().is_null() {
+            return None;
+        }
 
         let s = unsafe {
             let slice = slice::from_raw_parts(capture.as_ptr(), capture_len as usize);
