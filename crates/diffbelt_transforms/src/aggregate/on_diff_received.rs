@@ -1,3 +1,4 @@
+use tracing::trace;
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiInput, AggregateMapMultiInputArgs, AggregateMapSource, AggregateMapSourceArgs,
 };

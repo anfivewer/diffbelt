@@ -11,3 +11,4 @@
 * Do not forget to call deallocs which are scheduled
 * Return diffbelt parseable flatbuffers errors as it
 * Move `if_not_present` out of `KeyValueUpdate` for put_many
+* Tests for empty aggregate transform

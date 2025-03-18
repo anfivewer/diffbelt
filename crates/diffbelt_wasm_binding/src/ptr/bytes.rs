@@ -46,6 +46,7 @@ impl<T: Pod> VecRawParts<T, NativePtrImpl> {
         let ptr = self.ptr.as_mut_ptr();
 
         if ptr.is_null() {
+            assert_eq!(self.capacity, 0, "null ptr has non-zero capacity");
             return Vec::new();
         }
 
@@ -132,11 +133,18 @@ impl<T: Pod> VecRawParts<T> {
 
     pub unsafe fn into_vec(self) -> Vec<T> {
         let Self { ptr, len, capacity } = self;
+        
+        let ptr = ptr.as_mut_ptr();
+        
+        if ptr.is_null() {
+            assert_eq!(capacity, 0, "null ptr has non-zero capacity");
+            return Vec::new();
+        }
 
         let len = u32_to_usize(len);
         let capacity = u32_to_usize(capacity);
 
-        Vec::from_raw_parts(ptr.as_mut_ptr(), len, capacity)
+        Vec::from_raw_parts(ptr, len, capacity)
     }
 
     pub unsafe fn assert_not_changed(this: *mut Self, buffer: Vec<T>) {

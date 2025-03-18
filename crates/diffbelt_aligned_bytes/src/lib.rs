@@ -66,20 +66,12 @@ impl<'a, const ALIGN: usize> AlignedBytes<'a, ALIGN> {
 
         buffer.clear();
         buffer.reserve(ALIGN + bytes.len());
+
+        let ptr = bytes.as_ptr();
+        let offset = ptr.align_offset(ALIGN);
+
         buffer.extend_from_slice(&(&[0; ALIGN])[0..offset]);
         buffer.extend_from_slice(bytes);
-
-        // Check to be sure
-        // SAFETY: just inserted
-        let ptr = buffer.as_ptr();
-        let new_offset = ptr.align_offset(ALIGN);
-
-        if offset != new_offset {
-            return Err(AlignedBytesError {
-                reason: format!("AlignedBytes: vector reallocated, offset({offset})"),
-                buffer: None,
-            });
-        }
 
         Ok(Self(&buffer[offset..(offset + bytes.len())]))
     }

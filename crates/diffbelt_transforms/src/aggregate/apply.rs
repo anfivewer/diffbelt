@@ -1,9 +1,9 @@
 use std::mem;
 use std::rc::Rc;
 
-use lru::LruCache;
-
 use diffbelt_util_no_std::temporary_collection::vec::TemporaryVec;
+use lru::LruCache;
+use tracing::trace;
 
 use crate::aggregate::context::{ApplyingContext, HandlerContext};
 use crate::aggregate::limits::Limits;
@@ -15,6 +15,12 @@ use crate::base::input::function_eval::FunctionEvalInput;
 use crate::input_handler;
 use crate::transform::ActionInputHandlerActionsVec;
 
+#[derive(Eq, PartialEq)]
+pub enum TryApplyAction {
+    Pass,
+    NeedFinish,
+}
+
 impl AggregateTransform {
     pub fn try_apply(
         actions: &mut ActionInputHandlerActionsVec<Self, HandlerContext>,
@@ -22,9 +28,9 @@ impl AggregateTransform {
         current_limits: &mut Limits,
         target_keys: &mut LruCache<Rc<[u8]>, Target>,
         temp_targets: &mut TemporaryVec<TargetKvTemp>,
-    ) {
+    ) -> TryApplyAction {
         if !Self::can_eval_apply(max_limits, current_limits) {
-            return;
+            return TryApplyAction::Pass;
         }
 
         let is_needed = Self::need_eval_apply(max_limits, current_limits);
@@ -107,6 +113,12 @@ impl AggregateTransform {
                     this.on_apply_received(ctx, body)
                 }),
             ));
+        }
+
+        if actions.is_empty() && current_limits.is_empty() {
+            TryApplyAction::NeedFinish
+        } else {
+            TryApplyAction::Pass
         }
     }
 }

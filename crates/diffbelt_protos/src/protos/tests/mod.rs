@@ -12,6 +12,7 @@ fn test_response_proto() {
         serializer.buffer_builder(),
         &ErrorResponseArgs {
             code: 400,
+            error: None,
             reason: None,
             details: Some(details),
         },

@@ -20,6 +20,7 @@ use rand::Rng;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use diffbelt_wasm_binding::cli::run_transform;
+use diffbelt_wasm_binding::debug_print;
 
 struct PercentilesIntegrationTest;
 
@@ -141,6 +142,11 @@ impl IntegrationTest for PercentilesIntegrationTest {
         let buffer2 = request.take_buffer().unwrap_or_default();
 
         let () = run_transform("parse_lines").expect("transform");
+        debug_print("finish parse_lines");
+        let () = run_transform("parsed_lines_1d").expect("transform");
+        debug_print("finish parsed_lines_1d");
+        let () = run_transform("updateMs_1d_intermediate").expect("transform");
+        debug_print("end transforms");
 
         report_single_test_error(String::from("some error message3"));
         ErrorCode::Ok

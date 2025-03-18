@@ -3,8 +3,6 @@ use std::collections::VecDeque;
 use std::mem;
 use std::rc::Rc;
 
-use lru::LruCache;
-
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateReduceInput, AggregateReduceInputArgs, AggregateReduceItem, AggregateReduceItemArgs,
 };
@@ -13,7 +11,10 @@ use diffbelt_types::collection::get_record::GetRequestJsonData;
 use diffbelt_types::common::key_value::EncodedKeyJsonData;
 use diffbelt_util_no_std::buffers_pool::BuffersPool;
 use diffbelt_util_no_std::cast::usize_to_u64;
+use lru::LruCache;
+use tracing::trace;
 
+use crate::aggregate::apply::TryApplyAction;
 use crate::aggregate::context::{HandlerContext, MapContext, ReducingContext, TargetRecordContext};
 use crate::aggregate::limits::Limits;
 use crate::aggregate::state::{
@@ -147,13 +148,30 @@ impl AggregateTransform {
         }
 
         if actions.is_empty() {
-            let () = Self::try_apply(
+            let apply_action = Self::try_apply(
                 &mut actions,
                 &self.max_limits,
                 &mut state.current_limits,
                 &mut state.target_keys,
                 &mut self.apply_target_keys_temp_vec,
             );
+
+            if actions.is_empty() && apply_action == TryApplyAction::Pass {
+                self.action_input_handlers
+                    .return_action_input_actions_vec(actions);
+
+                return Ok(ActionInputHandlerResult::Consumed);
+            }
+
+            match apply_action {
+                TryApplyAction::Pass => {}
+                TryApplyAction::NeedFinish => {
+                    drop(updated_keys_temp);
+                    self.action_input_handlers
+                        .return_action_input_actions_vec(actions);
+                    return self.on_finish();
+                }
+            }
         }
 
         Ok(ActionInputHandlerResult::AddActions(actions))

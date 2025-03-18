@@ -792,6 +792,7 @@ dependencies = [
  "rand_chacha",
  "regex",
  "thiserror",
+ "tracing",
  "urlencoding",
 ]
 
