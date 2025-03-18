@@ -4,14 +4,14 @@ use crate::collection::methods::diff::AbortDiffCursorOptions;
 use crate::collection::Collection;
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
-use crate::http::routing::response::Response;
+use crate::http::routing::response::HttpResponse;
 use crate::http::util::response::create_ok_no_error_json_response;
 
 pub async fn abort_cursor(
     _request: impl Request,
     collection: Arc<Collection>,
     cursor_id: Box<str>,
-) -> Result<Response, HttpError> {
+) -> Result<HttpResponse, HttpError> {
     let result = collection
         .abort_diff_cursor(AbortDiffCursorOptions { cursor_id })
         .await;

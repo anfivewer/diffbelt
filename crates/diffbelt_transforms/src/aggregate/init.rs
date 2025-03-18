@@ -3,11 +3,10 @@ use std::collections::HashSet;
 use std::mem;
 use std::ops::Deref;
 
-use lru::LruCache;
-
 use diffbelt_types::collection::diff::DiffCollectionResponseJsonData;
 use diffbelt_types::collection::generation::StartGenerationRequestJsonData;
-
+use lru::LruCache;
+use tracing::trace;
 use crate::aggregate::context::HandlerContext;
 use crate::aggregate::limits::Limits;
 use crate::aggregate::state::{ProcessingState, State};
@@ -97,10 +96,26 @@ impl AggregateTransform {
             ));
         };
 
+        let from_generation_id_json = diff.from_generation_id.clone();
+        let to_generation_id_json = diff.to_generation_id.clone();
+
+        let from_generation_id = from_generation_id_json.to_bytes().ok_or_else(|| {
+            TransformError::Unspecified(format!(
+                "Invalid from_generation_id {from_generation_id_json:?}"
+            ))
+        })?;
+        let to_generation_id = to_generation_id_json.to_bytes().ok_or_else(|| {
+            TransformError::Unspecified(format!(
+                "Invalid to_generation_id {to_generation_id_json:?}"
+            ))
+        })?;
+
         let state = ProcessingState {
             cursor_id: None,
-            from_generation_id: diff.from_generation_id.clone(),
-            to_generation_id: diff.to_generation_id.clone(),
+            from_generation_id,
+            from_generation_id_json,
+            to_generation_id,
+            to_generation_id_json,
             current_limits: Limits {
                 pending_diffs_count: 1,
                 ..Default::default()

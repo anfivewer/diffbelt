@@ -1,3 +1,4 @@
+use crate::aggregate::apply::TryApplyAction;
 use crate::aggregate::context::{HandlerContext, MergingContext};
 use crate::aggregate::state::{TargetKeyChunk, TargetKeyReducedChunk};
 use crate::aggregate::AggregateTransform;
@@ -62,7 +63,7 @@ impl AggregateTransform {
 
         let need_try_apply = actions.is_empty();
 
-        () = Self::maybe_read_cursor(
+        let () = Self::maybe_read_cursor(
             &mut actions,
             &self.max_limits,
             &mut state.current_limits,
@@ -72,13 +73,22 @@ impl AggregateTransform {
         );
 
         if need_try_apply {
-            () = Self::try_apply(
+            let apply_action = Self::try_apply(
                 &mut actions,
                 &self.max_limits,
                 &mut state.current_limits,
                 &mut state.target_keys,
                 &mut self.apply_target_keys_temp_vec,
             );
+
+            match apply_action {
+                TryApplyAction::Pass => {}
+                TryApplyAction::NeedFinish => {
+                    self.action_input_handlers
+                        .return_action_input_actions_vec(actions);
+                    return self.on_finish();
+                }
+            }
         }
 
         if actions.is_empty() {

@@ -26,7 +26,7 @@ async fn start_same_generation_test_inner() {
     let first_generation_id =
         OwnedGenerationId::from_boxed_slice(b"0001".to_vec().into_boxed_slice()).unwrap();
 
-    () = collection
+    let () = collection
         .start_generation(StartGenerationOptions {
             generation_id: first_generation_id.clone(),
             abort_outdated: false,
@@ -34,7 +34,7 @@ async fn start_same_generation_test_inner() {
         .await
         .unwrap();
 
-    () = collection
+    let () = collection
         .commit_generation(CommitGenerationOptions {
             generation_id: first_generation_id.clone(),
             update_readers: None,

@@ -1,11 +1,11 @@
 use bytemuck::Pod;
-use diffbelt_util_no_std::cast::{checked_usize_to_i32, try_usize_to_i32};
+use diffbelt_util_no_std::cast::{checked_usize_to_i32, i32_to_u32, try_usize_to_i32, u32_to_i32};
 use std::mem::size_of;
 use wasmtime::component::__internal::StoreOpaque;
 use wasmtime::{ValRaw, ValType, WasmTy};
 
 use crate::wasm::types::WasmPtr;
-use crate::wasm::WasmError;
+use crate::wasm::error::WasmError;
 
 pub mod slice;
 
@@ -20,7 +20,7 @@ impl<T: Pod> WasmPtr<T> {
 
 impl<T: Pod> WasmPtr<T> {
     pub fn access<'a>(&self, bytes: &'a [u8]) -> Result<&'a T, WasmError> {
-        let slice = self.slice()?;
+        let slice = self.slice();
         slice.at(bytes, 0)
     }
 
@@ -30,7 +30,7 @@ impl<T: Pod> WasmPtr<T> {
     }
 
     pub fn as_mut<'a>(&self, bytes: &'a mut [u8]) -> Result<&'a mut T, WasmError> {
-        let slice = self.slice()?;
+        let slice = self.slice();
         slice.at_mut(bytes, 0)
     }
 
@@ -45,7 +45,7 @@ impl<T: Pod> WasmPtr<T> {
 
         let ptr = self
             .value
-            .checked_add(offset * size)
+            .checked_add_signed(offset * size)
             .ok_or_else(|| WasmError::Unspecified(format!("invalid offset {offset}")))?;
 
         Ok(Self {
@@ -79,12 +79,12 @@ unsafe impl<T: Pod + Send> WasmTy for WasmPtr<T> {
     }
 
     fn into_abi(self, _store: &mut StoreOpaque) -> Self::Abi {
-        self.value
+        u32_to_i32(self.value)
     }
 
     unsafe fn from_abi(abi: Self::Abi, _store: &mut StoreOpaque) -> Self {
         Self {
-            value: abi,
+            value: i32_to_u32(abi),
             phantom: Default::default(),
         }
     }

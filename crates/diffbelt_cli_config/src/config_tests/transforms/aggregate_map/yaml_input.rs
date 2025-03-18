@@ -1,3 +1,4 @@
+use diffbelt_protos::protos::impls::AggregateMapMultiInputProto;
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiInput, AggregateMapMultiInputArgs, AggregateMapSource, AggregateMapSourceArgs,
 };
@@ -12,7 +13,7 @@ use crate::wasm::human_readable::HumanReadableFunctions;
 pub async fn yaml_test_vars_to_aggregate_map_input(
     source_human_readable: &HumanReadableFunctions<'_>,
     node: &YamlNode,
-) -> Result<OwnedSerialized<'static, AggregateMapMultiInput<'static>>, YamlTestVarsError> {
+) -> Result<OwnedSerialized<AggregateMapMultiInputProto>, YamlTestVarsError> {
     let mut serializer = Serializer::new();
 
     let instance = source_human_readable.instance;
@@ -49,7 +50,7 @@ pub async fn yaml_test_vars_to_aggregate_map_input(
                         YamlTestVarsError::Unspecified("source_key should be a string".to_string())
                     })?;
 
-                    () = call_human_readable_conversion!(
+                    let () = call_human_readable_conversion!(
                         value.as_bytes(),
                         source_human_readable,
                         call_key_to_bytes,
@@ -64,7 +65,7 @@ pub async fn yaml_test_vars_to_aggregate_map_input(
                 }
                 "source_old_value" => {
                     if let Scalar::String(value) = value {
-                        () = call_human_readable_conversion!(
+                        let () = call_human_readable_conversion!(
                             value.as_bytes(),
                             source_human_readable,
                             call_value_to_bytes,
@@ -80,7 +81,7 @@ pub async fn yaml_test_vars_to_aggregate_map_input(
                 }
                 "source_new_value" => {
                     if let Scalar::String(value) = value {
-                        () = call_human_readable_conversion!(
+                        let () = call_human_readable_conversion!(
                             value.as_bytes(),
                             source_human_readable,
                             call_value_to_bytes,

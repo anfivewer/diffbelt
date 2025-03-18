@@ -5,11 +5,11 @@ use alloc::vec::Vec;
 use core::num::ParseIntError;
 
 use const_format::concatcp;
-use thiserror_no_std::Error;
-
+use diffbelt_example_protos::protos::impls::ParsedLogLineProto;
 use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineArgs, Prop, PropArgs};
 use diffbelt_protos::{OwnedSerialized, Serializer};
-use diffbelt_wasm_binding::{Regex, RegexError};
+use diffbelt_wasm_binding::{debug_print_string, Regex, RegexError};
+use thiserror_no_std::Error;
 
 use crate::date::{parse_date_to_timestamp_ms, ParseDateError};
 
@@ -119,9 +119,7 @@ impl LogLineHeader<'_> {
         &self.log_line_key.as_str()[0..self.log_line_key_timestamp_string_len]
     }
 
-    pub fn serialize<'s>(
-        &self,
-    ) -> Result<OwnedSerialized<'static, ParsedLogLine<'static>>, ParseLogLineError> {
+    pub fn serialize<'s>(&self) -> Result<OwnedSerialized<ParsedLogLineProto>, ParseLogLineError> {
         let Self {
             log_level,
             logger_key,

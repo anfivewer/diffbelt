@@ -21,23 +21,23 @@ pub(crate) unsafe fn emit_mapping(
         false,
         yaml_mapping_style_t::YAML_BLOCK_MAPPING_STYLE,
     );
-    () = check_error(result.ok, ctx.emitter)?;
+    let () = check_error(result.ok, ctx.emitter)?;
 
     let result = yaml_emitter_emit(ctx.emitter, event);
-    () = check_error(result.ok, ctx.emitter)?;
+    let () = check_error(result.ok, ctx.emitter)?;
 
     for (key, value) in &mapping.items {
-        () = key.serialize_node(ctx)?;
-        () = value.serialize_node(ctx)?;
+        let () = key.serialize_node(ctx)?;
+        let () = value.serialize_node(ctx)?;
     }
 
     let event = ctx.take_event();
 
     let result = yaml_mapping_end_event_initialize(event);
-    () = check_error(result.ok, ctx.emitter)?;
+    let () = check_error(result.ok, ctx.emitter)?;
 
     let result = yaml_emitter_emit(ctx.emitter, event);
-    () = check_error(result.ok, ctx.emitter)?;
+    let () = check_error(result.ok, ctx.emitter)?;
 
     Ok(())
 }

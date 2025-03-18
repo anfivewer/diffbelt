@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use futures::future::BoxFuture;
-use regex::{Captures, Regex};
-
 use crate::context::Context;
 use crate::http::errors::HttpError;
+use crate::http::request::request_context::RequestContext;
 use crate::http::request::{HyperRequestWrapped, Request};
-use crate::http::routing::response::Response;
+use crate::http::routing::response::HttpResponse;
+use futures::future::BoxFuture;
+use regex::{Captures, Regex};
+use tracing::Span;
 
 pub mod register_routes;
 pub mod response;
@@ -15,15 +16,17 @@ mod routes;
 
 pub struct StaticRouteOptions {
     pub context: Arc<Context>,
+    pub request_context: RequestContext,
     pub request: HyperRequestWrapped,
 }
 
-pub type HttpHandlerResult = Result<Response, HttpError>;
-pub type StaticRouteFnFutureResult = BoxFuture<'static, Result<Response, HttpError>>;
+pub type HttpHandlerResult = Result<HttpResponse, HttpError>;
+pub type StaticRouteFnFutureResult = BoxFuture<'static, Result<HttpResponse, HttpError>>;
 pub type StaticRouteFn = fn(options: StaticRouteOptions) -> StaticRouteFnFutureResult;
 
 pub struct PatternRouteOptions<T> {
     pub context: Arc<Context>,
+    pub request_context: RequestContext,
     pub request: HyperRequestWrapped,
     pub groups: T,
 }
@@ -93,6 +96,7 @@ impl Routing {
 
             Ok(route_handler(PatternRouteOptions {
                 context: options.context,
+                request_context: options.request_context,
                 request: options.request,
                 groups,
             }))

@@ -1,18 +1,18 @@
 #![cfg_attr(all(target_arch = "wasm32", not(test)), no_std)]
 
 extern crate alloc;
-extern crate core;
 
 use alloc::vec::Vec;
 use core::str::from_utf8;
 
+use diffbelt_protos::align_util::AlignedBytes;
+use diffbelt_protos::deserialize;
+use diffbelt_protos::protos::impls::{MapFilterMultiInputProto, MapFilterMultiOutputProto};
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterMultiInput, MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate,
     RecordUpdateArgs,
 };
-use diffbelt_wasm_binding::annotations::serializer::{
-    InputAnnotated, IntoSerializerAnnotated, OutputAnnotated,
-};
+use diffbelt_wasm_binding::annotations::serializer::{IntoSerializerAnnotated, OutputAnnotated};
 use diffbelt_wasm_binding::annotations::{FlatbufferAnnotated, InputOutputAnnotated};
 #[cfg(all(target_arch = "wasm32", not(test)))]
 use diffbelt_wasm_binding::define_panic_handler;
@@ -20,17 +20,21 @@ use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::transform::map_filter::MapFilter;
 
+use crate::global::BUFFER_FOR_REALIGN;
 use crate::log_lines::parse_log_line_header;
 
 #[cfg(all(target_arch = "wasm32", not(test)))]
 define_panic_handler!();
 
 mod date;
+mod global;
 mod global_allocator;
 mod human_readable;
+mod integration_tests;
 mod log_lines;
 mod parsed_log_lines;
 pub mod types;
+mod update_ms;
 mod util;
 
 struct LogLinesMapFilter;
@@ -40,12 +44,18 @@ impl MapFilter for LogLinesMapFilter {
     extern "C" fn map_filter(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,
-            MapFilterMultiInput,
-            MapFilterMultiOutput,
+            MapFilterMultiInputProto,
+            MapFilterMultiOutputProto,
         >,
-        buffer_holder: FlatbufferAnnotated<*mut BytesVecRawParts, MapFilterMultiOutput>,
+        buffer_holder: FlatbufferAnnotated<*mut BytesVecRawParts, MapFilterMultiOutputProto>,
     ) -> ErrorCode {
-        let input = unsafe { input_and_output.deserialize() };
+        let input = {
+            let bytes = unsafe { (&*input_and_output.value).as_slice() };
+            let bytes =
+                AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
+                    .expect("align error");
+            deserialize::<MapFilterMultiInputProto>(bytes).expect("deserialization")
+        };
 
         let items = input.items().expect("no inputs");
 

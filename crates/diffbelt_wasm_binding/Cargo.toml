@@ -16,3 +16,4 @@ path = "../diffbelt_util_no_std"
 
 [dependencies.diffbelt_protos]
 path = "../diffbelt_protos"
+

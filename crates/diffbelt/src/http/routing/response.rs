@@ -1,3 +1,6 @@
+use diffbelt_aligned_bytes::OwnedAlignedBytes;
+use diffbelt_protos::FLATBUFFERS_ALIGNMENT;
+
 pub struct BaseResponse {
     pub status: u16,
     pub content_type: &'static str,
@@ -27,8 +30,14 @@ pub struct BytesVecResponse {
     pub bytes: Vec<u8>,
 }
 
-pub enum Response {
+pub struct FlatbuffersResponse {
+    pub base: BaseResponse,
+    pub bytes: OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT>,
+}
+
+pub enum HttpResponse {
     StaticStr(StaticStrResponse),
     String(StringResponse),
     BytesVec(BytesVecResponse),
+    Flatbuffers(FlatbuffersResponse),
 }

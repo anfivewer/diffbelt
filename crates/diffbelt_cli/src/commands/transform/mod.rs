@@ -6,8 +6,9 @@ use crate::commands::transform::run::{run_transform_command, Run};
 use crate::state::CliState;
 use crate::CommandResult;
 
-mod run;
+pub mod run;
 mod run_parse;
+pub mod runner;
 
 #[derive(Parser, Debug)]
 pub struct Transform {

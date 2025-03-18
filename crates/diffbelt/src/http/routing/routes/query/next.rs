@@ -5,14 +5,14 @@ use crate::collection::Collection;
 use crate::http::data::query_response::QueryResponseJsonData;
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
-use crate::http::routing::response::Response;
+use crate::http::routing::response::HttpResponse;
 use crate::http::util::response::create_ok_json_response;
 
 pub async fn read_cursor(
     _request: impl Request,
     collection: Arc<Collection>,
     cursor_id: Box<str>,
-) -> Result<Response, HttpError> {
+) -> Result<HttpResponse, HttpError> {
     let options = ReadQueryCursorOptions { cursor_id };
 
     let result = collection.read_query_cursor(options).await;

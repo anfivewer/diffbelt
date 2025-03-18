@@ -3,11 +3,13 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::str::from_utf8;
 
+use diffbelt_protos::align_util::AlignedBytes;
+use diffbelt_protos::protos::impls::{MapFilterMultiInputProto, MapFilterMultiOutputProto};
 use diffbelt_protos::protos::transform::map_filter::{MapFilterMultiInput, MapFilterMultiOutput};
 use diffbelt_protos::{deserialize, OwnedSerialized};
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::option::lift_result_from_option;
-use diffbelt_util_no_std::cast::checked_usize_to_i32;
+use diffbelt_util_no_std::cast::{checked_usize_to_i32, checked_usize_to_u32};
 use diffbelt_util_no_std::option::AsyncOptionUtil;
 use diffbelt_util_no_std::slice::get_slice_offset_in_other_slice;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
@@ -129,7 +131,7 @@ pub struct MapFilterTransformTest<'a> {
     map_filter: MapFilterFunction<'a>,
 }
 
-type Input<'a> = OwnedSerialized<'static, MapFilterMultiInput<'static>>;
+type Input<'a> = OwnedSerialized<MapFilterMultiInputProto>;
 type Output<'a> = (
     WasmVecHolder<'a>,
     Vec<(BytesSlice<WasmPtrImpl>, Option<BytesSlice<WasmPtrImpl>>)>,
@@ -157,8 +159,12 @@ impl<'a> MapFilterTransformTest<'a> {
             .await?;
 
         let update_record_slices = bytes_result.observe_bytes(|bytes| {
-            let multi_output =
-                deserialize::<MapFilterMultiOutput>(bytes).map_err(TestError::InvalidFlatbuffer)?;
+            let mut temp_for_realign = Vec::new();
+            let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, &mut temp_for_realign)
+                .map_err(TestError::AlignedBytes)?;
+
+            let multi_output = deserialize::<MapFilterMultiOutputProto>(bytes)
+                .map_err(TestError::InvalidFlatbuffer)?;
 
             let Some(update_records) = multi_output.target_update_records() else {
                 return Ok(Vec::new());
@@ -175,11 +181,12 @@ impl<'a> MapFilterTransformTest<'a> {
                 let value = update_record.value();
                 let value = value.map(|x| x.bytes());
 
-                let key_offset =
-                    get_slice_offset_in_other_slice(bytes, key).map_err(NoStdErrorWrap::from)?;
+                let key_offset = get_slice_offset_in_other_slice(bytes.as_slice(), key)
+                    .map_err(NoStdErrorWrap::from)?;
 
                 let value_offset = value.map(|value| {
-                    get_slice_offset_in_other_slice(bytes, value).map_err(NoStdErrorWrap::from)
+                    get_slice_offset_in_other_slice(bytes.as_slice(), value)
+                        .map_err(NoStdErrorWrap::from)
                 });
                 let value_offset = lift_result_from_option(value_offset)?;
 
@@ -191,7 +198,7 @@ impl<'a> MapFilterTransformTest<'a> {
 
                 let value_slice = value_ptr.map(|value_ptr| BytesSlice::<WasmPtrImpl> {
                     ptr: value_ptr.into(),
-                    len: checked_usize_to_i32(
+                    len: checked_usize_to_u32(
                         value
                             .expect("value should be present if value_ptr present")
                             .len(),
@@ -201,7 +208,7 @@ impl<'a> MapFilterTransformTest<'a> {
                 update_record_slices.push((
                     BytesSlice::<WasmPtrImpl> {
                         ptr: key_ptr.into(),
-                        len: checked_usize_to_i32(key.len()),
+                        len: checked_usize_to_u32(key.len()),
                     },
                     value_slice,
                 ));
@@ -322,6 +329,14 @@ impl<'a> MapFilterTransformTest<'a> {
                         message: Cow::Borrowed("Value diff"),
                         actual: value.map(|x| x.to_string()),
                         expected: expected_value.map(|x| x.to_string()),
+                    }));
+                }
+
+                if let Some((expected_key, _expected_value)) = expected_iter.next() {
+                    return Ok(Some(AssertError::ValueMissmatch {
+                        message: Cow::Borrowed("Extra expected key"),
+                        actual: None,
+                        expected: Some(expected_key.to_string()),
                     }));
                 }
 

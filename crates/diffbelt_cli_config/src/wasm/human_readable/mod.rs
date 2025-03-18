@@ -7,7 +7,8 @@ use diffbelt_wasm_binding::error_code::ErrorCode;
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
-use crate::wasm::{WasmError, WasmModuleInstance};
+use crate::wasm::WasmModuleInstance;
+use crate::wasm::error::WasmError;
 
 pub mod aggregate;
 
@@ -37,7 +38,7 @@ macro_rules! impl_human_readable_call {
                     .allocation
                     .memory
                     .data_mut(store.as_context_mut());
-                () = self.slice_holder.ptr.write(memory, slice)?;
+                let () = self.slice_holder.ptr.write(memory, slice)?;
             }
 
             let error_code = self
@@ -47,6 +48,9 @@ macro_rules! impl_human_readable_call {
                     (self.slice_holder.ptr, buffer_holder.ptr),
                 )
                 .await?;
+
+            let () = store.data().check_error()?;
+
             let error_code = ErrorCode::from_repr(error_code);
 
             let ErrorCode::Ok = error_code else {

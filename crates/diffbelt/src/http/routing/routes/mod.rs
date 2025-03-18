@@ -1,5 +1,6 @@
 pub mod collection;
 pub mod diff;
+pub mod flatbuffers;
 pub mod generation;
 pub mod get;
 pub mod get_keys_around;

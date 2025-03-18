@@ -2,6 +2,23 @@
 macro_rules! value_encoding_into_bytes {
     ( $original:ident ) => {
         impl $original {
+            pub fn to_bytes(&self) -> Option<Box<[u8]>> {
+                let Some(encoding) = &self.encoding else {
+                    return Some(Box::from(self.value.as_bytes()));
+                };
+
+                match encoding.as_str() {
+                    "base64" => {
+                        let Ok(bytes) = base64::decode(&self.value) else {
+                            return None;
+                        };
+
+                        Some(bytes.into_boxed_slice())
+                    }
+                    _ => None,
+                }
+            }
+
             pub fn into_bytes(self) -> Result<Box<[u8]>, crate::errors::IntoBytesError<$original>> {
                 let Some(encoding) = &self.encoding else {
                     return Ok(self.value.into_bytes().into_boxed_slice());

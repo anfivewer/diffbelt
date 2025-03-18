@@ -28,40 +28,25 @@ collections:
   - name: kicks:1h
   - name: kicks:1d
 
+  - name: updateMs:1d:intermediate
+    human_readable:
+      wasm: example
+      key_to_bytes: updateMsIntermediateKeyToBytes
+      bytes_to_key: updateMsIntermediateBytesToKey
+      value_to_bytes: updateMsIntermediateValueToBytes
+      bytes_to_value: updateMsIntermediateBytesToValue
+
   - name: updateMs:1d:p
+    human_readable:
+      wasm: example
+      key_to_bytes: updateMsPercentilesKeyToBytes
+      bytes_to_key: updateMsPercentilesBytesToKey
+      value_to_bytes: updateMsPercentilesValueToBytes
+      bytes_to_value: updateMsPercentilesBytesToValue
 
   - name: uniqueChats:1d
 
   - name: uniqueUsers:1d
-
-#functions:
-#  parsed_log_lines_day_date_as_key: &parsed_log_lines_day_date_as_key
-#    - vars:
-#        date:
-#          date_from_unix_ms: source.timestampMilliseconds
-#        key: ${date.year}-${(padLeft date.month '0' 2)}-${(padLeft date.day '0', 2)}
-#    - return: key
-#  parsed_log_lines_aggregate_increment_log_keys: &parsed_log_lines_aggregate_increment_log_keys
-#    - vars:
-#        count: accumulator.log_keys.get_or_default(key, 0)
-#    - update_map:
-#        var: accumulator.log_keys
-#        key: key
-#        value: count + value
-#  take_str_before_space: &take_str_before_space
-#    - regexp:
-#        var: str
-#        regexp: ^([^\s]+)\s
-#        groups:
-#          - str
-#    - return: str
-#  update_ms_percentiles_increment_ms_by_type: &update_ms_percentiles_increment_ms_by_type
-#    - vars:
-#        count: accumulator.ms_by_type.get_or_default(key, 0)
-#    - update_map:
-#        var: accumulator.ms_by_type
-#        key: key
-#        value: count + value
 
 transforms:
   - name: parse_lines
@@ -89,247 +74,30 @@ transforms:
         bytes_to_accumulator: parsedLogLinesBytesToAccumulator
         accumulator_to_bytes: parsedLogLinesAccumulatorToBytes
 
-#  - source: parsed-log-lines
-#    target: parsed-log-lines:1d
-#    reader_name: parsed-log-lines
-#    aggregate:
-#      key:
-#        - call:
-#            fn: parsed_log_lines_day_date_as_key
-#            vars:
-#              source: source
-#            result: key
-#        - return: key
-#      map_filter:
-#        - vars:
-#            unified_logger_key:
-#              regexp_replace:
-#                var: source.loggerKey
-#                from: ^(master|worker)\d+
-#                to: $1#
-#            merged_log_key: ${unified_logger_key}::${source.logKey}::${logLevelLetter}
-#        - return: merged_log_key
-#      empty_accumulator:
-#        - return: !record
-#            count:
-#              type: int64
-#              value: 0
-#            log_keys: map<string, int64>
-#      initial_accumulator:
-#        - return:
-#            count: target.count
-#            log_keys: target.logKeys
-#      reduce:
-#        - if:
-#            condition: source_old is not none
-#            then:
-#              - vars:
-#                  key: source_old.merged_log_key
-#                  value: -1
-#              - update_record:
-#                  var: accumulator.count
-#                  value: accumulator.count + value
-#              - call:
-#                  fn: parsed_log_lines_aggregate_increment_log_keys
-#                  vars:
-#                    accumulator: accumulator
-#                    count: count
-#                    value: value
-#                    key: key
-#        - if:
-#            condition: source_new is not none
-#            then:
-#              - vars:
-#                  key: source_new.merged_log_key
-#                  value: 1
-#              - update_record:
-#                  var: accumulator.count
-#                  value: accumulator.count + value
-#              - call:
-#                  fn: parsed_log_lines_aggregate_increment_log_keys
-#                  vars:
-#                    accumulator: accumulator
-#                    count: count
-#                    value: value
-#                    key: key
-#      merge_accumulators:
-#        - update_record:
-#            var: accumulator.count
-#            value: accumulator.count + next.count
-#        - foreach:
-#            iterable: next.logKeys
-#            as_var: item
-#            body:
-#              - vars:
-#                  key: item.key
-#                  value: item.value
-#              - call:
-#                  fn: parsed_log_lines_aggregate_increment_log_keys
-#                  vars:
-#                    accumulator: accumulator
-#                    count: count
-#                    value: value
-#                    key: key
-#      apply:
-#        - return: accumulator
-#
-#  - source: parsed-log-lines
-#    intermediate:
-#      collection:
-#        name: updateMs:1d:intermediate
-#      reader_name: parsed-log-lines
-#    target: updateMs:1d:p
-#    reader_name: updateMs:1d:intermediate
-#    percentiles:
-#      percentiles: [0, 50, 75, 90, 95, 100]
-#      target_key:
-#        source:
-#          - call:
-#              fn: parsed_log_lines_day_date_as_key
-#              vars:
-#                source: source
-#              result: key
-#          - return: key
-#        intermediate:
-#          - call:
-#              fn: take_str_before_space
-#              vars:
-#                str: intermediate_key
-#              result: key
-#          - return: key
-#      intermediate:
-#        - vars:
-#            is_stats: source.logLevel == 'S'
-#            is_handle_full: source.logKey == 'handleFull'
-#            is_from_middleware:
-#              regexp_test:
-#                var: source.loggerKey
-#                regexp: ^worker\d*:middlewares$
-#        - if:
-#            condition: is_stats && is_handle_full && is_from_middleware
-#            then: noop
-#            else: return
-#        - vars:
-#            update_type: source.props.updateType.or_default('???')
-#            ms:
-#              parse_float: source.props.ms
-#        - vars:
-#            ms_fixed:
-#              positive_float_to_fixed_length_string:
-#                integer_digits: 9
-#                fractional_digits: 1
-#                overflow_as_max: yes
-#        - call:
-#            fn: parsed_log_lines_day_date_as_key
-#            vars:
-#              source: source
-#            result: key
-#        - return:
-#            key: ${key} ${ms_fixed} ${source_key}
-#            value:
-#              updateType: update_type
-#              ms: ms
-#      empty_accumulator:
-#        - return: !record
-#            sum_ms:
-#              type: int64
-#              value: 0
-#            ms_by_type: map<string, int64>
-#      initial_accumulator:
-#        - return:
-#            sum_ms: target.sumMs
-#            ms_by_type: target.msByType
-#      reduce:
-#        - if:
-#            condition: intermediate_old is not none
-#            then:
-#              - update_record:
-#                  var: accumulator.sum_ms
-#                  value: accumulator.sum_ms - intermediate_old.sum_ms
-#              - vars:
-#                  key: intermediate_old.updateType
-#                  value: -1
-#              - call:
-#                  fn: update_ms_percentiles_increment_ms_by_type
-#                  vars:
-#                    accumulator: accumulator
-#                    key: key
-#                    count: count
-#                    value: value
-#        - if:
-#            condition: intermediate_new is not none
-#            then:
-#              - update_record:
-#                  var: accumulator.sum_ms
-#                  value: accumulator.sum_ms + intermediate_old.sum_ms
-#              - vars:
-#                  key: intermediate_old.updateType
-#                  value: 1
-#              - call:
-#                  fn: update_ms_percentiles_increment_ms_by_type
-#                  vars:
-#                    accumulator: accumulator
-#                    key: key
-#                    count: count
-#                    value: value
-#      percentiles_data:
-#        - return: target.percentilesData
-#      apply:
-#        - return:
-#            sumMs: accumulator.sum_ms
-#            msByType: accumulator.ms_by_type
-#            percentilesData: percentiles_data
-#
-#  - source: parsed-log-lines
-#    intermediate:
-#      collection:
-#        name: uniqueChats:1d:intermediate
-#        format: empty
-#      reader_name: parsed-log-lines
-#    target: uniqueChats:1d
-#    reader_name: uniqueChats:1d:intermediate
-#    unique_count:
-#      target_key:
-#        source:
-#          - call:
-#              fn: parsed_log_lines_day_date_as_key
-#              vars:
-#                source: source
-#              result: key
-#          - return: key
-#        intermediate:
-#          - call:
-#              fn: take_str_before_space
-#              vars:
-#                str: intermediate_key
-#              result: key
-#          - return: key
-#      intermediate:
-#        - vars:
-#            is_stats: source.logLevel == 'S'
-#            is_chat: source.logKey == 'chat'
-#            is_unique_chats:
-#              regexp_test:
-#                var: source.loggerKey
-#                regexp: ^[^:]+:uniqueChats$
-#            id: source.props.id
-#        - if:
-#            condition: is_stats && is_chat && is_unique_chats && id
-#            then: noop
-#            else: return
-#        - call:
-#            fn: parsed_log_lines_day_date_as_key
-#            vars:
-#              source: source
-#            result: key
-#        - return:
-#            key: ${key} ${id}
-#      empty_target:
-#        - return:
-#            count: 0
-#      apply:
-#        - return:
-#            count: target.count + count_diff
+  - name: updateMs_1d_intermediate
+    source: parsed-log-lines
+    target: updateMs:1d:intermediate
+    reader_name: updateMs:1d:intermediate
+    map_filter: example.updateMs1dIntermediateMapFilter
+
+  - name: updateMs_1d_percentiles
+    source: updateMs:1d:intermediate
+    target: updateMs:1d:p
+    reader_name: updateMs:1d:p
+    map_filter: example.updateMs1dIntermediateMapFilter
+    aggregate:
+      wasm: example
+      map: updateMsPercentilesMap
+      initial_accumulator: updateMsPercentilesInitialAccumulator
+      reduce: updateMsPercentilesReduce
+      apply: updateMsPercentilesMsApply
+      human_readable:
+        wasm: example
+        bytes_to_target_key: updateMsPercentilesBytesToTargetKey
+        bytes_to_mapped_value: updateMsPercentilesBytesToMappedValue
+        mapped_value_to_bytes: updateMsPercentilesBytesToMappedValue
+        bytes_to_accumulator: updateMsPercentilesBytesToAccumulator
+        accumulator_to_bytes: updateMsPercentilesAccumulatorToBytes
 
 wasm:
   - name: example
@@ -377,7 +145,7 @@ tests:
     - name: with props and two extras
       input:
         source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull updateType:edited_message ms:27 |some extra 2|another extra 2'
-        source_old_value: (none)
+        source_old_value: !none
         source_new_value: ''
       output:
         - key: 2023-02-20T21:42:48.822Z.000 worker258688
@@ -398,7 +166,7 @@ tests:
     - name: with no props and no extras
       input:
         source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull'
-        source_old_value: (none)
+        source_old_value: !none
         source_new_value: ''
       output:
         - key: 2023-02-20T21:42:48.822Z.000 worker258688
@@ -413,7 +181,7 @@ tests:
     - name: with no props and two extras
       input:
         source_key: 'S 2023-02-20T21:42:48.822Z.000 worker258688:middlewares handleFull |some extra|another extra'
-        source_old_value: (none)
+        source_old_value: !none
         source_new_value: ''
       output:
         - key: 2023-02-20T21:42:48.822Z.000 worker258688
@@ -431,16 +199,14 @@ tests:
     - name: not matches start
       input:
         source_key: 'S ------- worker258688:middlewares handleFull |some extra|another extra'
-        source_old_value: (none)
+        source_old_value: !none
         source_new_value: ''
-      output:
-        - key: S ------- worker258688:middlewares handleFull |some extra|another extra
-          value: !none
+      output: []
 
     - name: with stack extra
       input:
         source_key: 'E 2022-10-31T10:18:35.254Z.000 main:report report reason:undefined |FetchError: request to https://api.telegram.org/-----/getChatMember failed, reason: connect ETIMEDOUT 149.154.167.220:443\n    at ClientRequest.<anonymous> (/home/shieldy/shieldy/node_modules/node-fetch/lib/index.js:1461:11)\n    at ClientRequest.emit (events.js:375:28)\n    at TLSSocket.socketErrorListener (_http_client.js:475:9)\n    at TLSSocket.emit (events.js:375:28)\n    at emitErrorNT (internal/streams/destroy.js:106:8)\n    at emitErrorCloseNT (internal/streams/destroy.js:74:3)\n    at processTicksAndRejections (internal/process/task_queues.js:82:21)'
-        source_old_value: (none)
+        source_old_value: !none
         source_new_value: ''
       output:
         - key: 2022-10-31T10:18:35.254Z.000 main
@@ -674,3 +440,44 @@ tests:
         items:
           master#:something::newKey::S: -1
       output: !should_safe_fail
+
+  transforms.updateMs_1d_intermediate.map_filter:
+    - name: should not match
+      input:
+        source_key: 2023-02-20T21:42:48.822Z.000 worker4242
+        source_old_value: !none
+        source_new_value: |
+          logLevel: S (83)
+          tsStr: 2023-02-20T21:42:48.822Z.000
+          tsMs: 1676929368822
+          tsMicro: 0
+          loggerKey: worker4242:middlewares
+          logKey: handleFull
+          extra:
+            some extra
+            another extra
+      output: []
+
+    - name: should match
+      input:
+        source_key: 2023-02-20T21:42:48.822Z.000 worker4242
+        source_old_value: !none
+        source_new_value: |
+          logLevel: S (83)
+          tsStr: 2023-02-20T21:42:48.822Z.000
+          tsMs: 1676929368822
+          tsMicro: 0
+          loggerKey: worker4242:middlewares
+          logKey: handleFull
+          props:
+            updateType: edited_message
+            ms: 27
+      output:
+        - key: 2023-02-20 000000027.0 2023-02-20T21:42:48.822Z.000 worker4242
+          value: |-
+            updateType: edited_message
+            ms: 27
+
+integration_tests:
+  - name: updateMs_1d_percentiles_empty
+    wasm: example.calculatePercentilesEmptyIntegrationTest

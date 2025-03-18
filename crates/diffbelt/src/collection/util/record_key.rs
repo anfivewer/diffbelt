@@ -137,7 +137,7 @@ impl<'a> ParsedRecordKey<'a> {
 
 impl Debug for ParsedRecordKey<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        () = f.write_fmt(format_args!(
+        let () = f.write_fmt(format_args!(
             "ParsedRecordKey(CollectionKey = {:?}, GenerationId = {:?}, PhantomId = {:?})",
             self.collection_key(),
             self.generation_id(),

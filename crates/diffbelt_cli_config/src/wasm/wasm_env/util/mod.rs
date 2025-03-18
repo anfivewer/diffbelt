@@ -2,10 +2,11 @@ use std::str::from_utf8;
 
 use wasmtime::{Memory, StoreContext};
 
-use diffbelt_util_no_std::cast::try_positive_i32_to_usize;
+use diffbelt_util_no_std::cast::u32_to_usize;
 
 use crate::wasm::types::WasmPtrToByte;
-use crate::wasm::{WasmError, WasmStoreData};
+use crate::wasm::WasmStoreData;
+use crate::wasm::error::WasmError;
 
 pub struct WasmUtf8Holder<'a> {
     ctx: StoreContext<'a, WasmStoreData>,
@@ -31,13 +32,11 @@ pub fn ptr_to_utf8(
     ctx: StoreContext<WasmStoreData>,
     memory: Memory,
     ptr: WasmPtrToByte,
-    len: i32,
+    len: u32,
 ) -> Result<WasmUtf8Holder, WasmError> {
     let ptr = ptr.value;
-    let ptr = try_positive_i32_to_usize(ptr)
-        .ok_or_else(|| WasmError::Unspecified(format!("ptr_to_utf8 got ptr {ptr}")))?;
-    let len = try_positive_i32_to_usize(len)
-        .ok_or_else(|| WasmError::Unspecified(format!("ptr_to_utf8 got len {len}")))?;
+    let ptr = u32_to_usize(ptr);
+    let len = u32_to_usize(len);
 
     Ok(WasmUtf8Holder {
         ctx,

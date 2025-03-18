@@ -1,5 +1,7 @@
 use alloc::vec::Vec;
 
+use crate::FLATBUFFERS_ALIGNMENT;
+use diffbelt_aligned_bytes::OwnedAlignedBytes;
 use enum_as_inner::EnumAsInner;
 use flatbuffers::InvalidFlatbuffer;
 use thiserror_no_std::Error;
@@ -12,7 +14,7 @@ pub enum FlatbufferError {
 
 #[derive(Debug)]
 pub struct InvalidFlatbufferWithBuffer {
-    pub buffer: Option<Vec<u8>>,
+    pub buffer: Option<OwnedAlignedBytes<FLATBUFFERS_ALIGNMENT>>,
     pub error: InvalidFlatbuffer,
 }
 
@@ -21,7 +23,7 @@ pub fn map_flatbuffer_error_to_return_buffer(
 ) -> impl FnOnce(FlatbufferError) -> FlatbufferError + '_ {
     |err| match err.into_invalid_flatbuffer_with_buffer() {
         Ok(InvalidFlatbufferWithBuffer { buffer, error }) => {
-            *buffer_holder = buffer;
+            *buffer_holder = buffer.map(|x| x.into_underlying_vec());
 
             FlatbufferError::InvalidFlatbuffer(error)
         }

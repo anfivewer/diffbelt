@@ -99,6 +99,8 @@ impl AggregateTransform {
 
             handle_received_target_record(
                 &mut actions,
+                &state.from_generation_id,
+                &state.to_generation_id,
                 target,
                 target_key.clone(),
                 target_value,

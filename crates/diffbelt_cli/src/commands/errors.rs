@@ -2,8 +2,10 @@ use std::fmt::{Debug, Formatter};
 use thiserror::Error;
 
 use diffbelt_cli_config::config_tests::run::RunTestsError;
-use diffbelt_cli_config::wasm::WasmError;
+use diffbelt_cli_config::errors::RunTransformError;
+use diffbelt_cli_config::wasm::error::WasmError;
 use diffbelt_http_client::errors::DiffbeltClientError;
+use diffbelt_protos::align_util::AlignedBytesError;
 use diffbelt_protos::error::FlatbufferError;
 use diffbelt_protos::InvalidFlatbuffer;
 use diffbelt_transforms::base::error::TransformError;
@@ -24,6 +26,8 @@ pub enum CommandError {
     Wasm(#[from] WasmError),
     #[error(transparent)]
     TransformEval(#[from] TransformEvalError),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }
 
 impl From<TransformError> for CommandError {
@@ -50,7 +54,7 @@ impl Debug for WasmAggregateMapCallError {
         let data = &self.input_buffer[self.input_head..(self.input_head + self.input_len)];
         let encoded = base64::encode(data);
 
-        () = f.write_fmt(format_args!(
+        let () = f.write_fmt(format_args!(
             "Aggregate::map error: {:?}, input data: {encoded}",
             self.error
         ))?;
@@ -70,6 +74,37 @@ pub enum TransformEvalError {
     Flatbuffer(#[from] NoStdErrorWrap<FlatbufferError>),
     #[error(transparent)]
     InvalidFlatbuffer(#[from] NoStdErrorWrap<InvalidFlatbuffer>),
+    #[error(transparent)]
+    AlignedBytes(#[from] NoStdErrorWrap<AlignedBytesError>),
 }
 
 impl_from_either!(TransformEvalError);
+
+impl From<TransformEvalError> for RunTransformError {
+    fn from(value: TransformEvalError) -> Self {
+        match value {
+            TransformEvalError::Unspecified(msg) => RunTransformError::Message(msg),
+            TransformEvalError::Wasm(err) => err.into(),
+            TransformEvalError::WasmAggregateMapCall(err) => err.error.into(),
+            TransformEvalError::Flatbuffer(err) => err.into(),
+            TransformEvalError::InvalidFlatbuffer(err) => err.into(),
+            TransformEvalError::AlignedBytes(err) => err.into(),
+        }
+    }
+}
+
+impl From<RunTransformError> for CommandError {
+    fn from(value: RunTransformError) -> Self {
+        match value {
+            RunTransformError::Message(msg) => CommandError::Message(msg),
+            RunTransformError::Transform(err) => err.into(),
+            RunTransformError::Wasm(err) => err.into(),
+            RunTransformError::DiffbeltClient(err) => err.into(),
+            RunTransformError::Flatbuffer(err) => TransformEvalError::Flatbuffer(err).into(),
+            RunTransformError::InvalidFlatbuffer(err) => {
+                TransformEvalError::InvalidFlatbuffer(err).into()
+            }
+            RunTransformError::AlignedBytes(err) => TransformEvalError::AlignedBytes(err).into(),
+        }
+    }
+}

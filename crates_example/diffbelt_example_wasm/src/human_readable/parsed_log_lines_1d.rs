@@ -1,10 +1,12 @@
+use crate::global::BUFFER_FOR_REALIGN;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
-
+use diffbelt_example_protos::protos::impls::ParsedLogLine1dProto;
 use diffbelt_example_protos::protos::log_line::{
     LogTypeWithCount, LogTypeWithCountArgs, ParsedLogLine1d, ParsedLogLine1dArgs,
 };
+use diffbelt_protos::align_util::AlignedBytes;
 use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
 use diffbelt_util_no_std::bytes::{read_u32_be, write_u32_be};
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, u32_to_usize};
@@ -46,7 +48,7 @@ impl HumanReadable for ParsedLogLines1dKv {
         }
 
         let buffer = unsafe { (*buffer_ptr).into_empty_vec() };
-        let mut serializer = Serializer::from_vec(buffer);
+        let mut serializer = Serializer::<ParsedLogLine1dProto>::from_vec(buffer);
 
         let input = unsafe { (*input_and_output.value).as_str().expect("not a string") };
 
@@ -123,8 +125,11 @@ impl HumanReadable for ParsedLogLines1dKv {
         buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
         let slice = unsafe { (*input_and_output.value).as_slice() };
+        let slice =
+            AlignedBytes::ensure_alignment_or_copy(slice, unsafe { &mut BUFFER_FOR_REALIGN })
+                .expect("align error");
 
-        let serialized = deserialize::<ParsedLogLine1d>(slice).expect("cannot parse");
+        let serialized = deserialize::<ParsedLogLine1dProto>(slice).expect("cannot parse");
 
         let buffer = unsafe { (*buffer_ptr.value).into_empty_vec() };
         let mut result = unsafe { String::from_utf8_unchecked(buffer) };
@@ -225,8 +230,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
 
         let output = unsafe { &*input_and_output.value };
         let output_ptr = output.ptr.as_ptr();
-        let output_len_u32 = try_positive_i32_to_u32(output.len).expect("negative length");
-        let output_len_usize = u32_to_usize(output_len_u32);
+        let output_len_usize = u32_to_usize(output.len);
         let mut buffer = unsafe { (&*buffer_ptr).into_vec() };
 
         if let Some(index) = relative_pointer_location(buffer.as_slice(), output_ptr) {
@@ -244,7 +248,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
         let buffer_tail = &mut buffer[(buffer_len - 8)..];
 
         write_u32_be(buffer_tail, 0);
-        write_u32_be(&mut buffer_tail[4..], output_len_u32);
+        write_u32_be(&mut buffer_tail[4..], output.len);
 
         unsafe {
             *input_and_output.value = BytesSlice::from(buffer.as_slice());

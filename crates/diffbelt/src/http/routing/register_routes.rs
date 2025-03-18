@@ -5,6 +5,7 @@ use crate::http::routing::routes::collection::generation_id_stream::register_col
 use crate::http::routing::routes::collection::list::register_list_collections_route;
 use crate::http::routing::routes::diff::by_id::register_next_diff_route;
 use crate::http::routing::routes::diff::start::register_start_diff_route;
+use crate::http::routing::routes::flatbuffers::register_flatbuffers_route;
 use crate::http::routing::routes::generation::abort::register_abort_generation_route;
 use crate::http::routing::routes::generation::commit::register_commit_generation_route;
 use crate::http::routing::routes::generation::start::register_start_generation_route;
@@ -21,6 +22,7 @@ use crate::http::routing::routes::root::register_root_route;
 
 pub fn register_routes(context: &mut Context) {
     register_root_route(context);
+    register_flatbuffers_route(context);
     register_get_route(context);
     register_get_keys_around_route(context);
     register_put_route(context);

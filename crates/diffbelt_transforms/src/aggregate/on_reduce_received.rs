@@ -1,3 +1,4 @@
+use crate::aggregate::apply::TryApplyAction;
 use crate::aggregate::context::{HandlerContext, ReducingContext};
 use crate::aggregate::on_map_received::reduce_target_chunk;
 use crate::aggregate::state::{TargetKeyChunk, TargetKeyCollectingChunk, TargetKeyReducedChunk};
@@ -92,7 +93,7 @@ impl AggregateTransform {
             let mut actions = self.action_input_handlers.take_action_input_actions_vec();
 
             if reduce_input_items.is_empty() {
-                () = Self::try_apply(
+                let apply_action = Self::try_apply(
                     &mut actions,
                     &self.max_limits,
                     &mut state.current_limits,
@@ -100,10 +101,19 @@ impl AggregateTransform {
                     &mut self.apply_target_keys_temp_vec,
                 );
 
-                if actions.is_empty() {
+                if actions.is_empty() && apply_action == TryApplyAction::Pass {
                     self.action_input_handlers
                         .return_action_input_actions_vec(actions);
                     return Ok(ActionInputHandlerResult::Consumed);
+                }
+
+                match apply_action {
+                    TryApplyAction::Pass => {}
+                    TryApplyAction::NeedFinish => {
+                        self.action_input_handlers
+                            .return_action_input_actions_vec(actions);
+                        return self.on_finish();
+                    }
                 }
 
                 return Ok(ActionInputHandlerResult::AddActions(actions));
@@ -140,7 +150,7 @@ impl AggregateTransform {
             target_key_rc,
             target,
         );
-        () = Self::maybe_read_cursor(
+        let () = Self::maybe_read_cursor(
             &mut actions,
             &self.max_limits,
             &mut state.current_limits,
@@ -150,7 +160,7 @@ impl AggregateTransform {
         );
 
         if actions.is_empty() {
-            () = Self::try_apply(
+            let apply_action = Self::try_apply(
                 &mut actions,
                 &self.max_limits,
                 &mut state.current_limits,
@@ -158,10 +168,19 @@ impl AggregateTransform {
                 &mut self.apply_target_keys_temp_vec,
             );
 
-            if actions.is_empty() {
+            if actions.is_empty() && apply_action == TryApplyAction::Pass {
                 self.action_input_handlers
                     .return_action_input_actions_vec(actions);
                 return Ok(ActionInputHandlerResult::Consumed);
+            }
+
+            match apply_action {
+                TryApplyAction::Pass => {}
+                TryApplyAction::NeedFinish => {
+                    self.action_input_handlers
+                        .return_action_input_actions_vec(actions);
+                    return self.on_finish();
+                }
             }
         }
 

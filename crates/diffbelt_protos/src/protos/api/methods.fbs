@@ -1,0 +1,49 @@
+include "common.fbs";
+include "generation.fbs";
+include "phantom.fbs";
+include "put_many.fbs";
+include "query.fbs";
+include "get_keys_around.fbs";
+include "collection.fbs";
+include "readers.fbs";
+
+union RequestBody {
+    Error: ErrorResponse,
+    GetCollection: GetCollectionRequest,
+    StartGeneration: StartGenerationRequest,
+    CommitGeneration: CommitGenerationRequest,
+    GenerationIdStream: GenerationIdStreamRequest,
+    StartPhantom: StartPhantomRequest,
+    PutMany: PutManyRequest,
+    StartQuery: StartQueryRequest,
+    NextQuery: NextQueryRequest,
+    GetKeysAround: GetKeysAroundRequest,
+    CreateCollection: CreateCollectionRequest,
+    ListReaders: ListReadersRequest,
+    CreateReader: CreateReaderRequest,
+}
+
+union ResponseBody {
+    Error: ErrorResponse,
+    GetCollection: GetCollectionResponse,
+    StartGeneration: StartGenerationResponse,
+    CommitGeneration: CommitGenerationResponse,
+    GenerationIdStream: GenerationIdStreamResponse,
+    StartPhantom: StartPhantomResponse,
+    PutMany: PutManyResponse,
+    StartQuery: QueryResponse,
+    NextQuery: QueryResponse,
+    GetKeysAround: GetKeysAroundResponse,
+    CreateCollection: CreateCollectionResponse,
+    ListReaders: ListReadersResponse,
+    CreateReader: CreateReaderResponse,
+}
+
+table Request {
+    body: RequestBody;
+}
+
+/// One of fields is required
+table Response {
+    body: ResponseBody;
+}

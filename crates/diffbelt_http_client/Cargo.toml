@@ -11,6 +11,7 @@ tokio = { version = "1.22.0", features = ["full"] }
 hyper = { version = "0.14.23", features = ["full"] }
 serde_json = "1.0.91"
 thiserror = "1.0.50"
+tracing = "0.1.41"
 
 [dependencies.diffbelt_types]
 path = "../diffbelt_types"
@@ -21,3 +22,6 @@ path = "../diffbelt_util"
 
 [dependencies.diffbelt_transforms]
 path = "../diffbelt_transforms"
+
+[dependencies.diffbelt_protos]
+path = "../diffbelt_protos"

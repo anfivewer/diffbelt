@@ -2,18 +2,21 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
-
+use crate::config_tests::integration::IntegrationTestDef;
 use crate::config_tests::TestSuite;
 use crate::errors::{ConfigParsingError, ExpectedError};
 use crate::formats::collection_human_readable_config::CollectionHumanReadableConfig;
 use crate::transforms::Transform;
 use crate::util::expect::{expect_bool, expect_map, expect_seq, expect_str};
-use crate::wasm::{NewWasmInstanceOptions, Wasm, WasmError, WasmModuleInstance};
+use crate::wasm::engine::WasmEngine;
+use crate::wasm::{NewWasmInstanceOptions, Wasm, WasmModuleInstance};
+use diffbelt_yaml::{decode_yaml, parse_yaml, YamlNode, YamlParsingError};
+use wasm::error::WasmError;
 
 pub mod config_tests;
 pub mod errors;
 pub mod formats;
+pub mod requests;
 pub mod transforms;
 pub mod util;
 pub mod wasm;
@@ -23,12 +26,13 @@ compile_error!("Only LE targets are supported because we are copying data to WAS
 
 #[derive(Debug)]
 pub struct CliConfig {
-    self_path: Rc<str>,
+    pub self_path: Rc<str>,
 
-    collections: Vec<Collection>,
-    transforms: Vec<Transform>,
+    pub collections: Vec<Collection>,
+    pub transforms: Vec<Transform>,
     wasm: HashMap<Rc<str>, Wasm>,
     tests: HashMap<Rc<str>, TestSuite>,
+    integration_tests: Vec<IntegrationTestDef>,
 }
 
 #[derive(Debug)]
@@ -45,6 +49,7 @@ impl CliConfig {
         let mut transforms = None;
         let mut wasm = HashMap::new();
         let mut tests = None;
+        let mut integration_tests = None;
 
         for (key_node, value) in &root.items {
             let key = expect_str(&key_node)?;
@@ -73,6 +78,10 @@ impl CliConfig {
                     let parsed_tests = decode_yaml(value)?;
                     tests = Some(parsed_tests);
                 }
+                "integration_tests" => {
+                    let parsed_tests = decode_yaml(value)?;
+                    integration_tests = Some(parsed_tests);
+                }
                 other => {
                     return Err(ConfigParsingError::UnknownKey(ExpectedError {
                         message: other.to_string(),
@@ -88,6 +97,7 @@ impl CliConfig {
             transforms: transforms.unwrap_or_else(|| Vec::new()),
             wasm,
             tests: tests.unwrap_or_else(|| HashMap::new()),
+            integration_tests: integration_tests.unwrap_or_else(|| Vec::new()),
         })
     }
 
@@ -110,13 +120,6 @@ impl CliConfig {
 
     pub fn wasm_module_def_by_name(&self, name: &str) -> Option<&Wasm> {
         self.wasm.get(name)
-    }
-
-    pub async fn new_wasm_instance(&self, wasm: &Wasm) -> Result<WasmModuleInstance, WasmError> {
-        wasm.new_wasm_instance(NewWasmInstanceOptions {
-            config_path: self.self_path.deref(),
-        })
-        .await
     }
 
     pub fn collection_by_name(&self, collection_name: &str) -> Option<&Collection> {

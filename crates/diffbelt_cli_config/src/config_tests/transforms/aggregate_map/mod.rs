@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::rc::Rc;
 use std::str::from_utf8;
 
+use diffbelt_protos::protos::impls::{AggregateMapMultiInputProto, AggregateMapMultiOutputProto};
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiInput, AggregateMapMultiOutput,
 };
@@ -83,8 +84,8 @@ pub struct AggregateMapTransformTest<'a> {
     aggregate: AggregateFunctions<'a>,
 }
 
-type Input = OwnedSerialized<'static, AggregateMapMultiInput<'static>>;
-type Output = OwnedSerialized<'static, AggregateMapMultiOutput<'static>>;
+type Input = OwnedSerialized<AggregateMapMultiInputProto>;
+type Output = OwnedSerialized<AggregateMapMultiOutputProto>;
 type ActualOutput = String;
 type ExpectedOutput = String;
 

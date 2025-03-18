@@ -1,37 +1,41 @@
-use std::io::ErrorKind;
-use std::ops::DerefMut;
-use std::path::PathBuf;
-use std::rc::Rc;
-use std::str::Utf8Error;
-use std::sync::{Arc, Mutex};
-
-use dioxus_hooks::{BorrowError, BorrowMutError, RefCell};
+use dioxus_hooks::RefCell;
 use serde::Deserialize;
-use thiserror::Error;
-use wasmtime::{
-    AsContext, AsContextMut, Config, Engine, Instance, Linker, Memory, Module, Store, TypedFunc,
-};
+use std::ops::DerefMut;
+use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use wasmtime::{AsContext, AsContextMut, Instance, Linker, Memory, Module, Store, TypedFunc};
 
-use diffbelt_protos::error::FlatbufferError;
 use diffbelt_util::Wrap;
-use diffbelt_util_no_std::cast::{try_positive_i32_to_usize, try_usize_to_i32};
+use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
 use diffbelt_util_no_std::impl_from_either;
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::BytesSlice;
+pub use error::WasmError;
 use memory::vector::WasmVecHolder;
 use memory::Allocation;
 pub use types::WasmPtrImpl;
 
 use crate::errors::WithMark;
+use crate::requests::DiffbeltRequests;
+use crate::wasm::cli_api::WasmCliApi;
+use crate::wasm::engine::WasmEngine;
 use crate::wasm::human_readable::HumanReadableFunctions;
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::result::WasmBytesSliceResult;
 use crate::wasm::types::{WasmBytesSlice, WasmPtrToBytesSlice, WasmPtrToVecRawParts};
+use crate::wasm::wasm_env::integration_tests::IntegrationTestsEnv;
+use crate::wasm::wasm_env::memory::AllocationEnv;
 use crate::wasm::wasm_env::regex::RegexEnv;
+use crate::wasm::wasm_env::requests::ActiveDiffbeltRequests;
 use crate::wasm::wasm_env::WasmEnv;
 
 pub mod aggregate;
+pub mod cli_api;
+pub mod engine;
+pub mod error;
 pub mod human_readable;
+pub mod integration_tests;
 pub mod memory;
 pub mod ptr;
 pub mod result;
@@ -45,72 +49,103 @@ pub struct Wasm {
     pub wasm_path: WithMark<String>,
 }
 
-#[derive(Error, Debug)]
-pub enum WasmError {
-    #[error("AlreadyErrored")]
-    AlreadyErrored,
-    #[error("{0:?}")]
-    Io(std::io::Error),
-    #[error("{0:?}")]
-    Utf8(Utf8Error),
-    #[error("MutexPoisoned")]
-    MutexPoisoned,
-    #[error("NoMemory")]
-    NoMemory,
-    #[error("NoAllocation")]
-    NoAllocation,
-    #[error("{0:?}")]
-    Regex(regex::Error),
-    #[error("{0:?}")]
-    Borrow(#[from] BorrowError),
-    #[error("{0:?}")]
-    BorrowMut(#[from] BorrowMutError),
-    #[error("{0:?}")]
-    Flatbuffer(FlatbufferError),
-    #[error("BadPointer")]
-    BadPointer,
-    #[error("{0:?}")]
-    WasmTime(#[from] wasmtime::Error),
-    #[error("Aggregate::apply error code {0:?}")]
-    AggregateApplyErrorCode(ErrorCode),
-    #[error("{0:?}")]
-    Unspecified(String),
-}
-
 impl_from_either!(WasmError);
 
-impl From<FlatbufferError> for WasmError {
-    fn from(value: FlatbufferError) -> Self {
-        Self::Flatbuffer(value)
+pub struct NewWasmInstanceOptions<'a> {
+    pub engine: &'a WasmEngine,
+    pub module: &'a Module,
+    pub requests: Arc<DiffbeltRequests>,
+    pub cli_api: Option<WasmCliApi>,
+}
+
+pub struct WasmStoreErrorState {
+    // FIXME: check everywhere
+    /// Mark this instance as broken, since unrecoverable error happened and memory may be corrupted
+    is_broken: Arc<AtomicBool>,
+    error: Option<WasmError>,
+}
+
+impl WasmStoreErrorState {
+    pub fn set_error(&mut self, error: WasmError) {
+        self.is_broken.store(true, Ordering::Relaxed);
+        self.error = Some(error);
     }
 }
 
-pub struct NewWasmInstanceOptions<'a> {
-    pub config_path: &'a str,
-}
-
 pub struct WasmStoreData {
+    pub is_broken: Arc<AtomicBool>,
     // FIXME: use it somewhere and check error
-    pub error: Arc<Mutex<Option<WasmError>>>,
+    pub error: Arc<Mutex<WasmStoreErrorState>>,
     pub inner: Arc<Mutex<WasmStoreDataInner>>,
 }
 
 pub struct WasmStoreDataInner {
     pub memory: Option<Memory>,
     pub allocation: Option<Allocation>,
+    pub allocation_env: Option<AllocationEnv>,
     pub regex: Option<RegexEnv>,
+    pub requests: Option<Arc<DiffbeltRequests>>,
+    pub active_requests: Option<ActiveDiffbeltRequests>,
+    pub integration_tests: Option<IntegrationTestsEnv>,
+    pub cli_api: Option<WasmCliApi>,
+}
+
+#[derive(Copy, Clone)]
+pub struct NonBrokenToken {
+    inner: (),
 }
 
 impl WasmStoreData {
-    pub fn new() -> Self {
+    pub fn new(requests: Arc<DiffbeltRequests>, cli_api: Option<WasmCliApi>) -> Self {
+        let is_broken = Arc::new(AtomicBool::new(false));
+
         Self {
-            error: Wrap::wrap(None),
+            is_broken: is_broken.clone(),
+            error: Wrap::wrap(WasmStoreErrorState {
+                is_broken,
+                error: None,
+            }),
             inner: Wrap::wrap(WasmStoreDataInner {
                 memory: None,
                 allocation: None,
+                allocation_env: None,
                 regex: None,
+                requests: Some(requests),
+                active_requests: None,
+                integration_tests: None,
+                cli_api,
             }),
         }
+    }
+
+    pub fn non_broken_token(&self) -> Option<NonBrokenToken> {
+        if self.is_broken.load(Ordering::Relaxed) {
+            None
+        } else {
+            Some(NonBrokenToken { inner: () })
+        }
+    }
+
+    pub fn check_error(&self) -> Result<(), WasmError> {
+        if !self.is_broken.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+
+        // There `is_broken` is true, which means that under lock we are should see error,
+        // because is_broken was set under this lock
+
+        let mut lock = self
+            .error
+            .lock()
+            .map_err(|_| WasmError::Unspecified(String::from("Wasm error lock is poisoned")))?;
+
+        let error = lock.error.take();
+
+        if let Some(error) = error {
+            return Err(error);
+        }
+
+        Err(WasmError::Unspecified(String::from("Wasm store is broken")))
     }
 }
 
@@ -126,45 +161,25 @@ pub struct MapFilterFunction<'a> {
     slice: WasmSliceHolder<'a>,
 }
 
-impl Wasm {
-    pub async fn new_wasm_instance(
-        &self,
-        options: NewWasmInstanceOptions<'_>,
-    ) -> Result<WasmModuleInstance, WasmError> {
-        let NewWasmInstanceOptions { config_path } = options;
+impl WasmModuleInstance {
+    pub async fn new(options: NewWasmInstanceOptions<'_>) -> Result<WasmModuleInstance, WasmError> {
+        let NewWasmInstanceOptions {
+            engine,
+            module,
+            requests,
+            cli_api,
+        } = options;
 
-        let mut wasm_path =
-            PathBuf::with_capacity(config_path.as_bytes().len() + 1 + self.name.as_bytes().len());
-        wasm_path.push(config_path);
-        wasm_path.push(self.wasm_path.value.as_str());
+        let data = WasmStoreData::new(requests, cli_api);
 
-        let wat_bytes = tokio::fs::read(&wasm_path).await.map_err(|err| {
-            if let ErrorKind::NotFound = err.kind() {
-                return WasmError::Unspecified(format!(
-                    "Did not found wasm file at \"{}\"",
-                    wasm_path.to_str().unwrap_or("?")
-                ));
-            }
-
-            WasmError::Io(err)
-        })?;
-
-        let mut config = Config::new();
-        config.async_support(true);
-        let engine = Engine::new(&config)?;
-
-        let data = WasmStoreData::new();
-
-        let mut store = Store::new(&engine, data);
-        let wasm_mod = Module::new(&engine, &wat_bytes)?;
-
-        let mut linker = Linker::<WasmStoreData>::new(&engine);
+        let mut store = Store::new(&engine.engine, data);
+        let mut linker = Linker::<WasmStoreData>::new(&engine.engine);
 
         let env = WasmEnv::new();
 
-        () = env.register_imports(&mut store, &mut linker)?;
+        let () = env.register_imports(&mut store, &mut linker)?;
 
-        let instance = linker.instantiate_async(&mut store, &wasm_mod).await?;
+        let instance = linker.instantiate_async(&mut store, module).await?;
 
         let mut memory = None;
 
@@ -209,9 +224,7 @@ impl Wasm {
             allocation,
         })
     }
-}
 
-impl WasmModuleInstance {
     pub async fn map_filter_function(
         &self,
         name: &str,
@@ -258,7 +271,7 @@ impl MapFilterFunction<'_> {
         let mut store = self.instance.store.try_borrow_mut()?;
         let store = store.deref_mut();
 
-        let inputs_len_i32 = try_usize_to_i32(inputs.len()).ok_or_else(|| {
+        let inputs_len_u32 = try_usize_to_u32(inputs.len()).ok_or_else(|| {
             WasmError::Unspecified(format!("Input length too big: {}", inputs.len()))
         })?;
 
@@ -267,8 +280,10 @@ impl MapFilterFunction<'_> {
             .instance
             .allocation
             .alloc
-            .call_async(store.as_context_mut(), inputs_len_i32)
+            .call_async(store.as_context_mut(), inputs_len_u32)
             .await?;
+
+        let () = store.data().check_error()?;
 
         {
             let memory = self
@@ -276,14 +291,14 @@ impl MapFilterFunction<'_> {
                 .allocation
                 .memory
                 .data_mut(store.as_context_mut());
-            let ptr_slice = ptr.slice()?;
-            () = ptr_slice.write_slice(memory, inputs)?;
+            let ptr_slice = ptr.slice();
+            let () = ptr_slice.write_slice(memory, inputs)?;
 
-            () = self.slice.ptr.write(
+            let () = self.slice.ptr.write(
                 memory,
                 WasmBytesSlice(BytesSlice {
                     ptr,
-                    len: inputs_len_i32,
+                    len: inputs_len_u32,
                 }),
             )?;
         }
@@ -293,6 +308,8 @@ impl MapFilterFunction<'_> {
                 .call_async(store.as_context_mut(), (self.slice.ptr, result_buffer.ptr))
                 .await?
         };
+
+        let () = store.data().check_error()?;
 
         let error_code = ErrorCode::from_repr(error_code);
         let ErrorCode::Ok = error_code else {
@@ -308,9 +325,7 @@ impl MapFilterFunction<'_> {
         };
 
         let result_len = slice_def.0.len;
-        let result_len = try_positive_i32_to_usize(result_len).ok_or_else(|| {
-            WasmError::Unspecified(format!("map_filter call result len: {}", result_len))
-        })?;
+        let result_len = u32_to_usize(result_len);
 
         Ok(WasmBytesSliceResult {
             instance: self.instance,

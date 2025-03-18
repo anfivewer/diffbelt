@@ -83,7 +83,7 @@ pub enum TransformTestImpl<'a> {
 #[macro_export]
 macro_rules! call_human_readable_conversion {
     ($value:expr, $human_readable:expr, $method:ident, $input_vec_holder:ident, $output_vec_holder:ident) => {{
-        () = $input_vec_holder.replace_with_slice($value).await?;
+        let () = $input_vec_holder.replace_with_slice($value).await?;
         let slice = $human_readable
             .instance
             .vec_to_bytes_slice(&$input_vec_holder)?;
@@ -108,7 +108,7 @@ macro_rules! yaml_test_vars_input_required {
             )
         })?;
 
-        () = call_human_readable_conversion!(
+        let () = call_human_readable_conversion!(
             value.as_bytes(),
             $human_readable,
             $method,
@@ -134,7 +134,7 @@ macro_rules! yaml_test_vars_input_optional {
         output_offset: $output_offset:ident,
     ) => {{
         if let Scalar::String(value) = $value {
-            () = call_human_readable_conversion!(
+            let () = call_human_readable_conversion!(
                 value.as_bytes(),
                 $human_readable,
                 $method,

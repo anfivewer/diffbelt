@@ -4,11 +4,7 @@ use std::mem;
 use std::ops::Deref;
 use std::str::from_utf8;
 
-use lazy_static::lazy_static;
-use rand::{Rng, SeedableRng};
-use rand_chacha::ChaCha8Rng;
-use regex::Regex;
-
+use diffbelt_protos::protos::impls::AggregateApplyOutputProto;
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateApplyOutputArgs, AggregateMapMultiOutput,
     AggregateMapMultiOutputArgs, AggregateMapOutput, AggregateMapOutputArgs,
@@ -30,6 +26,10 @@ use diffbelt_types::common::key_value::{
 use diffbelt_types::common::key_value_update::KeyValueUpdateJsonData;
 use diffbelt_types::common::reader::UpdateReaderJsonData;
 use diffbelt_util_no_std::cast::{u32_to_i64, u32_to_u64, usize_to_u64};
+use lazy_static::lazy_static;
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha8Rng;
+use regex::Regex;
 
 use crate::aggregate::AggregateTransform;
 use crate::base::action::diffbelt_call::{DiffbeltCallAction, DiffbeltRequestBody, Method};
@@ -834,7 +834,7 @@ fn run_aggregate_test<Random: Rng>(params: AggregateTestParams<Random>) {
 
                             let new_target_value = new_target_value.to_string();
 
-                            let mut serializer = Serializer::<AggregateApplyOutput>::from_vec(
+                            let mut serializer = Serializer::<AggregateApplyOutputProto>::from_vec(
                                 transform.take_apply_input_buffer(),
                             );
 

@@ -1,19 +1,21 @@
 use std::collections::VecDeque;
 use std::io::Read;
 
+use crate::http::error::BodyReadError;
 use futures::future::BoxFuture;
 use hyper::body::{Buf, Bytes, HttpBody};
 use hyper::Body;
 
-#[derive(Debug)]
-pub enum BodyReadError {
-    IO,
-    SizeLimit,
-}
-
 pub struct FullBody {
     bufs: VecDeque<Bytes>,
     offset: usize,
+    total_size: usize,
+}
+
+impl FullBody {
+    pub fn total_size(&self) -> usize {
+        self.total_size
+    }
 }
 
 pub type IntoFullBodyAsReadReturn = BoxFuture<'static, Result<FullBody, BodyReadError>>;
@@ -37,7 +39,11 @@ pub fn into_full_body_as_read(mut body: Body, max_size: usize) -> IntoFullBodyAs
             bufs.push_back(buf);
         }
 
-        let full = FullBody { bufs, offset: 0 };
+        let full = FullBody {
+            bufs,
+            offset: 0,
+            total_size,
+        };
 
         Ok(full)
     })

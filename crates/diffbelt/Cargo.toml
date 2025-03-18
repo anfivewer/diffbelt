@@ -29,6 +29,8 @@ lru = "0.10.0"
 enum-as-inner = "0.6.0"
 thiserror = "1.0.50"
 enum_dispatch = "0.3.12"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 [dependencies.diffbelt_types]
 path = "../diffbelt_types"
@@ -44,6 +46,12 @@ path = "../diffbelt_macro"
 
 [dependencies.diffbelt_http_client]
 path = "../diffbelt_http_client"
+
+[dependencies.diffbelt_aligned_bytes]
+path = "../diffbelt_aligned_bytes"
+
+[dependencies.diffbelt_protos]
+path = "../diffbelt_protos"
 
 [build-dependencies]
 protobuf-codegen = "3.2.0"

@@ -21,7 +21,7 @@ some seq:
 
     let mut output = String::new();
 
-    () = doc.serialize(&mut output).expect("serialization error");
+    let () = doc.serialize(&mut output).expect("serialization error");
 
     assert_eq!(output.as_str(), config);
 }

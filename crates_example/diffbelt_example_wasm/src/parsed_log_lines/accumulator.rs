@@ -1,10 +1,13 @@
+use crate::global::BUFFER_FOR_REALIGN;
 use alloc::borrow::Cow;
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
+use diffbelt_example_protos::protos::impls::ParsedLogLine1dProto;
 use diffbelt_example_protos::protos::log_line::{
     LogTypeWithCount, LogTypeWithCountArgs, ParsedLogLine1d, ParsedLogLine1dArgs,
 };
+use diffbelt_protos::align_util::AlignedBytes;
 use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
 use diffbelt_util_no_std::bytes::{read_u32_be, write_u32_be};
 use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
@@ -30,7 +33,10 @@ impl DayAccumulator<'_> {
 
         let serialized = &bytes[u32_to_usize(head)..u32_to_usize(head + len)];
         let serialized =
-            deserialize::<ParsedLogLine1d>(serialized).expect("cannot parse accumulator");
+            AlignedBytes::ensure_alignment_or_copy(serialized, unsafe { &mut BUFFER_FOR_REALIGN })
+                .expect("align error");
+        let serialized =
+            deserialize::<ParsedLogLine1dProto>(serialized).expect("cannot parse accumulator");
 
         serialized
     }
@@ -93,7 +99,7 @@ impl DayAccumulator<'_> {
     }
 
     pub fn serialize_flatbuffer(&self, buffer: Vec<u8>) -> (Vec<u8>, usize, usize) {
-        let mut serializer = Serializer::from_vec(buffer);
+        let mut serializer = Serializer::<ParsedLogLine1dProto>::from_vec(buffer);
         let mut items = Vec::with_capacity(self.log_types.len());
 
         for (name, count) in &self.log_types {

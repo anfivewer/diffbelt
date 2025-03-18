@@ -5,7 +5,8 @@ use wasmtime::{AsContextMut, Instance, Memory, Store, TypedFunc};
 use diffbelt_util::Wrap;
 
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr, WasmVecRawParts};
-use crate::wasm::{WasmError, WasmStoreData};
+use crate::wasm::WasmStoreData;
+use crate::wasm::error::WasmError;
 
 pub mod slice;
 pub mod vector;
@@ -20,8 +21,8 @@ pub enum DeallocType {
 pub struct Allocation {
     // FIXME: dealloc them :)
     pub pending_deallocs: Arc<Mutex<Vec<DeallocType>>>,
-    pub alloc: TypedFunc<i32, WasmPtr<u8>>,
-    pub dealloc: TypedFunc<(WasmPtr<u8>, i32), ()>,
+    pub alloc: TypedFunc<u32, WasmPtr<u8>>,
+    pub dealloc: TypedFunc<(WasmPtr<u8>, u32), ()>,
     alloc_bytes_slice: TypedFunc<(), WasmPtr<WasmBytesSlice>>,
     dealloc_bytes_slice: TypedFunc<WasmPtr<WasmBytesSlice>, ()>,
     pub alloc_bytes_vec_raw_parts: TypedFunc<(), WasmPtr<WasmBytesVecRawParts>>,
@@ -30,9 +31,9 @@ pub struct Allocation {
         TypedFunc<(), WasmPtr<WasmVecRawParts<WasmBytesVecRawParts>>>,
     pub dealloc_vec_raw_parts_of_bytes_vec_raw_parts:
         TypedFunc<WasmPtr<WasmVecRawParts<WasmBytesVecRawParts>>, ()>,
-    pub ensure_vec_capacity: TypedFunc<(WasmPtr<WasmBytesVecRawParts>, i32), ()>,
+    pub ensure_vec_capacity: TypedFunc<(WasmPtr<WasmBytesVecRawParts>, u32), ()>,
     pub ensure_vec_of_bytes_vec_raw_parts_capacity:
-        TypedFunc<(WasmPtr<WasmVecRawParts<WasmBytesVecRawParts>>, i32), ()>,
+        TypedFunc<(WasmPtr<WasmVecRawParts<WasmBytesVecRawParts>>, u32), ()>,
     pub memory: Memory,
 }
 

@@ -1,10 +1,13 @@
 use std::borrow::Cow;
 use std::str::Utf8Error;
 
+use diffbelt_http_client::errors::DiffbeltClientError;
+use diffbelt_protos::align_util::AlignedBytesError;
 use text_diff::Difference;
 use thiserror::Error;
 
 use diffbelt_protos::InvalidFlatbuffer;
+use diffbelt_util::diffbelt::stdout::DiffbeltStdoutError;
 use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util_no_std::impl_from_either;
 use diffbelt_util_no_std::slice::SliceOffsetError;
@@ -12,10 +15,11 @@ use diffbelt_yaml::YamlSerializationError;
 
 use crate::config_tests::value::{ScalarParseError, YamlValueConstructionError};
 use crate::formats::human_readable::HumanReadableError;
-use crate::wasm::WasmError;
+use crate::wasm::error::WasmError;
 
 #[derive(Debug)]
 pub enum AssertError {
+    Message(String),
     ValueMissmatch {
         message: Cow<'static, str>,
         expected: Option<String>,
@@ -59,6 +63,14 @@ pub enum TestError {
     YamlTestVars(#[from] YamlTestVarsError),
     #[error(transparent)]
     YamlSerialization(#[from] YamlSerializationError),
+    #[error("{:?}", .0.reason)]
+    AlignedBytes(AlignedBytesError),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    DiffbeltStdout(#[from] DiffbeltStdoutError),
+    #[error(transparent)]
+    DiffbeltClient(#[from] DiffbeltClientError),
 }
 
 impl_from_either!(TestError);

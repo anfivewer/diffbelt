@@ -3,15 +3,17 @@ use alloc::vec::Vec;
 use core::fmt::Write;
 use core::str::Utf8Error;
 
-use thiserror_no_std::Error;
-
+use crate::global::BUFFER_FOR_REALIGN;
+use diffbelt_example_protos::protos::impls::ParsedLogLineProto;
 use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineArgs, Prop, PropArgs};
+use diffbelt_protos::align_util::AlignedBytes;
 use diffbelt_protos::{deserialize, InvalidFlatbuffer, SerializedRawParts, Serializer};
 use diffbelt_wasm_binding::annotations::{Annotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::Regex;
+use thiserror_no_std::Error;
 
 use crate::util::run_error_coded::run_error_coded;
 
@@ -69,7 +71,7 @@ impl HumanReadable for ParsedLogLinesKv {
             let value = unsafe { (&*input_and_output.value).as_str() }?;
 
             let buffer = unsafe { (&*buffer_ptr).into_empty_vec() };
-            let mut serializer = Serializer::<ParsedLogLine>::from_vec(buffer);
+            let mut serializer = Serializer::<ParsedLogLineProto>::from_vec(buffer);
 
             let mut mem = Regex::alloc_captures::<3>();
 
@@ -230,31 +232,35 @@ impl HumanReadable for ParsedLogLinesKv {
             let mut s = String::from_utf8(vec).expect("empty vec should be valid string");
 
             let bytes = unsafe { (&*input_and_output.value).as_slice() };
-            let log_line = deserialize::<ParsedLogLine>(bytes)?;
+            let bytes =
+                AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
+                    .expect("align error");
+
+            let log_line = deserialize::<ParsedLogLineProto>(bytes)?;
 
             let log_level = log_line.log_level();
 
-            () = s.write_fmt(format_args!(
+            let () = s.write_fmt(format_args!(
                 "logLevel: {} ({})\n",
                 log_level as char, log_level
             ))?;
-            () = s.write_fmt(format_args!(
+            let () = s.write_fmt(format_args!(
                 "tsStr: {}\n",
                 log_line.timestamp_string().unwrap_or("None")
             ))?;
-            () = s.write_fmt(format_args!(
+            let () = s.write_fmt(format_args!(
                 "tsMs: {}\n",
                 log_line.timestamp_milliseconds()
             ))?;
-            () = s.write_fmt(format_args!(
+            let () = s.write_fmt(format_args!(
                 "tsMicro: {}\n",
                 log_line.timestamp_microseconds()
             ))?;
-            () = s.write_fmt(format_args!(
+            let () = s.write_fmt(format_args!(
                 "loggerKey: {}\n",
                 log_line.logger_key().unwrap_or("None")
             ))?;
-            () = s.write_fmt(format_args!(
+            let () = s.write_fmt(format_args!(
                 "logKey: {}\n",
                 log_line.log_key().unwrap_or("None")
             ))?;
@@ -267,7 +273,7 @@ impl HumanReadable for ParsedLogLinesKv {
                             .key()
                             .map(|x| x.replace("\\", "\\\\").replace(": ", ":\\ "));
 
-                        () = s.write_fmt(format_args!(
+                        let () = s.write_fmt(format_args!(
                             "  {}: {}\n",
                             key.as_ref().map(|x| x.as_str()).unwrap_or("None"),
                             prop.value().unwrap_or("None"),
@@ -280,7 +286,7 @@ impl HumanReadable for ParsedLogLinesKv {
                 if !extras.is_empty() {
                     s.push_str("extra:\n");
                     for extra in extras {
-                        () = s.write_fmt(format_args!("  {extra}\n"))?;
+                        let () = s.write_fmt(format_args!("  {extra}\n"))?;
                     }
                 }
             }

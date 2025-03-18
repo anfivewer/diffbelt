@@ -6,13 +6,9 @@
 * Disallow parsing Flatbuffers from random byte slices, do it only from 8-bytes padded slices to be able to shift data to ensure alignment
 * Limit `gc_iterator` lookups count (writing too much phantoms may crash server on gc collection of this phantoms)
 * Move `items_limit` out of DiffLogic, it miscalculates on equal values
-
------
-
-# Misc
-
-Regexp for purging dev printlines:
-
-```
-[^e]println!\((?!"cargo|"Temp)
-```
+* Ensure some alignment for input slices going to wasm (and/or make input mutable?)
+* Remove Regex wasm bindings
+* Do not forget to call deallocs which are scheduled
+* Return diffbelt parseable flatbuffers errors as it
+* Move `if_not_present` out of `KeyValueUpdate` for put_many
+* Tests for empty aggregate transform

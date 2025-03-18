@@ -8,6 +8,7 @@ pub mod cast;
 pub mod either;
 pub mod fmt;
 pub mod from_either;
+pub mod on_drop;
 pub mod option;
 pub mod ptr;
 pub mod slice;

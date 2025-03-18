@@ -1,3 +1,4 @@
+use diffbelt_protos::protos::impls::AggregateReduceInputProto;
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateReduceInput, AggregateReduceInputArgs, AggregateReduceItem, AggregateReduceItemArgs,
 };
@@ -12,13 +13,7 @@ use crate::wasm::human_readable::aggregate::AggregateHumanReadableFunctions;
 pub async fn yaml_test_vars_to_aggregate_reduce_input(
     aggregate_human_readable: &AggregateHumanReadableFunctions<'_>,
     node: &YamlNode,
-) -> Result<
-    (
-        Vec<u8>,
-        OwnedSerialized<'static, AggregateReduceInput<'static>>,
-    ),
-    YamlTestVarsError,
-> {
+) -> Result<(Vec<u8>, OwnedSerialized<AggregateReduceInputProto>), YamlTestVarsError> {
     let mut serializer = Serializer::new();
 
     let instance = aggregate_human_readable.instance;
@@ -61,7 +56,7 @@ pub async fn yaml_test_vars_to_aggregate_reduce_input(
                         YamlTestVarsError::Unspecified("item is not a string".to_string())
                     })?;
 
-                    () = call_human_readable_conversion!(
+                    let () = call_human_readable_conversion!(
                         item.as_bytes(),
                         aggregate_human_readable,
                         call_mapped_value_to_bytes,

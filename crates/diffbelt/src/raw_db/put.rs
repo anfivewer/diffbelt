@@ -28,7 +28,7 @@ impl RawDb {
         let db = self.db.get_db();
 
         let cf = db.cf_handle(cf_name).ok_or(RawDbError::CfHandle)?;
-        () = db.put_cf(&cf, key, value)?;
+        let () = db.put_cf(&cf, key, value)?;
 
         Ok(())
     }
@@ -42,7 +42,7 @@ impl RawDb {
         let db = self.db.get_db();
 
         let cf = db.cf_handle(cf_name).ok_or(RawDbError::CfHandle)?;
-        () = db.merge_cf(&cf, key, value)?;
+        let () = db.merge_cf(&cf, key, value)?;
 
         Ok(())
     }

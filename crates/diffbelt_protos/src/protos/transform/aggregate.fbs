@@ -21,6 +21,8 @@ table AggregateMapMultiOutput {
 table AggregateTargetInfo {
   target_key: [ubyte];
   target_old_value: [ubyte]; // optional
+  generation_id: [ubyte];
+  new_generation_id: [ubyte];
 }
 
 table AggregateReduceItem {

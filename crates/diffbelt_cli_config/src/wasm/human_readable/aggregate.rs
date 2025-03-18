@@ -8,7 +8,8 @@ use crate::impl_human_readable_call;
 use crate::wasm::memory::slice::WasmSliceHolder;
 use crate::wasm::memory::vector::WasmVecHolder;
 use crate::wasm::types::{WasmBytesSlice, WasmBytesVecRawParts, WasmPtr};
-use crate::wasm::{WasmError, WasmModuleInstance};
+use crate::wasm::WasmModuleInstance;
+use crate::wasm::error::WasmError;
 
 pub struct AggregateHumanReadableFunctions<'a> {
     pub instance: &'a WasmModuleInstance,

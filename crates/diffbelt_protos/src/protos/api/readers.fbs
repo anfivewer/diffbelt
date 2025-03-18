@@ -1,0 +1,22 @@
+table ListReadersRequest {
+  collection_name: string;
+}
+
+table ReaderRecord {
+    reader_name: string;
+    /// optional
+    collection_name: string;
+    /// optional
+    generation_id: [ubyte];
+}
+
+table ListReadersResponse {
+  readers: [ReaderRecord];
+}
+
+table CreateReaderRequest {
+  collection_name: string;
+  reader: ReaderRecord;
+}
+
+table CreateReaderResponse {}

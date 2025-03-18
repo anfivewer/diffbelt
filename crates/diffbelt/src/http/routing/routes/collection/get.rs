@@ -11,7 +11,7 @@ use crate::http::data::encoded_generation_id::{
 };
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
-use crate::http::routing::response::Response;
+use crate::http::routing::response::HttpResponse;
 use crate::http::util::response::create_ok_json_response;
 use crate::util::str_serialization::StrSerializationType;
 
@@ -59,7 +59,7 @@ struct GetCollectionResponseJsonData {
 pub async fn get_collection(
     request: impl Request,
     collection: Arc<Collection>,
-) -> Result<Response, HttpError> {
+) -> Result<HttpResponse, HttpError> {
     let params = request
         .query_params()
         .map_err(|_| HttpError::Generic400("invalidQueryParams"))?;

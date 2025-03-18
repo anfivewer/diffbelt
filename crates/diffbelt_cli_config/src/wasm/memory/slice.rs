@@ -1,10 +1,11 @@
 use std::ops::DerefMut;
 
 use either::Either;
-
+use wasmtime::AsContextMut;
 use crate::wasm::memory::DeallocType;
 use crate::wasm::types::{WasmBytesSlice, WasmPtr};
-use crate::wasm::{WasmError, WasmModuleInstance};
+use crate::wasm::WasmModuleInstance;
+use crate::wasm::error::WasmError;
 
 pub struct WasmSliceHolder<'a> {
     pub instance: &'a WasmModuleInstance,
@@ -19,8 +20,10 @@ impl WasmModuleInstance {
         let ptr = self
             .allocation
             .alloc_bytes_slice
-            .call_async(store, ())
+            .call_async(store.as_context_mut(), ())
             .await?;
+
+        let () = store.data().check_error()?;
 
         Ok(WasmSliceHolder {
             instance: self,

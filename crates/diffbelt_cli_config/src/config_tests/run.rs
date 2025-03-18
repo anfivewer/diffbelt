@@ -4,7 +4,7 @@ use thiserror::Error;
 use diffbelt_yaml::YamlParsingError;
 
 use crate::config_tests::error::AssertError;
-use crate::config_tests::{SingleTestResult, TestResult};
+use crate::config_tests::{RunTestsOptions, SingleTestResult, TestResult};
 use crate::errors::ConfigParsingError;
 use crate::CliConfig;
 
@@ -16,8 +16,11 @@ pub enum RunTestsError {
     ConfigParsing(ConfigParsingError),
 }
 
-pub async fn run_tests(config: &CliConfig) -> Result<bool, RunTestsError> {
-    let results = config.run_tests().await;
+pub async fn run_tests(
+    config: &CliConfig,
+    options: RunTestsOptions,
+) -> Result<bool, RunTestsError> {
+    let results = config.run_tests(options).await;
 
     let mut is_ok = true;
 
@@ -37,21 +40,34 @@ pub async fn run_tests(config: &CliConfig) -> Result<bool, RunTestsError> {
         };
 
         for result in results {
-            let SingleTestResult { name, result } = result;
+            let SingleTestResult {
+                name,
+                result,
+                elapsed,
+            } = result;
+
+            let elapsed_str = if let Some(elapsed) = elapsed {
+                format!(", {elapsed:?}")
+            } else {
+                String::new()
+            };
 
             let result = match result {
                 Ok(x) => x,
                 Err(err) => {
-                    println!("[FAIL] {function_name} > {name}: {:?}", err);
+                    println!("[FAIL] {function_name} > {name}: {:?}{elapsed_str}", err);
                     is_ok = false;
                     continue;
                 }
             };
 
             if let Some(err) = result {
-                println!("[FAIL] {function_name} > {name}:");
+                println!("[FAIL] {function_name} > {name}{elapsed_str}:");
 
                 match err {
+                    AssertError::Message(msg) => {
+                        println!("{msg}");
+                    }
                     AssertError::ValueMissmatch { .. } => {
                         println!("{err:#?}");
                     }
@@ -89,7 +105,7 @@ pub async fn run_tests(config: &CliConfig) -> Result<bool, RunTestsError> {
 
                 is_ok = false;
             } else {
-                println!("[ OK ] {function_name} > {name}");
+                println!("[ OK ] {function_name} > {name}{elapsed_str}");
             }
         }
     }
