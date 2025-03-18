@@ -190,8 +190,13 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
                     }
                     Err(err) => {
                         let mut make_flatbuffers_error =
-                            |reason: Option<&str>, details: Option<&str>| {
+                            |error_str: Option<&str>, reason: Option<&str>, details: Option<&str>| {
                                 let mut serializer = Serializer::<ResponseProto>::new();
+                                let error_str = if let Some(error_str) = error_str {
+                                    Some(serializer.create_string(error_str))
+                                } else {
+                                    None
+                                };
                                 let reason = if let Some(reason) = reason {
                                     Some(serializer.create_string(reason))
                                 } else {
@@ -206,6 +211,7 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
                                     serializer.buffer_builder(),
                                     &ErrorResponseArgs {
                                         code: 400,
+                                        error: error_str,
                                         reason,
                                         details,
                                     },
@@ -271,7 +277,7 @@ pub async fn start_http_server(context: Arc<Context>, task: BusyTask) {
     }
 }
 
-fn map_http_err<F: FnOnce(Option<&str>, Option<&str>) -> Body>(
+fn map_http_err<F: FnOnce(Option<&str>, Option<&str>, Option<&str>) -> Body>(
     err: HttpError,
     is_flatbuffers: bool,
     make_flatbuffers_error: F,
@@ -280,7 +286,7 @@ fn map_http_err<F: FnOnce(Option<&str>, Option<&str>) -> Body>(
         HttpError::Unspecified => (
             StatusCode::INTERNAL_SERVER_ERROR,
             if is_flatbuffers {
-                make_flatbuffers_error(Some("500"), None)
+                make_flatbuffers_error(None, Some("500"), None)
             } else {
                 "{\"error\":\"500\"}".into()
             },
@@ -288,7 +294,7 @@ fn map_http_err<F: FnOnce(Option<&str>, Option<&str>) -> Body>(
         HttpError::NotFound => (
             StatusCode::NOT_FOUND,
             if is_flatbuffers {
-                make_flatbuffers_error(Some("notFound"), None)
+                make_flatbuffers_error(None, Some("notFound"), None)
             } else {
                 "{\"error\":\"404\"}".into()
             },
@@ -296,7 +302,7 @@ fn map_http_err<F: FnOnce(Option<&str>, Option<&str>) -> Body>(
         HttpError::Generic400(reason) | HttpError::ContentTypeUnsupported(reason) => (
             StatusCode::BAD_REQUEST,
             if is_flatbuffers {
-                make_flatbuffers_error(None, Some(reason))
+                make_flatbuffers_error(None, None, Some(reason))
             } else {
                 format!(
                     "{{\"error\":\"400\",\"details\":{}}}",
@@ -308,7 +314,7 @@ fn map_http_err<F: FnOnce(Option<&str>, Option<&str>) -> Body>(
         HttpError::GenericString400(reason) => (
             StatusCode::BAD_REQUEST,
             if is_flatbuffers {
-                make_flatbuffers_error(None, Some(&reason))
+                make_flatbuffers_error(None, None, Some(&reason))
             } else {
                 format!(
                     "{{\"error\":\"400\",\"details\":{}}}",
@@ -319,16 +325,17 @@ fn map_http_err<F: FnOnce(Option<&str>, Option<&str>) -> Body>(
         ),
         HttpError::InvalidFlatbuffers(details) => (
             StatusCode::BAD_REQUEST,
-            make_flatbuffers_error(Some("invalidFlatbuffers"), Some(&details)),
+            make_flatbuffers_error(None, Some("invalidFlatbuffers"), Some(&details)),
         ),
         HttpError::GenericFlatbuffers400(details) => (
             StatusCode::BAD_REQUEST,
-            make_flatbuffers_error(None, Some(details)),
+            make_flatbuffers_error(None, None, Some(details)),
         ),
         HttpError::TooBigPayload(max_size) => (
             StatusCode::PAYLOAD_TOO_LARGE,
             if is_flatbuffers {
                 make_flatbuffers_error(
+                    None,
                     Some("payloadTooLarge"),
                     Some(&format!("bytesMax:{max_size}")),
                 )
@@ -347,7 +354,7 @@ fn map_http_err<F: FnOnce(Option<&str>, Option<&str>) -> Body>(
         HttpError::PublicInternal500(str) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             if is_flatbuffers {
-                make_flatbuffers_error(Some("500"), Some(str))
+                make_flatbuffers_error(None, Some("500"), Some(str))
             } else {
                 format!(
                     r#"{{"error":"500","details":{}}}"#,
@@ -362,7 +369,7 @@ fn map_http_err<F: FnOnce(Option<&str>, Option<&str>) -> Body>(
         HttpError::NoSuchCollection => (
             StatusCode::BAD_REQUEST,
             if is_flatbuffers {
-                make_flatbuffers_error(Some("noSuchCollection"), None)
+                make_flatbuffers_error(Some("noSuchCollection"), None, None)
             } else {
                 r#"{"error":"404","reason":"noSuchCollection"}"#.into()
             },
@@ -375,7 +382,7 @@ fn map_http_err<F: FnOnce(Option<&str>, Option<&str>) -> Body>(
         } => (
             status_code,
             if is_flatbuffers {
-                make_flatbuffers_error(reason, details)
+                make_flatbuffers_error(error, reason, details)
             } else {
                 format!(
                     r#"{{"error":{},"reason":{},"details":{}}}"#,

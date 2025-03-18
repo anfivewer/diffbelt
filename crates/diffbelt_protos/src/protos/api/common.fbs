@@ -12,6 +12,8 @@ table KeyValue {
 
 table ErrorResponse {
   code: int;
+  error: string;
+  /// optional
   reason: string;
   /// optional
   details: string;

@@ -6,14 +6,14 @@ use core::str::{from_utf8, Utf8Error};
 
 use bytemuck::{Pod, Zeroable};
 
+use crate::debug_print_string;
+use crate::ptr::slice::SliceRawParts;
+use crate::ptr::{ConstPtr, MutPtr, NativePtrImpl, PtrImpl};
 use diffbelt_protos::{FlatbuffersGenericType, OwnedSerialized};
 use diffbelt_util_no_std::cast::{
     checked_positive_i32_to_usize, checked_usize_to_i32, checked_usize_to_u32, u32_to_usize,
     unchecked_usize_to_u32, unsafe_ptr_to_i32,
 };
-
-use crate::ptr::slice::SliceRawParts;
-use crate::ptr::{ConstPtr, MutPtr, NativePtrImpl, PtrImpl};
 
 pub type BytesSlice<P = NativePtrImpl> = SliceRawParts<u8, P>;
 
@@ -44,6 +44,11 @@ pub type BytesVecRawParts<P = NativePtrImpl> = VecRawParts<u8, P>;
 impl<T: Pod> VecRawParts<T, NativePtrImpl> {
     pub unsafe fn into_empty_vec(self) -> Vec<T> {
         let ptr = self.ptr.as_mut_ptr();
+
+        if ptr.is_null() {
+            return Vec::new();
+        }
+
         Vec::from_raw_parts(ptr, 0, self.capacity as usize)
     }
 }

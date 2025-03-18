@@ -72,9 +72,9 @@ impl<'a, const ALIGN: usize> AlignedBytes<'a, ALIGN> {
         // Check to be sure
         // SAFETY: just inserted
         let ptr = buffer.as_ptr();
-        let offset = ptr.align_offset(ALIGN);
+        let new_offset = ptr.align_offset(ALIGN);
 
-        if offset != 0 {
+        if offset != new_offset {
             return Err(AlignedBytesError {
                 reason: format!("AlignedBytes: vector reallocated, offset({offset})"),
                 buffer: None,

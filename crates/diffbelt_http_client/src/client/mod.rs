@@ -235,3 +235,9 @@ impl<A: ApiHandler> FlatbuffersResponse<A> {
         Err(None)
     }
 }
+
+impl<A: ApiHandler> FlatbuffersResponse<A> {
+    pub fn into_underlying_vec(self) -> Vec<u8> {
+        self.response.into_underlying_buffer()
+    }
+}

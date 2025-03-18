@@ -3,7 +3,14 @@ use crate::Collection;
 use diffbelt_http_client::client::DiffbeltClient;
 use diffbelt_http_client::errors::DiffbeltClientError;
 use diffbelt_protos::protos::api::collection::CreateCollectionRequestArgs;
-use diffbelt_protos::protos::handlers::{ApiHandler, CreateCollectionApiHandler};
+use diffbelt_protos::protos::api::common::ErrorResponse;
+use diffbelt_protos::protos::api::readers::{
+    CreateReaderRequestArgs, CreateReaderResponse, ListReadersRequestArgs, ReaderRecord,
+    ReaderRecordArgs,
+};
+use diffbelt_protos::protos::handlers::{
+    ApiHandler, CreateCollectionApiHandler, CreateReaderApiHandler, ListReadersApiHandler,
+};
 use diffbelt_protos::protos::impls::RequestProto;
 use diffbelt_protos::Serializer;
 use std::collections::HashMap;
@@ -107,5 +114,93 @@ async fn init_collection_readers(
     transforms: &[Transform],
     client: &DiffbeltClient,
 ) -> Result<(), InitCollectionsError> {
-    todo!()
+    let mut serializer = Serializer::new();
+    let collection_name = Some(serializer.create_string(&collection.name));
+    let request = ListReadersApiHandler::create_request(
+        serializer,
+        ListReadersRequestArgs { collection_name },
+    );
+    let response = client
+        .flatbuffers_call::<ListReadersApiHandler>(request)
+        .await?;
+    let response = response
+        .response()
+        .map_err(map_error_response_to_init_collection_error)?;
+
+    let readers = response.readers().unwrap_or_default();
+    let mut existing_readers = HashMap::with_capacity(readers.len());
+
+    for reader in readers {
+        let Some(name) = reader.reader_name() else {
+            continue;
+        };
+        existing_readers.insert(name, reader);
+    }
+
+    let mut buffer = Some(Vec::new());
+
+    for transform in transforms {
+        let Some(reader_name) = &transform.reader_name else {
+            continue;
+        };
+        let reader_name = reader_name.as_ref();
+
+        let existing_reader = existing_readers.get(reader_name);
+
+        let Some(existing_reader) = existing_reader else {
+            let mut serializer = Serializer::from_vec(buffer.take().unwrap_or_default());
+            let collection_name = Some(serializer.create_string(&collection.name));
+            let reader = {
+                let reader_name = Some(serializer.create_string(reader_name));
+                let collection_name = Some(serializer.create_string(&transform.source));
+                Some(ReaderRecord::create(
+                    serializer.buffer_builder(),
+                    &ReaderRecordArgs {
+                        reader_name,
+                        collection_name,
+                        generation_id: None,
+                    },
+                ))
+            };
+            let request = CreateReaderApiHandler::create_request(
+                serializer,
+                CreateReaderRequestArgs {
+                    collection_name,
+                    reader,
+                },
+            );
+            let response_holder = client
+                .flatbuffers_call::<CreateReaderApiHandler>(request)
+                .await?;
+            let _: CreateReaderResponse<'_> = response_holder
+                .response()
+                .map_err(map_error_response_to_init_collection_error)?;
+
+            buffer = Some(response_holder.into_underlying_vec());
+            continue;
+        };
+
+        let Some(existing_reader_collection_name) = existing_reader.collection_name() else {
+            return Err(InitCollectionsError::Message(format!(
+                "reader {reader_name} not pointing to collection"
+            )));
+        };
+        let expected_reader_collection_name = transform.source.as_ref();
+
+        if existing_reader_collection_name != expected_reader_collection_name {
+            return Err(InitCollectionsError::Message(format!("reader {reader_name} pointing to collection {existing_reader_collection_name} but expected {expected_reader_collection_name}")));
+        }
+    }
+
+    Ok(())
+}
+
+fn map_error_response_to_init_collection_error(
+    err: Option<ErrorResponse<'_>>,
+) -> InitCollectionsError {
+    let Some(err) = err else {
+        return InitCollectionsError::Message(String::from("no response data"));
+    };
+
+    InitCollectionsError::Message(format!("{err:?}"))
 }
