@@ -6,7 +6,7 @@ use crate::context::Context;
 use crate::http::errors::HttpError;
 use crate::http::request::Request;
 use crate::http::routing::routes::query::abort::abort_cursor;
-use crate::http::routing::routes::query::next::read_cursor;
+use crate::http::routing::routes::query::next::json_read_cursor;
 use crate::http::routing::{HttpHandlerResult, PatternRouteOptions};
 use crate::http::util::common_groups::{id_with_name_group, IdWithNameGroup};
 use crate::http::util::get_collection::get_collection;
@@ -21,7 +21,7 @@ async fn handler(options: PatternRouteOptions<IdWithNameGroup>) -> HttpHandlerRe
     let collection = get_collection(&context, &collection_name).await?;
 
     match request.method() {
-        "GET" => read_cursor(request, collection, cursor_id).await,
+        "GET" => json_read_cursor(options.request_context, collection, cursor_id).await,
         "DELETE" => abort_cursor(request, collection, cursor_id).await,
         _ => Err(HttpError::MethodNotAllowed),
     }

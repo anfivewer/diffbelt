@@ -1,6 +1,7 @@
 #![cfg_attr(all(target_arch = "wasm32", not(test)), no_std)]
 
 extern crate alloc;
+extern crate core;
 
 use alloc::vec::Vec;
 use core::str::from_utf8;

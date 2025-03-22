@@ -10,7 +10,7 @@ pub async fn get_collection(
 ) -> Result<Arc<Collection>, HttpError> {
     let collection = context.database.get_collection(&collection_name).await;
     let Some(collection) = collection else {
-        return Err(HttpError::Generic400("no such collection"));
+        return Err(HttpError::NoSuchCollection);
     };
 
     Ok(collection)

@@ -1,6 +1,7 @@
 include "common.fbs";
 
 table StartQueryRequest {
+  collection_name: string;
   /// optional, default is latest
   generation_id: [ubyte];
   /// optional
@@ -8,6 +9,7 @@ table StartQueryRequest {
 }
 
 table NextQueryRequest {
+  collection_name: string;
   cursor_id: string;
 }
 

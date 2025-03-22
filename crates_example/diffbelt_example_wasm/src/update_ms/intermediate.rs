@@ -192,11 +192,10 @@ fn value_to_key(
 
     let () = key_output
         .write_fmt(format_args!(
-            "{:0>4}-{:0>2}-{:0>2} {:0>11.1} ",
+            "{:0>4}-{:0>2}-{:0>2} {ms:0>11.1} ",
             time.year(),
             time.month(),
             time.day(),
-            ms
         ))
         .expect("cannot fmt");
 

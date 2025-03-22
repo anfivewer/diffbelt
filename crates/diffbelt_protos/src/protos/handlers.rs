@@ -1,7 +1,14 @@
 use crate::protos::api::methods::{
     Request, RequestArgs, RequestBody, Response, ResponseArgs, ResponseBody,
 };
-use crate::protos::impls::{CommitGenerationRequestProto, CommitGenerationResponseProto, CreateCollectionRequestProto, CreateCollectionResponseProto, CreateReaderRequestProto, CreateReaderResponseProto, GenerationIdStreamRequestProto, GenerationIdStreamResponseProto, ListReadersRequestProto, ListReadersResponseProto, PutManyRequestProto, PutManyResponseProto, RequestProto, ResponseProto, StartGenerationRequestProto, StartGenerationResponseProto};
+use crate::protos::impls::{
+    CommitGenerationRequestProto, CommitGenerationResponseProto, CreateCollectionRequestProto,
+    CreateCollectionResponseProto, CreateReaderRequestProto, CreateReaderResponseProto,
+    GenerationIdStreamRequestProto, GenerationIdStreamResponseProto, ListReadersRequestProto,
+    ListReadersResponseProto, NextQueryRequestProto, PutManyRequestProto, PutManyResponseProto,
+    QueryResponseProto, RequestProto, ResponseProto, StartGenerationRequestProto,
+    StartGenerationResponseProto, StartQueryRequestProto,
+};
 use crate::{FlatbuffersGenericType, OwnedSerialized, Serializer};
 
 pub trait ApiHandler {
@@ -146,4 +153,18 @@ api_handler!(
     body_as_create_reader,
     request = CreateReaderRequestProto,
     response = CreateReaderResponseProto,
+);
+api_handler!(
+    StartQueryApiHandler,
+    StartQuery,
+    body_as_start_query,
+    request = StartQueryRequestProto,
+    response = QueryResponseProto,
+);
+api_handler!(
+    NextQueryApiHandler,
+    NextQuery,
+    body_as_next_query,
+    request = NextQueryRequestProto,
+    response = QueryResponseProto,
 );

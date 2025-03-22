@@ -5,6 +5,8 @@ use crate::http::routing::routes::collection::create::create_collection_flatbuff
 use crate::http::routing::routes::collection::generation_id_stream::generation_id_stream_flatbuffers_route;
 use crate::http::routing::routes::generation::start::start_generation_flatbuffers_route;
 use crate::http::routing::routes::put_many::put_many_flatbuffers_route;
+use crate::http::routing::routes::query::next::next_query_flatbuffers_route;
+use crate::http::routing::routes::query::start::start_query_flatbuffers_route;
 use crate::http::routing::routes::reader::create::create_reader_flatbuffers_handler;
 use crate::http::routing::routes::reader::list::list_readers_flatbuffers_handler;
 use crate::http::routing::{StaticRouteFnFutureResult, StaticRouteOptions};
@@ -14,7 +16,8 @@ use diffbelt_protos::deserialize;
 use diffbelt_protos::protos::api::methods::RequestBody;
 use diffbelt_protos::protos::handlers::{
     ApiHandler, CreateCollectionApiHandler, CreateReaderApiHandler, GenerationIdStreamApiHandler,
-    ListReadersApiHandler, PutManyApiHandler, StartGenerationApiHandler,
+    ListReadersApiHandler, NextQueryApiHandler, PutManyApiHandler, StartGenerationApiHandler,
+    StartQueryApiHandler,
 };
 use diffbelt_protos::protos::impls::RequestProto;
 use diffbelt_util_no_std::option::store_in_option;
@@ -66,6 +69,12 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
             }
             RequestBody::CreateReader => {
                 body_handler!(CreateReaderApiHandler, create_reader_flatbuffers_handler)
+            }
+            RequestBody::StartQuery => {
+                body_handler!(StartQueryApiHandler, start_query_flatbuffers_route)
+            }
+            RequestBody::NextQuery => {
+                body_handler!(NextQueryApiHandler, next_query_flatbuffers_route)
             }
             body => {
                 let mut variant_name = None;

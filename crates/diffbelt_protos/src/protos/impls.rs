@@ -14,6 +14,10 @@ use crate::protos::api::phantom::{StartPhantomRequest, StartPhantomRequestArgs};
 use crate::protos::api::put_many::{
     PutManyRequest, PutManyRequestArgs, PutManyResponse, PutManyResponseArgs,
 };
+use crate::protos::api::query::{
+    NextQueryRequest, NextQueryRequestArgs, QueryResponse, QueryResponseArgs, StartQueryRequest,
+    StartQueryRequestArgs,
+};
 use crate::protos::api::readers::{
     CreateReaderRequest, CreateReaderRequestArgs, CreateReaderResponse, CreateReaderResponseArgs,
     ListReadersRequest, ListReadersRequestArgs, ListReadersResponse, ListReadersResponseArgs,
@@ -75,3 +79,6 @@ flatbuffers_generic!(ListReadersRequest, ListReadersRequestArgs<'a>);
 flatbuffers_generic!(ListReadersResponse, ListReadersResponseArgs<'a>);
 flatbuffers_generic!(CreateReaderRequest, CreateReaderRequestArgs<'a>);
 flatbuffers_generic!(CreateReaderResponse, CreateReaderResponseArgs);
+flatbuffers_generic!(StartQueryRequest, StartQueryRequestArgs<'a>);
+flatbuffers_generic!(NextQueryRequest, NextQueryRequestArgs<'a>);
+flatbuffers_generic!(QueryResponse, QueryResponseArgs<'a>);
