@@ -20,7 +20,7 @@ use diffbelt_wasm_binding::Regex;
 struct ParsedLogLines1dKv;
 
 impl HumanReadable for ParsedLogLines1dKv {
-    #[export_name = "parsedLogLines1dKeyToBytes"]
+    #[unsafe(export_name = "parsedLogLines1dKeyToBytes")]
     unsafe extern "C" fn human_readable_key_to_bytes(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         _uffer: *mut BytesVecRawParts,
@@ -28,7 +28,7 @@ impl HumanReadable for ParsedLogLines1dKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "parsedLogLines1dBytesToKey"]
+    #[unsafe(export_name = "parsedLogLines1dBytesToKey")]
     unsafe extern "C" fn bytes_to_human_readable_key(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
@@ -36,7 +36,7 @@ impl HumanReadable for ParsedLogLines1dKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "parsedLogLines1dValueToBytes"]
+    #[unsafe(export_name = "parsedLogLines1dValueToBytes")]
     unsafe extern "C" fn human_readable_value_to_bytes(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         buffer_ptr: *mut BytesVecRawParts,
@@ -119,7 +119,7 @@ impl HumanReadable for ParsedLogLines1dKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "parsedLogLines1dBytesToValue"]
+    #[unsafe(export_name = "parsedLogLines1dBytesToValue")]
     unsafe extern "C" fn bytes_to_human_readable_value(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
@@ -164,7 +164,7 @@ impl HumanReadable for ParsedLogLines1dKv {
 }
 
 impl AggregateHumanReadable for ParsedLogLines1dKv {
-    #[export_name = "parsedLogLinesBytesToTargetKey"]
+    #[unsafe(export_name = "parsedLogLinesBytesToTargetKey")]
     unsafe extern "C" fn bytes_to_target_key(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
@@ -172,7 +172,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "parsedLogLinesBytesToMappedValue"]
+    #[unsafe(export_name = "parsedLogLinesBytesToMappedValue")]
     unsafe extern "C" fn bytes_to_mapped_value(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
@@ -180,7 +180,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "parsedLogLinesMappedValueToBytes"]
+    #[unsafe(export_name = "parsedLogLinesMappedValueToBytes")]
     unsafe extern "C" fn mapped_value_to_bytes(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         _buffer: *mut BytesVecRawParts,
@@ -188,11 +188,11 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "parsedLogLinesBytesToAccumulator"]
+    #[unsafe(export_name = "parsedLogLinesBytesToAccumulator")]
     unsafe extern "C" fn bytes_to_accumulator(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
-    ) -> ErrorCode {
+    ) -> ErrorCode { unsafe {
         let slice = unsafe { (*input_and_output.value).as_slice() };
 
         let slice_tail = &slice[(slice.len() - 8)..];
@@ -215,13 +215,13 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
         };
 
         ErrorCode::Ok
-    }
+    }}
 
-    #[export_name = "parsedLogLinesAccumulatorToBytes"]
+    #[unsafe(export_name = "parsedLogLinesAccumulatorToBytes")]
     unsafe extern "C" fn accumulator_to_bytes(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         buffer_ptr: *mut BytesVecRawParts,
-    ) -> ErrorCode {
+    ) -> ErrorCode { unsafe {
         let code =
             ParsedLogLines1dKv::human_readable_value_to_bytes(input_and_output.clone(), buffer_ptr);
         if code != ErrorCode::Ok {
@@ -256,5 +256,5 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
         }
 
         ErrorCode::Ok
-    }
+    }}
 }

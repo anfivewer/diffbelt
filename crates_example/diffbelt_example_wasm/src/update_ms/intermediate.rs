@@ -27,7 +27,7 @@ use crate::global::{BUFFER_FOR_REALIGN, BUFFER_FOR_REALIGN_2};
 struct UpdateMsDayIntermediate;
 
 impl<'t> MapFilter for UpdateMsDayIntermediate {
-    #[export_name = "updateMs1dIntermediateMapFilter"]
+    #[unsafe(export_name = "updateMs1dIntermediateMapFilter")]
     unsafe extern "C" fn map_filter(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,

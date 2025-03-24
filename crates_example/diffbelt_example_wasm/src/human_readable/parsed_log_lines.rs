@@ -33,7 +33,7 @@ impl From<FromUtf8Error> for LogLinesError {
 }
 
 impl HumanReadable for ParsedLogLinesKv {
-    #[export_name = "parsedLogLinesKeyToBytes"]
+    #[unsafe(export_name = "parsedLogLinesKeyToBytes")]
     unsafe extern "C" fn human_readable_key_to_bytes(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         _buffer: *mut BytesVecRawParts,
@@ -41,7 +41,7 @@ impl HumanReadable for ParsedLogLinesKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "parsedLogLinesBytesToKey"]
+    #[unsafe(export_name = "parsedLogLinesBytesToKey")]
     unsafe extern "C" fn bytes_to_human_readable_key(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
@@ -49,7 +49,7 @@ impl HumanReadable for ParsedLogLinesKv {
         run_error_coded(|| Ok::<_, LogLinesError>(ErrorCode::Ok))
     }
 
-    #[export_name = "parsedLogLinesValueToBytes"]
+    #[unsafe(export_name = "parsedLogLinesValueToBytes")]
     unsafe extern "C" fn human_readable_value_to_bytes(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         buffer_ptr: *mut BytesVecRawParts,
@@ -222,7 +222,7 @@ impl HumanReadable for ParsedLogLinesKv {
         })
     }
 
-    #[export_name = "parsedLogLinesBytesToValue"]
+    #[unsafe(export_name = "parsedLogLinesBytesToValue")]
     unsafe extern "C" fn bytes_to_human_readable_value(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         key: Annotated<*mut BytesVecRawParts, &str>,

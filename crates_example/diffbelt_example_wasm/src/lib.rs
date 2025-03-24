@@ -41,7 +41,7 @@ mod util;
 struct LogLinesMapFilter;
 
 impl MapFilter for LogLinesMapFilter {
-    #[export_name = "mapFilter"]
+    #[unsafe(export_name = "mapFilter")]
     unsafe extern "C" fn map_filter(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,

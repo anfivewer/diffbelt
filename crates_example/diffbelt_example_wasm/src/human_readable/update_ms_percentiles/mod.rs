@@ -22,7 +22,7 @@ struct UpdateMsPercentilesKv;
 mod aggregate;
 
 impl HumanReadable for UpdateMsPercentilesKv {
-    #[export_name = "updateMsPercentilesKeyToBytes"]
+    #[unsafe(export_name = "updateMsPercentilesKeyToBytes")]
     unsafe extern "C" fn human_readable_key_to_bytes(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         _buffer: *mut BytesVecRawParts,
@@ -30,7 +30,7 @@ impl HumanReadable for UpdateMsPercentilesKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "updateMsPercentilesBytesToKey"]
+    #[unsafe(export_name = "updateMsPercentilesBytesToKey")]
     unsafe extern "C" fn bytes_to_human_readable_key(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
@@ -38,7 +38,7 @@ impl HumanReadable for UpdateMsPercentilesKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "updateMsPercentilesValueToBytes"]
+    #[unsafe(export_name = "updateMsPercentilesValueToBytes")]
     unsafe extern "C" fn human_readable_value_to_bytes(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         buffer: *mut BytesVecRawParts,
@@ -197,7 +197,7 @@ impl HumanReadable for UpdateMsPercentilesKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "updateMsPercentilesBytesToValue"]
+    #[unsafe(export_name = "updateMsPercentilesBytesToValue")]
     unsafe extern "C" fn bytes_to_human_readable_value(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer: Annotated<*mut BytesVecRawParts, &str>,

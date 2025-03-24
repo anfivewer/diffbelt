@@ -54,7 +54,7 @@ pub enum ParseLogLineError {
 }
 
 macro_rules! ok_none_if_none {
-    ($expr:expr) => {
+    ($expr:expr_2021) => {
         if let Some(value) = $expr {
             value
         } else {

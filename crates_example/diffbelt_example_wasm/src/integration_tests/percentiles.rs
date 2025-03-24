@@ -45,7 +45,7 @@ impl PartialEq for ExpectedIntermediateItem {
 }
 
 impl IntegrationTest for PercentilesIntegrationTest {
-    #[export_name = "calculatePercentilesEmptyIntegrationTest"]
+    #[unsafe(export_name = "calculatePercentilesEmptyIntegrationTest")]
     unsafe extern "C" fn test() -> ErrorCode {
         let mut serializer = Serializer::new();
         let mut items = Vec::new();
@@ -73,7 +73,7 @@ impl IntegrationTest for PercentilesIntegrationTest {
             let update_type = UPDATE_TYPES[i % UPDATE_TYPES.len()];
             key.write_fmt(format_args!("updateType:{update_type} ",))
                 .expect("write");
-            let ms = i32_to_f32(rnd.gen_range(0..100)) + rnd.gen::<f32>();
+            let ms = i32_to_f32(rnd.gen_range(0..100)) + rnd.r#gen::<f32>();
             key.write_fmt(format_args!("ms:{ms:.3}",)).expect("write");
 
             let ms = libm::roundf(ms * 1000f32) / 1000f32;

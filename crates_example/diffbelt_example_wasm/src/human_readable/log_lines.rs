@@ -22,7 +22,7 @@ impl From<FromUtf8Error> for LogLinesError {
 }
 
 impl HumanReadable for LogLinesKv {
-    #[export_name = "logLinesKeyToBytes"]
+    #[unsafe(export_name = "logLinesKeyToBytes")]
     unsafe extern "C" fn human_readable_key_to_bytes(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         _buffer: *mut BytesVecRawParts,
@@ -30,7 +30,7 @@ impl HumanReadable for LogLinesKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "logLinesBytesToKey"]
+    #[unsafe(export_name = "logLinesBytesToKey")]
     unsafe extern "C" fn bytes_to_human_readable_key(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
@@ -38,7 +38,7 @@ impl HumanReadable for LogLinesKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "logLinesValueToBytes"]
+    #[unsafe(export_name = "logLinesValueToBytes")]
     unsafe extern "C" fn human_readable_value_to_bytes(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         _buffer: *mut BytesVecRawParts,
@@ -46,7 +46,7 @@ impl HumanReadable for LogLinesKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "logLinesBytesToValue"]
+    #[unsafe(export_name = "logLinesBytesToValue")]
     unsafe extern "C" fn bytes_to_human_readable_value(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,

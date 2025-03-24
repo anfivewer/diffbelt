@@ -3,6 +3,7 @@ use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput, AggregateReduceInput,
     AggregateTargetInfo,
 };
+use diffbelt_protos::Serializer;
 use diffbelt_wasm_binding::annotations::{Annotated, FlatbufferAnnotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
@@ -38,9 +39,13 @@ impl Aggregate<SourceKey, SourceValue, MappedValue, Accumulator, TargetKey, Targ
             Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
         >,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
-    ) -> ErrorCode {
+    ) -> ErrorCode { unsafe {
+        let buffer = (&*accumulator_ptr.value).into_empty_vec();
+        
+        let serializer = Serializer::<UpdateMsAccumulatorProto>::from_vec(buffer);
+        
         todo!()
-    }
+    }}
 
     unsafe extern "C" fn reduce(
         input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue>>,

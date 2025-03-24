@@ -15,7 +15,7 @@ use regex::Regex;
 struct UpdateMsIntermediateKv;
 
 impl HumanReadable for UpdateMsIntermediateKv {
-    #[export_name = "updateMsIntermediateKeyToBytes"]
+    #[unsafe(export_name = "updateMsIntermediateKeyToBytes")]
     unsafe extern "C" fn human_readable_key_to_bytes(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         _buffer: *mut BytesVecRawParts,
@@ -23,7 +23,7 @@ impl HumanReadable for UpdateMsIntermediateKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "updateMsIntermediateBytesToKey"]
+    #[unsafe(export_name = "updateMsIntermediateBytesToKey")]
     unsafe extern "C" fn bytes_to_human_readable_key(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
@@ -31,7 +31,7 @@ impl HumanReadable for UpdateMsIntermediateKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "updateMsIntermediateValueToBytes"]
+    #[unsafe(export_name = "updateMsIntermediateValueToBytes")]
     unsafe extern "C" fn human_readable_value_to_bytes(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         buffer: *mut BytesVecRawParts,
@@ -93,7 +93,7 @@ impl HumanReadable for UpdateMsIntermediateKv {
         ErrorCode::Ok
     }
 
-    #[export_name = "updateMsIntermediateBytesToValue"]
+    #[unsafe(export_name = "updateMsIntermediateBytesToValue")]
     unsafe extern "C" fn bytes_to_human_readable_value(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer: Annotated<*mut BytesVecRawParts, &str>,
