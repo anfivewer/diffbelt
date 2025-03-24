@@ -28,7 +28,7 @@ struct UpdateMsDayIntermediate;
 
 impl<'t> MapFilter for UpdateMsDayIntermediate {
     #[export_name = "updateMs1dIntermediateMapFilter"]
-    extern "C" fn map_filter(
+    unsafe extern "C" fn map_filter(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,
             MapFilterMultiInputProto,

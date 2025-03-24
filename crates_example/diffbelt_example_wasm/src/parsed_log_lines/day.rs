@@ -50,7 +50,7 @@ impl<'t>
     > for ParsedLogLinesDay
 {
     #[export_name = "aggregateMap"]
-    extern "C" fn map(
+    unsafe extern "C" fn map(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,
             Annotated<AggregateMapMultiInput, (SourceKey, SourceValue)>,
@@ -127,7 +127,7 @@ impl<'t>
     }
 
     #[export_name = "aggregateInitialAccumulator"]
-    extern "C" fn initial_accumulator(
+    unsafe extern "C" fn initial_accumulator(
         target_info: FlatbufferAnnotated<
             BytesSlice,
             Annotated<AggregateTargetInfo, (TargetKey<'t>, TargetValue<'t>)>,
@@ -189,7 +189,7 @@ impl<'t>
     }
 
     #[export_name = "aggregateReduce"]
-    extern "C" fn reduce(
+    unsafe extern "C" fn reduce(
         input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue<'t>>>,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
@@ -235,7 +235,7 @@ impl<'t>
     }
 
     #[export_name = "aggregateMergeAccumulators"]
-    extern "C" fn merge_accumulators(
+    unsafe extern "C" fn merge_accumulators(
         input: SliceRawParts<Annotated<BytesVecRawParts, Accumulator>>,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
@@ -261,7 +261,7 @@ impl<'t>
     }
 
     #[export_name = "aggregateApply"]
-    extern "C" fn apply(
+    unsafe extern "C" fn apply(
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
         output: FlatbufferAnnotated<
             *mut BytesSlice,

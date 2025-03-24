@@ -1,7 +1,7 @@
 use alloc::string::String;
 
 #[link(wasm_import_module = "debug")]
-extern "C" {
+unsafe extern "C" {
     fn print(s_ptr: *const u8, s_len: i32) -> ();
 }
 

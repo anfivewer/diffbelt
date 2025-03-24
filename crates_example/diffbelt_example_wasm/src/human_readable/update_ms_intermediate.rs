@@ -16,7 +16,7 @@ struct UpdateMsIntermediateKv;
 
 impl HumanReadable for UpdateMsIntermediateKv {
     #[export_name = "updateMsIntermediateKeyToBytes"]
-    extern "C" fn human_readable_key_to_bytes(
+    unsafe extern "C" fn human_readable_key_to_bytes(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         _buffer: *mut BytesVecRawParts,
     ) -> ErrorCode {
@@ -24,7 +24,7 @@ impl HumanReadable for UpdateMsIntermediateKv {
     }
 
     #[export_name = "updateMsIntermediateBytesToKey"]
-    extern "C" fn bytes_to_human_readable_key(
+    unsafe extern "C" fn bytes_to_human_readable_key(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
@@ -32,7 +32,7 @@ impl HumanReadable for UpdateMsIntermediateKv {
     }
 
     #[export_name = "updateMsIntermediateValueToBytes"]
-    extern "C" fn human_readable_value_to_bytes(
+    unsafe extern "C" fn human_readable_value_to_bytes(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         buffer: *mut BytesVecRawParts,
     ) -> ErrorCode {
@@ -94,7 +94,7 @@ impl HumanReadable for UpdateMsIntermediateKv {
     }
 
     #[export_name = "updateMsIntermediateBytesToValue"]
-    extern "C" fn bytes_to_human_readable_value(
+    unsafe extern "C" fn bytes_to_human_readable_value(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {

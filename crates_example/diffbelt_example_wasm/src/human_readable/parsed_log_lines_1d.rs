@@ -21,7 +21,7 @@ struct ParsedLogLines1dKv;
 
 impl HumanReadable for ParsedLogLines1dKv {
     #[export_name = "parsedLogLines1dKeyToBytes"]
-    extern "C" fn human_readable_key_to_bytes(
+    unsafe extern "C" fn human_readable_key_to_bytes(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         _uffer: *mut BytesVecRawParts,
     ) -> ErrorCode {
@@ -29,7 +29,7 @@ impl HumanReadable for ParsedLogLines1dKv {
     }
 
     #[export_name = "parsedLogLines1dBytesToKey"]
-    extern "C" fn bytes_to_human_readable_key(
+    unsafe extern "C" fn bytes_to_human_readable_key(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
@@ -37,7 +37,7 @@ impl HumanReadable for ParsedLogLines1dKv {
     }
 
     #[export_name = "parsedLogLines1dValueToBytes"]
-    extern "C" fn human_readable_value_to_bytes(
+    unsafe extern "C" fn human_readable_value_to_bytes(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode {
@@ -120,7 +120,7 @@ impl HumanReadable for ParsedLogLines1dKv {
     }
 
     #[export_name = "parsedLogLines1dBytesToValue"]
-    extern "C" fn bytes_to_human_readable_value(
+    unsafe extern "C" fn bytes_to_human_readable_value(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
@@ -165,7 +165,7 @@ impl HumanReadable for ParsedLogLines1dKv {
 
 impl AggregateHumanReadable for ParsedLogLines1dKv {
     #[export_name = "parsedLogLinesBytesToTargetKey"]
-    extern "C" fn bytes_to_target_key(
+    unsafe extern "C" fn bytes_to_target_key(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
@@ -173,7 +173,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
     }
 
     #[export_name = "parsedLogLinesBytesToMappedValue"]
-    extern "C" fn bytes_to_mapped_value(
+    unsafe extern "C" fn bytes_to_mapped_value(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         _buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
@@ -181,7 +181,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
     }
 
     #[export_name = "parsedLogLinesMappedValueToBytes"]
-    extern "C" fn mapped_value_to_bytes(
+    unsafe extern "C" fn mapped_value_to_bytes(
         _input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         _buffer: *mut BytesVecRawParts,
     ) -> ErrorCode {
@@ -189,7 +189,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
     }
 
     #[export_name = "parsedLogLinesBytesToAccumulator"]
-    extern "C" fn bytes_to_accumulator(
+    unsafe extern "C" fn bytes_to_accumulator(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
@@ -218,7 +218,7 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
     }
 
     #[export_name = "parsedLogLinesAccumulatorToBytes"]
-    extern "C" fn accumulator_to_bytes(
+    unsafe extern "C" fn accumulator_to_bytes(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode {

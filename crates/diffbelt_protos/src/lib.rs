@@ -7,8 +7,9 @@ use core::fmt::{Debug, Formatter, Write};
 use core::marker::PhantomData;
 
 use crate::align_util::{AlignedBytes, OwnedAlignedBytes};
+pub use flatbuffers::Follow;
 use flatbuffers::{
-    FlatBufferBuilder, Follow, ForwardsUOffset, Push, Verifiable, Verifier, VerifierOptions,
+    FlatBufferBuilder, ForwardsUOffset, Push, Verifiable, Verifier, VerifierOptions,
 };
 pub use flatbuffers::{InvalidFlatbuffer, Vector, WIPOffset};
 

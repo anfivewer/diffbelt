@@ -8,7 +8,7 @@ mod extern_functions {
     use crate::ptr::ConstPtr;
 
     #[link(wasm_import_module = "Diffbelt")]
-    extern "C" {
+    unsafe extern "C" {
         /// Receives name of transform, runs it until fully finished
         pub fn run_transform(slice_ptr: ConstPtr<u8>, slice_len: u32) -> ErrorCode;
         pub fn sleep_ms(duration_ms: u32) -> ErrorCode;

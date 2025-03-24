@@ -10,7 +10,7 @@ pub trait ScheduleDealloc {
 }
 
 #[link(wasm_import_module = "Diffbelt")]
-extern "C" {
+unsafe extern "C" {
     /// asks executor to call [`dealloc_bytes_vec`] after current function end when it
     /// does not need any data from current function results/outputs
     fn schedule_bytes_vec_dealloc(ptr: MutPtr<BytesVecRawParts>);

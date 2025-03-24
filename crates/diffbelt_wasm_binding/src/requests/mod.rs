@@ -34,7 +34,7 @@ impl RequestId {
 }
 
 #[link(wasm_import_module = "Diffbelt")]
-extern "C" {
+unsafe extern "C" {
     fn request(slice_ptr: ConstPtr<u8>, slice_len: u32) -> RequestId;
     fn is_request_finished(request_id: RequestId) -> ErrorCode;
     /// On success writes length of response in bytes to `len_ptr`

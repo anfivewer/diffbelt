@@ -25,7 +25,7 @@ pub struct ReplaceResult<P: PtrImpl = NativePtrImpl> {
 }
 
 #[link(wasm_import_module = "Regex")]
-extern "C" {
+unsafe extern "C" {
     fn new(regex: *const u8, regex_size: i32) -> i32;
     fn free(ptr: i32) -> ();
     fn captures(

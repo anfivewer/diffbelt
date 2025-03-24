@@ -2,6 +2,8 @@ use core::marker::PhantomData;
 
 use bytemuck::{Pod, Zeroable};
 
+pub mod deserializer;
+pub mod head_len_vec;
 pub mod serializer;
 pub mod slice;
 

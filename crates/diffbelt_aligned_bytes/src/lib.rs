@@ -42,6 +42,110 @@ pub struct AlignedBytesError {
 }
 
 impl<'a, const ALIGN: usize> AlignedBytes<'a, ALIGN> {
+    pub fn align_in_vec(
+        buffer: &'a mut Vec<u8>,
+        head: usize,
+        len: usize,
+    ) -> Result<Self, AlignedBytesError> {
+        let (s, _head) = Self::align_in_vec_inner(buffer, 0, head, len)?;
+        Ok(s)
+    }
+
+    pub fn align_in_prefixed_vec(
+        buffer: &'a mut Vec<u8>,
+        prefix: usize,
+        head: usize,
+        len: usize,
+    ) -> Result<Self, AlignedBytesError> {
+        let (s, _head) = Self::align_in_vec_inner(buffer, prefix, head, len)?;
+        Ok(s)
+    }
+
+    fn align_in_vec_inner(
+        buffer: &'a mut Vec<u8>,
+        prefix: usize,
+        mut head: usize,
+        len: usize,
+    ) -> Result<(Self, usize), AlignedBytesError> {
+        if len == 0 {
+            return Ok((Self(&[]), 0));
+        }
+        
+        assert!(head >= prefix, "head should be after prefix");
+
+        if buffer.len() < head + len {
+            return Err(AlignedBytesError {
+                reason: String::from("AlignedBytes: len is outside of vector"),
+                buffer: None,
+            });
+        }
+
+        // SAFETY: just checked lengths
+        let head_ptr = unsafe { buffer.as_ptr().add(head) };
+
+        let offset = head_ptr.align_offset(ALIGN);
+
+        if offset == 0 {
+            return Ok((Self(&buffer[head..(head + len)]), head));
+        }
+
+        if offset == usize::MAX {
+            return Err(AlignedBytesError {
+                reason: format!("AlignedBytes: impossible to align({ALIGN}) ptr({head_ptr:p})"),
+                buffer: None,
+            });
+        }
+
+        let start_offset = buffer.as_ptr().wrapping_add(prefix).align_offset(ALIGN);
+
+        if head >= start_offset {
+            // Prefer to move bytes back, not forward (which may require reallocation)
+            buffer.copy_within(head..(head + len), start_offset);
+            head = start_offset;
+        } else {
+            if buffer.len() < prefix + len + ALIGN {
+                let need_extend_for = prefix + len + ALIGN - buffer.len();
+                buffer.reserve(need_extend_for);
+                for _ in 0..need_extend_for {
+                    buffer.push(0);
+                }
+            }
+
+            // We are reserved extra space, buffer maybe is reallocated
+            let start_ptr = buffer.as_ptr();
+            // SAFETY: checked in the start
+            let head_ptr = unsafe { start_ptr.add(head) };
+            // SAFETY: we are allocated up to prefix and more
+            let prefixed_ptr = unsafe { start_ptr.add(prefix) };
+
+            let head_align_offset = head_ptr.align_offset(ALIGN);
+            if head_align_offset == 0 {
+                // We are lucky, after realloc all is aligned :)
+                return Ok((Self(&buffer[head..(head + len)]), head));
+            }
+
+            let offset = prefixed_ptr.align_offset(ALIGN);
+
+            buffer.copy_within(head..(head + len), prefix + offset);
+            head = offset;
+        }
+
+        Ok((Self(&buffer[head..(head + len)]), head))
+    }
+
+    pub fn ensure_alignment(bytes: &'a [u8]) -> Result<Self, AlignedBytesError> {
+        let offset = bytes.as_ptr().align_offset(ALIGN);
+
+        if offset != 0 {
+            return Err(AlignedBytesError {
+                reason: format!("not aligned, offset: {offset}"),
+                buffer: None,
+            });
+        }
+
+        Ok(Self(bytes))
+    }
+
     pub fn ensure_alignment_or_copy(
         bytes: &'a [u8],
         buffer: &'a mut Vec<u8>,
@@ -125,69 +229,8 @@ impl<const ALIGN: usize> OwnedAlignedBytes<ALIGN> {
         })
     }
 
-    pub fn new(
-        mut buffer: Vec<u8>,
-        mut head: usize,
-        len: usize,
-    ) -> Result<Self, AlignedBytesError> {
-        assert!(ALIGN.is_power_of_two(), "Invalid alignment {ALIGN}");
-
-        let head_ptr = match buffer.get(head) {
-            None => {
-                return Err(AlignedBytesError {
-                    reason: String::from("OwnedAlignedBytes: head is not inside bytes"),
-                    buffer: Some(buffer),
-                });
-            }
-            Some(x) => x as *const u8,
-        };
-
-        let last = head + len;
-        if len == 0 || last == 0 {
-            // Both head and len is 0, no need to align non-existing slice
-            return Ok(Self { buffer, head, len });
-        }
-        if buffer.len() < head + len {
-            return Err(AlignedBytesError {
-                reason: String::from("OwnedAlignedBytes: len is outside of vector"),
-                buffer: Some(buffer),
-            });
-        }
-
-        let offset = head_ptr.align_offset(ALIGN);
-
-        if offset == 0 {
-            return Ok(Self { buffer, head, len });
-        }
-
-        if offset == usize::MAX {
-            return Err(AlignedBytesError {
-                reason: format!(
-                    "OwnedAlignedBytes: impossible to align({ALIGN}) ptr({head_ptr:p})"
-                ),
-                buffer: Some(buffer),
-            });
-        }
-
-        let forward_offset = offset;
-        let backward_offset = ALIGN - offset;
-        assert!(backward_offset <= ALIGN);
-
-        if head >= backward_offset {
-            // Prefer to move bytes back, not forward (which may require reallocation)
-            buffer.copy_within(head..(head + len), head - backward_offset);
-            head -= backward_offset;
-        } else {
-            if last + forward_offset >= buffer.len() {
-                let need_extend_for = last + forward_offset - buffer.len() + 1;
-                buffer.reserve(need_extend_for);
-                for _ in 0..need_extend_for {
-                    buffer.push(0);
-                }
-            }
-            buffer.copy_within(head..(head + len), head + forward_offset);
-            head += forward_offset;
-        }
+    pub fn new(mut buffer: Vec<u8>, head: usize, len: usize) -> Result<Self, AlignedBytesError> {
+        let (_aligned, head) = AlignedBytes::<ALIGN>::align_in_vec_inner(&mut buffer, 0, head, len)?;
 
         Ok(Self { buffer, head, len })
     }

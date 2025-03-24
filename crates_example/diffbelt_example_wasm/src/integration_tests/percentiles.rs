@@ -46,7 +46,7 @@ impl PartialEq for ExpectedIntermediateItem {
 
 impl IntegrationTest for PercentilesIntegrationTest {
     #[export_name = "calculatePercentilesEmptyIntegrationTest"]
-    extern "C" fn test() -> ErrorCode {
+    unsafe extern "C" fn test() -> ErrorCode {
         let mut serializer = Serializer::new();
         let mut items = Vec::new();
 
@@ -208,6 +208,8 @@ impl IntegrationTest for PercentilesIntegrationTest {
         });
 
         assert!(expected_iter.next().is_none(), "there is extra items");
+
+        let () = run_transform("updateMs_1d_percentiles").expect("transform");
 
         report_single_test_error(String::from("some error message3"));
         ErrorCode::Ok

@@ -165,7 +165,7 @@ impl VecRawParts<u8> {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn ensure_vec_capacity(parts: *mut BytesVecRawParts, len: i32) {
     let mut vec = (&*parts).into_vec();
 
@@ -178,7 +178,7 @@ unsafe extern "C" fn ensure_vec_capacity(parts: *mut BytesVecRawParts, len: i32)
     unsafe { *parts = vec.into() };
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn ensure_vec_of_bytes_vec_raw_parts_capacity(
     parts: *mut VecRawParts<BytesVecRawParts>,
     len: i32,

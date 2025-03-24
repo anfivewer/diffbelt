@@ -5,11 +5,11 @@ use alloc::string::String;
 use diffbelt_util_no_std::cast::checked_usize_to_u32;
 
 pub trait IntegrationTest {
-    extern "C" fn test() -> ErrorCode;
+    unsafe extern "C" fn test() -> ErrorCode;
 }
 
 #[link(wasm_import_module = "Diffbelt")]
-extern "C" {
+unsafe extern "C" {
     /// Should be slice to a string. Backing String can be freed by [`crate::allocator::schedule_bytes_vec_dealloc`]
     fn set_test_error(slice_ptr: ConstPtr<u8>, slice_len: u32);
 }

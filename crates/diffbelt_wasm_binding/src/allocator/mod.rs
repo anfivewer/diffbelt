@@ -9,8 +9,8 @@ use crate::ptr::bytes::{BytesSlice, BytesVecPtr, BytesVecRawParts, BytesVecWideP
 use crate::ptr::{ConstPtr, MutPtr};
 use crate::requests::RequestId;
 
-#[no_mangle]
-extern "C" fn alloc(capacity: i32) -> BytesVecPtr {
+#[unsafe(no_mangle)]
+unsafe extern "C" fn alloc(capacity: i32) -> BytesVecPtr {
     let vec = Vec::<u8>::with_capacity(capacity as usize);
     let ptr = vec.leak() as *mut [u8];
     BytesVecPtr {
@@ -18,15 +18,15 @@ extern "C" fn alloc(capacity: i32) -> BytesVecPtr {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn dealloc(ptr: BytesVecWidePtr) {
     unsafe {
         let _: Vec<u8> = ptr.into_empty_vec();
     }
 }
 
-#[no_mangle]
-extern "C" fn alloc_bytes_slice() -> *mut BytesSlice {
+#[unsafe(no_mangle)]
+unsafe extern "C" fn alloc_bytes_slice() -> *mut BytesSlice {
     let b = Box::new(BytesSlice {
         ptr: ConstPtr::from(ptr::null()),
         len: 0,
@@ -34,21 +34,21 @@ extern "C" fn alloc_bytes_slice() -> *mut BytesSlice {
     Box::leak(b)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn dealloc_bytes_slice(ptr: *mut BytesSlice) {
     let b = Box::from_raw(ptr);
     drop(b);
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn dealloc_bytes_vec(parts: BytesVecRawParts) {
     if parts.capacity > 0 {
         let _: Vec<u8> = parts.into_vec();
     }
 }
 
-#[no_mangle]
-extern "C" fn alloc_bytes_vec_raw_parts() -> *mut BytesVecRawParts {
+#[unsafe(no_mangle)]
+unsafe extern "C" fn alloc_bytes_vec_raw_parts() -> *mut BytesVecRawParts {
     let b = Box::new(BytesVecRawParts {
         ptr: MutPtr::from(ptr::null_mut()),
         len: 0,
@@ -57,7 +57,7 @@ extern "C" fn alloc_bytes_vec_raw_parts() -> *mut BytesVecRawParts {
     Box::leak(b)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn dealloc_bytes_vec_raw_parts(ptr: *mut BytesVecRawParts) {
     let parts_ref = &*ptr;
 
@@ -69,8 +69,8 @@ unsafe extern "C" fn dealloc_bytes_vec_raw_parts(ptr: *mut BytesVecRawParts) {
     drop(b);
 }
 
-#[no_mangle]
-extern "C" fn alloc_vec_raw_parts_of_bytes_vec_raw_parts() -> *mut VecRawParts<BytesVecRawParts> {
+#[unsafe(no_mangle)]
+unsafe extern "C" fn alloc_vec_raw_parts_of_bytes_vec_raw_parts() -> *mut VecRawParts<BytesVecRawParts> {
     let b = Box::new(VecRawParts {
         ptr: MutPtr::from(ptr::null_mut()),
         len: 0,
@@ -79,7 +79,7 @@ extern "C" fn alloc_vec_raw_parts_of_bytes_vec_raw_parts() -> *mut VecRawParts<B
     Box::leak(b)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn dealloc_vec_raw_parts_of_bytes_vec_raw_parts(
     ptr: *mut VecRawParts<BytesVecRawParts>,
 ) {

@@ -3,6 +3,19 @@ table UpdateMsIntermediate {
     ms: float32;
 }
 
+table UpdateMsAccumulator {
+    total_count: ulong;
+    by_type: [UpdateMsAggregateByType];
+    percentiles: [UpdateMsPercAcc];
+}
+
+table UpdateMsPercAcc {
+    percentile: UpdateMsPerc;
+    key_pos: int32;
+    keys_around: [ubyte];
+    next_request_id: uint32;
+}
+
 table UpdateMsAggregateByType {
     key: string;
     sum_ms: float64;

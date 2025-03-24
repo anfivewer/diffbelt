@@ -6,7 +6,7 @@ use crate::error_code::ErrorCode;
 use crate::ptr::bytes::{BytesSlice, BytesVecRawParts};
 
 pub trait MapFilter {
-    extern "C" fn map_filter(
+    unsafe extern "C" fn map_filter(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,
             MapFilterMultiInputProto,

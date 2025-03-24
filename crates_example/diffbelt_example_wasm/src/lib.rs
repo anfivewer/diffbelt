@@ -42,7 +42,7 @@ struct LogLinesMapFilter;
 
 impl MapFilter for LogLinesMapFilter {
     #[export_name = "mapFilter"]
-    extern "C" fn map_filter(
+    unsafe extern "C" fn map_filter(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,
             MapFilterMultiInputProto,

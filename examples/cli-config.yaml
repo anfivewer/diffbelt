@@ -84,20 +84,12 @@ transforms:
     source: updateMs:1d:intermediate
     target: updateMs:1d:p
     reader_name: updateMs:1d:p
-    map_filter: example.updateMs1dIntermediateMapFilter
     aggregate:
       wasm: example
       map: updateMsPercentilesMap
       initial_accumulator: updateMsPercentilesInitialAccumulator
       reduce: updateMsPercentilesReduce
       apply: updateMsPercentilesMsApply
-      human_readable:
-        wasm: example
-        bytes_to_target_key: updateMsPercentilesBytesToTargetKey
-        bytes_to_mapped_value: updateMsPercentilesBytesToMappedValue
-        mapped_value_to_bytes: updateMsPercentilesBytesToMappedValue
-        bytes_to_accumulator: updateMsPercentilesBytesToAccumulator
-        accumulator_to_bytes: updateMsPercentilesAccumulatorToBytes
 
 wasm:
   - name: example
