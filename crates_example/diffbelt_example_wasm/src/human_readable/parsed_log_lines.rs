@@ -3,16 +3,16 @@ use alloc::vec::Vec;
 use core::fmt::Write;
 use core::str::Utf8Error;
 
-use crate::global::BUFFER_FOR_REALIGN;
+use crate::global::take_buffer_for_realign;
 use diffbelt_example_protos::protos::impls::ParsedLogLineProto;
 use diffbelt_example_protos::protos::log_line::{ParsedLogLine, ParsedLogLineArgs, Prop, PropArgs};
 use diffbelt_protos::align_util::AlignedBytes;
-use diffbelt_protos::{deserialize, InvalidFlatbuffer, SerializedRawParts, Serializer};
+use diffbelt_protos::{InvalidFlatbuffer, SerializedRawParts, Serializer, deserialize};
+use diffbelt_wasm_binding::Regex;
 use diffbelt_wasm_binding::annotations::{Annotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::HumanReadable;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
-use diffbelt_wasm_binding::Regex;
 use thiserror_no_std::Error;
 
 use crate::util::run_error_coded::run_error_coded;
@@ -231,10 +231,10 @@ impl HumanReadable for ParsedLogLinesKv {
             let vec = unsafe { (&*key.value).into_empty_vec() };
             let mut s = String::from_utf8(vec).expect("empty vec should be valid string");
 
+            let mut buffer_holder = take_buffer_for_realign();
             let bytes = unsafe { (&*input_and_output.value).as_slice() };
-            let bytes =
-                AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
-                    .expect("align error");
+            let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, buffer_holder.as_mut())
+                .expect("align error");
 
             let log_line = deserialize::<ParsedLogLineProto>(bytes)?;
 

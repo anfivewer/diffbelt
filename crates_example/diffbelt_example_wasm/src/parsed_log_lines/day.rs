@@ -1,4 +1,4 @@
-use crate::global::{BUFFER_FOR_REALIGN, BUFFER_FOR_REALIGN_2};
+use crate::global::take_buffer_for_realign;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
@@ -17,15 +17,15 @@ use diffbelt_protos::protos::transform::aggregate::{
     AggregateMapMultiOutput, AggregateMapMultiOutputArgs, AggregateMapOutput,
     AggregateMapOutputArgs, AggregateReduceInput, AggregateTargetInfo,
 };
-use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
+use diffbelt_protos::{SerializedRawParts, Serializer, deserialize};
 use diffbelt_util_no_std::bytes::write_u32_be;
-use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize, u8_to_char};
+use diffbelt_util_no_std::cast::{try_usize_to_u32, u8_to_char, u32_to_usize};
 use diffbelt_wasm_binding::annotations::{Annotated, FlatbufferAnnotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 use diffbelt_wasm_binding::transform::aggregate::Aggregate;
-use diffbelt_wasm_binding::{debug_print_string, Regex};
+use diffbelt_wasm_binding::{Regex, debug_print_string};
 
 use crate::parsed_log_lines::accumulator::DayAccumulator;
 use crate::types::{ParsedLogLinesKey, ParsedLogLinesValue};
@@ -61,11 +61,11 @@ impl<'t>
         let buffer = unsafe { (*buffer_ptr).into_empty_vec() };
         let mut serializer = Serializer::<AggregateMapMultiOutputProto>::from_vec(buffer);
 
+        let mut buffer_holder = take_buffer_for_realign();
         let input = {
             let bytes = unsafe { (&*input_and_output.value).as_slice() };
-            let bytes =
-                AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
-                    .expect("align error");
+            let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, buffer_holder.as_mut())
+                .expect("align error");
             deserialize::<AggregateMapMultiInputProto>(bytes).expect("deserialization")
         };
 
@@ -135,8 +135,9 @@ impl<'t>
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
         let target_info = unsafe { target_info.value.as_slice() };
+        let mut buffer_holder = take_buffer_for_realign();
         let target_info =
-            AlignedBytes::ensure_alignment_or_copy(target_info, unsafe { &mut BUFFER_FOR_REALIGN })
+            AlignedBytes::ensure_alignment_or_copy(target_info, buffer_holder.as_mut())
                 .expect("align error");
         let target_info = deserialize::<AggregateTargetInfoProto>(target_info)
             .expect("Cannot deserialize AggregateTargetInfo");
@@ -196,10 +197,10 @@ impl<'t>
         let accumulator_buffer = unsafe { (&*accumulator_ptr.value).into_vec() };
         let mut accumulator = DayAccumulator::from_accumulator_bytes(&accumulator_buffer);
 
+        let mut buffer_holder = take_buffer_for_realign();
         let input = unsafe { input.value.as_slice() };
-        let input =
-            AlignedBytes::ensure_alignment_or_copy(input, unsafe { &mut BUFFER_FOR_REALIGN })
-                .expect("align error");
+        let input = AlignedBytes::ensure_alignment_or_copy(input, buffer_holder.as_mut())
+            .expect("align error");
         let serialized =
             deserialize::<AggregateReduceInputProto>(input).expect("cannot parse items");
 
@@ -246,7 +247,9 @@ impl<'t>
 
         for item in input {
             let bytes = unsafe { item.value.as_slice() };
-            let serialized = DayAccumulator::parsed_log_line_1d_from_bytes(bytes);
+            let mut buffer_holder = take_buffer_for_realign();
+            let serialized =
+                DayAccumulator::parsed_log_line_1d_from_bytes(bytes, buffer_holder.as_mut());
 
             accumulator.update_with_parsed_log_lines_1d(serialized);
         }
@@ -336,8 +339,9 @@ fn map_source_value(
         return false;
     };
 
-    let value = AlignedBytes::ensure_alignment_or_copy(value, unsafe { &mut BUFFER_FOR_REALIGN_2 })
-        .expect("align error");
+    let mut buffer_holder = take_buffer_for_realign();
+    let value =
+        AlignedBytes::ensure_alignment_or_copy(value, buffer_holder.as_mut()).expect("align error");
     let value = deserialize::<ParsedLogLineProto>(value).expect("invalid source value");
 
     if has_old {

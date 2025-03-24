@@ -1,4 +1,4 @@
-use crate::global::BUFFER_FOR_REALIGN;
+use crate::global::take_buffer_for_realign;
 use alloc::borrow::Cow;
 use alloc::collections::BTreeMap;
 use alloc::string::String;
@@ -8,7 +8,7 @@ use diffbelt_example_protos::protos::log_line::{
     LogTypeWithCount, LogTypeWithCountArgs, ParsedLogLine1d, ParsedLogLine1dArgs,
 };
 use diffbelt_protos::align_util::AlignedBytes;
-use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
+use diffbelt_protos::{SerializedRawParts, Serializer, deserialize};
 use diffbelt_util_no_std::bytes::{read_u32_be, write_u32_be};
 use diffbelt_util_no_std::cast::{try_usize_to_u32, u32_to_usize};
 use diffbelt_wasm_binding::debug_print;
@@ -28,13 +28,15 @@ impl DayAccumulator<'_> {
         (head, len)
     }
 
-    pub fn parsed_log_line_1d_from_bytes(bytes: &[u8]) -> ParsedLogLine1d<'_> {
+    pub fn parsed_log_line_1d_from_bytes<'a>(
+        bytes: &'a [u8],
+        realign_buffer: &'a mut Vec<u8>,
+    ) -> ParsedLogLine1d<'a> {
         let (head, len) = Self::read_buffer_meta_data(bytes);
 
         let serialized = &bytes[u32_to_usize(head)..u32_to_usize(head + len)];
-        let serialized =
-            AlignedBytes::ensure_alignment_or_copy(serialized, unsafe { &mut BUFFER_FOR_REALIGN })
-                .expect("align error");
+        let serialized = AlignedBytes::ensure_alignment_or_copy(serialized, realign_buffer)
+            .expect("align error");
         let serialized =
             deserialize::<ParsedLogLine1dProto>(serialized).expect("cannot parse accumulator");
 
@@ -42,7 +44,8 @@ impl DayAccumulator<'_> {
     }
 
     pub fn from_accumulator_bytes(bytes: &[u8]) -> Self {
-        let serialized = Self::parsed_log_line_1d_from_bytes(bytes);
+        let mut buffer_holder = take_buffer_for_realign();
+        let serialized = Self::parsed_log_line_1d_from_bytes(bytes, buffer_holder.as_mut());
         Self::from_parsed_log_lines_1d(serialized)
     }
 

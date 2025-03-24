@@ -1,5 +1,6 @@
 #![no_std]
 
+pub mod pool;
 #[cfg(test)]
 mod tests;
 
@@ -70,7 +71,7 @@ impl<'a, const ALIGN: usize> AlignedBytes<'a, ALIGN> {
         if len == 0 {
             return Ok((Self(&[]), 0));
         }
-        
+
         assert!(head >= prefix, "head should be after prefix");
 
         if buffer.len() < head + len {
@@ -230,7 +231,8 @@ impl<const ALIGN: usize> OwnedAlignedBytes<ALIGN> {
     }
 
     pub fn new(mut buffer: Vec<u8>, head: usize, len: usize) -> Result<Self, AlignedBytesError> {
-        let (_aligned, head) = AlignedBytes::<ALIGN>::align_in_vec_inner(&mut buffer, 0, head, len)?;
+        let (_aligned, head) =
+            AlignedBytes::<ALIGN>::align_in_vec_inner(&mut buffer, 0, head, len)?;
 
         Ok(Self { buffer, head, len })
     }

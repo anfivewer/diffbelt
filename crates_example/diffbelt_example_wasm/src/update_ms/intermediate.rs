@@ -14,7 +14,7 @@ use diffbelt_protos::protos::impls::{MapFilterMultiInputProto, MapFilterMultiOut
 use diffbelt_protos::protos::transform::map_filter::{
     MapFilterMultiOutput, MapFilterMultiOutputArgs, RecordUpdate, RecordUpdateArgs,
 };
-use diffbelt_protos::{deserialize, OwnedSerialized, Serializer};
+use diffbelt_protos::{OwnedSerialized, Serializer, deserialize};
 use diffbelt_util_no_std::cast::try_u64_to_i64;
 use diffbelt_wasm_binding::annotations::serializer::{IntoSerializerAnnotated, OutputAnnotated};
 use diffbelt_wasm_binding::annotations::{FlatbufferAnnotated, InputOutputAnnotated};
@@ -22,7 +22,7 @@ use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::transform::map_filter::MapFilter;
 
-use crate::global::{BUFFER_FOR_REALIGN, BUFFER_FOR_REALIGN_2};
+use crate::global::take_buffer_for_realign;
 
 struct UpdateMsDayIntermediate;
 
@@ -36,11 +36,11 @@ impl<'t> MapFilter for UpdateMsDayIntermediate {
         >,
         buffer_holder: FlatbufferAnnotated<*mut BytesVecRawParts, MapFilterMultiOutputProto>,
     ) -> ErrorCode {
+        let mut align_buffer_holder = take_buffer_for_realign();
         let input = {
             let bytes = unsafe { (&*input_and_output.value).as_slice() };
-            let bytes =
-                AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
-                    .expect("align error");
+            let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, align_buffer_holder.as_mut())
+                .expect("align error");
             deserialize::<MapFilterMultiInputProto>(bytes).expect("deserialization")
         };
 
@@ -138,7 +138,8 @@ fn value_to_key(
     key_output: &mut String,
     intermediate_buffer: Option<Vec<u8>>,
 ) -> (HasKey, Option<OwnedSerialized<UpdateMsIntermediateProto>>) {
-    let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN_2 })
+    let mut align_buffer_holder = take_buffer_for_realign();
+    let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, align_buffer_holder.as_mut())
         .expect("align error");
     let parsed_log_line = deserialize::<ParsedLogLineProto>(bytes).expect("deserialization");
 

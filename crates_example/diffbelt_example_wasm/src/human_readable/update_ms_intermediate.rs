@@ -1,4 +1,4 @@
-use crate::global::BUFFER_FOR_REALIGN;
+use crate::global::take_buffer_for_realign;
 use alloc::string::String;
 use core::fmt::Write;
 use diffbelt_example_protos::protos::impls::UpdateMsIntermediateProto;
@@ -98,11 +98,11 @@ impl HumanReadable for UpdateMsIntermediateKv {
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
+        let mut buffer_holder = take_buffer_for_realign();
         let input = {
             let bytes = unsafe { (&*input_and_output.value).as_slice() };
-            let bytes =
-                AlignedBytes::ensure_alignment_or_copy(bytes, unsafe { &mut BUFFER_FOR_REALIGN })
-                    .expect("align error");
+            let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, buffer_holder.as_mut())
+                .expect("align error");
             deserialize::<UpdateMsIntermediateProto>(bytes).expect("deserialization")
         };
 

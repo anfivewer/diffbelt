@@ -1,4 +1,4 @@
-use crate::global::BUFFER_FOR_REALIGN;
+use crate::global::take_buffer_for_realign;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
@@ -7,15 +7,15 @@ use diffbelt_example_protos::protos::log_line::{
     LogTypeWithCount, LogTypeWithCountArgs, ParsedLogLine1d, ParsedLogLine1dArgs,
 };
 use diffbelt_protos::align_util::AlignedBytes;
-use diffbelt_protos::{deserialize, SerializedRawParts, Serializer};
+use diffbelt_protos::{SerializedRawParts, Serializer, deserialize};
 use diffbelt_util_no_std::bytes::{read_u32_be, write_u32_be};
 use diffbelt_util_no_std::cast::{try_positive_i32_to_u32, u32_to_usize};
 use diffbelt_util_no_std::ptr::relative_pointer_location;
+use diffbelt_wasm_binding::Regex;
 use diffbelt_wasm_binding::annotations::{Annotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::human_readable::{AggregateHumanReadable, HumanReadable};
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
-use diffbelt_wasm_binding::Regex;
 
 struct ParsedLogLines1dKv;
 
@@ -124,10 +124,10 @@ impl HumanReadable for ParsedLogLines1dKv {
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
     ) -> ErrorCode {
+        let mut buffer_holder = take_buffer_for_realign();
         let slice = unsafe { (*input_and_output.value).as_slice() };
-        let slice =
-            AlignedBytes::ensure_alignment_or_copy(slice, unsafe { &mut BUFFER_FOR_REALIGN })
-                .expect("align error");
+        let slice = AlignedBytes::ensure_alignment_or_copy(slice, buffer_holder.as_mut())
+            .expect("align error");
 
         let serialized = deserialize::<ParsedLogLine1dProto>(slice).expect("cannot parse");
 
@@ -192,69 +192,75 @@ impl AggregateHumanReadable for ParsedLogLines1dKv {
     unsafe extern "C" fn bytes_to_accumulator(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &'static [u8], &str>,
         buffer_ptr: Annotated<*mut BytesVecRawParts, &str>,
-    ) -> ErrorCode { unsafe {
-        let slice = unsafe { (*input_and_output.value).as_slice() };
-
-        let slice_tail = &slice[(slice.len() - 8)..];
-
-        let head = read_u32_be(slice_tail);
-        let len = read_u32_be(&slice_tail[4..]);
-
-        let serialized = &slice[u32_to_usize(head)..u32_to_usize(head + len)];
-        let mut serialized = BytesSlice::from(serialized);
-        let serialized = InputOutputAnnotated::from(&mut serialized as *mut BytesSlice);
-
-        let code =
-            ParsedLogLines1dKv::bytes_to_human_readable_value(serialized.clone(), buffer_ptr);
-        if code != ErrorCode::Ok {
-            return code;
-        }
-
+    ) -> ErrorCode {
         unsafe {
-            *input_and_output.value = *serialized.value;
-        };
+            let slice = unsafe { (*input_and_output.value).as_slice() };
 
-        ErrorCode::Ok
-    }}
+            let slice_tail = &slice[(slice.len() - 8)..];
+
+            let head = read_u32_be(slice_tail);
+            let len = read_u32_be(&slice_tail[4..]);
+
+            let serialized = &slice[u32_to_usize(head)..u32_to_usize(head + len)];
+            let mut serialized = BytesSlice::from(serialized);
+            let serialized = InputOutputAnnotated::from(&mut serialized as *mut BytesSlice);
+
+            let code =
+                ParsedLogLines1dKv::bytes_to_human_readable_value(serialized.clone(), buffer_ptr);
+            if code != ErrorCode::Ok {
+                return code;
+            }
+
+            unsafe {
+                *input_and_output.value = *serialized.value;
+            };
+
+            ErrorCode::Ok
+        }
+    }
 
     #[unsafe(export_name = "parsedLogLinesAccumulatorToBytes")]
     unsafe extern "C" fn accumulator_to_bytes(
         input_and_output: InputOutputAnnotated<*mut BytesSlice, &str, &'static [u8]>,
         buffer_ptr: *mut BytesVecRawParts,
-    ) -> ErrorCode { unsafe {
-        let code =
-            ParsedLogLines1dKv::human_readable_value_to_bytes(input_and_output.clone(), buffer_ptr);
-        if code != ErrorCode::Ok {
-            return code;
-        }
-
-        let output = unsafe { &*input_and_output.value };
-        let output_ptr = output.ptr.as_ptr();
-        let output_len_usize = u32_to_usize(output.len);
-        let mut buffer = unsafe { (&*buffer_ptr).into_vec() };
-
-        if let Some(index) = relative_pointer_location(buffer.as_slice(), output_ptr) {
-            // at least start of `output` is inside `buffer`, try copy_within
-            buffer.copy_within(index..(index + output_len_usize), 0);
-            buffer.drain(output_len_usize..);
-        } else {
-            buffer.clear();
-            buffer.extend_from_slice(unsafe { output.as_slice() });
-        }
-
-        buffer.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
-
-        let buffer_len = buffer.len();
-        let buffer_tail = &mut buffer[(buffer_len - 8)..];
-
-        write_u32_be(buffer_tail, 0);
-        write_u32_be(&mut buffer_tail[4..], output.len);
-
+    ) -> ErrorCode {
         unsafe {
-            *input_and_output.value = BytesSlice::from(buffer.as_slice());
-            *buffer_ptr = BytesVecRawParts::from(buffer);
-        }
+            let code = ParsedLogLines1dKv::human_readable_value_to_bytes(
+                input_and_output.clone(),
+                buffer_ptr,
+            );
+            if code != ErrorCode::Ok {
+                return code;
+            }
 
-        ErrorCode::Ok
-    }}
+            let output = unsafe { &*input_and_output.value };
+            let output_ptr = output.ptr.as_ptr();
+            let output_len_usize = u32_to_usize(output.len);
+            let mut buffer = unsafe { (&*buffer_ptr).into_vec() };
+
+            if let Some(index) = relative_pointer_location(buffer.as_slice(), output_ptr) {
+                // at least start of `output` is inside `buffer`, try copy_within
+                buffer.copy_within(index..(index + output_len_usize), 0);
+                buffer.drain(output_len_usize..);
+            } else {
+                buffer.clear();
+                buffer.extend_from_slice(unsafe { output.as_slice() });
+            }
+
+            buffer.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
+
+            let buffer_len = buffer.len();
+            let buffer_tail = &mut buffer[(buffer_len - 8)..];
+
+            write_u32_be(buffer_tail, 0);
+            write_u32_be(&mut buffer_tail[4..], output.len);
+
+            unsafe {
+                *input_and_output.value = BytesSlice::from(buffer.as_slice());
+                *buffer_ptr = BytesVecRawParts::from(buffer);
+            }
+
+            ErrorCode::Ok
+        }
+    }
 }

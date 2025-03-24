@@ -29,7 +29,7 @@ impl<T: Pod> SliceRawParts<T> {
         let Self { ptr, len } = *self;
 
         let slice = slice_from_raw_parts(ptr.as_ptr(), u32_to_usize(len));
-        let slice = &*slice;
+        let slice = unsafe { &*slice };
 
         slice
     }

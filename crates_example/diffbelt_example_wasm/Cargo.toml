@@ -34,3 +34,6 @@ path = "../../crates/diffbelt_protos"
 
 [dependencies.diffbelt_example_protos]
 path = "../../crates/diffbelt_example_protos"
+
+[dependencies.diffbelt_aligned_bytes]
+path = "../../crates/diffbelt_aligned_bytes"
