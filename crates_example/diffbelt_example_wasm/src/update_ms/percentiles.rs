@@ -1,27 +1,45 @@
-use diffbelt_example_protos::protos::impls::UpdateMsAccumulatorProto;
+use crate::global::take_buffer_for_realign;
+use crate::types::{IntermediateKey, UpdateMsPercentilesKey};
+use alloc::vec::Vec;
+use core::str::from_utf8;
+use diffbelt_aligned_bytes::AlignedBytes;
+use diffbelt_example_protos::protos::impls::{
+    UpdateMsAccumulatorProto, UpdateMsIntermediateDiffProto, UpdateMsIntermediateProto,
+    UpdateMsPercentilesProto,
+};
+use diffbelt_example_protos::protos::update_ms::{
+    UpdateMsAccumulator, UpdateMsAccumulatorArgs, UpdateMsIntermediateDiff,
+    UpdateMsIntermediateDiffArgs,
+};
+use diffbelt_protos::protos::impls::{AggregateMapMultiInputProto, AggregateMapMultiOutputProto};
 use diffbelt_protos::protos::transform::aggregate::{
-    AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput, AggregateReduceInput,
+    AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput,
+    AggregateMapMultiOutputArgs, AggregateMapOutput, AggregateMapOutputArgs, AggregateReduceInput,
     AggregateTargetInfo,
 };
-use diffbelt_protos::Serializer;
+use diffbelt_protos::{Serializer, Vector, WIPOffset, deserialize};
+use diffbelt_wasm_binding::annotations::head_len_vec::FlatbuffersHeadLenVecAnnotation;
 use diffbelt_wasm_binding::annotations::{Annotated, FlatbufferAnnotated, InputOutputAnnotated};
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
 use diffbelt_wasm_binding::transform::aggregate::Aggregate;
+use hashbrown::HashMap;
+use regex::Regex;
 
 struct UpdateMsDayPercentiles;
 
-type SourceKey = ();
-type SourceValue = ();
-type MappedValue = ();
-type Accumulator = (u32, u32, UpdateMsAccumulatorProto);
-type TargetKey = ();
-type TargetValue = ();
+type SourceKey<'a> = IntermediateKey<'a>;
+type SourceValue = UpdateMsIntermediateProto;
+type MappedValue = UpdateMsIntermediateDiffProto;
+type Accumulator = FlatbuffersHeadLenVecAnnotation<UpdateMsAccumulatorProto>;
+type TargetKey<'a> = UpdateMsPercentilesKey<'a>;
+type TargetValue = UpdateMsPercentilesProto;
 
-impl Aggregate<SourceKey, SourceValue, MappedValue, Accumulator, TargetKey, TargetValue>
+impl<'t> Aggregate<SourceKey<'t>, SourceValue, MappedValue, Accumulator, TargetKey<'t>, TargetValue>
     for UpdateMsDayPercentiles
 {
+    #[unsafe(export_name = "updateMsPercentilesMap")]
     unsafe extern "C" fn map(
         input_and_output: InputOutputAnnotated<
             *mut BytesSlice,
@@ -30,23 +48,154 @@ impl Aggregate<SourceKey, SourceValue, MappedValue, Accumulator, TargetKey, Targ
         >,
         buffer_ptr: *mut BytesVecRawParts,
     ) -> ErrorCode {
-        todo!()
+        let mut realign_buffer = take_buffer_for_realign();
+        let input = {
+            let input = unsafe { (&*input_and_output.value).as_slice() };
+            let input = AlignedBytes::ensure_alignment_or_copy(input, realign_buffer.as_mut())
+                .expect("input");
+            deserialize::<AggregateMapMultiInputProto>(input).expect("input")
+        };
+
+        lazy_static::lazy_static! {
+            static ref SOURCE_KEY_RE: Regex = Regex::new(r"^([^ ]+) ").expect("Cannot build SOURCE_KEY_RE");
+        }
+
+        let mut items_by_day = HashMap::new();
+
+        for item in input.items().unwrap_or_default() {
+            // 2025-03-12 000000025.1 2025-03-12T23:46:27.443Z.019 worker27
+            let source_key =
+                from_utf8(item.source_key().expect("no source_key").bytes()).expect("parsing");
+
+            let Some(captures) = SOURCE_KEY_RE.captures(source_key) else {
+                panic!("not matches {source_key}");
+            };
+
+            let day = captures.get(1).expect("no group").as_str();
+
+            let entries = match items_by_day.get_mut(day) {
+                Some(entries) => entries,
+                None => {
+                    items_by_day.insert(day, Vec::new());
+                    items_by_day.get_mut(day).expect("just inserted")
+                }
+            };
+
+            entries.push((item.source_old_value(), item.source_new_value()));
+        }
+
+        let mut serializer = {
+            let buffer = unsafe { (&*buffer_ptr).into_empty_vec() };
+            Serializer::<AggregateMapMultiOutputProto>::from_vec(buffer)
+        };
+
+        let mut items = Vec::new();
+        let mut buffer = None;
+
+        for (key, values) in items_by_day {
+            let target_key = Some(serializer.create_vector(key.as_bytes()));
+
+            for (old_value, new_value) in values {
+                let item_serializer = buffer.take().unwrap_or_default();
+                let mut item_serializer =
+                    Serializer::<UpdateMsIntermediateDiffProto>::from_vec(item_serializer);
+
+                let mut ms_diff = 0f32;
+
+                let mut serialize_type = |value: Vector<u8>, a: f32| -> WIPOffset<&str> {
+                    let mut realign_buffer = take_buffer_for_realign();
+                    let value = AlignedBytes::ensure_alignment_or_copy(
+                        value.bytes(),
+                        realign_buffer.as_mut(),
+                    )
+                    .expect("align");
+                    let value = deserialize::<UpdateMsIntermediateProto>(value).expect("parse");
+                    let update_type = value.update_type().expect("no update_type");
+                    ms_diff += a * value.ms();
+                    item_serializer.create_string(update_type)
+                };
+
+                let old_update_type = old_value.map(|x| serialize_type(x, -1f32));
+                let new_update_type = new_value.map(|x| serialize_type(x, 1f32));
+
+                let root = UpdateMsIntermediateDiff::create(
+                    item_serializer.buffer_builder(),
+                    &UpdateMsIntermediateDiffArgs {
+                        old_update_type,
+                        new_update_type,
+                        ms_diff,
+                    },
+                );
+                let root = item_serializer.finish(root);
+
+                let mapped_value = Some(serializer.create_vector(root.as_bytes()));
+
+                let item = AggregateMapOutput::create(
+                    serializer.buffer_builder(),
+                    &AggregateMapOutputArgs {
+                        target_key,
+                        mapped_value,
+                    },
+                );
+
+                items.push(item);
+            }
+
+            UpdateMsIntermediateDiff::create(
+                serializer.buffer_builder(),
+                &UpdateMsIntermediateDiffArgs {
+                    old_update_type: None,
+                    new_update_type: None,
+                    ms_diff: 0.0,
+                },
+            );
+        }
+
+        let items = Some(serializer.create_vector(&items));
+        let root = AggregateMapMultiOutput::create(
+            serializer.buffer_builder(),
+            &AggregateMapMultiOutputArgs { items },
+        );
+        let root = serializer.finish(root);
+
+        unsafe {
+            *input_and_output.value = root.as_bytes().into();
+            *buffer_ptr = root.into_underlying_buffer().into();
+        }
+
+        ErrorCode::Ok
     }
 
+    #[unsafe(export_name = "updateMsPercentilesInitialAccumulator")]
     unsafe extern "C" fn initial_accumulator(
-        target_info: FlatbufferAnnotated<
+        _target_info: FlatbufferAnnotated<
             BytesSlice,
             Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
         >,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
-    ) -> ErrorCode { unsafe {
-        let buffer = (&*accumulator_ptr.value).into_empty_vec();
-        
-        let serializer = Serializer::<UpdateMsAccumulatorProto>::from_vec(buffer);
-        
-        todo!()
-    }}
+    ) -> ErrorCode {
+        let buffer = unsafe { (&*accumulator_ptr.value).into_empty_vec() };
 
+        let mut serializer = Serializer::<UpdateMsAccumulatorProto>::from_vec(buffer);
+
+        let root = UpdateMsAccumulator::create(
+            serializer.buffer_builder(),
+            &UpdateMsAccumulatorArgs {
+                total_count: 0,
+                by_type: None,
+                percentiles: None,
+            },
+        );
+        let root = serializer.finish(root);
+
+        unsafe {
+            accumulator_ptr.save(root.as_ref());
+        }
+
+        ErrorCode::Ok
+    }
+
+    #[unsafe(export_name = "updateMsPercentilesReduce")]
     unsafe extern "C" fn reduce(
         input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue>>,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
@@ -54,13 +203,15 @@ impl Aggregate<SourceKey, SourceValue, MappedValue, Accumulator, TargetKey, Targ
         todo!()
     }
 
+    #[unsafe(export_name = "updateMsPercentilesMergeAccumulatorsNotImplemented")]
     unsafe extern "C" fn merge_accumulators(
-        input: SliceRawParts<Annotated<BytesVecRawParts, Accumulator>>,
-        accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
+        _input: SliceRawParts<Annotated<BytesVecRawParts, Accumulator>>,
+        _accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
-        todo!()
+        panic!("UpdateMsDayPercentiles cannot be merged");
     }
 
+    #[unsafe(export_name = "updateMsPercentilesMsApply")]
     unsafe extern "C" fn apply(
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
         output: FlatbufferAnnotated<*mut BytesSlice, Annotated<AggregateApplyOutput, TargetValue>>,

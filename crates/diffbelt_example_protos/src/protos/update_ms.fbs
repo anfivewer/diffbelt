@@ -3,6 +3,12 @@ table UpdateMsIntermediate {
     ms: float32;
 }
 
+table UpdateMsIntermediateDiff {
+    old_update_type: string;
+    new_update_type: string;
+    ms_diff: float32;
+}
+
 table UpdateMsAccumulator {
     total_count: ulong;
     by_type: [UpdateMsAggregateByType];

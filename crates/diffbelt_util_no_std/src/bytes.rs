@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 pub fn try_4_bytes_be_to_u32(bytes: &[u8]) -> Option<u32> {
     if bytes.len() != 4 {
         return None;
@@ -35,6 +37,23 @@ pub fn write_u32_be(bytes: &mut [u8], value: u32) -> () {
     bytes[1] = (value & 0xff) as u8;
     value >>= 8;
     bytes[0] = (value & 0xff) as u8;
+}
+
+pub fn push_u32_be_to_vec(vec: &mut Vec<u8>, value: u32) {
+    vec.reserve(4);
+    let mut value = value;
+    let d = (value & 0xff) as u8;
+    value >>= 8;
+    let c = (value & 0xff) as u8;
+    value >>= 8;
+    let b = (value & 0xff) as u8;
+    value >>= 8;
+    let a = (value & 0xff) as u8;
+
+    vec.push(a);
+    vec.push(b);
+    vec.push(c);
+    vec.push(d);
 }
 
 pub const ONE_U32_BE: [u8; 4] = [0, 0, 0, 1];

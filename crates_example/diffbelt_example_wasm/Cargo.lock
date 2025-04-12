@@ -104,6 +104,7 @@ dependencies = [
  "diffbelt_protos",
  "diffbelt_util_no_std",
  "diffbelt_wasm_binding",
+ "hashbrown",
  "lazy_static",
  "libm",
  "rand",
