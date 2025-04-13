@@ -1,0 +1,16 @@
+include "common.fbs";
+
+table GetRequest {
+  collection_name: string;
+  key: [ubyte];
+  /// optional
+  generation_id: [ubyte];
+  /// optional
+  phantom_id: [ubyte];
+}
+
+table GetResponse {
+  generation_id: [ubyte];
+  /// optional, if null -- value does not exists
+  item: KeyValue;
+}

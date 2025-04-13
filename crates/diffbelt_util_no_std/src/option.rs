@@ -19,7 +19,7 @@ impl<A> AsyncOptionUtil<A> for Option<A> {
     }
 }
 
-pub fn store_in_option<T>(opt: &mut Option<T>, value: T) -> &T {
+pub fn store_in_option<T>(opt: &mut Option<T>, value: T) -> &mut T {
     *opt = Some(value);
-    opt.as_ref().expect("just stored")
+    opt.as_mut().expect("just stored")
 }

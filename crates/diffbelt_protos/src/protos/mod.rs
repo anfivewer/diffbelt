@@ -16,6 +16,9 @@ pub mod api {
     pub mod phantom {
         pub use super::super::generated::api::phantom_generated::*;
     }
+    pub mod get {
+        pub use super::super::generated::api::get_generated::*;
+    }
     pub mod get_keys_around {
         pub use super::super::generated::api::get_keys_around_generated::*;
     }

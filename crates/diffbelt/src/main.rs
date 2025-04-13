@@ -10,6 +10,7 @@ use std::env::var_os;
 use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
+use thiserror::__private::AsDisplay;
 use tracing::{event, info, span, Level};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::FmtSubscriber;
@@ -59,6 +60,8 @@ async fn run() {
     if config.is_clear {
         std::fs::remove_dir_all(&config.data_path).expect("cannot remove data_path");
     }
+    
+    info!("db path {}", config.data_path.as_display());
 
     let database = Database::open(DatabaseOpenOptions {
         data_path: &config.data_path,

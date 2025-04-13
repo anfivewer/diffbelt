@@ -1,4 +1,5 @@
 table GetKeysAroundRequest {
+  collection_name: string;
   key: [ubyte];
   require_key_existance: bool;
   limit: uint;

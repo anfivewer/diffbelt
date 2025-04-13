@@ -87,6 +87,13 @@ impl<'fbb, F: FlatbuffersGenericType> Serializer<'fbb, F> {
         self.buffer_builder_.create_vector(items)
     }
 
+    pub fn reserialize_bytes_vector<'b>(
+        &mut self,
+        value: Vector<'b, u8>,
+    ) -> WIPOffset<Vector<'fbb, u8>> {
+        self.buffer_builder_.create_vector(value.bytes())
+    }
+
     pub fn start_vector<T: Push>(&mut self, items_count: usize) {
         self.buffer_builder_.start_vector::<T>(items_count);
     }

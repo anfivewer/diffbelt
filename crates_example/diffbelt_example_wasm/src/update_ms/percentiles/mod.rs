@@ -1,5 +1,8 @@
+mod get_keys_around;
+
 use crate::global::take_buffer_for_realign;
 use crate::types::{IntermediateKey, UpdateMsPercentilesKey};
+use crate::update_ms::percentiles::get_keys_around::request_initial_accumulator;
 use alloc::vec::Vec;
 use core::str::from_utf8;
 use diffbelt_aligned_bytes::AlignedBytes;
@@ -11,7 +14,11 @@ use diffbelt_example_protos::protos::update_ms::{
     UpdateMsAccumulator, UpdateMsAccumulatorArgs, UpdateMsIntermediateDiff,
     UpdateMsIntermediateDiffArgs,
 };
-use diffbelt_protos::protos::impls::{AggregateMapMultiInputProto, AggregateMapMultiOutputProto};
+use diffbelt_protos::protos::api::get::GetRequestArgs;
+use diffbelt_protos::protos::handlers::GetApiHandler;
+use diffbelt_protos::protos::impls::{
+    AggregateMapMultiInputProto, AggregateMapMultiOutputProto, AggregateTargetInfoProto,
+};
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput,
     AggregateMapMultiOutputArgs, AggregateMapOutput, AggregateMapOutputArgs, AggregateReduceInput,
@@ -23,6 +30,7 @@ use diffbelt_wasm_binding::annotations::{Annotated, FlatbufferAnnotated, InputOu
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
+use diffbelt_wasm_binding::requests::Request;
 use diffbelt_wasm_binding::transform::aggregate::Aggregate;
 use hashbrown::HashMap;
 use regex::Regex;
@@ -168,15 +176,42 @@ impl<'t> Aggregate<SourceKey<'t>, SourceValue, MappedValue, Accumulator, TargetK
 
     #[unsafe(export_name = "updateMsPercentilesInitialAccumulator")]
     unsafe extern "C" fn initial_accumulator(
-        _target_info: FlatbufferAnnotated<
+        target_info: FlatbufferAnnotated<
             BytesSlice,
             Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
         >,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
         let buffer = unsafe { (&*accumulator_ptr.value).into_empty_vec() };
+        let mut buffer_holder = Some(buffer);
+        let mut target_info_realign_buffer = take_buffer_for_realign();
 
-        let mut serializer = Serializer::<UpdateMsAccumulatorProto>::from_vec(buffer);
+        let target_info = {
+            let slice = unsafe { target_info.value.as_slice() };
+            let bytes =
+                AlignedBytes::ensure_alignment_or_copy(slice, target_info_realign_buffer.as_mut())
+                    .expect("realign");
+            deserialize::<AggregateTargetInfoProto>(bytes).expect("parse")
+        };
+
+        request_initial_accumulator(&mut buffer_holder, target_info);
+
+        drop(target_info_realign_buffer);
+
+        let mut serializer = Serializer::from_vec(buffer_holder.take().unwrap_or_default());
+        let collection_name = Some(serializer.create_string("updateMs:1d:p"));
+        let request = Request::<GetApiHandler>::call(
+            serializer,
+            GetRequestArgs {
+                collection_name: None,
+                key: None,
+                generation_id: None,
+                phantom_id: None,
+            },
+        )
+        .expect("request");
+
+        let mut serializer = Serializer::<UpdateMsAccumulatorProto>::from_vec(Vec::new());
 
         let root = UpdateMsAccumulator::create(
             serializer.buffer_builder(),

@@ -29,7 +29,7 @@ impl RawDb {
             phantom_id.get_byte_array(),
         );
 
-        let mut phantom_key = Self::prefixed_phantom_id_key(phantom_id);
+        let phantom_key = Self::prefixed_phantom_id_key(phantom_id);
 
         // Save to drop them at generation finish
         batch.put_cf(&meta_cf, &phantom_key, &[]);

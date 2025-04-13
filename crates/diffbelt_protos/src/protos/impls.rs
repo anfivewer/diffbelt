@@ -9,6 +9,11 @@ use crate::protos::api::generation::{
     GenerationIdStreamResponse, GenerationIdStreamResponseArgs, StartGenerationRequest,
     StartGenerationRequestArgs, StartGenerationResponse, StartGenerationResponseArgs,
 };
+use crate::protos::api::get::{GetRequest, GetRequestArgs, GetResponse, GetResponseArgs};
+use crate::protos::api::get_keys_around::{
+    GetKeysAroundRequest, GetKeysAroundRequestArgs, GetKeysAroundResponse,
+    GetKeysAroundResponseArgs,
+};
 use crate::protos::api::methods::{Request, RequestArgs, Response, ResponseArgs};
 use crate::protos::api::phantom::{StartPhantomRequest, StartPhantomRequestArgs};
 use crate::protos::api::put_many::{
@@ -82,3 +87,7 @@ flatbuffers_generic!(CreateReaderResponse, CreateReaderResponseArgs);
 flatbuffers_generic!(StartQueryRequest, StartQueryRequestArgs<'a>);
 flatbuffers_generic!(NextQueryRequest, NextQueryRequestArgs<'a>);
 flatbuffers_generic!(QueryResponse, QueryResponseArgs<'a>);
+flatbuffers_generic!(GetRequest, GetRequestArgs<'a>);
+flatbuffers_generic!(GetResponse, GetResponseArgs<'a>);
+flatbuffers_generic!(GetKeysAroundRequest, GetKeysAroundRequestArgs<'a>);
+flatbuffers_generic!(GetKeysAroundResponse, GetKeysAroundResponseArgs<'a>);

@@ -4,7 +4,8 @@ use crate::protos::api::methods::{
 use crate::protos::impls::{
     CommitGenerationRequestProto, CommitGenerationResponseProto, CreateCollectionRequestProto,
     CreateCollectionResponseProto, CreateReaderRequestProto, CreateReaderResponseProto,
-    GenerationIdStreamRequestProto, GenerationIdStreamResponseProto, ListReadersRequestProto,
+    GenerationIdStreamRequestProto, GenerationIdStreamResponseProto, GetKeysAroundRequestProto,
+    GetKeysAroundResponseProto, GetRequestProto, GetResponseProto, ListReadersRequestProto,
     ListReadersResponseProto, NextQueryRequestProto, PutManyRequestProto, PutManyResponseProto,
     QueryResponseProto, RequestProto, ResponseProto, StartGenerationRequestProto,
     StartGenerationResponseProto, StartQueryRequestProto,
@@ -167,4 +168,18 @@ api_handler!(
     body_as_next_query,
     request = NextQueryRequestProto,
     response = QueryResponseProto,
+);
+api_handler!(
+    GetApiHandler,
+    Get,
+    body_as_get,
+    request = GetRequestProto,
+    response = GetResponseProto,
+);
+api_handler!(
+    GetKeysAroundApiHandler,
+    GetKeysAround,
+    body_as_get_keys_around,
+    request = GetKeysAroundRequestProto,
+    response = GetKeysAroundResponseProto,
 );

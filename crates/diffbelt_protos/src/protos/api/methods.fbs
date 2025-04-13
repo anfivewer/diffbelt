@@ -1,5 +1,6 @@
 include "common.fbs";
 include "generation.fbs";
+include "get.fbs";
 include "phantom.fbs";
 include "put_many.fbs";
 include "query.fbs";
@@ -17,6 +18,7 @@ union RequestBody {
     PutMany: PutManyRequest,
     StartQuery: StartQueryRequest,
     NextQuery: NextQueryRequest,
+    Get: GetRequest,
     GetKeysAround: GetKeysAroundRequest,
     CreateCollection: CreateCollectionRequest,
     ListReaders: ListReadersRequest,
@@ -33,6 +35,7 @@ union ResponseBody {
     PutMany: PutManyResponse,
     StartQuery: QueryResponse,
     NextQuery: QueryResponse,
+    Get: GetResponse,
     GetKeysAround: GetKeysAroundResponse,
     CreateCollection: CreateCollectionResponse,
     ListReaders: ListReadersResponse,

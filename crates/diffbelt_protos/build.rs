@@ -39,6 +39,10 @@ fn main() {
                     None,
                 )),
                 SubPath::File((
+                    "get.fbs",
+                    None,
+                )),
+                SubPath::File((
                     "get_keys_around.fbs",
                     None,
                 )),

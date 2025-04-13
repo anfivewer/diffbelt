@@ -20,6 +20,7 @@ table UpdateMsPercAcc {
     key_pos: int32;
     keys_around: [ubyte];
     next_request_id: uint32;
+    next_request_is_forward: bool;
 }
 
 table UpdateMsAggregateByType {
