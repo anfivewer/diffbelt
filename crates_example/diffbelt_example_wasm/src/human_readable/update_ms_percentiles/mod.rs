@@ -2,11 +2,11 @@ use crate::global::take_buffer_for_realign;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
+use core::str::from_utf8;
 use diffbelt_example_protos::protos::impls::UpdateMsPercentilesProto;
 use diffbelt_example_protos::protos::update_ms::{
-    UpdateMsAggregateByType, UpdateMsAggregateByTypeArgs, UpdateMsIntermediate,
-    UpdateMsIntermediateArgs, UpdateMsPerc, UpdateMsPercArgs, UpdateMsPercentiles,
-    UpdateMsPercentilesArgs,
+    UpdateMsAggregateByType, UpdateMsAggregateByTypeArgs, UpdateMsPerc, UpdateMsPercArgs,
+    UpdateMsPercentiles, UpdateMsPercentilesArgs,
 };
 use diffbelt_protos::align_util::AlignedBytes;
 use diffbelt_protos::deserialize;
@@ -164,7 +164,7 @@ impl HumanReadable for UpdateMsPercentilesKv {
                 .and_then(|x| x.get(1))
                 .expect("no percentile")
                 .as_str();
-            let intermediate_key = serializer.create_string(intermediate_key);
+            let intermediate_key = serializer.create_vector(intermediate_key.as_bytes());
 
             let item = UpdateMsPerc::create(
                 serializer.buffer_builder(),
@@ -230,11 +230,13 @@ impl HumanReadable for UpdateMsPercentilesKv {
         output.push_str("percentiles:\n");
 
         for percentile in input.percentiles().unwrap_or_default() {
+            let key = from_utf8(percentile.intermediate_key().unwrap_or_default().bytes())
+                .expect("key not a string");
             write!(
                 output,
                 "  - percentile: {percentile}\n    intermediate_key: {key}\n",
                 percentile = percentile.percentile(),
-                key = percentile.intermediate_key().unwrap_or_default(),
+                key = key,
             )
             .expect("writing");
         }

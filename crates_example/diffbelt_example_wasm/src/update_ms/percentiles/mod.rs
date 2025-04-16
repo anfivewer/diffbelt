@@ -1,8 +1,11 @@
+mod constants;
 mod get_keys_around;
+mod reduce;
 
 use crate::global::take_buffer_for_realign;
 use crate::types::{IntermediateKey, UpdateMsPercentilesKey};
 use crate::update_ms::percentiles::get_keys_around::request_initial_accumulator;
+use crate::update_ms::percentiles::reduce::ReduceAccumulator;
 use alloc::vec::Vec;
 use core::str::from_utf8;
 use diffbelt_aligned_bytes::AlignedBytes;
@@ -11,13 +14,11 @@ use diffbelt_example_protos::protos::impls::{
     UpdateMsPercentilesProto,
 };
 use diffbelt_example_protos::protos::update_ms::{
-    UpdateMsAccumulator, UpdateMsAccumulatorArgs, UpdateMsIntermediateDiff,
-    UpdateMsIntermediateDiffArgs,
+    UpdateMsIntermediateDiff, UpdateMsIntermediateDiffArgs,
 };
-use diffbelt_protos::protos::api::get::GetRequestArgs;
-use diffbelt_protos::protos::handlers::GetApiHandler;
 use diffbelt_protos::protos::impls::{
-    AggregateMapMultiInputProto, AggregateMapMultiOutputProto, AggregateTargetInfoProto,
+    AggregateMapMultiInputProto, AggregateMapMultiOutputProto, AggregateReduceInputProto,
+    AggregateTargetInfoProto,
 };
 use diffbelt_protos::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateMapMultiInput, AggregateMapMultiOutput,
@@ -30,7 +31,6 @@ use diffbelt_wasm_binding::annotations::{Annotated, FlatbufferAnnotated, InputOu
 use diffbelt_wasm_binding::error_code::ErrorCode;
 use diffbelt_wasm_binding::ptr::bytes::{BytesSlice, BytesVecRawParts};
 use diffbelt_wasm_binding::ptr::slice::SliceRawParts;
-use diffbelt_wasm_binding::requests::Request;
 use diffbelt_wasm_binding::transform::aggregate::Aggregate;
 use hashbrown::HashMap;
 use regex::Regex;
@@ -89,7 +89,7 @@ impl<'t> Aggregate<SourceKey<'t>, SourceValue, MappedValue, Accumulator, TargetK
                 }
             };
 
-            entries.push((item.source_old_value(), item.source_new_value()));
+            entries.push((source_key, item.source_old_value(), item.source_new_value()));
         }
 
         let mut serializer = {
@@ -103,14 +103,16 @@ impl<'t> Aggregate<SourceKey<'t>, SourceValue, MappedValue, Accumulator, TargetK
         for (key, values) in items_by_day {
             let target_key = Some(serializer.create_vector(key.as_bytes()));
 
-            for (old_value, new_value) in values {
+            for (source_key, old_value, new_value) in values {
                 let item_serializer = buffer.take().unwrap_or_default();
                 let mut item_serializer =
                     Serializer::<UpdateMsIntermediateDiffProto>::from_vec(item_serializer);
 
-                let mut ms_diff = 0f32;
+                let mut old_ms = 0f32;
+                let mut new_ms = 0f32;
+                let source_key = Some(item_serializer.create_vector(source_key.as_bytes()));
 
-                let mut serialize_type = |value: Vector<u8>, a: f32| -> WIPOffset<&str> {
+                let mut serialize_type = |value: Vector<u8>, is_new: bool| -> WIPOffset<&str> {
                     let mut realign_buffer = take_buffer_for_realign();
                     let value = AlignedBytes::ensure_alignment_or_copy(
                         value.bytes(),
@@ -119,19 +121,25 @@ impl<'t> Aggregate<SourceKey<'t>, SourceValue, MappedValue, Accumulator, TargetK
                     .expect("align");
                     let value = deserialize::<UpdateMsIntermediateProto>(value).expect("parse");
                     let update_type = value.update_type().expect("no update_type");
-                    ms_diff += a * value.ms();
+                    if is_new {
+                        new_ms = value.ms();
+                    } else {
+                        old_ms = value.ms();
+                    }
                     item_serializer.create_string(update_type)
                 };
 
-                let old_update_type = old_value.map(|x| serialize_type(x, -1f32));
-                let new_update_type = new_value.map(|x| serialize_type(x, 1f32));
+                let old_update_type = old_value.map(|x| serialize_type(x, false));
+                let new_update_type = new_value.map(|x| serialize_type(x, true));
 
                 let root = UpdateMsIntermediateDiff::create(
                     item_serializer.buffer_builder(),
                     &UpdateMsIntermediateDiffArgs {
+                        key: source_key,
                         old_update_type,
                         new_update_type,
-                        ms_diff,
+                        old_ms,
+                        new_ms,
                     },
                 );
                 let root = item_serializer.finish(root);
@@ -148,15 +156,6 @@ impl<'t> Aggregate<SourceKey<'t>, SourceValue, MappedValue, Accumulator, TargetK
 
                 items.push(item);
             }
-
-            UpdateMsIntermediateDiff::create(
-                serializer.buffer_builder(),
-                &UpdateMsIntermediateDiffArgs {
-                    old_update_type: None,
-                    new_update_type: None,
-                    ms_diff: 0.0,
-                },
-            );
         }
 
         let items = Some(serializer.create_vector(&items));
@@ -194,34 +193,7 @@ impl<'t> Aggregate<SourceKey<'t>, SourceValue, MappedValue, Accumulator, TargetK
             deserialize::<AggregateTargetInfoProto>(bytes).expect("parse")
         };
 
-        request_initial_accumulator(&mut buffer_holder, target_info);
-
-        drop(target_info_realign_buffer);
-
-        let mut serializer = Serializer::from_vec(buffer_holder.take().unwrap_or_default());
-        let collection_name = Some(serializer.create_string("updateMs:1d:p"));
-        let request = Request::<GetApiHandler>::call(
-            serializer,
-            GetRequestArgs {
-                collection_name: None,
-                key: None,
-                generation_id: None,
-                phantom_id: None,
-            },
-        )
-        .expect("request");
-
-        let mut serializer = Serializer::<UpdateMsAccumulatorProto>::from_vec(Vec::new());
-
-        let root = UpdateMsAccumulator::create(
-            serializer.buffer_builder(),
-            &UpdateMsAccumulatorArgs {
-                total_count: 0,
-                by_type: None,
-                percentiles: None,
-            },
-        );
-        let root = serializer.finish(root);
+        let root = request_initial_accumulator(&mut buffer_holder, target_info);
 
         unsafe {
             accumulator_ptr.save(root.as_ref());
@@ -233,9 +205,25 @@ impl<'t> Aggregate<SourceKey<'t>, SourceValue, MappedValue, Accumulator, TargetK
     #[unsafe(export_name = "updateMsPercentilesReduce")]
     unsafe extern "C" fn reduce(
         input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue>>,
-        accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
+        mut accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
-        todo!()
+        let accumulator = unsafe { accumulator_ptr.deserialize().expect("parse") };
+        let mut realign_buffer = take_buffer_for_realign();
+        let input = unsafe {
+            let bytes = input.value.as_slice();
+            let bytes = AlignedBytes::ensure_alignment_or_copy(bytes, realign_buffer.as_mut())
+                .expect("align");
+            deserialize::<AggregateReduceInputProto>(bytes).expect("parse")
+        };
+
+        let mut accumulator = ReduceAccumulator::new(accumulator);
+        let accumulator = accumulator.reduce(input);
+
+        unsafe {
+            accumulator_ptr.save(accumulator.as_ref());
+        }
+
+        ErrorCode::Ok
     }
 
     #[unsafe(export_name = "updateMsPercentilesMergeAccumulatorsNotImplemented")]

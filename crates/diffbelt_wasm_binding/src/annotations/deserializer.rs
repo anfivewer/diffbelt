@@ -1,5 +1,6 @@
 use crate::annotations::Annotated;
 use crate::annotations::head_len_vec::FlatbuffersHeadLenVecAnnotation;
+use crate::debug_print_string;
 use crate::ptr::bytes::{BytesVecRawParts, VecRawParts};
 use core::slice;
 use diffbelt_protos::align_util::{AlignedBytes, AlignedBytesError};
@@ -53,9 +54,11 @@ impl<T: FlatbuffersGenericType>
         let head_u32 = checked_usize_to_u32(head);
 
         // SAFETY: buffer is just stored and len greater than 8
-        let buffer_slice = unsafe { slice::from_raw_parts_mut(raw_parts.ptr.as_mut_ptr(), 4) };
+        let buffer_slice = unsafe {
+            slice::from_raw_parts_mut(raw_parts.ptr.as_mut_ptr(), u32_to_usize(raw_parts.len))
+        };
 
-        write_u32_be(buffer_slice, head_u32);
+        write_u32_be(&mut buffer_slice[0..4], head_u32);
 
         let aligned = AlignedBytes::ensure_alignment(&buffer_slice[head..(head + len)])?;
 

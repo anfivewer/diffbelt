@@ -4,6 +4,8 @@ use crate::http::errors::HttpError;
 use crate::http::routing::routes::collection::create::create_collection_flatbuffers_route;
 use crate::http::routing::routes::collection::generation_id_stream::generation_id_stream_flatbuffers_route;
 use crate::http::routing::routes::generation::start::start_generation_flatbuffers_route;
+use crate::http::routing::routes::get::get_flatbuffers_route;
+use crate::http::routing::routes::get_keys_around::get_keys_around_flatbuffers_route;
 use crate::http::routing::routes::put_many::put_many_flatbuffers_route;
 use crate::http::routing::routes::query::next::next_query_flatbuffers_route;
 use crate::http::routing::routes::query::start::start_query_flatbuffers_route;
@@ -16,8 +18,8 @@ use diffbelt_protos::deserialize;
 use diffbelt_protos::protos::api::methods::RequestBody;
 use diffbelt_protos::protos::handlers::{
     ApiHandler, CreateCollectionApiHandler, CreateReaderApiHandler, GenerationIdStreamApiHandler,
-    ListReadersApiHandler, NextQueryApiHandler, PutManyApiHandler, StartGenerationApiHandler,
-    StartQueryApiHandler,
+    GetApiHandler, GetKeysAroundApiHandler, ListReadersApiHandler, NextQueryApiHandler,
+    PutManyApiHandler, StartGenerationApiHandler, StartQueryApiHandler,
 };
 use diffbelt_protos::protos::impls::RequestProto;
 use diffbelt_util_no_std::option::store_in_option;
@@ -25,7 +27,6 @@ use tracing::trace;
 
 fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
     Box::pin(async move {
-        let context = options.context;
         let request = options.request;
 
         request.allow_only_methods(&["POST"])?;
@@ -46,7 +47,7 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
             ($api_handler:ident, $handler:ident) => {{
                 let data = $api_handler::request(&serialized)
                     .ok_or_else(|| HttpError::GenericFlatbuffers400("no request data"))?;
-                return $handler(context, options.request_context, data).await;
+                return $handler(options.context, options.request_context, data).await;
             }};
         }
 
@@ -75,6 +76,12 @@ fn handler(options: StaticRouteOptions) -> StaticRouteFnFutureResult {
             }
             RequestBody::NextQuery => {
                 body_handler!(NextQueryApiHandler, next_query_flatbuffers_route)
+            }
+            RequestBody::Get => {
+                body_handler!(GetApiHandler, get_flatbuffers_route)
+            }
+            RequestBody::GetKeysAround => {
+                body_handler!(GetKeysAroundApiHandler, get_keys_around_flatbuffers_route)
             }
             body => {
                 let mut variant_name = None;

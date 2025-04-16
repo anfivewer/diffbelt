@@ -15,6 +15,7 @@ table GetKeysAroundKey {
 
 table GetKeysAroundResponse {
   generation_id: [ubyte];
+  key: [ubyte];
   left: [GetKeysAroundKey];
   right: [GetKeysAroundKey];
   has_more_on_the_left: bool;

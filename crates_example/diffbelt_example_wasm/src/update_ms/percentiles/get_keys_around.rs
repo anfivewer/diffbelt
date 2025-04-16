@@ -1,11 +1,13 @@
 use crate::global::take_buffer_for_realign;
-use alloc::string::String;
+use crate::update_ms::percentiles::constants::PERCENTILES;
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use diffbelt_aligned_bytes::AlignedBytes;
 use diffbelt_example_protos::protos::impls::{UpdateMsAccumulatorProto, UpdateMsPercentilesProto};
 use diffbelt_example_protos::protos::update_ms::{
     UpdateMsAccumulator, UpdateMsAccumulatorArgs, UpdateMsAggregateByType,
-    UpdateMsAggregateByTypeArgs,
+    UpdateMsAggregateByTypeArgs, UpdateMsPerc, UpdateMsPercAcc, UpdateMsPercAccArgs,
+    UpdateMsPercArgs,
 };
 use diffbelt_protos::protos::api::get::GetRequestArgs;
 use diffbelt_protos::protos::api::get_keys_around::GetKeysAroundRequestArgs;
@@ -18,7 +20,7 @@ use diffbelt_wasm_binding::requests::Request;
 
 struct PercentilesTemp {
     percentile: f32,
-    intermediate_key: String,
+    intermediate_key: Box<[u8]>,
     request: Request<GetKeysAroundApiHandler>,
 }
 
@@ -95,12 +97,15 @@ pub fn request_initial_accumulator(
 
         for percentile in target_percentiles {
             let p = percentile.percentile();
-            let intermediate_key = percentile.intermediate_key().expect("no intermediate key");
+            let intermediate_key = percentile
+                .intermediate_key()
+                .expect("no intermediate key")
+                .bytes();
 
             let mut serializer =
                 Serializer::from_vec(request_buffer_holder2.take().unwrap_or_default());
             let collection_name = Some(serializer.create_string("updateMs:1d:intermediate"));
-            let key = Some(serializer.create_vector(intermediate_key.as_bytes()));
+            let key = Some(serializer.create_vector(intermediate_key));
             let generation_id = Some(serializer.reserialize_bytes_vector(
                 target_info.generation_id().expect("no prev generation id"),
             ));
@@ -121,15 +126,13 @@ pub fn request_initial_accumulator(
 
             percentiles_items_ref.push(PercentilesTemp {
                 percentile: p,
-                intermediate_key: String::from(intermediate_key),
+                intermediate_key: Box::<[u8]>::from(intermediate_key),
                 request,
             });
         }
     }
 
-    let percentiles = {
-        let percentiles_items = percentiles_items.expect("no percentiles vec");
-
+    let percentiles = if let Some(percentiles_items) = percentiles_items {
         for percentile_temp in percentiles_items {
             let PercentilesTemp {
                 percentile,
@@ -143,6 +146,30 @@ pub fn request_initial_accumulator(
             use alloc::format;
             debug_print_string(format!("response {response:#?}"));
         }
+
+        todo!()
+    } else {
+        let percentiles = PERCENTILES.map(|p| {
+            let percentile = UpdateMsPerc::create(
+                accumulator_serializer.buffer_builder(),
+                &UpdateMsPercArgs {
+                    percentile: p,
+                    intermediate_key: None,
+                },
+            );
+            let percentile = UpdateMsPercAcc::create(
+                accumulator_serializer.buffer_builder(),
+                &UpdateMsPercAccArgs {
+                    percentile: Some(percentile),
+                    key_pos: 0,
+                    keys_around: None,
+                    next_request_id: 0,
+                    next_request_is_forward: false,
+                },
+            );
+            percentile
+        });
+        accumulator_serializer.create_vector(&percentiles)
     };
 
     let by_type = by_type_items.map(|x| accumulator_serializer.create_vector(&x));
@@ -150,14 +177,11 @@ pub fn request_initial_accumulator(
     let root = UpdateMsAccumulator::create(
         accumulator_serializer.buffer_builder(),
         &UpdateMsAccumulatorArgs {
-            total_count: 0,
             by_type,
-            percentiles: None,
+            percentiles: Some(percentiles),
         },
     );
     let root = accumulator_serializer.finish(root);
 
-    // root
-    
-    todo!()
+    root
 }

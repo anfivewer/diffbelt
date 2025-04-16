@@ -4,20 +4,21 @@ table UpdateMsIntermediate {
 }
 
 table UpdateMsIntermediateDiff {
+    key: [ubyte];
     old_update_type: string;
     new_update_type: string;
-    ms_diff: float32;
+    old_ms: float32;
+    new_ms: float32;
 }
 
 table UpdateMsAccumulator {
-    total_count: ulong;
     by_type: [UpdateMsAggregateByType];
     percentiles: [UpdateMsPercAcc];
 }
 
 table UpdateMsPercAcc {
     percentile: UpdateMsPerc;
-    key_pos: int32;
+    key_pos: uint32;
     keys_around: [ubyte];
     next_request_id: uint32;
     next_request_is_forward: bool;
@@ -31,7 +32,8 @@ table UpdateMsAggregateByType {
 
 table UpdateMsPerc {
     percentile: float32;
-    intermediate_key: string;
+    /// optional, if collection is empty
+    intermediate_key: [ubyte];
 }
 
 table UpdateMsPercentiles {

@@ -111,6 +111,11 @@ pub fn i32_to_f32(value: i32) -> f32 {
 }
 
 #[inline(always)]
+pub fn f32_to_f64(value: i32) -> f32 {
+    value as f32
+}
+
+#[inline(always)]
 #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
 pub fn try_positive_i32_to_usize(value: i32) -> Option<usize> {
     if value < 0 {

@@ -15,14 +15,14 @@ impl<T: FlatbuffersGenericType>
 {
     pub unsafe fn save(&self, serialized: Serialized<T>) {
         let mut buffer = unsafe { (&*self.value).into_empty_vec() };
+        let serialized = serialized.as_bytes();
+
+        buffer.reserve(4 + 4 + serialized.len());
 
         push_u32_be_to_vec(&mut buffer, 8);
-        push_u32_be_to_vec(
-            &mut buffer,
-            checked_usize_to_u32(serialized.as_bytes().len()),
-        );
+        push_u32_be_to_vec(&mut buffer, checked_usize_to_u32(serialized.len()));
 
-        buffer.extend_from_slice(&serialized.as_bytes());
+        buffer.extend_from_slice(serialized);
 
         unsafe {
             *self.value = buffer.into();
