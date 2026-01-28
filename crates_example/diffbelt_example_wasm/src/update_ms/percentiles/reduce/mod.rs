@@ -11,29 +11,31 @@ use diffbelt_example_protos::protos::impls::{
 use diffbelt_example_protos::protos::update_ms::UpdateMsAccumulator;
 use diffbelt_protos::protos::impls::GetKeysAroundResponseProto;
 use diffbelt_protos::protos::transform::aggregate::AggregateReduceInput;
-use diffbelt_protos::{OwnedSerialized, deserialize};
+use diffbelt_protos::{deserialize, OwnedSerialized};
+use diffbelt_util_no_std::cast::{f32_to_f64, f32_to_u32, u64_to_f32};
 use diffbelt_wasm_binding::debug_print_string;
 use diffbelt_wasm_binding::requests::RequestId;
 use hashbrown::HashMap;
+use lazy_static::lazy_static;
+use libm::roundf;
+use regex::Regex;
+use parsed_intermediate_key::ParsedIntermediateKey;
+use percentile::Percentile;
+use crate::update_ms::percentiles::reduce::keys_around::KeysAround;
+use crate::update_ms::percentiles::reduce::parsed_intermediate_key::parse_and_store_intermediate_key;
+
+mod percentile;
+mod parsed_intermediate_key;
+mod keys_around;
 
 struct ByType {
-    sum_ms: f32,
+    sum_ms: f64,
     count: u64,
-}
-
-type KeysAround = (Vec<Box<[u8]>>, Box<[u8]>, Vec<Box<[u8]>>);
-
-struct Percentile {
-    percentile: f32,
-    intermediate_key: Option<Box<[u8]>>,
-    key_pos: u32,
-    keys_around: Option<KeysAround>,
-    next_request_id: RequestId,
-    next_request_is_forward: bool,
 }
 
 pub struct ReduceAccumulator {
     by_type: HashMap<String, ByType>,
+    items_count: u64,
     percentiles: [Percentile; PERCENTILES.len()],
 }
 
@@ -49,7 +51,17 @@ impl ReduceAccumulator {
         );
 
         let mut by_type: HashMap<String, ByType> = HashMap::with_capacity(data_by_type.len());
-        //
+        let mut items_count = 0;
+
+        for by_type_entry in data_by_type {
+            let key = by_type_entry.key().expect("no key");
+            let sum_ms = by_type_entry.sum_ms();
+            let count = by_type_entry.count();
+
+            items_count += count;
+
+            by_type.insert(String::from(key), ByType { sum_ms, count });
+        }
 
         let mut index = 0usize;
         let percentiles = PERCENTILES.map(|p| {
@@ -61,7 +73,7 @@ impl ReduceAccumulator {
 
             let intermediate_key = perc
                 .intermediate_key()
-                .map(|x| Box::<[u8]>::from(x.bytes()));
+                .map(|x| parsed_intermediate_key::parse_and_store_intermediate_key(x.bytes()));
             let keys_around = percentile.keys_around().map(|x| x.bytes());
             let keys_around = parse_keys_around(keys_around);
             let next_request_id = RequestId(percentile.next_request_id());
@@ -78,6 +90,7 @@ impl ReduceAccumulator {
 
         Self {
             by_type,
+            items_count,
             percentiles,
         }
     }
@@ -106,7 +119,7 @@ impl ReduceAccumulator {
             let mut need_delete_old_type = false;
             if let Some(old_type) = old_update_type {
                 if let Some(by_type) = self.by_type.get_mut(old_type) {
-                    by_type.sum_ms -= old_ms;
+                    by_type.sum_ms -= f32_to_f64(old_ms);
                     by_type.count -= 1;
                     if by_type.count == 0 {
                         need_delete_old_type = true;
@@ -129,7 +142,7 @@ impl ReduceAccumulator {
                     }
                 };
 
-                by_type.sum_ms += new_ms;
+                by_type.sum_ms += f32_to_f64(new_ms);
                 by_type.count += 1;
             }
 
@@ -150,11 +163,36 @@ impl ReduceAccumulator {
             return;
         }
 
-        let key_str = from_utf8(key).expect("not utf8");
+        let key = parse_and_store_intermediate_key(key);
+        let value = key.value();
+
+        let new_count = if now_existing {
+            self.items_count + 1
+        } else {
+            self.items_count - 1
+        };
+        self.items_count = new_count;
+
+        for percentile in self.percentiles.as_mut_slice() {
+            let Some(parsed_key) = percentile.intermediate_key.as_ref() else {
+                percentile.intermediate_key = Some(key.clone());
+                continue;
+            };
+
+            let parsed_value = parsed_key.value();
+            assert_ne!(value, parsed_value, "Intermediate keys should be unique");
+
+            let old_index = percentile.key_pos;
+            let new_index = f32_to_u32(roundf(u64_to_f32(new_count) * percentile.percentile));
+
+            if old_index == new_index {
+                //
+            }
+        }
 
         use alloc::format;
         debug_print_string(format!(
-            "percentiles processing: {key_str}, {had_existed}, {now_existing}"
+            "percentiles processing: {value}, {had_existed}, {now_existing}"
         ));
 
         todo!();
@@ -174,18 +212,19 @@ fn parse_keys_around(bytes: Option<&[u8]>) -> Option<KeysAround> {
     let left_items = data.left().unwrap_or_default();
     let right_items = data.right().unwrap_or_default();
 
-    let key = Box::<[u8]>::from(data.key().expect("no key").bytes());
+    let key = parsed_intermediate_key::parse_and_store_intermediate_key(data.key().expect("no key").bytes());
     let mut left = Vec::with_capacity(left_items.len());
     let mut right = Vec::with_capacity(right_items.len());
 
     for key in left_items {
         let bytes = key.key().expect("no key").bytes();
-        left.push(Box::<[u8]>::from(bytes));
+        left.push(parsed_intermediate_key::parse_and_store_intermediate_key(bytes));
     }
     for key in right_items {
         let bytes = key.key().expect("no key").bytes();
-        right.push(Box::<[u8]>::from(bytes));
+        right.push(parsed_intermediate_key::parse_and_store_intermediate_key(bytes));
     }
 
     Some((left, key, right))
 }
+

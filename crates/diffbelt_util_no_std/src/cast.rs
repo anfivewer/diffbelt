@@ -37,6 +37,11 @@ pub fn u64_to_usize(value: u64) -> usize {
 }
 
 #[inline(always)]
+pub fn u64_to_f32(value: u64) -> f32 {
+    value as f32
+}
+
+#[inline(always)]
 pub fn try_u64_to_i64(value: u64) -> Option<i64> {
     if value >= i64::MAX as u64 {
         return None;
@@ -111,8 +116,13 @@ pub fn i32_to_f32(value: i32) -> f32 {
 }
 
 #[inline(always)]
-pub fn f32_to_f64(value: i32) -> f32 {
-    value as f32
+pub fn f32_to_f64(value: f32) -> f64 {
+    value as f64
+}
+
+#[inline(always)]
+pub fn f32_to_u32(value: f32) -> u32 {
+    value as u32
 }
 
 #[inline(always)]
