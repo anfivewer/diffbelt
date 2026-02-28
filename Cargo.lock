@@ -659,6 +659,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "diffbelt-percentiles-calculator"
+version = "0.1.0"
+dependencies = [
+ "hashbrown 0.13.2",
+ "rand",
+]
+
+[[package]]
 name = "diffbelt_aligned_bytes"
 version = "0.1.0"
 dependencies = [
