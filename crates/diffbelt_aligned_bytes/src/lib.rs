@@ -9,6 +9,7 @@ extern crate alloc;
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
+use thiserror_no_std::Error;
 use core::fmt::{Debug, Formatter};
 
 pub struct OwnedAlignedBytes<const ALIGN: usize> {
@@ -37,6 +38,8 @@ impl<const ALIGN: usize> Default for OwnedAlignedBytes<ALIGN> {
 pub struct AlignedBytes<'a, const ALIGN: usize>(&'a [u8]);
 
 #[derive(Debug)]
+#[derive(Error)]
+#[error("AlignedBytesError({reason}, {buffer:?})")]
 pub struct AlignedBytesError {
     pub reason: String,
     pub buffer: Option<Vec<u8>>,

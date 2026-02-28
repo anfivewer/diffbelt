@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-flatbuffers = { version = "23.5.26", default-features = false, features = [] }
+flatbuffers = { version = "25.12.19", default-features = false, features = [] }
 
 [dependencies.diffbelt_protos]
 path = "../diffbelt_protos"

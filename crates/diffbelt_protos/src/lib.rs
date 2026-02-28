@@ -3,7 +3,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::fmt::{Debug, Formatter, Write};
+use core::fmt::{Debug, Formatter};
 use core::marker::PhantomData;
 
 use crate::align_util::{AlignedBytes, OwnedAlignedBytes};

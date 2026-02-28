@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
+use diffbelt_protos::protos::database::CollectionRecordArgs;
+use diffbelt_protos::protos::impls::CollectionRecordProto;
+use diffbelt_protos::{FlatbuffersGenericType, Serializer};
 use protobuf::Message;
 
 use crate::collection::open::{CollectionOpenError, CollectionOpenOptions};
 use crate::collection::Collection;
 use crate::database::constants::DATABASE_RAW_DB_CF;
 use crate::database::Database;
-use crate::protos::database_meta::CollectionRecord;
 use crate::raw_db::RawDbError;
 
 pub struct CreateCollectionOptions {
@@ -62,13 +64,20 @@ impl Database {
         meta_collection_record_key.extend_from_slice(id_bytes);
         let meta_collection_record_key = meta_collection_record_key.as_slice();
 
-        let mut collection_record = CollectionRecord::new();
-        collection_record.id = id.to_string();
-        collection_record.is_manual = options.is_manual;
+        let collection_record = {
+            let mut serializer = Serializer::<CollectionRecordProto>::new();
+            let id = serializer.create_string(id);
+            let root = <CollectionRecordProto as FlatbuffersGenericType>::FlatType::create(
+                serializer.buffer_builder(),
+                &CollectionRecordArgs {
+                    id: Some(id),
+                    is_manual: options.is_manual,
+                },
+            );
 
-        let collection_record = collection_record
-            .write_to_bytes()
-            .or_else(|err| Err(CreateCollectionError::Protobuf(err)))?;
+            serializer.finish(root)
+        };
+        let collection_record = collection_record.as_bytes();
 
         self.database_raw_db
             .put_cf(

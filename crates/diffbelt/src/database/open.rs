@@ -2,8 +2,13 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use diffbelt_aligned_bytes::{AlignedBytes, AlignedBytesError, OwnedAlignedBytes};
+use diffbelt_protos::protos::impls::CollectionRecordProto;
+use diffbelt_protos::Serialized;
+use diffbelt_util::errors::NoStdErrorWrap;
 use diffbelt_util::idling_status::IdlingStatus;
 use protobuf::Message;
+use thiserror::Error;
 use tokio::sync::{watch, Mutex, RwLock};
 
 use crate::collection::methods::errors::CollectionMethodError;
@@ -19,7 +24,6 @@ use crate::database::{Database, DatabaseInner};
 use crate::messages::garbage_collector::DatabaseGarbageCollectorTask;
 use crate::messages::generations::DatabaseCollectionGenerationsTask;
 use crate::messages::readers::DatabaseCollectionReadersTask;
-use crate::protos::database_meta::CollectionRecord;
 use crate::raw_db::{RawDb, RawDbError, RawDbOptions};
 use crate::util::async_spawns::run_when_watch_is_true_or_end;
 use crate::util::atomic_cleanup::AtomicCleanup;
@@ -30,13 +34,22 @@ pub struct DatabaseOpenOptions<'a> {
     pub idling: IdlingStatus,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum DatabaseOpenError {
+    #[error("{0:?}")]
     CollectionOpen(CollectionOpenError),
+    #[error("{0:?}")]
     RawDb(RawDbError),
+    #[error("CollectionsReading")]
     CollectionsReading,
+    #[error("FlatbuffersError({0})")]
+    FlatbuffersErrorStatic(&'static str),
+    #[error(transparent)]
     CollectionRawDbDeletion(std::io::Error),
+    #[error("{0:?}")]
     CollectionMethod(CollectionMethodError),
+    #[error("{0:?}")]
+    AlignedBytes(#[from] NoStdErrorWrap<AlignedBytesError>),
 }
 
 impl Database {
@@ -105,18 +118,27 @@ impl Database {
 
         let mut deleted_collections = Vec::new();
 
-        for (_, value) in collection_records {
-            let record = CollectionRecord::parse_from_bytes(&value)
-                .or(Err(DatabaseOpenError::CollectionsReading))?;
+        let mut aligned_buf = Vec::new();
 
-            let id = record.id;
+        for (_, value) in collection_records {
+            let aligned_bytes = AlignedBytes::ensure_alignment_or_copy(&value, &mut aligned_buf)
+                .map_err(NoStdErrorWrap)?;
+            let record = Serialized::<CollectionRecordProto>::from_aligned_bytes(aligned_bytes)
+                .map_err(|_| DatabaseOpenError::FlatbuffersErrorStatic("cannot deserialize"))?;
+            let record = record.data();
+
+            let id = record
+                .id()
+                .ok_or_else(|| DatabaseOpenError::FlatbuffersErrorStatic("no id"))?;
+
+            let is_manual = record.is_manual();
 
             let is_deleted = database_inner
-                .is_marked_for_deletion_sync(id.as_str())
+                .is_marked_for_deletion_sync(id)
                 .map_err(|err| DatabaseOpenError::RawDb(err))?;
 
             if is_deleted {
-                let path = Collection::get_path(data_path, &id);
+                let path = Collection::get_path(data_path, id);
                 std::fs::remove_dir_all(path).or_else(|err| {
                     match err.kind() {
                         std::io::ErrorKind::NotFound => {
@@ -135,15 +157,15 @@ impl Database {
 
             let collection = Collection::open(CollectionOpenOptions {
                 config: config.clone(),
-                name: id.clone(),
+                name: String::from(id),
                 data_path,
-                is_manual: record.is_manual,
+                is_manual,
                 database_inner: database_inner.clone(),
             })
             .await
             .or_else(|err| Err(DatabaseOpenError::CollectionOpen(err)))?;
 
-            collections_lock.insert(id, collection);
+            collections_lock.insert(String::from(id), collection);
         }
 
         drop(collections_lock);

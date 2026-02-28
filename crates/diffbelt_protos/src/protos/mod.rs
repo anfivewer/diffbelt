@@ -3,6 +3,10 @@ pub mod handlers;
 pub mod impls;
 mod tests;
 
+pub mod database {
+    pub use super::generated::database::database_meta_generated::*;
+}
+
 pub mod api {
     pub mod collection {
         pub use super::super::generated::api::collection_generated::*;

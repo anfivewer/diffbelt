@@ -16,6 +16,13 @@ fn main() {
 
     let paths = [
         SubPath::Folder((
+            "database",
+            vec![
+                SubPath::File(("database_meta.fbs", None)),
+            ],
+            None,
+        )),
+        SubPath::Folder((
             "transform",
             vec![
                 SubPath::File(("map_filter.fbs", None)),

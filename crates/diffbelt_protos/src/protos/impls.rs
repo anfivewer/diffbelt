@@ -22,6 +22,7 @@ use crate::protos::api::readers::{
     CreateReaderRequest, CreateReaderRequestArgs, CreateReaderResponse, CreateReaderResponseArgs,
     ListReadersRequest, ListReadersRequestArgs, ListReadersResponse, ListReadersResponseArgs,
 };
+use crate::protos::database::{CollectionRecord, CollectionRecordArgs};
 use crate::protos::transform::aggregate::{
     AggregateApplyOutput, AggregateApplyOutputArgs, AggregateMapMultiInput,
     AggregateMapMultiInputArgs, AggregateMapMultiOutput, AggregateMapMultiOutputArgs,
@@ -49,6 +50,8 @@ macro_rules! flatbuffers_generic {
         }
     };
 }
+
+flatbuffers_generic!(CollectionRecord, CollectionRecordArgs<'a>);
 
 flatbuffers_generic!(Request, RequestArgs);
 flatbuffers_generic!(Response, ResponseArgs);

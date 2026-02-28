@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-flatbuffers = { version = "23.5.26", default-features = false, features = [] }
+flatbuffers = { version = "25.12.19", default-features = false, features = [] }
 thiserror-no-std = { version = "2.0.2", default-features = false }
 enum-as-inner = "0.6.0"
 paste = "1.0.15"
