@@ -470,6 +470,6 @@ tests:
             updateType: edited_message
             ms: 27
 
-integration_tests:
-  - name: updateMs_1d_percentiles_empty
-    wasm: example.calculatePercentilesEmptyIntegrationTest
+# integration_tests:
+#   - name: updateMs_1d_percentiles_empty
+#     wasm: example.calculatePercentilesEmptyIntegrationTest

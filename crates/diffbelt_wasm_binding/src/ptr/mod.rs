@@ -33,6 +33,15 @@ pub struct MutPtr<T: Pod> {
     phantom: PhantomData<T>,
 }
 
+impl <T: Pod> MutPtr<T> {
+    pub fn new_i32(value: i32) -> Self {
+        Self {
+            value,
+            phantom: Default::default(),
+        }
+    }
+}
+
 impl<T: Pod> From<*const T> for ConstPtr<T> {
     fn from(value: *const T) -> Self {
         Self {

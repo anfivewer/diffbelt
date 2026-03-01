@@ -19,7 +19,12 @@ unsafe extern "C" fn alloc(capacity: i32) -> BytesVecPtr {
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn dealloc(ptr: BytesVecWidePtr) {
+unsafe extern "C" fn dealloc(ptr: *mut u8, capacity: i32) {
+    let ptr = BytesVecWidePtr {
+        ptr,
+        capacity,
+    };
+
     unsafe {
         let _: Vec<u8> = ptr.into_empty_vec();
     }
@@ -41,9 +46,15 @@ unsafe extern "C" fn dealloc_bytes_slice(ptr: *mut BytesSlice) {
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn dealloc_bytes_vec(parts: BytesVecRawParts) {
+unsafe extern "C" fn dealloc_bytes_vec(ptr: i32, len: u32, capacity: u32) {
+    let parts = BytesVecRawParts {
+        ptr: MutPtr::new_i32(ptr),
+        len,
+        capacity,
+    };
+
     if parts.capacity > 0 {
-        let _: Vec<u8> = parts.into_vec();
+        let _: Vec<u8> = unsafe { parts.into_vec() };
     }
 }
 

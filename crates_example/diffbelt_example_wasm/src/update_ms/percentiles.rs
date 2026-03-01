@@ -34,28 +34,28 @@ impl Aggregate<SourceKey, SourceValue, MappedValue, Accumulator, TargetKey, Targ
     }
 
     unsafe extern "C" fn initial_accumulator(
-        target_info: FlatbufferAnnotated<
-            BytesSlice,
-            Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
-        >,
+        target_info_ptr: FlatbufferAnnotated<*const u8, Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>>,
+        target_info_len: u32,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode { unsafe {
-        let buffer = (&*accumulator_ptr.value).into_empty_vec();
+        // let buffer = (&*accumulator_ptr.value).into_empty_vec();
         
-        let serializer = Serializer::<UpdateMsAccumulatorProto>::from_vec(buffer);
+        // let serializer = Serializer::<UpdateMsAccumulatorProto>::from_vec(buffer);
         
         todo!()
     }}
 
     unsafe extern "C" fn reduce(
-        input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue>>,
+        input_ptr: FlatbufferAnnotated<*const u8, Annotated<AggregateReduceInput, MappedValue>>,
+        input_len: u32,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
         todo!()
     }
 
     unsafe extern "C" fn merge_accumulators(
-        input: SliceRawParts<Annotated<BytesVecRawParts, Accumulator>>,
+        input_ptr: Annotated<*const BytesVecRawParts, Accumulator>,
+        input_len: u32,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
         todo!()

@@ -10,7 +10,7 @@ use crate::{
 };
 
 enum PendingAsync<P: PTypes> {
-
+    Unused(PhantomData<P>),
 }
 
 pub struct MockDataProvider<P: PTypes> {

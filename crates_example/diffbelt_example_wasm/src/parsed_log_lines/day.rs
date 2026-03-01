@@ -128,13 +128,18 @@ impl<'t>
 
     #[unsafe(export_name = "aggregateInitialAccumulator")]
     unsafe extern "C" fn initial_accumulator(
-        target_info: FlatbufferAnnotated<
-            BytesSlice,
-            Annotated<AggregateTargetInfo, (TargetKey<'t>, TargetValue<'t>)>,
+        target_info_ptr: FlatbufferAnnotated<
+            *const u8,
+            Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
         >,
+        target_info_len: u32,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
-        let target_info = unsafe { target_info.value.as_slice() };
+        let target_info = BytesSlice {
+            ptr: target_info_ptr.value.into(),
+            len: target_info_len,
+        };
+        let target_info = unsafe { target_info.as_slice() };
         let mut buffer_holder = take_buffer_for_realign();
         let target_info =
             AlignedBytes::ensure_alignment_or_copy(target_info, buffer_holder.as_mut())
@@ -191,14 +196,19 @@ impl<'t>
 
     #[unsafe(export_name = "aggregateReduce")]
     unsafe extern "C" fn reduce(
-        input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue<'t>>>,
+        input_ptr: FlatbufferAnnotated<*const u8, Annotated<AggregateReduceInput, MappedValue<'t>>>,
+        input_len: u32,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
         let accumulator_buffer = unsafe { (&*accumulator_ptr.value).into_vec() };
         let mut accumulator = DayAccumulator::from_accumulator_bytes(&accumulator_buffer);
 
         let mut buffer_holder = take_buffer_for_realign();
-        let input = unsafe { input.value.as_slice() };
+        let input = BytesSlice {
+            ptr: input_ptr.value.into(),
+            len: input_len,
+        };
+        let input = unsafe { input.as_slice() };
         let input = AlignedBytes::ensure_alignment_or_copy(input, buffer_holder.as_mut())
             .expect("align error");
         let serialized =
@@ -237,16 +247,21 @@ impl<'t>
 
     #[unsafe(export_name = "aggregateMergeAccumulators")]
     unsafe extern "C" fn merge_accumulators(
-        input: SliceRawParts<Annotated<BytesVecRawParts, Accumulator>>,
+        input_ptr: Annotated<*const BytesVecRawParts, Accumulator>,
+        input_len: u32,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode {
         let accumulator_buffer = unsafe { (&*accumulator_ptr.value).into_vec() };
+        let input = SliceRawParts {
+            ptr: input_ptr.value.into(),
+            len: input_len,
+        };
         let input = unsafe { input.as_slice() };
 
         let mut accumulator = DayAccumulator::from_accumulator_bytes(&accumulator_buffer);
 
         for item in input {
-            let bytes = unsafe { item.value.as_slice() };
+            let bytes = unsafe { item.as_slice() };
             let mut buffer_holder = take_buffer_for_realign();
             let serialized =
                 DayAccumulator::parsed_log_line_1d_from_bytes(bytes, buffer_holder.as_mut());

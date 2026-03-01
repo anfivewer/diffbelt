@@ -7,6 +7,7 @@ use diffbelt_util::tokio_runtime::create_main_tokio_runtime;
 use diffbelt_yaml::parse_yaml;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 
 #[test]
 fn run_example_config_tests() {
@@ -27,11 +28,16 @@ async fn run_example_config_tests_inner() {
     .await
     .expect("engine creation");
 
+    let client = Arc::from(DiffbeltClient::new(DiffbeltClientNewOptions {
+        host: String::from("127.0.0.1"),
+        port: 0,
+    }));
+
     let options = RunTestsOptions {
         with_unit: true,
         with_integration: false,
         wasm_engine,
-        client: None,
+        client: Some(client),
         cli_api: None,
     };
 

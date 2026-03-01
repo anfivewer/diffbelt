@@ -27,15 +27,14 @@ pub trait Aggregate<
     ) -> ErrorCode;
 
     unsafe extern "C" fn initial_accumulator(
-        target_info: FlatbufferAnnotated<
-            BytesSlice,
-            Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>,
-        >,
+        target_info_ptr: FlatbufferAnnotated<*const u8, Annotated<AggregateTargetInfo, (TargetKey, TargetValue)>>,
+        target_info_len: u32,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode;
 
     unsafe extern "C" fn reduce(
-        input: Annotated<BytesSlice, Annotated<AggregateReduceInput, MappedValue>>,
+        input_ptr: FlatbufferAnnotated<*const u8, Annotated<AggregateReduceInput, MappedValue>>,
+        input_len: u32,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode;
 
@@ -48,7 +47,8 @@ pub trait Aggregate<
      * Accumulator argument receives first accumulator.
      */
     unsafe extern "C" fn merge_accumulators(
-        input: SliceRawParts<Annotated<BytesVecRawParts, Accumulator>>,
+        input_ptr: Annotated<*const BytesVecRawParts, Accumulator>,
+        input_len: u32,
         accumulator_ptr: Annotated<*mut BytesVecRawParts, Accumulator>,
     ) -> ErrorCode;
 
