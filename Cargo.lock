@@ -659,10 +659,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "diffbelt-percentiles-calculator"
+name = "diffbelt-percentiles-calculator-test"
 version = "0.1.0"
 dependencies = [
- "hashbrown 0.13.2",
+ "diffbelt_percentiles_calculator",
+ "diffbelt_util_no_std",
+ "enum-as-inner",
  "rand",
 ]
 
@@ -762,6 +764,10 @@ dependencies = [
 [[package]]
 name = "diffbelt_macro"
 version = "0.0.1"
+
+[[package]]
+name = "diffbelt_percentiles_calculator"
+version = "0.1.0"
 
 [[package]]
 name = "diffbelt_protos"

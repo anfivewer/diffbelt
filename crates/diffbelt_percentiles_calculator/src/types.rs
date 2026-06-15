@@ -36,27 +36,33 @@ pub trait FetchKeysAroundResponse<P: PTypes> {
 }
 
 pub trait PercentilesDataProvider<P: PTypes> {
-    fn get_target_record(&self, key: P::TargetKey) -> Result<u64, P::DataProviderError>;
-    fn await_target_record(&self, id: u64) -> Result<P::TargetRecord, P::DataProviderError>;
+    fn get_target_record(&mut self, key: P::TargetKey) -> Result<u64, P::DataProviderError>;
+    fn await_target_record(
+        &mut self,
+        id: u64,
+    ) -> Result<Option<P::TargetRecord>, P::DataProviderError>;
 
     fn put_target_record(
-        &self,
+        &mut self,
         key: P::TargetKey,
         record: P::TargetRecord,
     ) -> Result<(), P::DataProviderError>;
 
     fn fetch_keys_around(
-        &self,
+        &mut self,
         key: P::PercentileKey,
         direction: FetchKeysAroundDirection,
     ) -> Result<u64, P::DataProviderError>;
-    fn await_fetch_keys_around(&self, id: u64) -> Result<P::FetchKeysAround, P::DataProviderError>;
+    fn await_fetch_keys_around(
+        &mut self,
+        id: u64,
+    ) -> Result<P::FetchKeysAround, P::DataProviderError>;
 
-    fn insert_key(&self, key: P::PercentileKey) -> Result<u64, P::DataProviderError>;
-    fn remove_key(&self, key: P::PercentileKey) -> Result<u64, P::DataProviderError>;
+    fn insert_key(&mut self, key: P::PercentileKey) -> Result<u64, P::DataProviderError>;
+    fn remove_key(&mut self, key: P::PercentileKey) -> Result<u64, P::DataProviderError>;
 
     fn is_async_completed(&self, id: u64) -> Result<bool, P::DataProviderError>;
-    fn await_void_async(&self, id: u64) -> Result<(), P::DataProviderError>;
+    fn await_void_async(&mut self, id: u64) -> Result<(), P::DataProviderError>;
 }
 
 pub enum DiffKey<P: PTypes> {
@@ -69,7 +75,9 @@ pub trait SourceDiffRecord<P: PTypes> {
 }
 
 pub trait PercentilesSourceChunk<P: PTypes> {
-    fn diffs<'a>(&'a self) -> impl Iterator<Item = &'a P::SourceRecord>  where <P as PTypes>::SourceRecord: 'a;
+    fn diffs<'a>(&'a self) -> impl Iterator<Item = &'a P::SourceRecord>
+    where
+        <P as PTypes>::SourceRecord: 'a;
 }
 
 pub struct PercentilesCalculatorOptions<P: PTypes> {

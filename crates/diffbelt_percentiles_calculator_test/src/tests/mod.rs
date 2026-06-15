@@ -1,11 +1,11 @@
-use alloc::{rc::Rc, vec::Vec};
+use std::{rc::Rc, sync::Arc};
 
-use crate::{
-    tests::data_provider::{MockDataProviderError, MockFetchAroundResponse},
-    types::{
-        DiffKey, PTypes, PercentileFull, PercentilesSourceChunk, PercentilesTargetRecord, SourceDiffRecord
-    },
+use diffbelt_percentiles_calculator::types::{
+    DiffKey, PTypes, PercentileFull, PercentilesSourceChunk, PercentilesTargetRecord,
+    SourceDiffRecord,
 };
+
+use crate::tests::data_provider::{MockDataProviderError, MockFetchAroundResponse};
 
 pub mod data_provider;
 
@@ -15,7 +15,7 @@ impl PTypes for MockPTypes {
     type PercentileKey = Rc<[u8]>;
     type TargetKey = Rc<[u8]>;
 
-    type TargetRecord = MockTargetRecord;
+    type TargetRecord = Arc<MockTargetRecord>;
 
     type DataProviderError = MockDataProviderError;
 
@@ -30,7 +30,7 @@ pub struct MockTargetRecord {
     pub percentiles: Vec<PercentileFull<MockPTypes>>,
 }
 
-impl PercentilesTargetRecord<MockPTypes> for MockTargetRecord {
+impl PercentilesTargetRecord<MockPTypes> for Arc<MockTargetRecord> {
     fn percentiles(&self) -> &[PercentileFull<MockPTypes>] {
         &self.percentiles
     }
@@ -51,7 +51,10 @@ pub struct MockSourceChunk {
 }
 
 impl PercentilesSourceChunk<MockPTypes> for MockSourceChunk {
-    fn diffs<'a>(&'a self) -> impl Iterator<Item = &'a <MockPTypes as PTypes>::SourceRecord>  where <MockPTypes as PTypes>::SourceRecord: 'a {
+    fn diffs<'a>(&'a self) -> impl Iterator<Item = &'a <MockPTypes as PTypes>::SourceRecord>
+    where
+        <MockPTypes as PTypes>::SourceRecord: 'a,
+    {
         self.records.iter()
     }
 }

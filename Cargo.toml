@@ -15,6 +15,7 @@ members = [
 	"crates/diffbelt_transforms",
 
 	"crates/diffbelt_percentiles_calculator",
+	"crates/diffbelt_percentiles_calculator_test",
 
 	"crates/diffbelt_example_protos",
 	# Cannot be included yet, we need force target
