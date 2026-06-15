@@ -666,6 +666,7 @@ dependencies = [
  "diffbelt_util_no_std",
  "enum-as-inner",
  "rand",
+ "rand_chacha",
 ]
 
 [[package]]

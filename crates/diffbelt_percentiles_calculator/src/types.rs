@@ -10,6 +10,7 @@ pub trait PTypes: Sized {
     type FetchKeysAround: FetchKeysAroundResponse<Self>;
     type SourceRecord: SourceDiffRecord<Self>;
     type SourceChunk: PercentilesSourceChunk<Self>;
+    type DataProvider: PercentilesDataProvider<Self>;
 }
 
 pub struct PercentileFull<P: PTypes> {
@@ -82,6 +83,7 @@ pub trait PercentilesSourceChunk<P: PTypes> {
 
 pub struct PercentilesCalculatorOptions<P: PTypes> {
     pub chunk: P::SourceChunk,
+    pub data_provider: P::DataProvider,
 }
 
 pub enum PercentilesError<P: PTypes> {

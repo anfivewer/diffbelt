@@ -1,19 +1,21 @@
-use std::{rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 use diffbelt_percentiles_calculator::types::{
     DiffKey, PTypes, PercentileFull, PercentilesSourceChunk, PercentilesTargetRecord,
     SourceDiffRecord,
 };
 
-use crate::tests::data_provider::{MockDataProviderError, MockFetchAroundResponse};
+use crate::tests::data_provider::{MockDataProvider, MockDataProviderError, MockFetchAroundResponse};
 
+mod basic;
 pub mod data_provider;
 
+#[derive(Clone)]
 pub struct MockPTypes;
 
 impl PTypes for MockPTypes {
-    type PercentileKey = Rc<[u8]>;
-    type TargetKey = Rc<[u8]>;
+    type PercentileKey = Arc<[u8]>;
+    type TargetKey = Arc<[u8]>;
 
     type TargetRecord = Arc<MockTargetRecord>;
 
@@ -24,6 +26,8 @@ impl PTypes for MockPTypes {
     type SourceRecord = MockSourceRecord;
 
     type SourceChunk = MockSourceChunk;
+
+    type DataProvider = MockDataProvider<MockPTypes>;
 }
 
 pub struct MockTargetRecord {
