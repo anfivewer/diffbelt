@@ -1,6 +1,8 @@
 use core::marker::PhantomData;
+use core::ops::Deref;
 use std::{
     collections::{HashMap, HashSet},
+    rc::Rc,
     sync::{Arc, OnceLock},
 };
 
@@ -20,6 +22,16 @@ enum PendingAsync<P: PTypes> {
         key: P::TargetKey,
         lock: OnceLock<()>,
     },
+    FetchKeysAround {
+        lock: OnceLock<()>,
+        result: OnceLock<MockFetchAroundResponse>,
+    },
+    InsertKey {
+        lock: OnceLock<()>,
+    },
+    RemoveKey {
+        lock: OnceLock<()>,
+    },
 }
 
 pub struct MockDataProvider<P: PTypes> {
@@ -29,12 +41,15 @@ pub struct MockDataProvider<P: PTypes> {
     pending_asyncs_set: HashSet<u64>,
     pending_asyncs_map: HashMap<u64, Arc<PendingAsync<P>>>,
     async_id_counter: u64,
+    insert_key_pending: HashMap<u64, P::PercentileKey>,
+    remove_key_pending: HashMap<u64, P::PercentileKey>,
+    fetch_keys_around_pending: HashMap<u64, (P::PercentileKey, FetchKeysAroundDirection)>,
     phantom: PhantomData<P>,
 }
 
 pub struct MockDataProviderOptions<P: PTypes> {
-    initial_target_records: HashMap<P::TargetKey, P::TargetRecord>,
-    initial_source_keys: Vec<P::PercentileKey>,
+    pub initial_target_records: HashMap<P::TargetKey, P::TargetRecord>,
+    pub initial_source_keys: Vec<P::PercentileKey>,
 }
 
 impl<P: PTypes> MockDataProvider<P> {
@@ -46,7 +61,44 @@ impl<P: PTypes> MockDataProvider<P> {
             pending_asyncs_set: Default::default(),
             pending_asyncs_map: Default::default(),
             async_id_counter: 0,
+            insert_key_pending: Default::default(),
+            remove_key_pending: Default::default(),
+            fetch_keys_around_pending: Default::default(),
             phantom: Default::default(),
+        }
+    }
+
+    fn process_pending(&mut self, id: u64, pending: Arc<PendingAsync<P>>) {
+        match pending.as_ref() {
+            PendingAsync::GetTargetRecord { .. } => {}
+            PendingAsync::FetchKeysAround { lock, result } => {
+                if let Some((key, direction)) = self.fetch_keys_around_pending.remove(&id) {
+                    let response = self.build_fetch_keys_around_response(&key, &direction);
+                    result.set(response).expect("already initialized");
+                }
+                lock.set(()).expect("already initialized");
+            }
+            PendingAsync::InsertKey { lock } => {
+                if let Some(key) = self.insert_key_pending.remove(&id) {
+                    let pos =
+                        self.source_keys
+                            .binary_search_by(|existing_key| {
+                                existing_key.deref().cmp(key.deref())
+                            });
+                    if let Err(insert_pos) = pos {
+                        self.source_keys.insert(insert_pos, key);
+                    }
+                }
+                lock.set(()).expect("already initialized");
+            }
+            PendingAsync::RemoveKey { lock } => {
+                if let Some(key) = self.remove_key_pending.remove(&id) {
+                    self.source_keys.retain(|existing_key| {
+                        existing_key.deref() != key.deref()
+                    });
+                }
+                lock.set(()).expect("already initialized");
+            }
         }
     }
 
@@ -54,18 +106,67 @@ impl<P: PTypes> MockDataProvider<P> {
         if self.pending_asyncs.is_empty() {
             return;
         }
-
         let index = u64_to_usize(rng.next_u64()) % self.pending_asyncs.len();
-
         let (id, pending) = self.pending_asyncs.remove(index);
+        self.pending_asyncs_set.remove(&id);
+        self.process_pending(id, pending);
+    }
 
-        let lock = match pending.as_ref() {
-            PendingAsync::GetTargetRecord { lock, .. } => lock,
+    pub fn resolve_all_asyncs(&mut self) {
+        while !self.pending_asyncs.is_empty() {
+            let (id, pending) = self.pending_asyncs.remove(0);
+            self.pending_asyncs_set.remove(&id);
+            self.process_pending(id, pending);
+        }
+    }
+
+    pub fn pending_asyncs_count(&self) -> usize {
+        self.pending_asyncs.len()
+    }
+
+    fn build_fetch_keys_around_response(
+        &self,
+        key: &P::PercentileKey,
+        direction: &FetchKeysAroundDirection,
+    ) -> MockFetchAroundResponse {
+        let center_key: Rc<[u8]> = Rc::from(key.deref());
+
+        let found_position =
+            self.source_keys
+                .binary_search_by(|existing_key| existing_key.deref().cmp(key.deref()));
+
+        let (left_keys, right_keys) = match found_position {
+            Ok(center_index) => {
+                let left = match direction {
+                    FetchKeysAroundDirection::Left | FetchKeysAroundDirection::Both => {
+                        let mut reversed_left: Vec<Rc<[u8]>> = self.source_keys[..center_index]
+                            .iter()
+                            .map(|k| Rc::from(k.deref()))
+                            .collect();
+                        reversed_left.reverse();
+                        reversed_left
+                    }
+                    _ => vec![],
+                };
+                let right = match direction {
+                    FetchKeysAroundDirection::Right | FetchKeysAroundDirection::Both => {
+                        self.source_keys[center_index + 1..]
+                            .iter()
+                            .map(|k| Rc::from(k.deref()))
+                            .collect()
+                    }
+                    _ => vec![],
+                };
+                (left, right)
+            }
+            Err(_) => (vec![], vec![]),
         };
 
-        self.pending_asyncs_set.remove(&id);
-
-        lock.set(()).expect("already initialized");
+        MockFetchAroundResponse {
+            center_key,
+            left_keys,
+            right_keys,
+        }
     }
 
     fn insert_pending_async(&mut self, pending: PendingAsync<P>) -> u64 {
@@ -124,7 +225,8 @@ impl PercentilesDataProvider<MockPTypes> for MockDataProvider<MockPTypes> {
         key: <MockPTypes as PTypes>::TargetKey,
         record: <MockPTypes as PTypes>::TargetRecord,
     ) -> Result<(), <MockPTypes as PTypes>::DataProviderError> {
-        todo!()
+        self.target_records.insert(key, record);
+        Ok(())
     }
 
     fn fetch_keys_around(
@@ -132,7 +234,12 @@ impl PercentilesDataProvider<MockPTypes> for MockDataProvider<MockPTypes> {
         key: <MockPTypes as PTypes>::PercentileKey,
         direction: FetchKeysAroundDirection,
     ) -> Result<u64, <MockPTypes as PTypes>::DataProviderError> {
-        todo!()
+        let id = self.insert_pending_async(PendingAsync::FetchKeysAround {
+            lock: OnceLock::new(),
+            result: OnceLock::new(),
+        });
+        self.fetch_keys_around_pending.insert(id, (key, direction));
+        Ok(id)
     }
 
     fn await_fetch_keys_around(
@@ -140,21 +247,49 @@ impl PercentilesDataProvider<MockPTypes> for MockDataProvider<MockPTypes> {
         id: u64,
     ) -> Result<<MockPTypes as PTypes>::FetchKeysAround, <MockPTypes as PTypes>::DataProviderError>
     {
-        todo!()
+        let pending = self
+            .pending_asyncs_map
+            .get(&id)
+            .ok_or_else(|| MockDataProviderError::Message(format!("No pending {id}")))?;
+
+        let Some((lock, result)) = pending.as_fetch_keys_around() else {
+            return Err(MockDataProviderError::MessageStatic(
+                "not fetch keys around pending",
+            ));
+        };
+
+        lock.wait();
+
+        let response = result
+            .get()
+            .expect("fetch keys around result not set")
+            .clone();
+
+        self.pending_asyncs_map.remove(&id);
+
+        Ok(response)
     }
 
     fn insert_key(
         &mut self,
         key: <MockPTypes as PTypes>::PercentileKey,
     ) -> Result<u64, <MockPTypes as PTypes>::DataProviderError> {
-        todo!()
+        let id = self.insert_pending_async(PendingAsync::InsertKey {
+            lock: OnceLock::new(),
+        });
+        self.insert_key_pending.insert(id, key);
+        Ok(id)
     }
 
     fn remove_key(
         &mut self,
         key: <MockPTypes as PTypes>::PercentileKey,
     ) -> Result<u64, <MockPTypes as PTypes>::DataProviderError> {
-        todo!()
+        let id = self.insert_pending_async(PendingAsync::RemoveKey {
+            lock: OnceLock::new(),
+        });
+        self.remove_key_pending.insert(id, key);
+        Ok(id)
     }
 
     fn is_async_completed(
@@ -178,7 +313,18 @@ impl PercentilesDataProvider<MockPTypes> for MockDataProvider<MockPTypes> {
             .ok_or_else(|| MockDataProviderError::Message(format!("No pending {id}")))?;
 
         let lock = match pending.as_ref() {
-            PendingAsync::GetTargetRecord { lock, .. } => lock,
+            PendingAsync::InsertKey { lock } => lock,
+            PendingAsync::RemoveKey { lock } => lock,
+            PendingAsync::GetTargetRecord { .. } => {
+                return Err(MockDataProviderError::MessageStatic(
+                    "use await_target_record for get_target_record async",
+                ));
+            }
+            PendingAsync::FetchKeysAround { .. } => {
+                return Err(MockDataProviderError::MessageStatic(
+                    "use await_fetch_keys_around for fetch_keys_around async",
+                ));
+            }
         };
 
         lock.wait();
@@ -189,23 +335,37 @@ impl PercentilesDataProvider<MockPTypes> for MockDataProvider<MockPTypes> {
     }
 }
 
-pub struct MockFetchAroundResponse;
+#[derive(Clone, Debug)]
+pub struct MockFetchAroundResponse {
+    center_key: Rc<[u8]>,
+    left_keys: Vec<Rc<[u8]>>,
+    right_keys: Vec<Rc<[u8]>>,
+}
 
 impl FetchKeysAroundResponse<MockPTypes> for MockFetchAroundResponse {
     fn center(&self) -> <MockPTypes as PTypes>::PercentileKey {
-        todo!()
+        self.center_key.clone()
     }
 
     fn direction() -> FetchKeysAroundDirection {
-        todo!()
+        FetchKeysAroundDirection::Both
     }
 
     fn left(&self) -> &[<MockPTypes as PTypes>::PercentileKey] {
-        todo!()
+        &self.left_keys
     }
 
     fn right(&self) -> &[<MockPTypes as PTypes>::PercentileKey] {
-        todo!()
+        &self.right_keys
+    }
+}
+
+impl MockDataProvider<MockPTypes> {
+    pub fn get_target_record_direct(
+        &self,
+        key: &<MockPTypes as PTypes>::TargetKey,
+    ) -> Option<&<MockPTypes as PTypes>::TargetRecord> {
+        self.target_records.get(key)
     }
 }
 
