@@ -10,7 +10,7 @@ use crate::tests::data_provider::{MockDataProvider, MockDataProviderError, MockF
 mod basic;
 pub mod data_provider;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MockPTypes;
 
 impl PTypes for MockPTypes {

@@ -1,6 +1,8 @@
 use core::ops::Deref;
 
+use alloc::boxed::Box;
 use alloc::string::String;
+use alloc::vec::Vec;
 
 pub trait PTypes: Sized {
     type PercentileKey: Deref<Target = [u8]>;
@@ -13,6 +15,7 @@ pub trait PTypes: Sized {
     type DataProvider: PercentilesDataProvider<Self>;
 }
 
+#[derive(Debug)]
 pub struct PercentileFull<P: PTypes> {
     pub p: f32,
     pub key: Option<P::PercentileKey>,
@@ -84,6 +87,8 @@ pub trait PercentilesSourceChunk<P: PTypes> {
 pub struct PercentilesCalculatorOptions<P: PTypes> {
     pub chunk: P::SourceChunk,
     pub data_provider: P::DataProvider,
+    pub source_key_to_target_key: Box<dyn Fn(&P::PercentileKey) -> P::TargetKey>,
+    pub percentiles: Vec<f32>,
 }
 
 pub enum PercentilesError<P: PTypes> {

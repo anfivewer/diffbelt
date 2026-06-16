@@ -444,7 +444,12 @@ impl FetchKeysAroundResponse<MockPTypes> for MockFetchAroundResponse {
 }
 
 impl MockDataProvider<MockPTypes> {
-    pub fn get_target_record_direct(
+    pub fn get_all_target_keys(&self) -> Vec<<MockPTypes as PTypes>::TargetKey> {
+        let inner = self.inner.read().unwrap();
+        inner.target_records.keys().cloned().collect()
+    }
+
+    pub fn get_target_record(
         &self,
         key: &<MockPTypes as PTypes>::TargetKey,
     ) -> Option<<MockPTypes as PTypes>::TargetRecord> {
